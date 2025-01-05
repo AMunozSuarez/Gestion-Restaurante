@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const { conexion } = require('./bdd/conexion'); // Import the connection function
-const testRoutes = require('./routes/testRoutes'); // Import the test routes
 
 require('dotenv').config(); // Load environment variables from the .env file
 
@@ -17,7 +16,9 @@ app.use(cors()); // Use CORS to allow cross-origin requests
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/api/v1/test', testRoutes); // Use the test routes
+app.use('/api/v1/test', require('./routes/testRoutes')); // Use the test routes
+
+app.use('/api/v1/auth', require('./routes/authRoutes')); // Use the auth routes
 
 
 app.get('/', (req, res) => {
