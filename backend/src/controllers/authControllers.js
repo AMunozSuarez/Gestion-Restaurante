@@ -1,4 +1,6 @@
 const userModel = require("../models/userModel");
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 
 // Register controller
@@ -23,11 +25,15 @@ const registerController = async (req, res) => {
                 message: 'email already exists' });
         }
 
+        // hashing the password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
         //create new user
         const user = await userModel.create({
             userName,
             email,
-            password,
+            password: hashedPassword,
             address,
             phone,
             usertype
@@ -69,12 +75,26 @@ const loginController = async (req, res) => {
                 message: 'Invalid email' });
         }
 
-        //check if password is correct
-        if (user.password !== password) {
+
+        //check user password, compare the password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
             return res.status(400).send({ 
                 success: false,
                 message: 'Invalid password' });
         }
+
+
+
+        //create token
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        res.status(200).send({ 
+            success: true,
+            message: 'Login successful',
+            token, user });
+        
+        user.password = undefined;
+
 
         res.status(200).send({ 
             success: true,
