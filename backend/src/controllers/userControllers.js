@@ -91,4 +91,78 @@ const updatePasswordController = async (req, res) => {
     }
 };
 
-module.exports = { getUserController, updateUserController, updatePasswordController };
+
+
+
+
+
+
+// RESET PASSWORD
+const resetPasswordController = async (req, res) => {
+    try {
+        const { email, answer, newPassword } = req.body;
+
+        if (!email || !answer || !newPassword) {
+            return res.status(400).send({ 
+                success: false,
+                message: 'Please enter all fields' });
+        }
+
+
+        const user = await userModel.findOne({
+            email,
+            answer
+        });
+
+        if (!user) {
+            return res.status(400).send({ 
+                success: false,
+                message: 'Invalid email or answer' });
+        }
+
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+        user.password = hashedPassword;
+        await user.save();
+
+        res.status(200).send({ 
+            success: true,
+            message: 'Password reset successfully' });
+    }
+
+
+    catch (error) {
+        console.log('Internal reset password error', error);
+    }
+}
+
+
+
+
+
+
+
+// DELETE USER
+const deleteUserController = async (req, res) => {
+    try {
+        const user = await userModel.findByIdAndDelete({ _id: req.params.id });
+        if (!user) {
+            return res.status(400).send({ 
+                success: false,
+                message: 'User not found' });
+        }
+        res.status(200).send({ 
+            success: true,
+            message: 'User deleted successfully' });
+    }
+    catch (error) {
+        console.log('Internal delete user error', error);
+    }
+}
+
+
+
+
+
+module.exports = { getUserController, updateUserController, updatePasswordController, resetPasswordController, deleteUserController }; // Export the controllers

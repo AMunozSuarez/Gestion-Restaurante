@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema({
     avatar: {
         type: String,
         default: 'https://cdn-icons-png.flaticon.com/512/1144/1144760.png'
+    },
+    answer: {
+        type: String,
+        required: [true, 'Please enter your answer']
     }
 }, {
     timestamps: true
