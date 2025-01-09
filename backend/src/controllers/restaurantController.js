@@ -88,8 +88,35 @@ const getRestaurantByIdController = async (req, res) => {
 
 
 
+
+
+
+
+// DELETE A RESTAURANT BY ID
+const deleteRestaurantByIdController = async (req, res) => {
+    try {
+        const restaurant = await restaurantModel.findByIdAndDelete(req.params.id);
+        if (!restaurant) {
+            return res.status(404).json({ 
+                success: false,
+                message: "No restaurant found" });
+        }
+        res.status(200).json({ 
+            success: true,
+            message: "Restaurant deleted successfully" });
+            
+    } catch (error) {
+        console.log('Internal server error', error);
+        res.status(400).json({ 
+            message: "error delete restaurant by id" });
+    }
+};
+
+
+
 module.exports = {
     createRestaurantController,
     getAllRestaurantsController,
-    getRestaurantByIdController
+    getRestaurantByIdController,
+    deleteRestaurantByIdController
 };
