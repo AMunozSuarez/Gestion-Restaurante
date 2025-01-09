@@ -19,6 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/v1/test', require('./routes/testRoutes')); // Use the test routes
 app.use('/api/v1/auth', require('./routes/authRoutes')); // Use the auth routes
 app.use('/api/v1/user', require('./routes/userRoutes')); // Use the user routes
+app.use('/api/v1/restaurant', require('./routes/restaurantRoutes')); // Use the restaurant routes
 
 
 app.get('/', (req, res) => {
