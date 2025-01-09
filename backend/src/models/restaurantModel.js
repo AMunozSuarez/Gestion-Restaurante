@@ -17,7 +17,6 @@ const restaurantSchema = new mongoose.Schema({
     },
     time: {
         type: String,
-        required: [true, 'Please enter the restaurant time']
     },
     pickup: {
         type: Boolean,
