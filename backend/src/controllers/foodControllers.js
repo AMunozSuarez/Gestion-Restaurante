@@ -41,6 +41,10 @@ const createFoodController = async (req, res) => {
 
 
 
+
+
+
+
 // GET ALL FOODS
 const getAllFoodsController = async (req, res) => {
     try {
@@ -127,10 +131,86 @@ const getFoodByRestaurantIdController = async (req, res) => {
 
 
 
+
+
+// UPDATE A FOOD BY ID
+const updateFoodController = async (req, res) => {
+    try {
+        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, restaurant } = req.body;
+        
+        const food = await foodModel.findByIdAndUpdate(req.params.id, {
+            title,
+            description,
+            price,
+            imageUrl,
+            foodTags,
+            category,
+            code,
+            isAvailable,
+            restaurant
+        }, { new: true });
+        if (!food) {
+            return res.status(404).send({ 
+                success: false,
+                message: 'Food not found' 
+            });
+        }
+        res.status(200).send({ 
+            success: true,
+            message: 'Food updated successfully',
+            food
+        });
+    } catch (error) {
+        res.status(400).json({ 
+            success: false,
+            message: 'Error in update food controller',
+            error });
+    }
+}
+
+
+
+
+
+
+
+// DELETE A FOOD BY ID
+const deleteFoodController = async (req, res) => {
+    try {
+        const food = await foodModel.findByIdAndDelete(req.params.id);
+        if (!food) {
+            return res.status(404).send({ 
+                success: false,
+                message: 'Food not found' 
+            });
+        }
+        res.status(200).send({ 
+            success: true,
+            message: 'Food deleted successfully',
+            food
+        });
+    } catch (error) {
+        res.status(400).json({ 
+            success: false,
+            message: 'Error in delete food controller',
+            error });
+    }
+}
+
+
+
+
+
+
+
+
+
 // Export functions
 module.exports = {
     createFoodController,
     getAllFoodsController,
     getFoodByIdController,
-    getFoodByRestaurantIdController
+    getFoodByRestaurantIdController,
+    updateFoodController,
+    deleteFoodController
 };

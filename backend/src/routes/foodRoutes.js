@@ -1,6 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
-const { createFoodController, getAllFoodsController, getFoodByIdController, getFoodByRestaurantIdController } = require('../controllers/foodControllers');
+const { createFoodController, getAllFoodsController, getFoodByIdController, getFoodByRestaurantIdController, updateFoodController, deleteFoodController } = require('../controllers/foodControllers');
 const router = express.Router();
 
 // CREATE A NEW FOOD
@@ -14,6 +14,12 @@ router.get('/get/:id', authMiddleware, getFoodByIdController);
 
 // GET A FOOD BY RESTAURANT ID
 router.get('/getByRestaurant/:restaurantId', authMiddleware, getFoodByRestaurantIdController);
+
+// UPDATE A FOOD BY ID
+router.put('/update/:id', authMiddleware, updateFoodController);
+
+// DELETE A FOOD BY ID
+router.delete('/delete/:id', authMiddleware, deleteFoodController);
 
 
 
