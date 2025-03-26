@@ -1,24 +1,28 @@
 const jwt = require('jsonwebtoken');
 
-module.exports = async (req, res, next) => {
+module.exports = (req, res, next) => {
+    if (process.env.DISABLE_AUTH === 'true') {
+        console.warn('JWT verification is disabled (development mode).');
+        return next(); // Permite todas las solicitudes sin verificar el token
+    }
+
     try {
-        const token = req.header('authorization').split(' ')[1];
-        jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-            if (err) {
-                return res.status(401).send({
-                    success: false,
-                    message: 'Un-Authorize User'
-                });
-            }
-            req.body.id = decoded.id;
-            next();
-        });
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader) {
+            return res.status(401).json({ success: false, message: 'Authorization header missing' });
+        }
+
+        const token = authHeader.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ success: false, message: 'Token missing' });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        console.error('Internal auth error:', error);
+        res.status(401).json({ success: false, message: 'Invalid token' });
     }
-    catch (error) {
-        console.log('Internal auth error', error);
-        res.status(500).send({
-            success: false,
-            message: 'Please provide a valid token'
-        });
-    }
-}
+};

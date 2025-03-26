@@ -1,0 +1,173 @@
+/* Contenedor principal */
+.categorias-container {
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background-color: #f8f9fa; /* Fondo claro */
+    border-radius: 8px;
+    max-width: 800px; /* Ancho máximo */
+    margin: 0 auto; /* Centrar el contenedor */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra */
+}
+
+/* Título */
+.categorias-title {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+/* Formulario de creación */
+.categorias-crear {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.categorias-input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    width: 100%;
+}
+
+.categorias-boton-crear {
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+
+.categorias-boton-crear:hover {
+    background-color: #0056b3;
+}
+
+/* Lista de categorías */
+.categorias-lista {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.categorias-item {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Detalles de la categoría */
+.categorias-detalle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.categorias-nombre {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    flex: 1;
+}
+
+/* Imagen de la categoría */
+.categorias-imagen {
+    max-width: 100px; /* Ancho máximo */
+    max-height: 100px; /* Alto máximo */
+    border-radius: 4px;
+    object-fit: cover; /* Ajusta la imagen sin deformarla */
+    border: 1px solid #ccc;
+}
+
+/* Botones de acción */
+.categorias-boton-editar,
+.categorias-boton-eliminar {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.categorias-boton-editar {
+    background-color: #ffc107;
+    color: white;
+}
+
+.categorias-boton-editar:hover {
+    background-color: #e0a800;
+}
+
+.categorias-boton-eliminar {
+    background-color: #dc3545;
+    color: white;
+}
+
+.categorias-boton-eliminar:hover {
+    background-color: #c82333;
+}
+
+/* Formulario de edición */
+.categorias-editar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.categorias-input-editar {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    width: 100%;
+}
+
+.categorias-boton-guardar {
+    padding: 5px 10px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.categorias-boton-guardar:hover {
+    background-color: #218838;
+}
+
+.categorias-boton-cancelar {
+    padding: 5px 10px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.categorias-boton-cancelar:hover {
+    background-color: #5a6268;
+}
+
+.campo-editado {
+    border: 2px solid #007bff; /* Borde azul */
+    background-color: #e9f5ff; /* Fondo azul claro */
+    transition: border 0.3s ease, background-color 0.3s ease;
+}
