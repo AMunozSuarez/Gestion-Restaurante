@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
     foods: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'foods'
+        food: { type: mongoose.Schema.Types.ObjectId, ref: 'foods', required: true },
+        quantity: { type: Number, required: true } // Cantidad de este alimento en la orden
     }],
     payment: {
         type: String,
@@ -16,8 +16,12 @@ const orderSchema = new mongoose.Schema({
         required: true
     },
     buyer: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'user'
+        type: String, // Cambiado a String para almacenar directamente el nombre del cliente
+        required: true
+    },
+    customerPhone: {
+        type: String,
+        required: true
     },
     status: {
         type: String,
@@ -27,4 +31,5 @@ const orderSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
-module.exports = mongoose.model('order', orderSchema)
+
+module.exports = mongoose.model('order', orderSchema);

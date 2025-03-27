@@ -119,10 +119,6 @@
     background-color: #fffaf0; /* Fondo cálido */
 }
 
-.productos-table-row:hover {
-    background-color: #f4a460; /* Marrón claro */
-    color: white;
-}
 
 /* Botones de acción */
 .productos-edit-button {
@@ -130,6 +126,7 @@
     color: white;
     border: none;
     padding: 5px 10px;
+    margin-right: 5px;
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.3s ease;
@@ -216,6 +213,7 @@
 
 .productos-cancel-button {
     padding: 10px 15px;
+    margin-top: 10px;
     font-size: 16px;
     color: white;
     background-color: #6c757d; /* Gris */

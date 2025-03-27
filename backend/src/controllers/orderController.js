@@ -5,24 +5,12 @@ const foodModel = require('../models/foodModel'); // Importar el modelo de alime
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, buyer, status, additionalCosts = 0, discount = 0 } = req.body;
-
-        // Validar que los campos requeridos estén presentes
-        if (!foods || !Array.isArray(foods) || foods.length === 0) {
-            return res.status(400).send({
-                success: false,
-                message: 'Please provide at least one food item'
-            });
-        }
-        if (!payment || !buyer) {
-            return res.status(400).send({
-                success: false,
-                message: 'Please provide payment method and buyer'
-            });
-        }
+        const { foods, payment, buyer, customerPhone, status } = req.body;
 
         // Validar que los alimentos existan en la base de datos
-        const existingFoods = await foodModel.find({ _id: { $in: foods } });
+        const foodIds = foods.map((item) => item.food); // Extraer los IDs de los alimentos
+        const existingFoods = await foodModel.find({ _id: { $in: foodIds } });
+
         if (existingFoods.length !== foods.length) {
             return res.status(400).send({
                 success: false,
@@ -30,12 +18,11 @@ const createOrderController = async (req, res) => {
             });
         }
 
-        // Calcular el total sumando los precios de los alimentos
-        const foodPrices = existingFoods.map((food) => food.price);
-        let total = foodPrices.reduce((sum, price) => sum + price, 0);
-
-        // Aplicar costos adicionales y descuentos
-        total = total + additionalCosts - discount;
+        // Calcular el total sumando los precios de los alimentos multiplicados por su cantidad
+        const total = foods.reduce((sum, item) => {
+            const foodDetails = existingFoods.find((food) => food._id.toString() === item.food);
+            return sum + (foodDetails.price * item.quantity);
+        }, 0);
 
         // Crear la orden
         const order = new orderModel({
@@ -43,6 +30,7 @@ const createOrderController = async (req, res) => {
             payment,
             total,
             buyer,
+            customerPhone,
             status: status || 'preparing' // Usar el estado predeterminado si no se proporciona
         });
 
@@ -55,6 +43,7 @@ const createOrderController = async (req, res) => {
             order
         });
     } catch (error) {
+        console.error('Error creating order:', error);
         res.status(500).json({
             success: false,
             message: 'Error creating order',

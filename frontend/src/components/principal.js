@@ -9,37 +9,37 @@ class Principal extends Component {
             section: 'delivery',
             customerName: '',
             customerPhone: '',
-            orderDetails: '',
-            orders: [],
+            orders: [], // Lista de pedidos
             products: [], // Lista de productos obtenidos de la base de datos
-            cart: [], // Productos seleccionados
+            cart: [], // Productos seleccionados con cantidades
             searchQuery: '', // Texto de búsqueda
-            paymentMethods: [], // Métodos de pago obtenidos de la base de datos
-            selectedPaymentMethod: '' // Método de pago seleccionado
+            selectedPaymentMethod: '', // Método de pago seleccionado
+            paymentMethods: ['cash', 'debit', 'transfer'], // Métodos de pago disponibles
+            showSuggestions: false // Mostrar sugerencias
         };
     }
 
     componentDidMount() {
-        // Obtener productos y métodos de pago al cargar el componente
+        // Obtener productos y pedidos al cargar el componente
         this.fetchProducts();
-        this.fetchPaymentMethods();
+        this.fetchOrders();
     }
 
     fetchProducts = async () => {
         try {
-            const response = await axios.get('http://localhost:3001/api/food/getAll');
-            this.setState({ products: response.data.foods });
+            const response = await axios.get('/food/getAll'); // Obtener alimentos desde el backend
+            this.setState({ products: response.data.foods }); // Guardar los alimentos en el estado
         } catch (error) {
             console.error('Error fetching products:', error);
         }
     };
 
-    fetchPaymentMethods = async () => {
+    fetchOrders = async () => {
         try {
-            const response = await axios.get('http://localhost:3001/api/paymentMethods'); // Ruta para obtener métodos de pago
-            this.setState({ paymentMethods: response.data.methods });
+            const response = await axios.get('/order/getAll');
+            this.setState({ orders: response.data.orders });
         } catch (error) {
-            console.error('Error fetching payment methods:', error);
+            console.error('Error fetching orders:', error);
         }
     };
 
@@ -52,9 +52,30 @@ class Principal extends Component {
     };
 
     addToCart = (product) => {
+        const existingItem = this.state.cart.find((item) => item._id === product._id);
+        if (existingItem) {
+            // Incrementar la cantidad si el producto ya está en el carrito
+            this.setState((prevState) => ({
+                cart: prevState.cart.map((item) =>
+                    item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
+                ),
+                searchQuery: '' // Limpia el campo de búsqueda
+            }));
+        } else {
+            // Agregar el producto al carrito con cantidad inicial de 1
+            this.setState((prevState) => ({
+                cart: [...prevState.cart, { ...product, quantity: 1 }],
+                searchQuery: '' // Limpia el campo de búsqueda
+            }));
+        }
+    };
+
+    updateCartQuantity = (productId, quantity) => {
+        if (quantity < 1) return; // No permitir cantidades menores a 1
         this.setState((prevState) => ({
-            cart: [...prevState.cart, product],
-            searchQuery: '' // Limpia el campo de búsqueda después de agregar
+            cart: prevState.cart.map((item) =>
+                item._id === productId ? { ...item, quantity } : item
+            )
         }));
     };
 
@@ -66,33 +87,30 @@ class Principal extends Component {
 
     handleSubmit = async (e) => {
         e.preventDefault();
-        const { customerName, customerPhone, orderDetails, section, cart, selectedPaymentMethod } = this.state;
+        const { customerName, customerPhone, section, cart, selectedPaymentMethod } = this.state;
+
+        if (!selectedPaymentMethod) {
+            alert('Por favor, seleccione un método de pago.');
+            return;
+        }
 
         try {
-            const token = localStorage.getItem('token'); // Obtén el token del almacenamiento local
-            const response = await axios.post(
-                'http://localhost:3001/api/food/placeorder',
-                {
-                    cart: cart.map((item) => ({ _id: item._id, price: item.price })), // Solo envía los IDs y precios
-                    payment: selectedPaymentMethod,
-                    buyer: 'userId123', // ID del comprador (puedes obtenerlo del token o del estado)
-                    section,
-                    customerName,
-                    customerPhone,
-                    orderDetails
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}` // Agrega el token al encabezado
-                    }
-                }
-            );
+            const response = await axios.post('/order/create', {
+                foods: cart.map((item) => ({
+                    food: item._id, // ID del alimento
+                    quantity: item.quantity // Cantidad del alimento
+                })),
+                payment: selectedPaymentMethod,
+                buyer: customerName,
+                customerPhone,
+                section
+            });
 
+            // Actualizar la lista de pedidos y limpiar el formulario
             this.setState((prevState) => ({
-                orders: [...prevState.orders, response.data.newOrder],
+                orders: [...prevState.orders, response.data.order],
                 customerName: '',
                 customerPhone: '',
-                orderDetails: '',
                 cart: [],
                 selectedPaymentMethod: ''
             }));
@@ -102,26 +120,28 @@ class Principal extends Component {
     };
 
     render() {
-        const { section, customerName, customerPhone, orderDetails, orders, products, cart, searchQuery, paymentMethods, selectedPaymentMethod } = this.state;
+        const { section, customerName, customerPhone, orders, products, cart, searchQuery, paymentMethods, selectedPaymentMethod, showSuggestions } = this.state;
 
         // Filtrar productos según el texto de búsqueda
-        // Filtrar productos según el texto de búsqueda
         const filteredProducts = products.filter((product) =>
-            product.name && product.name.toLowerCase().includes(searchQuery.toLowerCase())
+            product.title && product.title.toLowerCase().includes(searchQuery.toLowerCase())
         );
+
+        // Calcular el total acumulado del carrito
+        const totalCart = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
         return (
             <div className="principal-container">
                 <div className="button-container">
                     <button
                         className={`switch-button ${section === 'delivery' ? 'active' : ''}`}
-                        onClick={() => this.switchSection('delivery')}
+                        onClick={() => this.setState({ section: 'delivery' })}
                     >
                         Delivery
                     </button>
                     <button
                         className={`switch-button ${section === 'mostrador' ? 'active' : ''}`}
-                        onClick={() => this.switchSection('mostrador')}
+                        onClick={() => this.setState({ section: 'mostrador' })}
                     >
                         Mostrador
                     </button>
@@ -152,16 +172,6 @@ class Principal extends Component {
                             />
                         </div>
                         <div className="form-group">
-                            <label htmlFor="orderDetails">Detalles del Pedido:</label>
-                            <textarea
-                                id="orderDetails"
-                                name="orderDetails"
-                                value={orderDetails}
-                                onChange={this.handleInputChange}
-                                required
-                            />
-                        </div>
-                        <div className="form-group">
                             <label htmlFor="searchQuery">Buscar Productos:</label>
                             <input
                                 type="text"
@@ -169,27 +179,45 @@ class Principal extends Component {
                                 name="searchQuery"
                                 value={searchQuery}
                                 onChange={this.handleSearchChange}
+                                onFocus={() => this.setState({ showSuggestions: true })} // Mostrar sugerencias al enfocar
+                                onBlur={() => setTimeout(() => this.setState({ showSuggestions: false }), 200)} // Ocultar sugerencias al desenfocar
                             />
-                            <ul className="product-suggestions">
-                                {filteredProducts.map((product) => (
-                                    <li key={product._id} onClick={() => this.addToCart(product)}>
-                                        {product.name} - ${product.price}
-                                    </li>
-                                ))}
-                            </ul>
+                            {showSuggestions && filteredProducts.length > 0 && (
+                                <ul className="suggestions-list">
+                                    {filteredProducts.map((product) => (
+                                        <li
+                                            key={product._id}
+                                            onClick={() => this.addToCart(product)} // Agregar al carrito al hacer clic
+                                            className="suggestion-item"
+                                        >
+                                            {product.title} - ${product.price}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
                         <div className="cart">
                             <h3>Carrito:</h3>
                             <ul>
                                 {cart.map((item) => (
                                     <li key={item._id}>
-                                        {item.name} - ${item.price}{' '}
+                                        {item.title} - ${item.price} x{' '}
+                                        <input
+                                            type="number"
+                                            value={item.quantity}
+                                            onChange={(e) =>
+                                                this.updateCartQuantity(item._id, parseInt(e.target.value, 10))
+                                            }
+                                            min="1"
+                                        />{' '}
+                                        = ${item.price * item.quantity}
                                         <button type="button" onClick={() => this.removeFromCart(item._id)}>
                                             Quitar
                                         </button>
                                     </li>
                                 ))}
                             </ul>
+                            <p><strong>Total del Carrito:</strong> ${totalCart}</p>
                         </div>
                         <div className="form-group">
                             <label htmlFor="paymentMethod">Método de Pago:</label>
@@ -202,8 +230,8 @@ class Principal extends Component {
                             >
                                 <option value="">Seleccione un método de pago</option>
                                 {paymentMethods.map((method) => (
-                                    <option key={method._id} value={method.name}>
-                                        {method.name}
+                                    <option key={method} value={method}>
+                                        {method}
                                     </option>
                                 ))}
                             </select>
@@ -216,10 +244,19 @@ class Principal extends Component {
                     <ul>
                         {orders.map((order) => (
                             <li key={order._id}>
-                                <p>Cliente: {order.customerName}</p>
+                                <p>Cliente: {order.buyer}</p>
                                 <p>Teléfono: {order.customerPhone}</p>
-                                <p>Detalles: {order.orderDetails}</p>
                                 <p>Sección: {order.section}</p>
+                                <p>Método de Pago: {order.payment}</p>
+                                <p>Total: ${order.total}</p>
+                                <p>Comidas:</p>
+                                <ul>
+                                    {order.foods.map((food) => (
+                                        <li key={food._id}>
+                                            {food.title} - ${food.price} x {food.quantity}
+                                        </li>
+                                    ))}
+                                </ul>
                             </li>
                         ))}
                     </ul>
