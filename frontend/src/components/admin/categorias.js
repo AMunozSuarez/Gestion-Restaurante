@@ -106,7 +106,7 @@ const Categorias = () => {
             </div>
             <ul className="categorias-lista">
                 {categorias.map((categoria) => (
-                    <li key={categoria._id} className="categorias-item">
+                    <li key={categoria._id} className="categorias-item-principal">
                         {editando === categoria._id ? (
                             <div className="categorias-editar">
                                 <input

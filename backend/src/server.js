@@ -22,6 +22,8 @@ app.use('/api/user', require('./routes/userRoutes')); // Use the user routes
 app.use('/api/restaurant', require('./routes/restaurantRoutes')); // Use the restaurant routes
 app.use('/api/category', require('./routes/categoryRoutes')); // Use the category routes
 app.use('/api/food', require('./routes/foodRoutes')); // Use the food routes
+app.use('/api/order', require('./routes/orderRoutes')); // Use the order routes
+
 
 
 app.get('/', (req, res) => {

@@ -25,12 +25,5 @@ router.delete('/delete/:id', authMiddleware, deleteFoodController);
 
 
 
-// PLACE ORDER
-router.post('/placeorder', authMiddleware, placeOrderController);
-
-// ORDER STATUS
-router.post('/orderStatus/:id', authMiddleware, adminMiddleware, orderStatusController);
-
-
 
 module.exports = router; // Export the router
