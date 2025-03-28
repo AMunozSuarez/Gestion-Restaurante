@@ -6,7 +6,7 @@ class Principal extends Component {
     constructor(props) {
         super(props);
         this.state = {
-            section: 'delivery',
+            section: 'delivery', // Valor predeterminado
             customerName: '',
             customerPhone: '',
             orders: [], // Lista de pedidos
@@ -15,7 +15,8 @@ class Principal extends Component {
             searchQuery: '', // Texto de búsqueda
             selectedPaymentMethod: '', // Método de pago seleccionado
             paymentMethods: ['cash', 'debit', 'transfer'], // Métodos de pago disponibles
-            showSuggestions: false // Mostrar sugerencias
+            showSuggestions: false, // Mostrar sugerencias
+            editingOrder: null // Pedido que se está editando
         };
     }
 
@@ -95,7 +96,7 @@ class Principal extends Component {
         }
 
         try {
-            const response = await axios.post('/order/create', {
+            await axios.post('/order/create', {
                 foods: cart.map((item) => ({
                     food: item._id, // ID del alimento
                     quantity: item.quantity // Cantidad del alimento
@@ -103,24 +104,74 @@ class Principal extends Component {
                 payment: selectedPaymentMethod,
                 buyer: customerName,
                 customerPhone,
-                section
+                section // Incluye el valor de "section"
             });
 
-            // Actualizar la lista de pedidos y limpiar el formulario
-            this.setState((prevState) => ({
-                orders: [...prevState.orders, response.data.order],
+            // Vuelve a cargar la lista de pedidos desde el backend
+            await this.fetchOrders();
+
+            // Limpia el formulario y el carrito
+            this.setState({
                 customerName: '',
                 customerPhone: '',
                 cart: [],
                 selectedPaymentMethod: ''
-            }));
+            });
         } catch (error) {
             console.error('Error creating order', error);
         }
     };
 
+    startEditingOrder = (order) => {
+        this.setState({ editingOrder: { ...order } });
+    };
+
+    saveEditedOrder = async () => {
+        const { editingOrder } = this.state;
+
+        // Calcular el total basado en las comidas y sus cantidades
+        const total = editingOrder.foods.reduce(
+            (sum, item) => sum + item.food.price * item.quantity,
+            0
+        );
+
+        // Asegúrate de que los datos de foods estén en el formato correcto
+        const formattedOrder = {
+            ...editingOrder,
+            foods: editingOrder.foods.map((foodItem) => ({
+                food: foodItem.food._id, // Solo envía el ID del alimento
+                quantity: foodItem.quantity
+            })),
+            total // Actualiza el total
+        };
+
+        try {
+            console.log('Datos enviados al backend:', formattedOrder); // Log para depuración
+            await axios.put(`/order/update/${editingOrder._id}`, formattedOrder); // Endpoint para actualizar el pedido
+            await this.fetchOrders(); // Recargar la lista de pedidos
+            this.setState({ editingOrder: null }); // Salir del modo de edición
+        } catch (error) {
+            console.error('Error updating order:', error);
+        }
+    };
+
+    cancelEditingOrder = () => {
+        this.setState({ editingOrder: null });
+    };
+
+    deleteOrder = async (orderId) => {
+        if (window.confirm('¿Estás seguro de que deseas eliminar este pedido?')) {
+            try {
+                await axios.delete(`/order/delete/${orderId}`); // Endpoint para eliminar el pedido
+                await this.fetchOrders(); // Recargar la lista de pedidos
+            } catch (error) {
+                console.error('Error deleting order:', error);
+            }
+        }
+    };
+
     render() {
-        const { section, customerName, customerPhone, orders, products, cart, searchQuery, paymentMethods, selectedPaymentMethod, showSuggestions } = this.state;
+        const { section, customerName, customerPhone, orders, products, cart, searchQuery, paymentMethods, selectedPaymentMethod, showSuggestions, editingOrder } = this.state;
 
         // Filtrar productos según el texto de búsqueda
         const filteredProducts = products.filter((product) =>
@@ -179,15 +230,15 @@ class Principal extends Component {
                                 name="searchQuery"
                                 value={searchQuery}
                                 onChange={this.handleSearchChange}
-                                onFocus={() => this.setState({ showSuggestions: true })} // Mostrar sugerencias al enfocar
-                                onBlur={() => setTimeout(() => this.setState({ showSuggestions: false }), 200)} // Ocultar sugerencias al desenfocar
+                                onFocus={() => this.setState({ showSuggestions: true })}
+                                onBlur={() => setTimeout(() => this.setState({ showSuggestions: false }), 200)}
                             />
                             {showSuggestions && filteredProducts.length > 0 && (
                                 <ul className="suggestions-list">
                                     {filteredProducts.map((product) => (
                                         <li
                                             key={product._id}
-                                            onClick={() => this.addToCart(product)} // Agregar al carrito al hacer clic
+                                            onClick={() => this.addToCart(product)}
                                             className="suggestion-item"
                                         >
                                             {product.title} - ${product.price}
@@ -245,22 +296,106 @@ class Principal extends Component {
                         {orders.map((order) => (
                             <li key={order._id}>
                                 <p>Cliente: {order.buyer}</p>
-                                <p>Teléfono: {order.customerPhone}</p>
+                                <p>Teléfono: {order.customerPhone || 'No disponible'}</p>
                                 <p>Sección: {order.section}</p>
                                 <p>Método de Pago: {order.payment}</p>
                                 <p>Total: ${order.total}</p>
                                 <p>Comidas:</p>
                                 <ul>
-                                    {order.foods.map((food) => (
-                                        <li key={food._id}>
-                                            {food.title} - ${food.price} x {food.quantity}
-                                        </li>
+                                    {order.foods.map((foodItem) => (
+                                        foodItem.food ? (
+                                            <li key={foodItem.food._id}>
+                                                {foodItem.food.title} - ${foodItem.food.price} x {foodItem.quantity}
+                                            </li>
+                                        ) : (
+                                            <li key={foodItem._id}>Datos del alimento no disponibles</li>
+                                        )
                                     ))}
                                 </ul>
+                                <button onClick={() => this.startEditingOrder(order)}>Editar Pedido</button>
+                                <button onClick={() => this.deleteOrder(order._id)}>Eliminar Pedido</button>
                             </li>
                         ))}
                     </ul>
                 </div>
+                {editingOrder && (
+                    <div className="edit-order-modal">
+                        <h3>Editar Pedido</h3>
+                        <label>Nombre del Cliente:</label>
+                        <input
+                            type="text"
+                            value={editingOrder.buyer}
+                            onChange={(e) =>
+                                this.setState({ editingOrder: { ...editingOrder, buyer: e.target.value } })
+                            }
+                        />
+                        <label>Teléfono del Cliente:</label>
+                        <input
+                            type="text"
+                            value={editingOrder.customerPhone}
+                            onChange={(e) =>
+                                this.setState({ editingOrder: { ...editingOrder, customerPhone: e.target.value } })
+                            }
+                        />
+                        <h4>Comidas:</h4>
+                        <ul>
+                            {editingOrder.foods.map((foodItem, index) => (
+                                <li key={index}>
+                                    <span>{foodItem.food.title}</span>
+                                    <input
+                                        type="number"
+                                        value={foodItem.quantity}
+                                        onChange={(e) => {
+                                            const updatedFoods = [...editingOrder.foods];
+                                            updatedFoods[index].quantity = parseInt(e.target.value, 10);
+                                            this.setState({ editingOrder: { ...editingOrder, foods: updatedFoods } });
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            const updatedFoods = editingOrder.foods.filter((_, i) => i !== index);
+                                            this.setState({ editingOrder: { ...editingOrder, foods: updatedFoods } });
+                                        }}
+                                    >
+                                        Eliminar
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                        <h4>Agregar Comidas:</h4>
+                        <input
+                            type="text"
+                            placeholder="Buscar comida"
+                            value={this.state.searchQuery}
+                            onChange={(e) => this.setState({ searchQuery: e.target.value })}
+                        />
+                        <ul className="suggestions-list">
+                            {products
+                                .filter((product) =>
+                                    product.title.toLowerCase().includes(this.state.searchQuery.toLowerCase())
+                                )
+                                .map((product) => (
+                                    <li
+                                        key={product._id}
+                                        onClick={() => {
+                                            const updatedFoods = [
+                                                ...editingOrder.foods,
+                                                { food: product, quantity: 1 }
+                                            ];
+                                            this.setState({
+                                                editingOrder: { ...editingOrder, foods: updatedFoods },
+                                                searchQuery: ''
+                                            });
+                                        }}
+                                    >
+                                        {product.title} - ${product.price}
+                                    </li>
+                                ))}
+                        </ul>
+                        <button onClick={this.saveEditedOrder}>Guardar Cambios</button>
+                        <button onClick={this.cancelEditingOrder}>Cancelar</button>
+                    </div>
+                )}
             </div>
         );
     }

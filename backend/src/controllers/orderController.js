@@ -5,7 +5,16 @@ const foodModel = require('../models/foodModel'); // Importar el modelo de alime
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, buyer, customerPhone, status } = req.body;
+        const { foods, payment, buyer, customerPhone, section, status } = req.body;
+
+        console.log('Section:', section); // Agrega este log para verificar el valor de `section`
+
+        if (!section) {
+            return res.status(400).send({
+                success: false,
+                message: 'Section is required'
+            });
+        }
 
         // Validar que los alimentos existan en la base de datos
         const foodIds = foods.map((item) => item.food); // Extraer los IDs de los alimentos
@@ -31,6 +40,7 @@ const createOrderController = async (req, res) => {
             total,
             buyer,
             customerPhone,
+            section,
             status: status || 'preparing' // Usar el estado predeterminado si no se proporciona
         });
 
@@ -55,7 +65,7 @@ const createOrderController = async (req, res) => {
 // GET ALL ORDERS
 const getAllOrdersController = async (req, res) => {
     try {
-        const orders = await orderModel.find();
+        const orders = await orderModel.find().populate('foods.food');
         if (!orders) {
             return res.status(404).send({ 
                 success: false,
@@ -75,67 +85,69 @@ const getAllOrdersController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { foods, additionalCosts = 0, discount = 0 } = req.body;
+        const { buyer, customerPhone, foods, payment, section } = req.body;
 
-        // Validar si se proporcionaron alimentos
-        if (foods && (!Array.isArray(foods) || foods.length === 0)) {
-            return res.status(400).send({
+        // Validar que los campos requeridos estén presentes
+        if (!buyer || !customerPhone || !foods || !payment || !section) {
+            return res.status(400).json({
                 success: false,
-                message: 'Please provide a valid list of food items'
+                message: 'Todos los campos son obligatorios'
             });
         }
 
-        let total = 0;
-
-        // Si se proporcionaron alimentos, validar que existan y recalcular el total
-        if (foods) {
-            const existingFoods = await foodModel.find({ _id: { $in: foods } });
-            if (existingFoods.length !== foods.length) {
-                return res.status(400).send({
-                    success: false,
-                    message: 'One or more food items do not exist in the database'
-                });
-            }
-
-            // Calcular el total sumando los precios de los alimentos
-            const foodPrices = existingFoods.map((food) => food.price);
-            total = foodPrices.reduce((sum, price) => sum + price, 0);
+        // Validar que el campo foods tenga el formato correcto
+        if (!Array.isArray(foods) || foods.some((item) => !item.food || !item.quantity)) {
+            return res.status(400).json({
+                success: false,
+                message: 'El campo foods debe ser un arreglo con objetos que incluyan food y quantity'
+            });
         }
 
-        // Aplicar costos adicionales y descuentos
-        total = total + additionalCosts - discount;
+        // Validar que los alimentos existan en la base de datos
+        const foodIds = foods.map((item) => item.food);
+        const existingFoods = await foodModel.find({ _id: { $in: foodIds } });
 
-        // Actualizar la orden en la base de datos
+        if (existingFoods.length !== foods.length) {
+            return res.status(400).json({
+                success: false,
+                message: 'Uno o más alimentos no existen en la base de datos'
+            });
+        }
+
+        // Calcular el total basado en los precios y cantidades
+        const total = foods.reduce((sum, item) => {
+            const foodDetails = existingFoods.find((food) => food._id.toString() === item.food);
+            return sum + (foodDetails.price * item.quantity);
+        }, 0);
+
+        // Actualizar la orden
         const updatedOrder = await orderModel.findByIdAndUpdate(
             req.params.id,
-            { ...req.body, total }, // Actualizar el total calculado
-            { new: true }
+            { buyer, customerPhone, foods, payment, section, total },
+            { new: true, runValidators: true }
         );
 
         if (!updatedOrder) {
-            return res.status(404).send({
+            return res.status(404).json({
                 success: false,
-                message: 'Order not found'
+                message: 'Pedido no encontrado'
             });
         }
 
-        res.status(200).send({
+        res.status(200).json({
             success: true,
-            message: 'Order updated successfully',
+            message: 'Pedido actualizado correctamente',
             order: updatedOrder
         });
     } catch (error) {
+        console.error('Error actualizando el pedido:', error);
         res.status(500).json({
             success: false,
-            message: 'Error updating order',
+            message: 'Error actualizando el pedido',
             error: error.message
         });
     }
 };
-
-
-
-
 
 // DELETE AN ORDER
 const deleteOrderController = async (req, res) => {
@@ -156,8 +168,6 @@ const deleteOrderController = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
-
 
 module.exports = {
     createOrderController,

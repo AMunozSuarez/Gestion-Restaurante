@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
     foods: [{
-        food: { type: mongoose.Schema.Types.ObjectId, ref: 'foods', required: true },
-        quantity: { type: Number, required: true } // Cantidad de este alimento en la orden
+        food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true }, // Referencia al modelo "Food"
+        quantity: { type: Number, required: true }
     }],
     payment: {
         type: String,
@@ -23,13 +23,16 @@ const orderSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    section: {
+        type: String,
+        enum: ['delivery', 'mostrador'],
+        required: true
+    },
     status: {
         type: String,
         enum: ['preparing', 'prepare', 'on the way', 'delivered', 'canceled', 'completed'],
         default: 'preparing'
     }
-}, {
-    timestamps: true
-});
+}, { timestamps: true });
 
-module.exports = mongoose.model('order', orderSchema);
+module.exports = mongoose.model('Order', orderSchema);

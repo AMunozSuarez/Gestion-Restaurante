@@ -252,3 +252,36 @@ button[type="submit"]:hover {
 .suggestion-item:hover {
     background-color: #f0f0f0;
 }
+
+.edit-order-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+}
+
+.edit-order-modal h3 {
+    margin-top: 0;
+}
+
+.edit-order-modal ul {
+    list-style: none;
+    padding: 0;
+}
+
+.edit-order-modal ul li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.edit-order-modal button {
+    margin-left: 10px;
+}
