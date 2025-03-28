@@ -3,14 +3,18 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f9f9f9; /* Fondo claro */
-    color: #333; /* Texto oscuro */
+    background-color: #fdf5e6; /* Fondo cálido */
+    color: #8b4513; /* Marrón oscuro */
 }
 
 .principal-container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
+    background-color: #fff8dc; /* Fondo cálido */
+    border: 1px solid #deb887; /* Marrón claro */
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Button Container */
@@ -21,8 +25,8 @@ body {
 }
 
 .switch-button {
-    background-color: #007bff; /* Azul principal */
-    color: #fff;
+    background-color: #ffa500; /* Naranja */
+    color: white;
     border: none;
     padding: 10px 20px;
     margin: 0 10px;
@@ -32,16 +36,16 @@ body {
 }
 
 .switch-button.active {
-    background-color: #0056b3; /* Azul más oscuro para el botón activo */
+    background-color: #ff8c00; /* Naranja más oscuro */
 }
 
 .switch-button:hover {
-    background-color: #0056b3;
+    background-color: #ff7f50; /* Naranja claro */
 }
 
 /* Section Container */
 .section-container {
-    background-color: #fff;
+    background-color: #fff8dc; /* Fondo cálido */
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     padding: 20px;
@@ -50,7 +54,7 @@ body {
 
 .section-container h2 {
     margin-top: 0;
-    color: #007bff; /* Azul principal */
+    color: #8b4513; /* Marrón oscuro */
 }
 
 /* Form Styles */
@@ -62,23 +66,24 @@ body {
     display: block;
     font-weight: bold;
     margin-bottom: 5px;
-    color: #333;
+    color: #8b4513; /* Marrón oscuro */
 }
 
 .form-group input,
 .form-group select {
     width: 100%;
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid #deb887; /* Marrón claro */
     border-radius: 5px;
     font-size: 16px;
+    background-color: #fffaf0; /* Fondo cálido */
 }
 
 .form-group input:focus,
 .form-group select:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    border-color: #ffa500; /* Naranja */
+    box-shadow: 0 0 5px rgba(255, 165, 0, 0.5);
 }
 
 /* Product Suggestions */
@@ -86,21 +91,23 @@ body {
     list-style: none;
     padding: 0;
     margin: 10px 0 0;
-    border: 1px solid #ccc;
+    border: 1px solid #deb887; /* Marrón claro */
     border-radius: 5px;
     max-height: 150px;
     overflow-y: auto;
-    background-color: #fff;
+    background-color: #fff8dc; /* Fondo cálido */
 }
 
 .product-suggestions li {
     padding: 10px;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    color: #8b4513; /* Marrón oscuro */
 }
 
 .product-suggestions li:hover {
-    background-color: #f1f1f1;
+    background-color: #f4a460; /* Marrón claro */
+    color: white;
 }
 
 /* Cart Styles */
@@ -110,7 +117,7 @@ body {
 
 .cart h3 {
     margin-top: 0;
-    color: #007bff;
+    color: #8b4513; /* Marrón oscuro */
 }
 
 .cart ul {
@@ -124,7 +131,7 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 10px 0;
-    border-bottom: 1px solid #ccc;
+    border-bottom: 1px solid #deb887; /* Marrón claro */
 }
 
 .cart ul li:last-child {
@@ -136,13 +143,14 @@ body {
     padding: 5px;
     font-size: 16px;
     text-align: center;
-    border: 1px solid #ccc;
+    border: 1px solid #deb887; /* Marrón claro */
     border-radius: 5px;
+    background-color: #fffaf0; /* Fondo cálido */
 }
 
 .cart ul li button {
-    background-color: #dc3545; /* Rojo para el botón de quitar */
-    color: #fff;
+    background-color: #dc143c; /* Rojo */
+    color: white;
     border: none;
     padding: 5px 10px;
     border-radius: 5px;
@@ -151,7 +159,7 @@ body {
 }
 
 .cart ul li button:hover {
-    background-color: #c82333;
+    background-color: #b22222; /* Rojo más oscuro */
 }
 
 .cart p {
@@ -163,7 +171,7 @@ body {
 
 /* Orders List */
 .orders-list {
-    background-color: #fff;
+    background-color: #fff8dc; /* Fondo cálido */
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     padding: 20px;
@@ -171,7 +179,7 @@ body {
 
 .orders-list h2 {
     margin-top: 0;
-    color: #007bff;
+    color: #8b4513; /* Marrón oscuro */
 }
 
 .orders-list ul {
@@ -181,7 +189,7 @@ body {
 }
 
 .orders-list ul li {
-    border-bottom: 1px solid #ccc;
+    border-bottom: 1px solid #deb887; /* Marrón claro */
     padding: 15px 0;
 }
 
@@ -191,6 +199,7 @@ body {
 
 .orders-list ul li p {
     margin: 5px 0;
+    color: #8b4513; /* Marrón oscuro */
 }
 
 .orders-list ul li ul {
@@ -207,8 +216,8 @@ body {
 
 /* Submit Button */
 button[type="submit"] {
-    background-color: #28a745; /* Verde para el botón de enviar */
-    color: #fff;
+    background-color: #ff8c00; /* Verde */
+    color: white;
     border: none;
     padding: 10px 20px;
     border-radius: 5px;
@@ -218,7 +227,7 @@ button[type="submit"] {
 }
 
 button[type="submit"]:hover {
-    background-color: #218838;
+    background-color: #228b22; /* Verde más oscuro */
 }
 
 .suggestions-list {

@@ -92,10 +92,11 @@ const getRestaurantByIdController = async (req, res) => {
 
 
 
+
 // DELETE A RESTAURANT BY ID
 const deleteRestaurantByIdController = async (req, res) => {
     try {
-        const restaurant = await restaurantModel.findByIdAndDelete(req.params.id);
+        const restaurant = await restaurantModel.dAnfindByIdDelete(req.params.id);
         if (!restaurant) {
             return res.status(404).json({ 
                 success: false,
