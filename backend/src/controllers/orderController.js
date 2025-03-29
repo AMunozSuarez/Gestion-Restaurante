@@ -7,8 +7,6 @@ const createOrderController = async (req, res) => {
     try {
         const { foods, payment, buyer, customerPhone, section, status } = req.body;
 
-        console.log('Section:', section); // Agrega este log para verificar el valor de `section`
-
         if (!section) {
             return res.status(400).send({
                 success: false,
@@ -17,7 +15,7 @@ const createOrderController = async (req, res) => {
         }
 
         // Validar que los alimentos existan en la base de datos
-        const foodIds = foods.map((item) => item.food); // Extraer los IDs de los alimentos
+        const foodIds = foods.map((item) => item.food);
         const existingFoods = await foodModel.find({ _id: { $in: foodIds } });
 
         if (existingFoods.length !== foods.length) {
@@ -27,21 +25,26 @@ const createOrderController = async (req, res) => {
             });
         }
 
-        // Calcular el total sumando los precios de los alimentos multiplicados por su cantidad
+        // Calcular el total
         const total = foods.reduce((sum, item) => {
             const foodDetails = existingFoods.find((food) => food._id.toString() === item.food);
             return sum + (foodDetails.price * item.quantity);
         }, 0);
 
+        // Obtener el último número de orden
+        const lastOrder = await orderModel.findOne().sort({ orderNumber: -1 });
+        const orderNumber = lastOrder && lastOrder.orderNumber ? lastOrder.orderNumber + 1 : 1;
+
         // Crear la orden
         const order = new orderModel({
+            orderNumber,
             foods,
             payment,
             total,
             buyer,
             customerPhone,
             section,
-            status: status || 'preparing' // Usar el estado predeterminado si no se proporciona
+            status: status || 'preparing'
         });
 
         // Guardar la orden en la base de datos
@@ -82,8 +85,6 @@ const getAllOrdersController = async (req, res) => {
     }
 };
 
-
-
 // GET AN ORDER BY ID
 const getOrderByIdController = async (req, res) => {
     try {
@@ -104,7 +105,33 @@ const getOrderByIdController = async (req, res) => {
     }
 }
 
+// GET AN ORDER BY NUMBER
+const getOrderByNumberController = async (req, res) => {
+    try {
+        const { orderNumber } = req.params;
+        const order = await orderModel.findOne({ orderNumber }).populate('foods.food');
 
+        if (!order) {
+            return res.status(404).send({
+                success: false,
+                message: 'Order not found',
+            });
+        }
+
+        res.status(200).send({
+            success: true,
+            message: 'Order retrieved successfully',
+            order,
+        });
+    } catch (error) {
+        console.error('Error retrieving order by number:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving order',
+            error: error.message,
+        });
+    }
+};
 
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
@@ -198,5 +225,6 @@ module.exports = {
     getAllOrdersController,
     updateOrderController,
     deleteOrderController,
-    getOrderByIdController
+    getOrderByIdController,
+    getOrderByNumberController
 };

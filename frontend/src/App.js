@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes} from 'react-router-dom';
 import Header from './components/header';
 
 import Login from './components/login';
@@ -18,6 +18,7 @@ function App() {
           
           <Route path="/" element={<Login />} />
           <Route path="/mostrador" element={<Mostrador />} />
+          <Route path="/mostrador/:orderNumber" element={<Mostrador />} />
           <Route path="/delivery" element={<Delivery />} />
           <Route path="/principal" element={<Principal />} />
           <Route path="/admin/productos" element={<Productos />} />

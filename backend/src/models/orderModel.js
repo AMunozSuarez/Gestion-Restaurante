@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
+    orderNumber: {
+        type: Number,
+        unique: true, // Asegura que sea único
+        required: true,
+    },
     foods: [{
         food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true }, // Referencia al modelo "Food"
         quantity: { type: Number, required: true }
