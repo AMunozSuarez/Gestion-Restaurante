@@ -70,6 +70,16 @@
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    max-height: 500px; /* Altura máxima fija */
+    overflow-y: auto; /* Habilitar scroll si el contenido excede la altura */
+}
+
+/* Carrito dentro de Crear Pedido */
+.mostrador-cart {
+    max-height: 200px; /* Altura máxima del carrito */
+    overflow-y: auto; /* Habilitar scroll si hay muchos productos */
+    margin-top: 15px;
+    padding-right: 10px; /* Espacio para el scroll */
 }
 
 .mostrador-form-group {
@@ -118,6 +128,8 @@
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    max-height: none; /* Sin límite de altura */
+    overflow-y: visible; /* Sin scroll */
 }
 
 .mostrador-orders-list h3 {
@@ -143,6 +155,48 @@
 .mostrador-order-item:hover {
     background-color: #ffe4b5; /* Fondo más claro */
     transform: scale(1.02); /* Efecto de zoom */
+}
+
+/* Pedidos Completados/Cancelados */
+.mostrador-completed-orders-list {
+    margin-top: 20px;
+    max-height: 300px; /* Altura máxima con scroll */
+    overflow-y: auto; /* Habilitar scroll vertical */
+    background-color: #f8f9fa; /* Fondo claro */
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.mostrador-completed-order-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #e6e6e6; /* Fondo gris claro */
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.mostrador-completed-order-item.completed {
+    border-left: 5px solid #28a745; /* Verde para completados */
+}
+
+.mostrador-completed-order-item.canceled {
+    border-left: 5px solid #dc3545; /* Rojo para cancelados */
+}
+
+.mostrador-completed-order-item p {
+    margin: 0 10px; /* Espaciado entre los datos */
+    flex: 1; /* Asegura que los elementos se distribuyan uniformemente */
+    text-align: center; /* Centrar el texto */
+}
+
+
+.mostrador-completed-orders-list {
+    max-height: 400px; /* Altura máxima */
+    overflow-y: auto; /* Habilitar scroll vertical */
 }
 
 /* Diferenciación entre Crear y Editar */

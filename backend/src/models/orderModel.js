@@ -33,8 +33,8 @@ const orderSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['preparing', 'prepare', 'on the way', 'delivered', 'canceled', 'completed'],
-        default: 'preparing'
+        enum: ['Preparacion', 'En camino', 'delivered', 'Cancelado', 'Completado'],
+        default: 'Preparacion'
     }
 }, { timestamps: true });
 

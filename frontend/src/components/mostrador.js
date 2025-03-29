@@ -119,6 +119,11 @@ const Mostrador = () => {
         }
     };
 
+    const preparationOrders = orders.filter((order) => order.status === 'Preparacion');
+    const completedOrCanceledOrders = orders.filter((order) => 
+        order.status === 'Completado' || order.status === 'Cancelado'
+    );
+
     return (
         <div className="mostrador-container">
             {/* Botones para cambiar entre Mostrador y Delivery */}
@@ -278,22 +283,40 @@ const Mostrador = () => {
 
                 {/* Listado de Pedidos - Derecha */}
                 <div className="mostrador-orders-list">
-                    <h3>Pedidos - Mostrador</h3>
+                    <h3>Pedidos en Preparación</h3>
                     <ul>
-                        {orders.map((order) => (
+                        {preparationOrders.map((order) => (
                             <li
                                 key={order._id}
                                 className={`mostrador-order-item ${editingOrderId === order._id ? 'editing-order' : ''}`}
                                 onClick={() => navigate(`/mostrador/${order.orderNumber}`)}
                             >
-                                <p><strong>Orden #{order.orderNumber}</strong></p>
+                                <p><strong>#{order.orderNumber}</strong></p>
                                 <p>Estado: {order.status}</p>
-                                <p>Cliente: {order.buyer}</p>
+                                {order.buyer && <p>Cliente: {order.buyer}</p>}
                                 <p>Total: ${order.total}</p>
                             </li>
                         ))}
                     </ul>
                 </div>
+            </div>
+
+            {/* Pedidos Completados/Cancelados */}
+            <div className="mostrador-completed-orders-list">
+                <h3>Pedidos Completados/Cancelados</h3>
+                <ul>
+                    {completedOrCanceledOrders.map((order) => (
+                        <li
+                            key={order._id}
+                            className={`mostrador-completed-order-item ${order.status}`}
+                        >
+                            <p><strong>#{order.orderNumber}</strong></p>
+                            <p>Estado: {order.status}</p>
+                            {order.buyer && <p>Cliente: {order.buyer}</p>}
+                            <p>Total: ${order.total}</p>
+                        </li>
+                    ))}
+                </ul>
             </div>
         </div>
     );

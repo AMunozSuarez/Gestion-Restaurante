@@ -240,7 +240,7 @@ const placeOrderController = async (req, res) => {
             foods: cart.map(item => item._id), // Solo guarda los IDs de los alimentos
             payment,
             buyer,
-            status: 'preparing'
+            status: 'Preparacion'
         });
 
         await newOrder.save();

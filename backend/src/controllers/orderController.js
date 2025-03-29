@@ -44,7 +44,7 @@ const createOrderController = async (req, res) => {
             buyer,
             customerPhone,
             section,
-            status: status || 'preparing'
+            status: status || 'Preparacion'
         });
 
         // Guardar la orden en la base de datos
