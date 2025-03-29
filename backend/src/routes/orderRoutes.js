@@ -1,6 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
-const { createOrderController, getAllOrdersController, updateOrderController, deleteOrderController } = require('../controllers/orderController');
+const { createOrderController, getAllOrdersController, updateOrderController, deleteOrderController, getOrderByIdController } = require('../controllers/orderController');
 const router = express.Router();
 
 // CREATE A NEW ORDER
@@ -8,6 +8,9 @@ router.post('/create', authMiddleware, createOrderController);
 
 // GET ALL ORDERS
 router.get('/getAll', authMiddleware, getAllOrdersController);
+
+// GET AN ORDER BY ID
+router.get('/get/:id', authMiddleware, getOrderByIdController);
 
 // UPDATE AN ORDER
 router.put('/update/:id', authMiddleware, updateOrderController);

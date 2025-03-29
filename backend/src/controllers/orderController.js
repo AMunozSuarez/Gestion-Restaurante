@@ -82,6 +82,30 @@ const getAllOrdersController = async (req, res) => {
     }
 };
 
+
+
+// GET AN ORDER BY ID
+const getOrderByIdController = async (req, res) => {
+    try {
+        const order = await orderModel.findById(req.params.id).populate('foods.food');
+        if (!order) {
+            return res.status(404).send({ 
+                success: false,
+                message: 'Order not found' 
+            });
+        }
+        res.status(200).send({ 
+            success: true,
+            message: 'Order retrieved successfully',
+            order
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+
+
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
@@ -173,5 +197,6 @@ module.exports = {
     createOrderController,
     getAllOrdersController,
     updateOrderController,
-    deleteOrderController
+    deleteOrderController,
+    getOrderByIdController
 };

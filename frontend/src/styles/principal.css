@@ -343,9 +343,48 @@ button[type="submit"]:hover {
 
 /* Sección de crear pedidos */
 .create-order {
-    flex: 1; /* Ocupa el 50% del espacio */
+    flex: 1;
     background-color: #fff8dc; /* Fondo cálido */
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     padding: 20px;
+}
+
+.create-order h2 {
+    margin-top: 0;
+    color: #8b4513; /* Marrón oscuro */
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.action-buttons button {
+    flex: 1;
+    margin: 0 5px;
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.action-buttons button:first-child {
+    background-color: #ffa500; /* Naranja */
+    color: white;
+}
+
+.action-buttons button:first-child:hover {
+    background-color: #ff8c00; /* Naranja más oscuro */
+}
+
+.action-buttons button:last-child {
+    background-color: #dc143c; /* Rojo */
+    color: white;
+}
+
+.action-buttons button:last-child:hover {
+    background-color: #b22222; /* Rojo más oscuro */
 }

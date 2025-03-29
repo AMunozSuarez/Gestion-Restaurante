@@ -146,7 +146,8 @@ class Principal extends Component {
         this.setState({ editingOrder: { ...order } });
     };
 
-    saveEditedOrder = async () => {
+    saveEditedOrder = async (e) => {
+        e.preventDefault();
         const { editingOrder } = this.state;
 
         // Calcular el total basado en las comidas y sus cantidades
@@ -220,116 +221,226 @@ class Principal extends Component {
                 <div className="main-container">
                     {/* Sección de crear pedidos */}
                     <div className="create-order">
-                        <h2>Crear Pedido</h2>
-                        <form onSubmit={this.handleSubmit}>
-                            <div className="form-group">
-                                <label htmlFor="customerName">Nombre del Cliente:</label>
-                                <input
-                                    type="text"
-                                    id="customerName"
-                                    name="customerName"
-                                    value={customerName}
-                                    onChange={this.handleInputChange}
-                                    required
-                                />
-                            </div>
+                        <h2>{editingOrder ? 'Editar Pedido' : 'Crear Pedido'}</h2>
+                        {editingOrder ? (
+                            <form onSubmit={this.saveEditedOrder}>
+                                <div className="form-group">
+                                    <label htmlFor="customerName">Nombre del Cliente:</label>
+                                    <input
+                                        type="text"
+                                        id="customerName"
+                                        name="customerName"
+                                        value={editingOrder.buyer}
+                                        onChange={(e) =>
+                                            this.setState({ editingOrder: { ...editingOrder, buyer: e.target.value } })
+                                        }
+                                        required
+                                    />
+                                </div>
 
-                            {/* Campo de teléfono: obligatorio solo en "delivery" */}
-                            {section === 'delivery' && (
                                 <div className="form-group">
                                     <label htmlFor="customerPhone">Teléfono del Cliente:</label>
                                     <input
                                         type="text"
                                         id="customerPhone"
                                         name="customerPhone"
-                                        value={customerPhone}
-                                        onChange={this.handleInputChange}
-                                        required
+                                        value={editingOrder.customerPhone || ''}
+                                        onChange={(e) =>
+                                            this.setState({ editingOrder: { ...editingOrder, customerPhone: e.target.value } })
+                                        }
                                     />
                                 </div>
-                            )}
 
-                            {/* Campo de dirección: obligatorio solo en "delivery" */}
-                            {section === 'delivery' && (
-                                <div className="form-group">
-                                    <label htmlFor="customerAddress">Dirección del Cliente:</label>
-                                    <input
-                                        type="text"
-                                        id="customerAddress"
-                                        name="customerAddress"
-                                        value={customerAddress}
-                                        onChange={this.handleInputChange}
-                                        required
-                                    />
-                                </div>
-                            )}
-                            <div className="form-group">
-                                <label htmlFor="searchQuery">Buscar Productos:</label>
-                                <input
-                                    type="text"
-                                    id="searchQuery"
-                                    name="searchQuery"
-                                    value={searchQuery}
-                                    onChange={this.handleSearchChange}
-                                    onFocus={() => this.setState({ showSuggestions: true })}
-                                    onBlur={() => setTimeout(() => this.setState({ showSuggestions: false }), 200)}
-                                />
-                                {showSuggestions && filteredProducts.length > 0 && (
-                                    <ul className="suggestions-list">
-                                        {filteredProducts.map((product) => (
-                                            <li
-                                                key={product._id}
-                                                onClick={() => this.addToCart(product)}
-                                                className="suggestion-item"
-                                            >
-                                                {product.title} - ${product.price}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                {editingOrder.section === 'delivery' && (
+                                    <div className="form-group">
+                                        <label htmlFor="customerAddress">Dirección del Cliente:</label>
+                                        <input
+                                            type="text"
+                                            id="customerAddress"
+                                            name="customerAddress"
+                                            value={editingOrder.customerAddress || ''}
+                                            onChange={(e) =>
+                                                this.setState({ editingOrder: { ...editingOrder, customerAddress: e.target.value } })
+                                            }
+                                        />
+                                    </div>
                                 )}
-                            </div>
-                            <div className="cart">
-                                <h3>Carrito:</h3>
+
+                                <h4>Comidas:</h4>
                                 <ul>
-                                    {cart.map((item) => (
-                                        <li key={item._id}>
-                                            {item.title} - ${item.price} x{' '}
+                                    {editingOrder.foods.map((foodItem, index) => (
+                                        <li key={index}>
+                                            <span>{foodItem.food.title}</span>
                                             <input
                                                 type="number"
-                                                value={item.quantity}
-                                                onChange={(e) =>
-                                                    this.updateCartQuantity(item._id, parseInt(e.target.value, 10))
-                                                }
-                                                min="1"
-                                            />{' '}
-                                            = ${item.price * item.quantity}
-                                            <button type="button" onClick={() => this.removeFromCart(item._id)}>
-                                                Quitar
+                                                value={foodItem.quantity}
+                                                onChange={(e) => {
+                                                    const updatedFoods = [...editingOrder.foods];
+                                                    updatedFoods[index].quantity = parseInt(e.target.value, 10);
+                                                    this.setState({ editingOrder: { ...editingOrder, foods: updatedFoods } });
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const updatedFoods = editingOrder.foods.filter((_, i) => i !== index);
+                                                    this.setState({ editingOrder: { ...editingOrder, foods: updatedFoods } });
+                                                }}
+                                            >
+                                                Eliminar
                                             </button>
                                         </li>
                                     ))}
                                 </ul>
-                                <p><strong>Total del Carrito:</strong> ${totalCart}</p>
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="paymentMethod">Método de Pago:</label>
-                                <select
-                                    id="paymentMethod"
-                                    name="selectedPaymentMethod"
-                                    value={selectedPaymentMethod}
-                                    onChange={this.handleInputChange}
-                                    required
-                                >
-                                    <option value="">Seleccione un método de pago</option>
-                                    {paymentMethods.map((method) => (
-                                        <option key={method} value={method}>
-                                            {method}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <button type="submit">Crear Pedido</button>
-                        </form>
+
+                                <h4>Agregar Comidas:</h4>
+                                <input
+                                    type="text"
+                                    placeholder="Buscar comida"
+                                    value={this.state.searchQuery}
+                                    onChange={(e) => this.setState({ searchQuery: e.target.value })}
+                                />
+                                <ul className="suggestions-list">
+                                    {products
+                                        .filter((product) =>
+                                            product.title.toLowerCase().includes(this.state.searchQuery.toLowerCase())
+                                        )
+                                        .map((product) => (
+                                            <li
+                                                key={product._id}
+                                                onClick={() => {
+                                                    const updatedFoods = [
+                                                        ...editingOrder.foods,
+                                                        { food: product, quantity: 1 }
+                                                    ];
+                                                    this.setState({
+                                                        editingOrder: { ...editingOrder, foods: updatedFoods },
+                                                        searchQuery: ''
+                                                    });
+                                                }}
+                                            >
+                                                {product.title} - ${product.price}
+                                            </li>
+                                        ))}
+                                </ul>
+
+                                <div className="action-buttons">
+                                    <button type="submit">Guardar Cambios</button>
+                                    <button type="button" onClick={this.cancelEditingOrder}>
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <form onSubmit={this.handleSubmit}>
+                                <div className="form-group">
+                                    <label htmlFor="customerName">Nombre del Cliente:</label>
+                                    <input
+                                        type="text"
+                                        id="customerName"
+                                        name="customerName"
+                                        value={customerName}
+                                        onChange={this.handleInputChange}
+                                        required
+                                    />
+                                </div>
+
+                                {section === 'delivery' && (
+                                    <div className="form-group">
+                                        <label htmlFor="customerPhone">Teléfono del Cliente:</label>
+                                        <input
+                                            type="text"
+                                            id="customerPhone"
+                                            name="customerPhone"
+                                            value={customerPhone}
+                                            onChange={this.handleInputChange}
+                                            required
+                                        />
+                                    </div>
+                                )}
+
+                                {section === 'delivery' && (
+                                    <div className="form-group">
+                                        <label htmlFor="customerAddress">Dirección del Cliente:</label>
+                                        <input
+                                            type="text"
+                                            id="customerAddress"
+                                            name="customerAddress"
+                                            value={customerAddress}
+                                            onChange={this.handleInputChange}
+                                            required
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="form-group">
+                                    <label htmlFor="searchQuery">Buscar Productos:</label>
+                                    <input
+                                        type="text"
+                                        id="searchQuery"
+                                        name="searchQuery"
+                                        value={searchQuery}
+                                        onChange={this.handleSearchChange}
+                                        onFocus={() => this.setState({ showSuggestions: true })}
+                                        onBlur={() => setTimeout(() => this.setState({ showSuggestions: false }), 200)}
+                                    />
+                                    {showSuggestions && filteredProducts.length > 0 && (
+                                        <ul className="suggestions-list">
+                                            {filteredProducts.map((product) => (
+                                                <li
+                                                    key={product._id}
+                                                    onClick={() => this.addToCart(product)}
+                                                    className="suggestion-item"
+                                                >
+                                                    {product.title} - ${product.price}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                                <div className="cart">
+                                    <h3>Carrito:</h3>
+                                    <ul>
+                                        {cart.map((item) => (
+                                            <li key={item._id}>
+                                                {item.title} - ${item.price} x{' '}
+                                                <input
+                                                    type="number"
+                                                    value={item.quantity}
+                                                    onChange={(e) =>
+                                                        this.updateCartQuantity(item._id, parseInt(e.target.value, 10))
+                                                    }
+                                                    min="1"
+                                                />{' '}
+                                                = ${item.price * item.quantity}
+                                                <button type="button" onClick={() => this.removeFromCart(item._id)}>
+                                                    Quitar
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <p><strong>Total del Carrito:</strong> ${totalCart}</p>
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="paymentMethod">Método de Pago:</label>
+                                    <select
+                                        id="paymentMethod"
+                                        name="selectedPaymentMethod"
+                                        value={selectedPaymentMethod}
+                                        onChange={this.handleInputChange}
+                                        required
+                                    >
+                                        <option value="">Seleccione un método de pago</option>
+                                        {paymentMethods.map((method) => (
+                                            <option key={method} value={method}>
+                                                {method}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <button type="submit">Crear Pedido</button>
+                            </form>
+                        )}
                     </div>
 
                     {/* Sección de listar pedidos */}
@@ -364,84 +475,6 @@ class Principal extends Component {
                         </ul>
                     </div>
                 </div>
-                {editingOrder && (
-                    <div className="edit-order-modal">
-                        <h3>Editar Pedido</h3>
-                        <label>Nombre del Cliente:</label>
-                        <input
-                            type="text"
-                            value={editingOrder.buyer}
-                            onChange={(e) =>
-                                this.setState({ editingOrder: { ...editingOrder, buyer: e.target.value } })
-                            }
-                        />
-                        <label>Teléfono del Cliente:</label>
-                        <input
-                            type="text"
-                            value={editingOrder.customerPhone}
-                            onChange={(e) =>
-                                this.setState({ editingOrder: { ...editingOrder, customerPhone: e.target.value } })
-                            }
-                        />
-                        <h4>Comidas:</h4>
-                        <ul>
-                            {editingOrder.foods.map((foodItem, index) => (
-                                <li key={index}>
-                                    <span>{foodItem.food.title}</span>
-                                    <input
-                                        type="number"
-                                        value={foodItem.quantity}
-                                        onChange={(e) => {
-                                            const updatedFoods = [...editingOrder.foods];
-                                            updatedFoods[index].quantity = parseInt(e.target.value, 10);
-                                            this.setState({ editingOrder: { ...editingOrder, foods: updatedFoods } });
-                                        }}
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            const updatedFoods = editingOrder.foods.filter((_, i) => i !== index);
-                                            this.setState({ editingOrder: { ...editingOrder, foods: updatedFoods } });
-                                        }}
-                                    >
-                                        Eliminar
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                        <h4>Agregar Comidas:</h4>
-                        <input
-                            type="text"
-                            placeholder="Buscar comida"
-                            value={this.state.searchQuery}
-                            onChange={(e) => this.setState({ searchQuery: e.target.value })}
-                        />
-                        <ul className="suggestions-list">
-                            {products
-                                .filter((product) =>
-                                    product.title.toLowerCase().includes(this.state.searchQuery.toLowerCase())
-                                )
-                                .map((product) => (
-                                    <li
-                                        key={product._id}
-                                        onClick={() => {
-                                            const updatedFoods = [
-                                                ...editingOrder.foods,
-                                                { food: product, quantity: 1 }
-                                            ];
-                                            this.setState({
-                                                editingOrder: { ...editingOrder, foods: updatedFoods },
-                                                searchQuery: ''
-                                            });
-                                        }}
-                                    >
-                                        {product.title} - ${product.price}
-                                    </li>
-                                ))}
-                        </ul>
-                        <button onClick={this.saveEditedOrder}>Guardar Cambios</button>
-                        <button onClick={this.cancelEditingOrder}>Cancelar</button>
-                    </div>
-                )}
             </div>
         );
     }
