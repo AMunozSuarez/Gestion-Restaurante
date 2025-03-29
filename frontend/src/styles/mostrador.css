@@ -1,8 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 /* General Container */
 .mostrador-container {
     background-color: #fdf5e6; /* Color relacionado con comida */
     padding: 20px;
-    font-family: Arial, sans-serif;
+    font-family: 'Poppins', Arial, sans-serif; /* Nueva fuente */
+    font-size: 14px; /* Tamaño base */
+    color: #4d2600; /* Marrón oscuro */
 }
 
 /* Botones de Navegación */
@@ -21,7 +25,8 @@
     background-color: #ffcc00; /* Amarillo relacionado con comida */
     color: #4d2600; /* Marrón oscuro */
     font-size: 16px;
-    font-weight: bold;
+    font-weight: 500; /* Peso medio */
+    font-family: 'Poppins', Arial, sans-serif; /* Aplicar la nueva fuente */
 }
 
 .mostrador-switch-button.active {
@@ -30,7 +35,8 @@
 
 /* Botón Nuevo Pedido */
 .mostrador-new-order {
-    text-align: center;
+    text-align:start;
+    margin-left: 350px;
     margin-bottom: 20px;
 }
 
@@ -42,18 +48,21 @@
     border-radius: 5px;
     cursor: pointer;
     font-size: 16px;
-    font-weight: bold;
+    font-weight: 600; /* Peso más fuerte */
+    font-family: 'Poppins', Arial, sans-serif; /* Aplicar la nueva fuente */
 }
 
 .mostrador-new-order-button:hover {
     background-color: #218838; /* Verde más oscuro */
 }
 
-/* Título */
+/* Títulos */
 .mostrador-title {
     text-align: center;
     color: #4d2600; /* Marrón oscuro */
     margin-bottom: 20px;
+    font-size: 24px; /* Tamaño más grande */
+    font-weight: 600; /* Peso medio */
 }
 
 /* Contenido Principal */
@@ -65,21 +74,32 @@
 
 /* Crear Pedido - Izquierda */
 .mostrador-create-order {
-    flex: 1;
+    flex: 0.4; /* Ocupa menos espacio en comparación con la lista de pedidos */
     background-color: #ffffff;
-    padding: 20px;
+    padding: 15px; /* Reducir el padding */
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    max-height: 500px; /* Altura máxima fija */
+    max-height: 600px; /* Reducir la altura máxima */
     overflow-y: auto; /* Habilitar scroll si el contenido excede la altura */
 }
 
 /* Carrito dentro de Crear Pedido */
 .mostrador-cart {
-    max-height: 200px; /* Altura máxima del carrito */
+    max-height: 150px; /* Reducir la altura máxima del carrito */
     overflow-y: auto; /* Habilitar scroll si hay muchos productos */
-    margin-top: 15px;
-    padding-right: 10px; /* Espacio para el scroll */
+    margin-top: 10px; /* Reducir el margen superior */
+    padding-right: 8px; /* Reducir el espacio para el scroll */
+}
+
+.mostrador-cart ul {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.mostrador-cart li {
+    font-size: 14px; /* Reducir el tamaño de fuente */
+    margin-bottom: 5px; /* Reducir el margen entre productos */
 }
 
 .mostrador-form-group {
@@ -115,6 +135,8 @@
     border-radius: 5px;
     cursor: pointer;
     font-size: 16px;
+    font-weight: 600; /* Peso más fuerte */
+    font-family: 'Poppins', Arial, sans-serif; /* Aplicar la nueva fuente */
 }
 
 .mostrador-submit-button:hover {
@@ -142,19 +164,23 @@
     padding: 0;
 }
 
-.mostrador-order-item {
+.mostrador-order-item,
+.mostrador-completed-order-item {
     background-color: #fff8dc; /* Fondo cálido */
-    padding: 10px;
-    margin-bottom: 10px;
+    padding: 8px; /* Reducir el padding */
+    margin-bottom: 8px; /* Reducir el margen */
     border-radius: 5px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-size: 14px; /* Reducir el tamaño de fuente */
+    font-family: 'Poppins', Arial, sans-serif; /* Aplicar la nueva fuente */
     cursor: pointer;
     transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
-.mostrador-order-item:hover {
+.mostrador-order-item:hover,
+.mostrador-completed-order-item:hover {
     background-color: #ffe4b5; /* Fondo más claro */
-    transform: scale(1.02); /* Efecto de zoom */
+    transform: scale(1.01); /* Efecto de zoom más sutil */
 }
 
 /* Pedidos Completados/Cancelados */

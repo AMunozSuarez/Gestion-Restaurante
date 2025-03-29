@@ -150,7 +150,7 @@ const Mostrador = () => {
                         navigate('/mostrador');
                     }}
                 >
-                    Nuevo Pedido +
+                    Crear Pedido +
                 </button>
             </div>
 
