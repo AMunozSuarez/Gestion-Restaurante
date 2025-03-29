@@ -63,7 +63,7 @@ const Mostrador = () => {
             }
         } catch (error) {
             console.error('Error al cargar el pedido:', error);
-            alert('Hubo un error al cargar el pedido.');
+            navigate('/mostrador');
         }
     };
 
@@ -92,6 +92,7 @@ const Mostrador = () => {
                     buyer: customerName,
                     section: 'mostrador',
                 });
+
             } else {
                 // Realizar un POST para crear un nuevo pedido
                 await axios.post('/order/create', {
@@ -103,16 +104,23 @@ const Mostrador = () => {
                     buyer: customerName,
                     section: 'mostrador',
                 });
+
             }
 
+            // Actualizar la lista de pedidos y limpiar el formulario
             await fetchOrders();
             setCustomerName('');
             setCart([]);
             setSelectedPaymentMethod('');
             setEditingOrderId(null);
+
+            // Redirigir a /mostrador
+            navigate('/mostrador');
         } catch (error) {
             console.error('Error al guardar el pedido:', error);
-            alert('Hubo un error al guardar el pedido.');
+
+            // Redirigir a /mostrador en caso de error
+            navigate('/mostrador');
         }
     };
 
