@@ -70,11 +70,6 @@ const Mostrador = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!customerName) {
-            alert('Por favor, ingrese el nombre del cliente.');
-            return;
-        }
-
         if (!selectedPaymentMethod) {
             alert('Por favor, seleccione un método de pago.');
             return;
@@ -89,7 +84,7 @@ const Mostrador = () => {
                         quantity: item.quantity,
                     })),
                     payment: selectedPaymentMethod,
-                    buyer: customerName,
+                    buyer: customerName || '', // Si no hay nombre, enviar una cadena vacía
                     section: 'mostrador',
                 });
 
@@ -101,7 +96,7 @@ const Mostrador = () => {
                         quantity: item.quantity,
                     })),
                     payment: selectedPaymentMethod,
-                    buyer: customerName,
+                    buyer: customerName || '', // Si no hay nombre, enviar una cadena vacía
                     section: 'mostrador',
                 });
 
@@ -166,7 +161,6 @@ const Mostrador = () => {
                                 name="customerName"
                                 value={customerName}
                                 onChange={(e) => setCustomerName(e.target.value)}
-                                required
                                 className={editingOrderId ? 'editing-input' : ''}
                             />
                         </div>

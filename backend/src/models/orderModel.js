@@ -22,7 +22,6 @@ const orderSchema = new mongoose.Schema({
     },
     buyer: {
         type: String, // Cambiado a String para almacenar directamente el nombre del cliente
-        required: true
     },
     customerPhone: {
         type: String,

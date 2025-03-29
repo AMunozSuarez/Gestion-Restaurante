@@ -139,7 +139,7 @@ const updateOrderController = async (req, res) => {
         const { buyer, customerPhone, foods, payment, section } = req.body;
 
         // Validar que los campos requeridos estén presentes
-        if (!buyer || !foods || !payment || !section) {
+        if ( !payment || !section) {
             return res.status(400).json({
                 success: false,
                 message: 'Todos los campos son obligatorios'
