@@ -166,21 +166,25 @@
 
 .mostrador-order-item,
 .mostrador-completed-order-item {
+    display: flex; /* Usar Flexbox para alinear en fila */
+    justify-content: space-between; /* Espaciado uniforme entre los elementos */
+    align-items: center; /* Centrar verticalmente los elementos */
     background-color: #fff8dc; /* Fondo cálido */
-    padding: 8px; /* Reducir el padding */
-    margin-bottom: 8px; /* Reducir el margen */
+    padding: 8px; /* Espaciado interno */
+    margin-bottom: 8px; /* Espaciado inferior */
     border-radius: 5px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    font-size: 14px; /* Reducir el tamaño de fuente */
+    font-size: 14px; /* Tamaño de fuente */
     font-family: 'Poppins', Arial, sans-serif; /* Aplicar la nueva fuente */
     cursor: pointer;
     transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
-.mostrador-order-item:hover,
-.mostrador-completed-order-item:hover {
-    background-color: #ffe4b5; /* Fondo más claro */
-    transform: scale(1.01); /* Efecto de zoom más sutil */
+.mostrador-order-item p,
+.mostrador-completed-order-item p {
+    margin: 0 10px; /* Espaciado entre los datos */
+    flex: 1; /* Asegura que los elementos se distribuyan uniformemente */
+    text-align: center; /* Centrar el texto */
 }
 
 /* Pedidos Completados/Cancelados */
@@ -192,17 +196,13 @@
     padding: 15px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
 }
 
-.mostrador-completed-order-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: #e6e6e6; /* Fondo gris claro */
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 5px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.mostrador-completed-orders-list ul {
+    padding: 0;
+    margin: 0;
+    list-style: none;
 }
 
 .mostrador-completed-order-item.completed {
@@ -218,7 +218,6 @@
     flex: 1; /* Asegura que los elementos se distribuyan uniformemente */
     text-align: center; /* Centrar el texto */
 }
-
 
 .mostrador-completed-orders-list {
     max-height: 400px; /* Altura máxima */
@@ -285,4 +284,24 @@
 
 .mostrador-quantity-button:hover {
     background-color: #0056b3; /* Azul más oscuro */
+}
+
+.mostrador-order-header {
+    display: flex; /* Usar Flexbox para alinear en fila */
+    justify-content: space-between; /* Espaciado uniforme entre los elementos */
+    align-items: center; /* Centrar verticalmente los elementos */
+    background-color: #f8f9fa; /* Fondo claro */
+    padding: 8px; /* Espaciado interno */
+    margin-bottom: 8px; /* Espaciado inferior */
+    border-radius: 5px;
+    font-weight: bold; /* Texto en negrita */
+    font-size: 14px; /* Tamaño de fuente */
+    color: #4d2600; /* Marrón oscuro */
+    text-align: center; /* Centrar el texto */
+}
+
+.mostrador-order-header p {
+    margin: 0 10px; /* Espaciado entre los datos */
+    flex: 1; /* Asegura que los elementos se distribuyan uniformemente */
+    text-align: center; /* Centrar el texto */
 }

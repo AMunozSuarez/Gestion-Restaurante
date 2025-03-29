@@ -284,6 +284,12 @@ const Mostrador = () => {
                 {/* Listado de Pedidos - Derecha */}
                 <div className="mostrador-orders-list">
                     <h3>Pedidos en Preparación</h3>
+                    <div className="mostrador-order-header">
+                        <p>#</p>
+                        <p>Cliente</p>
+                        <p>Estado</p>
+                        <p>Total</p>
+                    </div>
                     <ul>
                         {preparationOrders.map((order) => (
                             <li
@@ -292,9 +298,9 @@ const Mostrador = () => {
                                 onClick={() => navigate(`/mostrador/${order.orderNumber}`)}
                             >
                                 <p><strong>#{order.orderNumber}</strong></p>
-                                <p>Estado: {order.status}</p>
-                                {order.buyer && <p>Cliente: {order.buyer}</p>}
-                                <p>Total: ${order.total}</p>
+                                <p>{order.buyer || ''}</p>
+                                <p>{order.status}</p>
+                                <p>${order.total}</p>
                             </li>
                         ))}
                     </ul>
@@ -304,6 +310,12 @@ const Mostrador = () => {
             {/* Pedidos Completados/Cancelados */}
             <div className="mostrador-completed-orders-list">
                 <h3>Pedidos Completados/Cancelados</h3>
+                <div className="mostrador-order-header">
+                    <p>#</p>
+                    <p>Cliente</p>
+                    <p>Estado</p>
+                    <p>Total</p>
+                </div>
                 <ul>
                     {completedOrCanceledOrders.map((order) => (
                         <li
@@ -311,9 +323,9 @@ const Mostrador = () => {
                             className={`mostrador-completed-order-item ${order.status}`}
                         >
                             <p><strong>#{order.orderNumber}</strong></p>
-                            <p>Estado: {order.status}</p>
-                            {order.buyer && <p>Cliente: {order.buyer}</p>}
-                            <p>Total: ${order.total}</p>
+                            <p>{order.buyer || 'N/A'}</p>
+                            <p>{order.status}</p>
+                            <p>${order.total}</p>
                         </li>
                     ))}
                 </ul>
