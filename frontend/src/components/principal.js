@@ -6,17 +6,18 @@ class Principal extends Component {
     constructor(props) {
         super(props);
         this.state = {
-            section: 'delivery', // Valor predeterminado
+            section: 'mostrador', // Sección predeterminada
             customerName: '',
             customerPhone: '',
-            orders: [], // Lista de pedidos
-            products: [], // Lista de productos obtenidos de la base de datos
-            cart: [], // Productos seleccionados con cantidades
-            searchQuery: '', // Texto de búsqueda
-            selectedPaymentMethod: '', // Método de pago seleccionado
-            paymentMethods: ['Efectivo', 'Debito', 'Transferencia'], // Métodos de pago disponibles
-            showSuggestions: false, // Mostrar sugerencias
-            editingOrder: null // Pedido que se está editando
+            customerAddress: '', // Campo para la dirección
+            orders: [],
+            products: [],
+            cart: [],
+            searchQuery: '',
+            selectedPaymentMethod: '',
+            paymentMethods: ['Efectivo', 'Debito', 'Transferencia'],
+            showSuggestions: false,
+            editingOrder: null
         };
     }
 
@@ -88,7 +89,24 @@ class Principal extends Component {
 
     handleSubmit = async (e) => {
         e.preventDefault();
-        const { customerName, customerPhone, section, cart, selectedPaymentMethod } = this.state;
+        const { customerName, customerPhone, customerAddress, section, cart, selectedPaymentMethod } = this.state;
+
+        if (!customerName) {
+            alert('Por favor, ingrese el nombre del cliente.');
+            return;
+        }
+
+        if (section === 'delivery') {
+            if (!customerPhone) {
+                alert('Por favor, ingrese el teléfono del cliente.');
+                return;
+            }
+
+            if (!customerAddress) {
+                alert('Por favor, ingrese la dirección del cliente.');
+                return;
+            }
+        }
 
         if (!selectedPaymentMethod) {
             alert('Por favor, seleccione un método de pago.');
@@ -98,13 +116,14 @@ class Principal extends Component {
         try {
             await axios.post('/order/create', {
                 foods: cart.map((item) => ({
-                    food: item._id, // ID del alimento
-                    quantity: item.quantity // Cantidad del alimento
+                    food: item._id,
+                    quantity: item.quantity
                 })),
                 payment: selectedPaymentMethod,
                 buyer: customerName,
-                customerPhone,
-                section // Incluye el valor de "section"
+                customerPhone: section === 'delivery' ? customerPhone : undefined, // Solo enviar teléfono en "delivery"
+                customerAddress: section === 'delivery' ? customerAddress : undefined, // Solo enviar dirección en "delivery"
+                section
             });
 
             // Vuelve a cargar la lista de pedidos desde el backend
@@ -114,6 +133,7 @@ class Principal extends Component {
             this.setState({
                 customerName: '',
                 customerPhone: '',
+                customerAddress: '',
                 cart: [],
                 selectedPaymentMethod: ''
             });
@@ -171,7 +191,7 @@ class Principal extends Component {
     };
 
     render() {
-        const { section, customerName, customerPhone, orders, products, cart, searchQuery, paymentMethods, selectedPaymentMethod, showSuggestions, editingOrder } = this.state;
+        const { section, customerName, customerPhone, customerAddress, orders, products, cart, searchQuery, paymentMethods, selectedPaymentMethod, showSuggestions, editingOrder } = this.state;
 
         // Filtrar productos según el texto de búsqueda
         const filteredProducts = products.filter((product) =>
@@ -185,16 +205,16 @@ class Principal extends Component {
             <div className="principal-container">
                 <div className="button-container">
                     <button
-                        className={`switch-button ${section === 'delivery' ? 'active' : ''}`}
-                        onClick={() => this.setState({ section: 'delivery' })}
-                    >
-                        Delivery
-                    </button>
-                    <button
                         className={`switch-button ${section === 'mostrador' ? 'active' : ''}`}
                         onClick={() => this.setState({ section: 'mostrador' })}
                     >
                         Mostrador
+                    </button>
+                    <button
+                        className={`switch-button ${section === 'delivery' ? 'active' : ''}`}
+                        onClick={() => this.setState({ section: 'delivery' })}
+                    >
+                        Delivery
                     </button>
                 </div>
                 <div className="main-container">
@@ -213,17 +233,36 @@ class Principal extends Component {
                                     required
                                 />
                             </div>
-                            <div className="form-group">
-                                <label htmlFor="customerPhone">Teléfono del Cliente:</label>
-                                <input
-                                    type="text"
-                                    id="customerPhone"
-                                    name="customerPhone"
-                                    value={customerPhone}
-                                    onChange={this.handleInputChange}
-                                    required
-                                />
-                            </div>
+
+                            {/* Campo de teléfono: obligatorio solo en "delivery" */}
+                            {section === 'delivery' && (
+                                <div className="form-group">
+                                    <label htmlFor="customerPhone">Teléfono del Cliente:</label>
+                                    <input
+                                        type="text"
+                                        id="customerPhone"
+                                        name="customerPhone"
+                                        value={customerPhone}
+                                        onChange={this.handleInputChange}
+                                        required
+                                    />
+                                </div>
+                            )}
+
+                            {/* Campo de dirección: obligatorio solo en "delivery" */}
+                            {section === 'delivery' && (
+                                <div className="form-group">
+                                    <label htmlFor="customerAddress">Dirección del Cliente:</label>
+                                    <input
+                                        type="text"
+                                        id="customerAddress"
+                                        name="customerAddress"
+                                        value={customerAddress}
+                                        onChange={this.handleInputChange}
+                                        required
+                                    />
+                                </div>
+                            )}
                             <div className="form-group">
                                 <label htmlFor="searchQuery">Buscar Productos:</label>
                                 <input
@@ -295,31 +334,33 @@ class Principal extends Component {
 
                     {/* Sección de listar pedidos */}
                     <div className="orders-list">
-                        <h2>Pedidos</h2>
+                        <h2>Pedidos - {section === 'mostrador' ? 'Mostrador' : 'Delivery'}</h2>
                         <ul>
-                            {orders.map((order) => (
-                                <li key={order._id}>
-                                    <p>Cliente: {order.buyer}</p>
-                                    <p>Teléfono: {order.customerPhone || 'No disponible'}</p>
-                                    <p>Sección: {order.section}</p>
-                                    <p>Método de Pago: {order.payment}</p>
-                                    <p>Total: ${order.total}</p>
-                                    <p>Comidas:</p>
-                                    <ul>
-                                        {order.foods.map((foodItem) => (
-                                            foodItem.food ? (
-                                                <li key={foodItem.food._id}>
-                                                    {foodItem.food.title} - ${foodItem.food.price} x {foodItem.quantity}
-                                                </li>
-                                            ) : (
-                                                <li key={foodItem._id}>Datos del alimento no disponibles</li>
-                                            )
-                                        ))}
-                                    </ul>
-                                    <button onClick={() => this.startEditingOrder(order)}>Editar Pedido</button>
-                                    <button onClick={() => this.deleteOrder(order._id)}>Eliminar Pedido</button>
-                                </li>
-                            ))}
+                            {orders
+                                .filter((order) => order.section === section) // Filtrar pedidos según la sección seleccionada
+                                .map((order) => (
+                                    <li key={order._id}>
+                                        <p>Cliente: {order.buyer}</p>
+                                        <p>Teléfono: {order.customerPhone || 'No disponible'}</p>
+                                        {section === 'delivery' && <p>Dirección: {order.customerAddress || 'No disponible'}</p>}
+                                        <p>Método de Pago: {order.payment}</p>
+                                        <p>Total: ${order.total}</p>
+                                        <p>Comidas:</p>
+                                        <ul>
+                                            {order.foods.map((foodItem) => (
+                                                foodItem.food ? (
+                                                    <li key={foodItem.food._id}>
+                                                        {foodItem.food.title} - ${foodItem.food.price} x {foodItem.quantity}
+                                                    </li>
+                                                ) : (
+                                                    <li key={foodItem._id}>Datos del alimento no disponibles</li>
+                                                )
+                                            ))}
+                                        </ul>
+                                        <button onClick={() => this.startEditingOrder(order)}>Editar Pedido</button>
+                                        <button onClick={() => this.deleteOrder(order._id)}>Eliminar Pedido</button>
+                                    </li>
+                                ))}
                         </ul>
                     </div>
                 </div>
