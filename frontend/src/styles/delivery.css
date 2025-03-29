@@ -1,0 +1,112 @@
+/* General Container */
+.delivery-container {
+    background-color: #f0f8ff; /* Azul claro */
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+/* Botones de Navegación */
+.delivery-button-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px; /* Espaciado entre botones */
+    margin-bottom: 20px;
+}
+
+.delivery-switch-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: #87ceeb; /* Azul cielo */
+    color: #003366; /* Azul oscuro */
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.delivery-switch-button.active {
+    background-color: #4682b4; /* Azul acero */
+}
+
+/* Título */
+.delivery-title {
+    text-align: center;
+    color: #003366; /* Azul oscuro */
+    margin-bottom: 20px;
+}
+
+/* Contenido Principal */
+.delivery-content {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+/* Crear Pedido - Izquierda */
+.delivery-create-order {
+    flex: 1;
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.delivery-form-group {
+    margin-bottom: 15px;
+}
+
+.delivery-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.delivery-form-group input,
+.delivery-form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+/* Botón de Enviar */
+.delivery-submit-button {
+    background-color: #4682b4; /* Azul acero */
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.delivery-submit-button:hover {
+    background-color: #4169e1; /* Azul real */
+}
+
+/* Lista de Pedidos - Derecha */
+.delivery-orders-list {
+    flex: 1;
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.delivery-orders-list h3 {
+    margin-bottom: 10px;
+    color: #003366; /* Azul oscuro */
+}
+
+.delivery-orders-list ul {
+    list-style: none;
+    padding: 0;
+}
+
+.delivery-orders-list li {
+    background-color: #e6f7ff; /* Fondo azul claro */
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}

@@ -4,6 +4,8 @@ import Header from './components/header';
 
 import Login from './components/login';
 import Principal from './components/principal';
+import Mostrador from './components/mostrador';
+import Delivery from './components/delivery';
 import Productos from './components/admin/productos'; 
 import Categorias from './components/admin/categorias';
 
@@ -15,6 +17,8 @@ function App() {
         <Routes>
           
           <Route path="/" element={<Login />} />
+          <Route path="/mostrador" element={<Mostrador />} />
+          <Route path="/delivery" element={<Delivery />} />
           <Route path="/principal" element={<Principal />} />
           <Route path="/admin/productos" element={<Productos />} />
           <Route path="/admin/categorias" element={<Categorias />} />
