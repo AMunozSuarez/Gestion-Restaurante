@@ -8,12 +8,10 @@ const userSchema = new mongoose.Schema({
     },
     email: {
         type: String,
-        required: [true, 'Please enter your email'],
         unique: true
     },
     password: {
         type: String,
-        required: [true, 'Please enter your password']
     },
     address: {
         type: String,
@@ -32,10 +30,6 @@ const userSchema = new mongoose.Schema({
     avatar: {
         type: String,
         default: 'https://cdn-icons-png.flaticon.com/512/1144/1144760.png'
-    },
-    answer: {
-        type: String,
-        required: [true, 'Please enter your answer']
     }
 }, {
     timestamps: true

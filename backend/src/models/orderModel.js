@@ -7,8 +7,8 @@ const orderSchema = new mongoose.Schema({
     }],
     payment: {
         type: String,
-        enum: ['cash', 'debit', 'transfer'],
-        default: 'cash',
+        enum: ['Efectivo', 'Debito', 'Transferencia'],
+        default: 'Efectivo',
         required: [true, 'Please select a payment method']
     },
     total: {

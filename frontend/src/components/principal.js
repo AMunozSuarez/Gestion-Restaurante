@@ -14,7 +14,7 @@ class Principal extends Component {
             cart: [], // Productos seleccionados con cantidades
             searchQuery: '', // Texto de búsqueda
             selectedPaymentMethod: '', // Método de pago seleccionado
-            paymentMethods: ['cash', 'debit', 'transfer'], // Métodos de pago disponibles
+            paymentMethods: ['Efectivo', 'Debito', 'Transferencia'], // Métodos de pago disponibles
             showSuggestions: false, // Mostrar sugerencias
             editingOrder: null // Pedido que se está editando
         };
@@ -197,126 +197,131 @@ class Principal extends Component {
                         Mostrador
                     </button>
                 </div>
-                <div className="section-container">
-                    <h2>Sección de {section === 'delivery' ? 'Delivery' : 'Mostrador'}</h2>
-                    <form onSubmit={this.handleSubmit}>
-                        <div className="form-group">
-                            <label htmlFor="customerName">Nombre del Cliente:</label>
-                            <input
-                                type="text"
-                                id="customerName"
-                                name="customerName"
-                                value={customerName}
-                                onChange={this.handleInputChange}
-                                required
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="customerPhone">Teléfono del Cliente:</label>
-                            <input
-                                type="text"
-                                id="customerPhone"
-                                name="customerPhone"
-                                value={customerPhone}
-                                onChange={this.handleInputChange}
-                                required
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="searchQuery">Buscar Productos:</label>
-                            <input
-                                type="text"
-                                id="searchQuery"
-                                name="searchQuery"
-                                value={searchQuery}
-                                onChange={this.handleSearchChange}
-                                onFocus={() => this.setState({ showSuggestions: true })}
-                                onBlur={() => setTimeout(() => this.setState({ showSuggestions: false }), 200)}
-                            />
-                            {showSuggestions && filteredProducts.length > 0 && (
-                                <ul className="suggestions-list">
-                                    {filteredProducts.map((product) => (
-                                        <li
-                                            key={product._id}
-                                            onClick={() => this.addToCart(product)}
-                                            className="suggestion-item"
-                                        >
-                                            {product.title} - ${product.price}
+                <div className="main-container">
+                    {/* Sección de crear pedidos */}
+                    <div className="create-order">
+                        <h2>Crear Pedido</h2>
+                        <form onSubmit={this.handleSubmit}>
+                            <div className="form-group">
+                                <label htmlFor="customerName">Nombre del Cliente:</label>
+                                <input
+                                    type="text"
+                                    id="customerName"
+                                    name="customerName"
+                                    value={customerName}
+                                    onChange={this.handleInputChange}
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="customerPhone">Teléfono del Cliente:</label>
+                                <input
+                                    type="text"
+                                    id="customerPhone"
+                                    name="customerPhone"
+                                    value={customerPhone}
+                                    onChange={this.handleInputChange}
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="searchQuery">Buscar Productos:</label>
+                                <input
+                                    type="text"
+                                    id="searchQuery"
+                                    name="searchQuery"
+                                    value={searchQuery}
+                                    onChange={this.handleSearchChange}
+                                    onFocus={() => this.setState({ showSuggestions: true })}
+                                    onBlur={() => setTimeout(() => this.setState({ showSuggestions: false }), 200)}
+                                />
+                                {showSuggestions && filteredProducts.length > 0 && (
+                                    <ul className="suggestions-list">
+                                        {filteredProducts.map((product) => (
+                                            <li
+                                                key={product._id}
+                                                onClick={() => this.addToCart(product)}
+                                                className="suggestion-item"
+                                            >
+                                                {product.title} - ${product.price}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                            <div className="cart">
+                                <h3>Carrito:</h3>
+                                <ul>
+                                    {cart.map((item) => (
+                                        <li key={item._id}>
+                                            {item.title} - ${item.price} x{' '}
+                                            <input
+                                                type="number"
+                                                value={item.quantity}
+                                                onChange={(e) =>
+                                                    this.updateCartQuantity(item._id, parseInt(e.target.value, 10))
+                                                }
+                                                min="1"
+                                            />{' '}
+                                            = ${item.price * item.quantity}
+                                            <button type="button" onClick={() => this.removeFromCart(item._id)}>
+                                                Quitar
+                                            </button>
                                         </li>
                                     ))}
                                 </ul>
-                            )}
-                        </div>
-                        <div className="cart">
-                            <h3>Carrito:</h3>
-                            <ul>
-                                {cart.map((item) => (
-                                    <li key={item._id}>
-                                        {item.title} - ${item.price} x{' '}
-                                        <input
-                                            type="number"
-                                            value={item.quantity}
-                                            onChange={(e) =>
-                                                this.updateCartQuantity(item._id, parseInt(e.target.value, 10))
-                                            }
-                                            min="1"
-                                        />{' '}
-                                        = ${item.price * item.quantity}
-                                        <button type="button" onClick={() => this.removeFromCart(item._id)}>
-                                            Quitar
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                            <p><strong>Total del Carrito:</strong> ${totalCart}</p>
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="paymentMethod">Método de Pago:</label>
-                            <select
-                                id="paymentMethod"
-                                name="selectedPaymentMethod"
-                                value={selectedPaymentMethod}
-                                onChange={this.handleInputChange}
-                                required
-                            >
-                                <option value="">Seleccione un método de pago</option>
-                                {paymentMethods.map((method) => (
-                                    <option key={method} value={method}>
-                                        {method}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <button type="submit">Crear Pedido</button>
-                    </form>
-                </div>
-                <div className="orders-list">
-                    <h2>Pedidos</h2>
-                    <ul>
-                        {orders.map((order) => (
-                            <li key={order._id}>
-                                <p>Cliente: {order.buyer}</p>
-                                <p>Teléfono: {order.customerPhone || 'No disponible'}</p>
-                                <p>Sección: {order.section}</p>
-                                <p>Método de Pago: {order.payment}</p>
-                                <p>Total: ${order.total}</p>
-                                <p>Comidas:</p>
-                                <ul>
-                                    {order.foods.map((foodItem) => (
-                                        foodItem.food ? (
-                                            <li key={foodItem.food._id}>
-                                                {foodItem.food.title} - ${foodItem.food.price} x {foodItem.quantity}
-                                            </li>
-                                        ) : (
-                                            <li key={foodItem._id}>Datos del alimento no disponibles</li>
-                                        )
+                                <p><strong>Total del Carrito:</strong> ${totalCart}</p>
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="paymentMethod">Método de Pago:</label>
+                                <select
+                                    id="paymentMethod"
+                                    name="selectedPaymentMethod"
+                                    value={selectedPaymentMethod}
+                                    onChange={this.handleInputChange}
+                                    required
+                                >
+                                    <option value="">Seleccione un método de pago</option>
+                                    {paymentMethods.map((method) => (
+                                        <option key={method} value={method}>
+                                            {method}
+                                        </option>
                                     ))}
-                                </ul>
-                                <button onClick={() => this.startEditingOrder(order)}>Editar Pedido</button>
-                                <button onClick={() => this.deleteOrder(order._id)}>Eliminar Pedido</button>
-                            </li>
-                        ))}
-                    </ul>
+                                </select>
+                            </div>
+                            <button type="submit">Crear Pedido</button>
+                        </form>
+                    </div>
+
+                    {/* Sección de listar pedidos */}
+                    <div className="orders-list">
+                        <h2>Pedidos</h2>
+                        <ul>
+                            {orders.map((order) => (
+                                <li key={order._id}>
+                                    <p>Cliente: {order.buyer}</p>
+                                    <p>Teléfono: {order.customerPhone || 'No disponible'}</p>
+                                    <p>Sección: {order.section}</p>
+                                    <p>Método de Pago: {order.payment}</p>
+                                    <p>Total: ${order.total}</p>
+                                    <p>Comidas:</p>
+                                    <ul>
+                                        {order.foods.map((foodItem) => (
+                                            foodItem.food ? (
+                                                <li key={foodItem.food._id}>
+                                                    {foodItem.food.title} - ${foodItem.food.price} x {foodItem.quantity}
+                                                </li>
+                                            ) : (
+                                                <li key={foodItem._id}>Datos del alimento no disponibles</li>
+                                            )
+                                        ))}
+                                    </ul>
+                                    <button onClick={() => this.startEditingOrder(order)}>Editar Pedido</button>
+                                    <button onClick={() => this.deleteOrder(order._id)}>Eliminar Pedido</button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                 </div>
                 {editingOrder && (
                     <div className="edit-order-modal">

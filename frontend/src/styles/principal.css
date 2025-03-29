@@ -171,6 +171,7 @@ body {
 
 /* Orders List */
 .orders-list {
+    flex: 2; /* Ocupa el 50% del espacio */
     background-color: #fff8dc; /* Fondo cálido */
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -253,26 +254,35 @@ button[type="submit"]:hover {
     background-color: #f0f0f0;
 }
 
+/* Modal para editar pedidos */
 .edit-order-modal {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: white;
-    padding: 20px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    background-color: #fff8dc; /* Fondo cálido */
+    padding: 30px;
+    border: 2px solid #deb887; /* Marrón claro */
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
     z-index: 1000;
+    width: 40%; /* Ancho del modal */
+    max-height: 80%; /* Altura máxima */
+    overflow-y: auto; /* Scroll si el contenido es demasiado largo */
 }
 
+/* Título del modal */
 .edit-order-modal h3 {
     margin-top: 0;
+    color: #8b4513; /* Marrón oscuro */
+    text-align: center;
 }
 
+/* Lista de comidas en el modal */
 .edit-order-modal ul {
     list-style: none;
     padding: 0;
+    margin: 20px 0;
 }
 
 .edit-order-modal ul li {
@@ -280,8 +290,62 @@ button[type="submit"]:hover {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 10px;
+    padding: 10px;
+    background-color: #fffaf0; /* Fondo cálido */
+    border: 1px solid #deb887; /* Marrón claro */
+    border-radius: 8px;
 }
 
+/* Botones en el modal */
 .edit-order-modal button {
-    margin-left: 10px;
+    background-color: #ffa500; /* Naranja */
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.edit-order-modal button:hover {
+    background-color: #ff8c00; /* Naranja más oscuro */
+}
+
+/* Campo de búsqueda en el modal */
+.edit-order-modal input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #deb887; /* Marrón claro */
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: #fffaf0; /* Fondo cálido */
+}
+
+/* Botones de guardar y cancelar */
+.edit-order-modal .action-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.edit-order-modal .action-buttons button {
+    flex: 1;
+    margin: 0 5px;
+}
+
+/* Contenedor principal para crear y listar pedidos */
+.main-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px; /* Espacio entre las secciones */
+}
+
+/* Sección de crear pedidos */
+.create-order {
+    flex: 1; /* Ocupa el 50% del espacio */
+    background-color: #fff8dc; /* Fondo cálido */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 20px;
 }
