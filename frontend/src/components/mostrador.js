@@ -18,6 +18,7 @@ const Mostrador = () => {
     const [editingOrderId, setEditingOrderId] = useState(null);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [categories, setCategories] = useState([]); // Estado para las categorías
+    const [editingCart, setEditingCart] = useState([]); // Carrito para el pedido en edición
     const searchRef = useRef(null);
 
     const navigate = useNavigate();
@@ -91,7 +92,7 @@ const Mostrador = () => {
 
             if (order) {
                 setCustomerName(order.buyer || ''); // Configura el nombre del cliente
-                setCart(
+                setEditingCart(
                     order.foods.map((foodItem) => ({
                         _id: foodItem.food._id,
                         title: foodItem.food.title,
@@ -206,6 +207,7 @@ const Mostrador = () => {
                     onClick={() => {
                         setCustomerName('');
                         setCart([]);
+                        setEditingCart([]); // Limpia el carrito de edición
                         setSelectedPaymentMethod('');
                         setEditingOrderId(null);
                         navigate('/mostrador'); // Redirige a la ruta base
@@ -228,21 +230,26 @@ const Mostrador = () => {
                     handleSubmit={handleSubmit}
                     editingOrderId={editingOrderId}
                     updateOrderStatus={updateOrderStatus}
-                    products={products || []} // Asegúrate de pasar un array vacío si products es undefined
-                    categories={categories || []} // Pasa las categorías al componente
-                    setCart={setCart}
+                    products={products || []}
+                    categories={categories || []}
+                    cart={editingOrderId ? editingCart : cart} // Usa el carrito correcto
+                    setCart={editingOrderId ? setEditingCart : setCart} // Usa el setter correcto
                 >
                     {isSearchFocused && searchQuery && (
                         <Suggestions
                             products={products}
                             searchQuery={searchQuery}
-                            cart={cart}
-                            setCart={setCart}
+                            cart={editingOrderId ? editingCart : cart} // Usa el carrito correcto
+                            setCart={editingOrderId ? setEditingCart : setCart} // Usa el setter correcto
                             setSearchQuery={setSearchQuery}
                             setIsSearchFocused={setIsSearchFocused}
                         />
                     )}
-                    <Cart cart={cart} setCart={setCart} calculateTotal={calculateTotal} />
+                    <Cart
+                        cart={editingOrderId ? editingCart : cart} // Usa el carrito correcto
+                        setCart={editingOrderId ? setEditingCart : setCart} // Usa el setter correcto
+                        calculateTotal={calculateTotal}
+                    />
                 </OrderForm>
 
                 <OrderList

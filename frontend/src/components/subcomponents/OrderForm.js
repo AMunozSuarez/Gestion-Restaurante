@@ -12,15 +12,16 @@ const OrderForm = ({
     handleSubmit,
     editingOrderId,
     updateOrderStatus,
-    products, // Lista de productos
-    setCart, // Función para actualizar el carrito
-    categories, // Lista de categorías
+    products,
+    setCart,
+    cart, // Recibe el carrito correcto
+    categories,
     children,
 }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false); // Estado para controlar la ventana modal
-    const [categoryFilter, setCategoryFilter] = useState(''); // Filtro por categoría
-    const [modalSearchQuery, setModalSearchQuery] = useState(''); // Barra de búsqueda en la ventana modal
-    const [filteredProducts, setFilteredProducts] = useState(products); // Productos filtrados
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [categoryFilter, setCategoryFilter] = useState('');
+    const [modalSearchQuery, setModalSearchQuery] = useState('');
+    const [filteredProducts, setFilteredProducts] = useState(products);
 
     // Filtrar productos por categoría o búsqueda
     const filterProductos = () => {
@@ -28,7 +29,7 @@ const OrderForm = ({
 
         if (categoryFilter) {
             filtered = filtered.filter(
-                (product) => product.category?._id === categoryFilter // Compara con el _id de la categoría
+                (product) => product.category === categoryFilter
             );
         }
 
@@ -41,7 +42,6 @@ const OrderForm = ({
         setFilteredProducts(filtered);
     };
 
-    // Actualizar productos filtrados cuando cambien los filtros o los productos
     useEffect(() => {
         filterProductos();
     }, [categoryFilter, modalSearchQuery, products]);
@@ -56,9 +56,7 @@ const OrderForm = ({
             }
             return [...prevCart, { ...product, quantity: 1 }];
         });
-        // setIsModalOpen(false); // Cierra la ventana modal después de agregar el producto
     };
-
 
     return (
         <div className="mostrador-create-order">
