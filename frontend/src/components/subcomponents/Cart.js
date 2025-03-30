@@ -51,7 +51,7 @@ const Cart = ({ cart, setCart, calculateTotal }) => {
                                 setCart(updatedCart);
                             }}
                         >
-                            Eliminar
+                            X
                         </button>
                     </li>
                 ))}

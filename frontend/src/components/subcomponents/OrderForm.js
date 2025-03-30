@@ -29,7 +29,7 @@ const OrderForm = ({
 
         if (categoryFilter) {
             filtered = filtered.filter(
-                (product) => product.category === categoryFilter
+                (product) => product.category?._id === categoryFilter
             );
         }
 
@@ -88,7 +88,7 @@ const OrderForm = ({
                         className="mostrador-add-products-button"
                         onClick={() => setIsModalOpen(true)}
                     >
-                        Ver Productos
+                        Ver Productos +
                     </button>
                 </div>
                 {children}
