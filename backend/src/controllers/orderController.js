@@ -136,18 +136,20 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, customerPhone, foods, payment, section } = req.body;
+        const { buyer, customerPhone, foods, payment, section, status} = req.body;
 
         // Validar que los campos requeridos estén presentes
-        if ( !payment || !section) {
-            return res.status(400).json({
-                success: false,
-                message: 'Todos los campos son obligatorios'
-            });
-        }
+        // if ( !payment || !section || !status) {
+        //     console.log('Missing required fields:', { payment, section, status });
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: 'Todos los campos son obligatorios',
+        //     });
+        // }
 
         // Validar que el campo foods tenga el formato correcto
         if (!Array.isArray(foods) || foods.some((item) => !item.food || !item.quantity)) {
+            console.log('Invalid foods format:', foods);
             return res.status(400).json({
                 success: false,
                 message: 'El campo foods debe ser un arreglo con objetos que incluyan food y quantity'
@@ -174,7 +176,7 @@ const updateOrderController = async (req, res) => {
         // Actualizar la orden
         const updatedOrder = await orderModel.findByIdAndUpdate(
             req.params.id,
-            { buyer, customerPhone, foods, payment, section, total },
+            { buyer, customerPhone, foods, payment, section, total, status },
             { new: true, runValidators: true }
         );
 

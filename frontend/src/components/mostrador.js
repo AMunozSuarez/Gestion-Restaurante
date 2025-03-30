@@ -119,6 +119,32 @@ const Mostrador = () => {
         }
     };
 
+    const updateOrderStatus = async (orderId, newStatus) => {
+        try {
+            // Realizar una solicitud PUT para actualizar el estado del pedido
+            await axios.put(`/order/update/${orderId}`, {
+                status: newStatus,
+                foods: cart.map((item) => ({
+                    food: item._id,
+                    quantity: item.quantity,
+                })), // Enviar el carrito actual o un arreglo vacío con el formato correcto// Enviar el carrito actual o un arreglo vacío con el formato correcto
+
+            });
+
+            // Actualizar la lista de pedidos localmente
+            setOrders((prevOrders) =>
+                prevOrders.map((order) =>
+                    order._id === orderId ? { ...order, status: newStatus } : order
+                )
+            );
+
+            navigate('/mostrador'); // Redirigir a /mostrador después de actualizar el estado
+        } catch (error) {
+            console.error('Error al actualizar el estado del pedido:', error);
+            alert('Hubo un error al actualizar el estado del pedido.');
+        }
+    };
+
     const preparationOrders = orders.filter((order) => order.status === 'Preparacion');
     const completedOrCanceledOrders = orders.filter((order) => 
         order.status === 'Completado' || order.status === 'Cancelado'
@@ -181,30 +207,34 @@ const Mostrador = () => {
                             />
                             {/* Sugerencias de productos */}
                             {searchQuery && (
-                                <ul className="mostrador-suggestions-list">
-                                    {products
-                                        .filter((product) =>
-                                            product.title.toLowerCase().includes(searchQuery.toLowerCase())
-                                        )
-                                        .map((product) => (
-                                            <li
-                                                key={product._id}
-                                                onClick={() => {
-                                                    const existingProductIndex = cart.findIndex((item) => item._id === product._id);
-                                                    if (existingProductIndex !== -1) {
-                                                        const updatedCart = [...cart];
-                                                        updatedCart[existingProductIndex].quantity += 1;
-                                                        setCart(updatedCart);
-                                                    } else {
-                                                        setCart([...cart, { ...product, quantity: 1 }]);
-                                                    }
-                                                    setSearchQuery('');
-                                                }}
-                                            >
-                                                {product.title} - ${product.price}
-                                            </li>
-                                        ))}
-                                </ul>
+                                <div className="mostrador-suggestions-container">
+                                    <ul className="mostrador-suggestions-list">
+                                        {products
+                                            .filter((product) =>
+                                                product.title.toLowerCase().includes(searchQuery.toLowerCase())
+                                            )
+                                            .map((product) => (
+                                                <li
+                                                    key={product._id}
+                                                    className="mostrador-suggestion-item"
+                                                    onClick={() => {
+                                                        const existingProductIndex = cart.findIndex((item) => item._id === product._id);
+                                                        if (existingProductIndex !== -1) {
+                                                            const updatedCart = [...cart];
+                                                            updatedCart[existingProductIndex].quantity += 1;
+                                                            setCart(updatedCart);
+                                                        } else {
+                                                            setCart([...cart, { ...product, quantity: 1 }]);
+                                                        }
+                                                        setSearchQuery('');
+                                                    }}
+                                                >
+                                                    <span className="product-title">{product.title}</span>
+                                                    <span className="product-price">${product.price}</span>
+                                                </li>
+                                            ))}
+                                    </ul>
+                                </div>
                             )}
                         </div>
                         <div className="mostrador-cart">
@@ -257,7 +287,7 @@ const Mostrador = () => {
                                 ))}
                             </ul>
                         </div>
-                        <div className="mostrador-form-group">
+                        <div className="mostrador-form-group payment-method">
                             <label htmlFor="paymentMethod">Método de Pago:</label>
                             <select
                                 id="paymentMethod"
@@ -275,9 +305,34 @@ const Mostrador = () => {
                                 ))}
                             </select>
                         </div>
+
                         <button type="submit" className={`mostrador-submit-button ${editingOrderId ? 'editing-button' : ''}`}>
                             {editingOrderId ? 'Guardar Cambios' : 'Crear Pedido'}
                         </button>
+
+                        {/* Botones para cambiar el estado del pedido */}
+                        {editingOrderId && (
+                            <div className="mostrador-edit-buttons">
+                                <button
+                                    type="button"
+                                    className="mostrador-status-button"
+                                    onClick={() => updateOrderStatus(editingOrderId, 'Completado')}
+                                >
+                                    Marcar como Completado
+                                </button>
+                                <button
+                                    type="button"
+                                    className="mostrador-cancel-button"
+                                    onClick={() => {
+                                        if (window.confirm('¿Estás seguro que deseas cancelar este pedido?')) {
+                                            updateOrderStatus(editingOrderId, 'Cancelado');
+                                        }
+                                    }}
+                                >
+                                    Cancelar Pedido
+                                </button>
+                            </div>
+                        )}
                     </form>
                 </div>
 
@@ -289,18 +344,29 @@ const Mostrador = () => {
                         <p>Cliente</p>
                         <p>Estado</p>
                         <p>Total</p>
+                        <button
+                                    className="mostrador-status-button-fake"
+                                >
+                                    ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ 
+                                </button>
                     </div>
                     <ul>
                         {preparationOrders.map((order) => (
                             <li
                                 key={order._id}
                                 className={`mostrador-order-item ${editingOrderId === order._id ? 'editing-order' : ''}`}
-                                onClick={() => navigate(`/mostrador/${order.orderNumber}`)}
+onClick={() => navigate(`/mostrador/${order.orderNumber}`)}
                             >
                                 <p><strong>#{order.orderNumber}</strong></p>
-                                <p>{order.buyer || ''}</p>
+                                <p>{order.buyer || 'N/A'}</p>
                                 <p>{order.status}</p>
                                 <p>${order.total}</p>
+                                <button
+                                    className="mostrador-status-button"
+                                    onClick={() => updateOrderStatus(order._id, 'Completado')}
+                                >
+                                    Completado
+                                </button>
                             </li>
                         ))}
                     </ul>
