@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const OrderForm = ({
     customerName,
@@ -11,9 +11,55 @@ const OrderForm = ({
     setSelectedPaymentMethod,
     handleSubmit,
     editingOrderId,
-    updateOrderStatus, // Nueva prop para actualizar el estado del pedido
+    updateOrderStatus,
+    products, // Lista de productos
+    setCart, // Función para actualizar el carrito
+    categories, // Lista de categorías
     children,
 }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false); // Estado para controlar la ventana modal
+    const [categoryFilter, setCategoryFilter] = useState(''); // Filtro por categoría
+    const [modalSearchQuery, setModalSearchQuery] = useState(''); // Barra de búsqueda en la ventana modal
+    const [filteredProducts, setFilteredProducts] = useState(products); // Productos filtrados
+
+    // Filtrar productos por categoría o búsqueda
+    const filterProductos = () => {
+        let filtered = products;
+
+        if (categoryFilter) {
+            filtered = filtered.filter(
+                (product) => product.category?._id === categoryFilter // Compara con el _id de la categoría
+            );
+        }
+
+        if (modalSearchQuery) {
+            filtered = filtered.filter((product) =>
+                product.title.toLowerCase().includes(modalSearchQuery.toLowerCase())
+            );
+        }
+
+        setFilteredProducts(filtered);
+    };
+
+    // Actualizar productos filtrados cuando cambien los filtros o los productos
+    useEffect(() => {
+        filterProductos();
+    }, [categoryFilter, modalSearchQuery, products]);
+
+    const addToCart = (product) => {
+        setCart((prevCart) => {
+            const existingProduct = prevCart.find((item) => item._id === product._id);
+            if (existingProduct) {
+                return prevCart.map((item) =>
+                    item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
+                );
+            }
+            return [...prevCart, { ...product, quantity: 1 }];
+        });
+        // setIsModalOpen(false); // Cierra la ventana modal después de agregar el producto
+    };
+
+
     return (
         <div className="mostrador-create-order">
             <form onSubmit={handleSubmit}>
@@ -39,6 +85,13 @@ const OrderForm = ({
                         onFocus={() => setIsSearchFocused(true)}
                         className={editingOrderId ? 'editing-input' : ''}
                     />
+                    <button
+                        type="button"
+                        className="mostrador-add-products-button"
+                        onClick={() => setIsModalOpen(true)}
+                    >
+                        Ver Productos
+                    </button>
                 </div>
                 {children}
                 <div className="mostrador-form-group">
@@ -85,6 +138,63 @@ const OrderForm = ({
                     </div>
                 )}
             </form>
+
+            {/* Ventana Modal */}
+            {isModalOpen && (
+                <div className="mostrador-modal">
+                    <div className="mostrador-modal-content">
+                        <h3>Seleccionar Productos</h3>
+                        <input
+                            type="text"
+                            placeholder="Buscar productos..."
+                            value={modalSearchQuery}
+                            onChange={(e) => setModalSearchQuery(e.target.value)}
+                            className="mostrador-modal-search"
+                        />
+                        <div className="mostrador-modal-categories">
+                            <button
+                                className={`mostrador-modal-category-button ${
+                                    categoryFilter === '' ? 'active' : ''
+                                }`}
+                                onClick={() => setCategoryFilter('')} // Mostrar todos los productos
+                            >
+                                Todas
+                            </button>
+                            {categories.map((category) => (
+                                <button
+                                    key={category._id}
+                                    className={`mostrador-modal-category-button ${
+                                        categoryFilter === category._id ? 'active' : ''
+                                    }`}
+                                    onClick={() => setCategoryFilter(category._id)} // Filtrar por _id de la categoría
+                                >
+                                    {category.title}
+                                </button>
+                            ))}
+                        </div>
+                        <ul className="mostrador-modal-products-list">
+                            {filteredProducts.map((product) => (
+                                <li
+                                    key={product._id}
+                                    className="mostrador-modal-product-item"
+                                    onClick={() => addToCart(product)}
+                                >
+                                    <span>{product.title}</span>
+                                    <span>${product.price}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        
+                        <button
+                            type="button"
+                            className="mostrador-modal-close-button"
+                            onClick={() => setIsModalOpen(false)}
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

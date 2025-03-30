@@ -17,6 +17,7 @@ const Mostrador = () => {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
     const [editingOrderId, setEditingOrderId] = useState(null);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const [categories, setCategories] = useState([]); // Estado para las categorías
     const searchRef = useRef(null);
 
     const navigate = useNavigate();
@@ -50,6 +51,19 @@ const Mostrador = () => {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
+    }, []);
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const response = await axios.get('/category/getAll'); // Ruta correcta
+                setCategories(response.data.categories); // Asegúrate de que sea un array
+            } catch (error) {
+                console.error('Error al cargar las categorías:', error);
+            }
+        };
+
+        fetchCategories();
     }, []);
 
     const fetchProducts = async () => {
@@ -213,7 +227,10 @@ const Mostrador = () => {
                     setSelectedPaymentMethod={setSelectedPaymentMethod}
                     handleSubmit={handleSubmit}
                     editingOrderId={editingOrderId}
-                    updateOrderStatus={updateOrderStatus} // Pasa la función como prop
+                    updateOrderStatus={updateOrderStatus}
+                    products={products || []} // Asegúrate de pasar un array vacío si products es undefined
+                    categories={categories || []} // Pasa las categorías al componente
+                    setCart={setCart}
                 >
                     {isSearchFocused && searchQuery && (
                         <Suggestions
