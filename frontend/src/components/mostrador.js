@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/mostrador.css';
@@ -11,6 +11,9 @@ const Mostrador = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
     const [editingOrderId, setEditingOrderId] = useState(null);
+    const [isSearchFocused, setIsSearchFocused] = useState(false); // Nuevo estado para manejar el foco
+    const searchRef = useRef(null); // Ref para el contenedor de búsqueda
+
     const paymentMethods = ['Efectivo', 'Debito', 'Transferencia'];
 
     const navigate = useNavigate();
@@ -24,6 +27,19 @@ const Mostrador = () => {
             loadOrderByNumber(orderNumber);
         }
     }, [orderNumber]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (searchRef.current && !searchRef.current.contains(event.target)) {
+                setIsSearchFocused(false); // Cierra las sugerencias si se hace clic fuera
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const fetchProducts = async () => {
         try {
@@ -145,6 +161,10 @@ const Mostrador = () => {
         }
     };
 
+    const calculateTotal = () => {
+        return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+    };
+
     const preparationOrders = orders.filter((order) => order.status === 'Preparacion');
     const completedOrCanceledOrders = orders.filter((order) => 
         order.status === 'Completado' || order.status === 'Cancelado'
@@ -195,7 +215,7 @@ const Mostrador = () => {
                                 className={editingOrderId ? 'editing-input' : ''}
                             />
                         </div>
-                        <div className="mostrador-form-group">
+                        <div className="mostrador-form-group" ref={searchRef}>
                             <label htmlFor="searchQuery">Agregar Productos:</label>
                             <input
                                 type="text"
@@ -203,10 +223,11 @@ const Mostrador = () => {
                                 name="searchQuery"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
+                                onFocus={() => setIsSearchFocused(true)} // Activa las sugerencias al enfocar
                                 className={editingOrderId ? 'editing-input' : ''}
                             />
                             {/* Sugerencias de productos */}
-                            {searchQuery && (
+                            {isSearchFocused && searchQuery && (
                                 <div className="mostrador-suggestions-container">
                                     <ul className="mostrador-suggestions-list">
                                         {products
@@ -227,6 +248,7 @@ const Mostrador = () => {
                                                             setCart([...cart, { ...product, quantity: 1 }]);
                                                         }
                                                         setSearchQuery('');
+                                                        setIsSearchFocused(false); // Cierra las sugerencias al seleccionar un producto
                                                     }}
                                                 >
                                                     <span className="product-title">{product.title}</span>
@@ -239,40 +261,45 @@ const Mostrador = () => {
                         </div>
                         <div className="mostrador-cart">
                             <h3>Carrito:</h3>
-                            <ul>
+                            <ul className="mostrador-cart-list">
                                 {cart.map((item) => (
-                                    <li key={item._id}>
-                                        {item.title} - ${item.price} x {item.quantity}
-                                        <button
-                                            type="button"
-                                            className="mostrador-quantity-button"
-                                            onClick={() => {
-                                                const updatedCart = cart.map((cartItem) =>
-                                                    cartItem._id === item._id
-                                                        ? { ...cartItem, quantity: cartItem.quantity + 1 }
-                                                        : cartItem
-                                                );
-                                                setCart(updatedCart);
-                                            }}
-                                        >
-                                            +
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="mostrador-quantity-button"
-                                            onClick={() => {
-                                                const updatedCart = cart
-                                                    .map((cartItem) =>
-                                                        cartItem._id === item._id && cartItem.quantity > 1
-                                                            ? { ...cartItem, quantity: cartItem.quantity - 1 }
+                                    <li key={item._id} className="mostrador-cart-item">
+                                        <div className="cart-item-actions">
+                                            <button
+                                                type="button"
+                                                className="mostrador-quantity-button"
+                                                onClick={() => {
+                                                    const updatedCart = cart.map((cartItem) =>
+                                                        cartItem._id === item._id
+                                                            ? { ...cartItem, quantity: cartItem.quantity + 1 }
                                                             : cartItem
-                                                    )
-                                                    .filter((cartItem) => cartItem.quantity > 0);
-                                                setCart(updatedCart);
-                                            }}
-                                        >
-                                            -
-                                        </button>
+                                                    );
+                                                    setCart(updatedCart);
+                                                }}
+                                            >
+                                                +
+                                            </button>
+                                            <span className="cart-item-quantity">x {item.quantity}</span>
+                                            <button
+                                                type="button"
+                                                className="mostrador-quantity-button"
+                                                onClick={() => {
+                                                    const updatedCart = cart
+                                                        .map((cartItem) =>
+                                                            cartItem._id === item._id && cartItem.quantity > 1
+                                                                ? { ...cartItem, quantity: cartItem.quantity - 1 }
+                                                                : cartItem
+                                                        )
+                                                        .filter((cartItem) => cartItem.quantity > 0);
+                                                    setCart(updatedCart);
+                                                }}
+                                            >
+                                                -
+                                            </button>
+                                        </div>
+                                        <div className="cart-item-info">
+                                            <span className="cart-item-title">{item.title}</span>
+                                        </div>
                                         <button
                                             type="button"
                                             className="mostrador-remove-button"
@@ -286,6 +313,9 @@ const Mostrador = () => {
                                     </li>
                                 ))}
                             </ul>
+                            <div className="mostrador-cart-total">
+                                <h4>Total: ${calculateTotal().toFixed(2)}</h4>
+                            </div>
                         </div>
                         <div className="mostrador-form-group payment-method">
                             <label htmlFor="paymentMethod">Método de Pago:</label>

@@ -80,7 +80,7 @@
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     min-height: 500px;
-    max-height: 700px; /* Reducir la altura máxima */
+    max-height: 900px; /* Reducir la altura máxima */
     overflow-y: auto; /* Habilitar scroll si el contenido excede la altura */
 }
 
@@ -114,9 +114,9 @@
 }
 
 .cart-item-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    flex: 1; /* Ocupa el espacio restante */
+    text-align: left; /* Alinear el texto a la izquierda */
+    margin-left: 10px; /* Espaciado entre cantidad y título */
 }
 
 .cart-item-title {
@@ -131,13 +131,14 @@
 
 .cart-item-quantity {
     font-size: 14px;
+    font-weight: bold;
     color: #555;
 }
 
 .cart-item-actions {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 5px; /* Espaciado entre botones y cantidad */
 }
 
 .mostrador-quantity-button {
@@ -188,11 +189,12 @@
 }
 
 .mostrador-form-group select {
-    width: 50%;
+    width: 55%;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
     margin-bottom: 15px;
+    font-family: poppins, Arial, sans-serif; /* Aplicar la nueva fuente */
 }
 
 .payment-methods {
@@ -453,17 +455,23 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px;
-    border-bottom: 1px solid #ccc;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.mostrador-cart-item:last-child {
+    border-bottom: none;
 }
 
 .cart-item-info {
-    display: flex;
-    flex-direction: column;
+    flex: 1; /* Ocupa el espacio restante */
+    text-align: left; /* Alinear el texto a la izquierda */
+    margin-left: 10px; /* Espaciado entre cantidad y título */
 }
 
 .cart-item-title {
-    font-weight: bold;
+    font-weight: 500;
+    color: #333;
 }
 
 .cart-item-price,
@@ -472,9 +480,16 @@
     color: #666;
 }
 
+.cart-item-quantity {
+    font-size: 14px;
+    font-weight: bold;
+    color: #555;
+}
+
 .cart-item-actions {
     display: flex;
     align-items: center;
+    gap: 5px; /* Espaciado entre botones y cantidad */
 }
 
 .mostrador-quantity-button {
@@ -486,6 +501,7 @@
     margin: 2.5px 5px;
     cursor: pointer;
     font-size: 14px;
+    transition: background-color 0.2s ease;
 }
 
 .mostrador-quantity-button:hover {
@@ -501,6 +517,7 @@
     margin-left: 10px;
     cursor: pointer;
     font-size: 14px;
+    transition: background-color 0.2s ease;
 }
 
 .mostrador-remove-button:hover {
@@ -545,4 +562,12 @@
 .product-price {
     font-weight: bold;
     color: #28a745;
+}
+
+.mostrador-cart-total {
+    margin-top: 15px;
+    text-align: right;
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
 }
