@@ -2,6 +2,11 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/mostrador.css';
+import OrderForm from './subcomponents/OrderForm';
+import Cart from './subcomponents/Cart';
+import Suggestions from './subcomponents/Suggestions';
+import OrderList from './subcomponents/OrderList';
+import CompletedOrdersList from './subcomponents/CompletedOrdersList';
 
 const Mostrador = () => {
     const [customerName, setCustomerName] = useState('');
@@ -11,10 +16,8 @@ const Mostrador = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
     const [editingOrderId, setEditingOrderId] = useState(null);
-    const [isSearchFocused, setIsSearchFocused] = useState(false); // Nuevo estado para manejar el foco
-    const searchRef = useRef(null); // Ref para el contenedor de búsqueda
-
-    const paymentMethods = ['Efectivo', 'Debito', 'Transferencia'];
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const searchRef = useRef(null);
 
     const navigate = useNavigate();
     const { orderNumber } = useParams();
@@ -22,16 +25,24 @@ const Mostrador = () => {
     useEffect(() => {
         fetchProducts();
         fetchOrders();
+    }, []);
 
+    useEffect(() => {
         if (orderNumber) {
-            loadOrderByNumber(orderNumber);
+            loadOrderByNumber(orderNumber); // Carga los datos del pedido si hay un orderNumber
+        } else {
+            // Limpia los estados para mostrar el formulario vacío
+            setCustomerName('');
+            setCart([]);
+            setSelectedPaymentMethod('');
+            setEditingOrderId(null);
         }
     }, [orderNumber]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (searchRef.current && !searchRef.current.contains(event.target)) {
-                setIsSearchFocused(false); // Cierra las sugerencias si se hace clic fuera
+                setIsSearchFocused(false);
             }
         };
 
@@ -65,21 +76,23 @@ const Mostrador = () => {
             const order = response.data.order;
 
             if (order) {
-                setCustomerName(order.buyer);
-                setCart(order.foods.map((foodItem) => ({
-                    _id: foodItem.food._id,
-                    title: foodItem.food.title,
-                    price: foodItem.food.price,
-                    quantity: foodItem.quantity,
-                })));
-                setSelectedPaymentMethod(order.payment);
-                setEditingOrderId(order._id);
+                setCustomerName(order.buyer || ''); // Configura el nombre del cliente
+                setCart(
+                    order.foods.map((foodItem) => ({
+                        _id: foodItem.food._id,
+                        title: foodItem.food.title,
+                        price: foodItem.food.price,
+                        quantity: foodItem.quantity, // Configura la cantidad de cada producto
+                    }))
+                );
+                setSelectedPaymentMethod(order.payment || ''); // Configura el método de pago
+                setEditingOrderId(order._id); // Activa el modo de edición
             } else {
                 alert('Pedido no encontrado.');
             }
         } catch (error) {
             console.error('Error al cargar el pedido:', error);
-            navigate('/mostrador');
+            navigate('/mostrador'); // Redirige a la página principal en caso de error
         }
     };
 
@@ -93,51 +106,45 @@ const Mostrador = () => {
 
         try {
             if (editingOrderId) {
-                // Realizar un PUT para actualizar el pedido existente
                 await axios.put(`/order/update/${editingOrderId}`, {
                     foods: cart.map((item) => ({
                         food: item._id,
                         quantity: item.quantity,
                     })),
                     payment: selectedPaymentMethod,
-                    buyer: customerName || '', // Si no hay nombre, enviar una cadena vacía
+                    buyer: customerName || '',
                     section: 'mostrador',
                 });
-
             } else {
-                // Realizar un POST para crear un nuevo pedido
                 await axios.post('/order/create', {
                     foods: cart.map((item) => ({
                         food: item._id,
                         quantity: item.quantity,
                     })),
                     payment: selectedPaymentMethod,
-                    buyer: customerName || '', // Si no hay nombre, enviar una cadena vacía
+                    buyer: customerName || '',
                     section: 'mostrador',
                 });
-
             }
 
-            // Actualizar la lista de pedidos y limpiar el formulario
             await fetchOrders();
             setCustomerName('');
             setCart([]);
             setSelectedPaymentMethod('');
             setEditingOrderId(null);
-
-            // Redirigir a /mostrador
             navigate('/mostrador');
         } catch (error) {
             console.error('Error al guardar el pedido:', error);
-
-            // Redirigir a /mostrador en caso de error
             navigate('/mostrador');
         }
     };
 
+    const calculateTotal = () => {
+        return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+    };
+
     const updateOrderStatus = async (orderId, newStatus) => {
         try {
-            // Realizar una solicitud PUT para actualizar el estado del pedido
             await axios.put(`/order/update/${orderId}`, {
                 status: newStatus,
                 foods: cart.map((item) => ({
@@ -155,24 +162,19 @@ const Mostrador = () => {
             );
 
             navigate('/mostrador'); // Redirigir a /mostrador después de actualizar el estado
+            fetchOrders(); // Actualiza la lista de pedidos
         } catch (error) {
             console.error('Error al actualizar el estado del pedido:', error);
-            alert('Hubo un error al actualizar el estado del pedido.');
         }
     };
-
-    const calculateTotal = () => {
-        return cart.reduce((total, item) => total + item.price * item.quantity, 0);
-    };
-
+    
     const preparationOrders = orders.filter((order) => order.status === 'Preparacion');
-    const completedOrCanceledOrders = orders.filter((order) => 
+    const completedOrCanceledOrders = orders.filter((order) =>
         order.status === 'Completado' || order.status === 'Cancelado'
     );
 
     return (
         <div className="mostrador-container">
-            {/* Botones para cambiar entre Mostrador y Delivery */}
             <div className="mostrador-button-container">
                 <Link to="/mostrador">
                     <button className="mostrador-switch-button active">Mostrador</button>
@@ -184,7 +186,6 @@ const Mostrador = () => {
 
             <h2 className="mostrador-title">Mostrador</h2>
 
-            {/* Botón Nuevo Pedido */}
             <div className="mostrador-new-order">
                 <button
                     className="mostrador-new-order-button"
@@ -193,7 +194,7 @@ const Mostrador = () => {
                         setCart([]);
                         setSelectedPaymentMethod('');
                         setEditingOrderId(null);
-                        navigate('/mostrador');
+                        navigate('/mostrador'); // Redirige a la ruta base
                     }}
                 >
                     Crear Pedido +
@@ -201,231 +202,43 @@ const Mostrador = () => {
             </div>
 
             <div className={`mostrador-content ${editingOrderId ? 'editing' : 'creating'}`}>
-                {/* Crear Pedido - Izquierda */}
-                <div className="mostrador-create-order">
-                    <form onSubmit={handleSubmit}>
-                        <div className="mostrador-form-group">
-                            <label htmlFor="customerName">Nombre del Cliente:</label>
-                            <input
-                                type="text"
-                                id="customerName"
-                                name="customerName"
-                                value={customerName}
-                                onChange={(e) => setCustomerName(e.target.value)}
-                                className={editingOrderId ? 'editing-input' : ''}
-                            />
-                        </div>
-                        <div className="mostrador-form-group" ref={searchRef}>
-                            <label htmlFor="searchQuery">Agregar Productos:</label>
-                            <input
-                                type="text"
-                                id="searchQuery"
-                                name="searchQuery"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onFocus={() => setIsSearchFocused(true)} // Activa las sugerencias al enfocar
-                                className={editingOrderId ? 'editing-input' : ''}
-                            />
-                            {/* Sugerencias de productos */}
-                            {isSearchFocused && searchQuery && (
-                                <div className="mostrador-suggestions-container">
-                                    <ul className="mostrador-suggestions-list">
-                                        {products
-                                            .filter((product) =>
-                                                product.title.toLowerCase().includes(searchQuery.toLowerCase())
-                                            )
-                                            .map((product) => (
-                                                <li
-                                                    key={product._id}
-                                                    className="mostrador-suggestion-item"
-                                                    onClick={() => {
-                                                        const existingProductIndex = cart.findIndex((item) => item._id === product._id);
-                                                        if (existingProductIndex !== -1) {
-                                                            const updatedCart = [...cart];
-                                                            updatedCart[existingProductIndex].quantity += 1;
-                                                            setCart(updatedCart);
-                                                        } else {
-                                                            setCart([...cart, { ...product, quantity: 1 }]);
-                                                        }
-                                                        setSearchQuery('');
-                                                        setIsSearchFocused(false); // Cierra las sugerencias al seleccionar un producto
-                                                    }}
-                                                >
-                                                    <span className="product-title">{product.title}</span>
-                                                    <span className="product-price">${product.price}</span>
-                                                </li>
-                                            ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                        <div className="mostrador-cart">
-                            <h3>Carrito:</h3>
-                            <ul className="mostrador-cart-list">
-                                {cart.map((item) => (
-                                    <li key={item._id} className="mostrador-cart-item">
-                                        <div className="cart-item-actions">
-                                            <button
-                                                type="button"
-                                                className="mostrador-quantity-button"
-                                                onClick={() => {
-                                                    const updatedCart = cart.map((cartItem) =>
-                                                        cartItem._id === item._id
-                                                            ? { ...cartItem, quantity: cartItem.quantity + 1 }
-                                                            : cartItem
-                                                    );
-                                                    setCart(updatedCart);
-                                                }}
-                                            >
-                                                +
-                                            </button>
-                                            <span className="cart-item-quantity">x {item.quantity}</span>
-                                            <button
-                                                type="button"
-                                                className="mostrador-quantity-button"
-                                                onClick={() => {
-                                                    const updatedCart = cart
-                                                        .map((cartItem) =>
-                                                            cartItem._id === item._id && cartItem.quantity > 1
-                                                                ? { ...cartItem, quantity: cartItem.quantity - 1 }
-                                                                : cartItem
-                                                        )
-                                                        .filter((cartItem) => cartItem.quantity > 0);
-                                                    setCart(updatedCart);
-                                                }}
-                                            >
-                                                -
-                                            </button>
-                                        </div>
-                                        <div className="cart-item-info">
-                                            <span className="cart-item-title">{item.title}</span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            className="mostrador-remove-button"
-                                            onClick={() => {
-                                                const updatedCart = cart.filter((cartItem) => cartItem._id !== item._id);
-                                                setCart(updatedCart);
-                                            }}
-                                        >
-                                            Eliminar
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                            <div className="mostrador-cart-total">
-                                <h4>Total: ${calculateTotal().toFixed(2)}</h4>
-                            </div>
-                        </div>
-                        <div className="mostrador-form-group payment-method">
-                            <label htmlFor="paymentMethod">Método de Pago:</label>
-                            <select
-                                id="paymentMethod"
-                                name="selectedPaymentMethod"
-                                value={selectedPaymentMethod}
-                                onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                                required
-                                className={editingOrderId ? 'editing-input' : ''}
-                            >
-                                <option value="">Seleccione un método de pago</option>
-                                {paymentMethods.map((method) => (
-                                    <option key={method} value={method}>
-                                        {method}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                <OrderForm
+                    customerName={customerName}
+                    setCustomerName={setCustomerName}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    isSearchFocused={isSearchFocused}
+                    setIsSearchFocused={setIsSearchFocused}
+                    selectedPaymentMethod={selectedPaymentMethod}
+                    setSelectedPaymentMethod={setSelectedPaymentMethod}
+                    handleSubmit={handleSubmit}
+                    editingOrderId={editingOrderId}
+                    updateOrderStatus={updateOrderStatus} // Pasa la función como prop
+                >
+                    {isSearchFocused && searchQuery && (
+                        <Suggestions
+                            products={products}
+                            searchQuery={searchQuery}
+                            cart={cart}
+                            setCart={setCart}
+                            setSearchQuery={setSearchQuery}
+                            setIsSearchFocused={setIsSearchFocused}
+                        />
+                    )}
+                    <Cart cart={cart} setCart={setCart} calculateTotal={calculateTotal} />
+                </OrderForm>
 
-                        <button type="submit" className={`mostrador-submit-button ${editingOrderId ? 'editing-button' : ''}`}>
-                            {editingOrderId ? 'Guardar Cambios' : 'Crear Pedido'}
-                        </button>
-
-                        {/* Botones para cambiar el estado del pedido */}
-                        {editingOrderId && (
-                            <div className="mostrador-edit-buttons">
-                                <button
-                                    type="button"
-                                    className="mostrador-status-button"
-                                    onClick={() => updateOrderStatus(editingOrderId, 'Completado')}
-                                >
-                                    Marcar como Completado
-                                </button>
-                                <button
-                                    type="button"
-                                    className="mostrador-cancel-button"
-                                    onClick={() => {
-                                        if (window.confirm('¿Estás seguro que deseas cancelar este pedido?')) {
-                                            updateOrderStatus(editingOrderId, 'Cancelado');
-                                        }
-                                    }}
-                                >
-                                    Cancelar Pedido
-                                </button>
-                            </div>
-                        )}
-                    </form>
-                </div>
-
-                {/* Listado de Pedidos - Derecha */}
-                <div className="mostrador-orders-list">
-                    <h3>Pedidos en Preparación</h3>
-                    <div className="mostrador-order-header">
-                        <p>#</p>
-                        <p>Cliente</p>
-                        <p>Estado</p>
-                        <p>Total</p>
-                        <button
-                                    className="mostrador-status-button-fake"
-                                >
-                                    ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ 
-                                </button>
-                    </div>
-                    <ul>
-                        {preparationOrders.map((order) => (
-                            <li
-                                key={order._id}
-                                className={`mostrador-order-item ${editingOrderId === order._id ? 'editing-order' : ''}`}
-onClick={() => navigate(`/mostrador/${order.orderNumber}`)}
-                            >
-                                <p><strong>#{order.orderNumber}</strong></p>
-                                <p>{order.buyer || 'N/A'}</p>
-                                <p>{order.status}</p>
-                                <p>${order.total}</p>
-                                <button
-                                    className="mostrador-status-button"
-                                    onClick={() => updateOrderStatus(order._id, 'Completado')}
-                                >
-                                    Completado
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
+                <OrderList
+                    orders={preparationOrders}
+                    setEditingOrderId={setEditingOrderId}
+                    navigate={navigate}
+                    updateOrderStatus={updateOrderStatus}
+                    loadOrderByNumber={loadOrderByNumber} // Pasa la función como prop
+                />
             </div>
 
-            {/* Pedidos Completados/Cancelados */}
-            <div className="mostrador-completed-orders-list">
-                <h3>Pedidos Completados/Cancelados</h3>
-                <div className="mostrador-order-header">
-                    <p>#</p>
-                    <p>Cliente</p>
-                    <p>Estado</p>
-                    <p>Total</p>
-                </div>
-                <ul>
-                    {completedOrCanceledOrders.map((order) => (
-                        <li
-                            key={order._id}
-                            className={`mostrador-completed-order-item ${order.status}`}
-                        >
-                            <p><strong>#{order.orderNumber}</strong></p>
-                            <p>{order.buyer || 'N/A'}</p>
-                            <p>{order.status}</p>
-                            <p>${order.total}</p>
-                        </li>
-                    ))}
-                </ul>
-            </div>
+            {/* Lista de pedidos completados/cancelados al final */}
+            <CompletedOrdersList orders={completedOrCanceledOrders} />
         </div>
     );
 };
