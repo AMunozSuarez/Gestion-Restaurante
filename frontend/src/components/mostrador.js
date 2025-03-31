@@ -123,8 +123,9 @@ const Mostrador = () => {
 
         try {
             if (editingOrderId) {
+                // Usa editingCart en lugar de cart al editar un pedido
                 await axios.put(`/order/update/${editingOrderId}`, {
-                    foods: cart.map((item) => ({
+                    foods: editingCart.map((item) => ({
                         food: item._id,
                         quantity: item.quantity,
                     })),
@@ -132,6 +133,11 @@ const Mostrador = () => {
                     buyer: customerName || '',
                     section: 'mostrador',
                 });
+                console.log('Pedido editado:', editingOrderId);
+                console.log('foods', editingCart.map((item) => ({
+                    food: item._id,
+                    quantity: item.quantity,
+                })));
             } else {
                 await axios.post('/order/create', {
                     foods: cart.map((item) => ({
@@ -142,11 +148,16 @@ const Mostrador = () => {
                     buyer: customerName || '',
                     section: 'mostrador',
                 });
+                console.log('Pedido creado:', cart.map((item) => ({
+                    food: item._id,
+                    quantity: item.quantity,
+                })));
             }
 
             await fetchOrders();
             setCustomerName('');
             setCart([]);
+            setEditingCart([]); // Limpia el carrito de edición
             setSelectedPaymentMethod('');
             setEditingOrderId(null);
             navigate('/mostrador');

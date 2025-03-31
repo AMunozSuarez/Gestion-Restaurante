@@ -253,7 +253,7 @@
     font-size: 14px; /* Tamaño de fuente */
     font-family: 'Poppins', Arial, sans-serif; /* Aplicar la nueva fuente */
     cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease;
+    transition: background-color ease, transform 0.2s ease;
 }
 
 .mostrador-order-item p,
@@ -281,11 +281,11 @@
     list-style: none;
 }
 
-.mostrador-completed-order-item.completed {
+.mostrador-completed-order-item.Completado {
     border-left: 5px solid #28a745; /* Verde para completados */
 }
 
-.mostrador-completed-order-item.canceled {
+.mostrador-completed-order-item.Cancelado {
     border-left: 5px solid #dc3545; /* Rojo para cancelados */
 }
 
@@ -735,9 +735,9 @@
 /* Pedido Completado/Cancelado Seleccionado */
 .mostrador-completed-order-item.selected-completed-order {
     background-color: #d1ecf1; /* Azul claro */ 
-    border: 2px solid #0c5460; /* Azul oscuro */
+    border: 1px solid #0c5460; /* Azul oscuro */
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombra ligera */
-    transition: all 0.3s ease; /* Transición suave */
+    transition: all 0.1s ease; /* Transición suave */
 }
 
 .mostrador-completed-order-item.selected-completed-order:hover {
