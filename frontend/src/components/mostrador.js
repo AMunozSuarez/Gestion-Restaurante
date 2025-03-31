@@ -155,7 +155,8 @@ const Mostrador = () => {
     };
 
     const calculateTotal = () => {
-        return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+        const currentCart = editingOrderId ? editingCart : cart; // Usa el carrito correcto
+        return currentCart.reduce((total, item) => total + item.price * item.quantity, 0);
     };
 
     const updateOrderStatus = async (orderId, newStatus) => {
@@ -234,6 +235,7 @@ const Mostrador = () => {
                     categories={categories || []}
                     cart={editingOrderId ? editingCart : cart} // Usa el carrito correcto
                     setCart={editingOrderId ? setEditingCart : setCart} // Usa el setter correcto
+                    calculateTotal={calculateTotal}
                 >
                     {isSearchFocused && searchQuery && (
                         <Suggestions
@@ -258,6 +260,7 @@ const Mostrador = () => {
                     navigate={navigate}
                     updateOrderStatus={updateOrderStatus}
                     loadOrderByNumber={loadOrderByNumber} // Pasa la función como prop
+                    editingOrderId={editingOrderId} // Pasa el ID del pedido en edición
                 />
             </div>
 

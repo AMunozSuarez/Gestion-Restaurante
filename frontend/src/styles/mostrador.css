@@ -697,3 +697,19 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Sombra reducida */
     transform: translateY(0); /* Sin elevación */
 }
+
+
+
+/* Pedido Seleccionado */
+.mostrador-order-item.selected-order {
+    background-color: #d1ecf1; /* Azul claro */
+    border: 2px solid #0c5460; /* Azul oscuro */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombra ligera */
+    transform: scale(1.02); /* Aumenta ligeramente el tamaño */
+    transition: all 0.3s ease; /* Transición suave */
+}
+
+.mostrador-order-item.selected-order:hover {
+    background-color: #bee5eb; /* Azul más claro */
+    border-color: #0b4f56; /* Azul más oscuro */
+}
