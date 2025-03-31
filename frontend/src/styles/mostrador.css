@@ -713,3 +713,52 @@
     background-color: #bee5eb; /* Azul más claro */
     border-color: #0b4f56; /* Azul más oscuro */
 }
+
+
+
+
+.mostrador-create-order.viewing-completed-order {
+    background-color: #f8f9fa; /* Fondo gris claro */
+    border: 2px solid #6c757d !important; /* Borde gris oscuro */
+    pointer-events: none; /* Deshabilitar interacciones */
+    opacity: 0.9; /* Reducir opacidad */
+    
+}
+
+.mostrador-create-order.viewing-completed-order input,
+.mostrador-create-order.viewing-completed-order select {
+    background-color: #e9ecef; /* Fondo gris claro */
+    color: #6c757d; /* Texto gris oscuro */
+    cursor: not-allowed; /* Cursor de no permitido */
+}
+
+/* Pedido Completado/Cancelado Seleccionado */
+.mostrador-completed-order-item.selected-completed-order {
+    background-color: #d1ecf1; /* Azul claro */ 
+    border: 2px solid #0c5460; /* Azul oscuro */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombra ligera */
+    transition: all 0.3s ease; /* Transición suave */
+}
+
+.mostrador-completed-order-item.selected-completed-order:hover {
+    background-color: #bee5eb; /* Azul más claro */
+    border-color: #0b4f56; /* Azul más oscuro */
+}
+
+
+
+/* Texto de estado del formulario */
+.mostrador-order-status {
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.order-status-text {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333; /* Color oscuro */
+}
+
+.mostrador-create-order.viewing-completed-order .order-status-text {
+    color: #6c757d; /* Gris oscuro para pedidos completados/cancelados */
+}

@@ -19,6 +19,7 @@ const Mostrador = () => {
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [categories, setCategories] = useState([]); // Estado para las categorías
     const [editingCart, setEditingCart] = useState([]); // Carrito para el pedido en edición
+    const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
     const searchRef = useRef(null);
 
     const navigate = useNavigate();
@@ -102,6 +103,7 @@ const Mostrador = () => {
                 );
                 setSelectedPaymentMethod(order.payment || ''); // Configura el método de pago
                 setEditingOrderId(order._id); // Activa el modo de edición
+                setIsViewingCompletedOrder(order.status === 'Completado' || order.status === 'Cancelado'); // Activa el modo de visualización si es completado/cancelado
             } else {
                 alert('Pedido no encontrado.');
             }
@@ -211,6 +213,7 @@ const Mostrador = () => {
                         setEditingCart([]); // Limpia el carrito de edición
                         setSelectedPaymentMethod('');
                         setEditingOrderId(null);
+                        setIsViewingCompletedOrder(false); // Resetea el estado de visualización
                         navigate('/mostrador'); // Redirige a la ruta base
                     }}
                 >
@@ -236,6 +239,7 @@ const Mostrador = () => {
                     cart={editingOrderId ? editingCart : cart} // Usa el carrito correcto
                     setCart={editingOrderId ? setEditingCart : setCart} // Usa el setter correcto
                     calculateTotal={calculateTotal}
+                    isViewingCompletedOrder={isViewingCompletedOrder} // Pasa el estado
                 >
                     {isSearchFocused && searchQuery && (
                         <Suggestions
@@ -251,6 +255,7 @@ const Mostrador = () => {
                         cart={editingOrderId ? editingCart : cart} // Usa el carrito correcto
                         setCart={editingOrderId ? setEditingCart : setCart} // Usa el setter correcto
                         calculateTotal={calculateTotal}
+                        isViewingCompletedOrder={isViewingCompletedOrder} // Pasa el estado
                     />
                 </OrderForm>
 
@@ -265,7 +270,11 @@ const Mostrador = () => {
             </div>
 
             {/* Lista de pedidos completados/cancelados al final */}
-            <CompletedOrdersList orders={completedOrCanceledOrders} />
+            <CompletedOrdersList 
+                orders={completedOrCanceledOrders}
+                navigate={navigate} // Pasa la función de navegación
+                editingOrderId={editingOrderId} // Pasa el ID del pedido en edición
+                />
         </div>
     );
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Cart = ({ cart, setCart, calculateTotal }) => {
+const Cart = ({ cart, setCart, calculateTotal, isViewingCompletedOrder, updateQuantity, removeFromCart }) => {
     return (
         <div className="mostrador-cart">
             <h3>Carrito:</h3>
@@ -8,6 +8,8 @@ const Cart = ({ cart, setCart, calculateTotal }) => {
                 {cart.map((item) => (
                     <li key={item._id} className="mostrador-cart-item">
                         <div className="cart-item-actions">
+                        {!isViewingCompletedOrder && (
+                            <>
                             <button
                                 type="button"
                                 className="mostrador-quantity-button"
@@ -22,7 +24,12 @@ const Cart = ({ cart, setCart, calculateTotal }) => {
                             >
                                 +
                             </button>
+                            
+                            </>
+                        )}
                             <span className="cart-item-quantity">x {item.quantity}</span>
+                            {!isViewingCompletedOrder && (
+                                <>
                             <button
                                 type="button"
                                 className="mostrador-quantity-button"
@@ -39,10 +46,15 @@ const Cart = ({ cart, setCart, calculateTotal }) => {
                             >
                                 -
                             </button>
+                            
+                            </>
+                        )}
                         </div>
                         <div className="cart-item-info">
                             <span className="cart-item-title">{item.title}</span>
                         </div>
+                        {!isViewingCompletedOrder && (
+                            <>
                         <button
                             type="button"
                             className="mostrador-remove-button"
@@ -53,6 +65,9 @@ const Cart = ({ cart, setCart, calculateTotal }) => {
                         >
                             X
                         </button>
+                            </>
+                        )}
+                        
                     </li>
                 ))}
             </ul>

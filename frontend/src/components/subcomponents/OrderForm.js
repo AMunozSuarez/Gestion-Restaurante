@@ -6,6 +6,7 @@ const OrderForm = ({
     searchQuery,
     setSearchQuery,
     isSearchFocused,
+    isViewingCompletedOrder,
     setIsSearchFocused,
     selectedPaymentMethod,
     setSelectedPaymentMethod,
@@ -59,7 +60,18 @@ const OrderForm = ({
     };
 
     return (
-        <div className="mostrador-create-order">
+        <div className={`mostrador-create-order ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`}>
+            {/* Mostrar el texto según el estado */}
+            <div className="mostrador-order-status">
+                {isViewingCompletedOrder ? (
+                    <p className="order-status-text">Revisando Pedido</p>
+                ) : editingOrderId ? (
+                    <p className="order-status-text">Editando Pedido</p>
+                ) : (
+                    <p className="order-status-text">Creando Nuevo Pedido</p>
+                )}
+            </div>
+
             <form onSubmit={handleSubmit}>
                 <div className="mostrador-form-group">
                     <label htmlFor="customerName">Nombre del Cliente:</label>
@@ -70,27 +82,30 @@ const OrderForm = ({
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
                         className={editingOrderId ? 'editing-input' : ''}
+                        disabled={isViewingCompletedOrder} // Deshabilitar si es una orden completada/cancelada
                     />
                 </div>
-                <div className="mostrador-form-group">
-                    <label htmlFor="searchQuery">Agregar Productos:</label>
-                    <input
-                        type="text"
-                        id="searchQuery"
-                        name="searchQuery"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onFocus={() => setIsSearchFocused(true)}
-                        className={editingOrderId ? 'editing-input' : ''}
-                    />
-                    <button
-                        type="button"
-                        className="mostrador-add-products-button"
-                        onClick={() => setIsModalOpen(true)}
-                    >
-                        Ver Productos +
-                    </button>
-                </div>
+                {!isViewingCompletedOrder && (
+                    <div className="mostrador-form-group">
+                        <label htmlFor="searchQuery">Agregar Productos:</label>
+                        <input
+                            type="text"
+                            id="searchQuery"
+                            name="searchQuery"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onFocus={() => setIsSearchFocused(true)}
+                            className={editingOrderId ? 'editing-input' : ''}
+                        />
+                        <button
+                            type="button"
+                            className="mostrador-add-products-button"
+                            onClick={() => setIsModalOpen(true)}
+                        >
+                            Ver Productos +
+                        </button>
+                    </div>
+                )}
                 {children}
                 <div className="mostrador-form-group">
                     <label htmlFor="paymentMethod">Método de Pago:</label>
@@ -108,12 +123,13 @@ const OrderForm = ({
                         <option value="Transferencia">Transferencia</option>
                     </select>
                 </div>
-                <button type="submit" className={`mostrador-submit-button ${editingOrderId ? 'editing-button' : ''}`}>
-                    {editingOrderId ? 'Guardar Cambios' : 'Crear Pedido'}
-                </button>
+                {!isViewingCompletedOrder && (
+                    <button type="submit" className={`mostrador-submit-button ${editingOrderId ? 'editing-button' : ''}`}>
+                        {editingOrderId ? 'Guardar Cambios' : 'Crear Pedido'}
+                    </button>
+                )}
 
-                {/* Botones de Completado y Cancelar */}
-                {editingOrderId && (
+                {editingOrderId && !isViewingCompletedOrder && (
                     <div className="mostrador-edit-buttons">
                         <button
                             type="button"

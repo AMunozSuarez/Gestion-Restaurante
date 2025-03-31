@@ -30,7 +30,7 @@ const OrderList = ({ orders, setEditingOrderId, navigate, updateOrderStatus, loa
                             }}
                         >
                             <p><strong>#{order.orderNumber}</strong></p>
-                            <p>{order.buyer || 'N/A'}</p>
+                            <p>{order.buyer || ''}</p>
                             <p>{order.status}</p>
                             <p>${order.total}</p>
                             <button
