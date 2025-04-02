@@ -65,13 +65,21 @@
     transform: scale(1.02); /* Aumentar ligeramente el tamaño */
 }
 
+/* Resaltar el pedido en edición */
+.order-list li.editing {
+    background-color: #ffd966; /* Amarillo más intenso */
+    transform: scale(1.02); /* Mantener el efecto de hover */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Sombra más pronunciada */
+    cursor: default; /* Cambiar el cursor para indicar que está seleccionado */
+}
+
 /* Texto dentro de los elementos de la lista */
 .order-list li p {
     margin: 0; /* Sin margen */
     flex: 1; /* Asegura que los elementos se distribuyan uniformemente */
     text-align: center; /* Centrar el texto */
-    font-size: 14px; /* Tamaño de fuente */
-    color: #4d2600; /* Marrón oscuro */
+    font-size: 17px;/*año de fuente */
+    color: #000000; /* Marrón oscuro */
 }
 
 /* Resaltar la columna de Total */

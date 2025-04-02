@@ -1,0 +1,72 @@
+/* Contenedor principal de la lista de pedidos completados/cancelados */
+.completed-orders-list {
+    background-color: #f8f9fa; /* Fondo gris claro */
+    padding: 20px; /* Espaciado interno */
+    border-radius: 8px; /* Bordes redondeados */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Sombra ligera */
+    font-family: 'Poppins', Arial, sans-serif; /* Fuente consistente */
+    color: #4d2600; /* Marrón oscuro */
+}
+
+/* Título de la lista */
+.completed-orders-list h3 {
+    margin-bottom: 15px; /* Espaciado inferior */
+    font-size: 18px; /* Tamaño de fuente */
+    font-weight: 600; /* Peso medio */
+    color: #4d2600; /* Marrón oscuro */
+    text-align: center; /* Centrar el texto */
+}
+
+/* Lista de pedidos */
+.completed-orders-list ul {
+    list-style: none; /* Sin viñetas */
+    padding: 0; /* Sin padding */
+    margin: 0; /* Sin margen */
+}
+
+/* Elementos individuales de la lista */
+.completed-orders-list li {
+    display: flex; /* Usar Flexbox para alinear en fila */
+    justify-content: space-between; /* Espaciado uniforme entre los elementos */
+    align-items: center; /* Centrar verticalmente los elementos */
+    background-color: #ffffff; /* Fondo blanco */
+    padding: 10px; /* Espaciado interno */
+    margin-bottom: 10px; /* Espaciado inferior */
+    border-radius: 5px; /* Bordes redondeados */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Sombra ligera */
+    transition: background-color 0.2s ease, transform 0.2s ease; /* Transiciones suaves */
+}
+
+/* Hover en los elementos de la lista */
+.completed-orders-list li:hover {
+    background-color: #e9ecef; /* Gris más claro */
+    transform: scale(1.02); /* Aumentar ligeramente el tamaño */
+}
+
+/* Pedidos completados */
+.completed-orders-list li.Completado {
+    border-left: 5px solid #28a745; /* Borde verde */
+    background-color: #e6f4ea85; /* Fondo verde claro */
+}
+
+/* Pedidos cancelados */
+.completed-orders-list li.Cancelado {
+    border-left: 5px solid #dc3545; /* Borde rojo */
+    background-color: #f8d7da6c; /* Fondo rojo claro */
+}
+
+/* Texto dentro de los elementos de la lista */
+.completed-orders-list li p {
+    margin: 0; /* Sin margen */
+    flex: 1; /* Asegura que los elementos se distribuyan uniformemente */
+    text-align: center; /* Centrar el texto */
+    font-size: 14px; /* Tamaño de fuente */
+    color: #4d2600; /* Marrón oscuro */
+}
+
+/* Resaltar la columna de Total */
+.completed-orders-list .order-total {
+    font-weight: bold; /* Resaltar el texto */
+    color: #000000; /* Verde */
+    text-align: right; /* Alinear a la derecha */
+}
