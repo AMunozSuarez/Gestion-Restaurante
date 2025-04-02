@@ -4,7 +4,7 @@ import Header from './components/header';
 
 import Login from './components/login';
 import Principal from './components/principal';
-import Mostrador from './components/mostrador';
+import Mostrador from './components/pages/mostrador';
 import Delivery from './components/delivery';
 import Productos from './components/admin/productos'; 
 import Categorias from './components/admin/categorias';
