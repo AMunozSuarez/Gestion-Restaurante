@@ -31,34 +31,28 @@ export const useOrderForm = () => {
     }, [editingOrderId, orders, setCart]);
 
     // Función para manejar el envío del formulario
-    const handleSubmit = (e) => {
+    const handleSubmit = (e, resetForm) => {
         e.preventDefault();
-
+    
         const newOrder = {
             section: 'mostrador',
-            buyer: customerName, // Nombre del cliente
-            payment: selectedPaymentMethod, // Método de pago
-            customerPhone: '123456789', // Número de teléfono (puedes hacerlo dinámico)
+            buyer: customerName,
+            payment: selectedPaymentMethod,
             foods: cart.map((item) => ({
-                food: item._id, // ID del producto
-                quantity: item.quantity, // Cantidad
+                food: item._id,
+                quantity: item.quantity,
             })),
-            status: 'Preparacion', // Estado por defecto
+            status: 'Preparacion',
         };
-
-        console.log('Datos enviados al backend:', newOrder); // Depuración
-
+    
         if (editingOrderId) {
-            // Lógica para actualizar un pedido existente
-            console.log(`Actualizando pedido con ID: ${editingOrderId}`);
+            console.log(`Editando pedido con ID: ${editingOrderId}`);
             // Aquí puedes implementar la lógica para actualizar el pedido en el backend
+            resetForm(); // Volver al estado de "Crear Pedido"
         } else {
-            // Crear un nuevo pedido
             createOrder(newOrder, {
                 onSuccess: () => {
-                    setCustomerName('');
-                    clearCart();
-                    setSelectedPaymentMethod('Efectivo');
+                    resetForm(); // Volver al estado de "Crear Pedido"
                 },
                 onError: (error) => {
                     console.error('Error al crear el pedido:', error);

@@ -202,6 +202,7 @@
     background-color: #e65c00; /* Naranja más oscuro */
 }
 
+/* Contenedor del carrito */
 .cart-container {
     margin-top: 20px;
     padding: 10px;
@@ -210,6 +211,7 @@
     background-color: #f9f9f9;
 }
 
+/* Título del carrito */
 .cart-container h3 {
     margin-bottom: 10px;
     font-size: 18px;
@@ -217,15 +219,18 @@
     color: #333;
 }
 
+/* Lista de productos en el carrito */
 .cart-list {
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
+/* Elementos individuales del carrito */
 .cart-list li {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 10px;
     border-bottom: 1px solid #eee;
 }
@@ -234,6 +239,45 @@
     border-bottom: none;
 }
 
+/* Botones de acciones en el carrito */
+.cart-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.cart-actions button {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.cart-actions button:hover {
+    background-color: #0056b3;
+}
+
+.cart-actions button:nth-child(3) {
+    background-color: #dc3545;
+}
+
+.cart-actions button:nth-child(3):hover {
+    background-color: #c82333;
+}
+
+/* Total del carrito */
+.cart-total {
+    margin-top: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: right;
+    color: #4d2600; /* Marrón oscuro */
+}
+
+/* Botón para vaciar el carrito */
 .clear-cart-button {
     margin-top: 10px;
     padding: 10px 15px;

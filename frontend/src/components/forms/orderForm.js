@@ -15,7 +15,7 @@ const OrderForm = ({
     setEditingOrderId,
     isViewingCompletedOrder,
 }) => {
-    const { cart, setCart, clearCart } = useCartStore(); // Estados del carrito desde Zustand
+    const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Incluye setCart
     const { isSearchFocused, setIsSearchFocused } = useUIStore(); // Estados de UI desde Zustand
     const { products, isLoading: productsLoading } = useProducts(); // Productos desde TanStack Query
     const { categories, isLoading: categoriesLoading } = useCategories(); // Categorías desde TanStack Query
@@ -24,6 +24,13 @@ const OrderForm = ({
     const [categoryFilter, setCategoryFilter] = useState('');
     const [modalSearchQuery, setModalSearchQuery] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
+    const [cartTotal, setCartTotal] = useState(0); // Estado para el total del carrito
+
+    // Calcular el total del carrito cada vez que cambie
+    useEffect(() => {
+        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        setCartTotal(total);
+    }, [cart]);
 
     // Filtrar productos por categoría o búsqueda
     useEffect(() => {
@@ -42,6 +49,15 @@ const OrderForm = ({
 
         setFilteredProducts(filtered);
     }, [categoryFilter, modalSearchQuery, products]);
+
+
+    // Función para volver al estado de "Crear Pedido"
+    const resetForm = () => {
+        setCustomerName('');
+        setSelectedPaymentMethod('Efectivo');
+        clearCart();
+        setEditingOrderId(null);
+    };
 
     useEffect(() => {
         console.log('Estado del carrito actualizado:', cart);
@@ -79,6 +95,11 @@ const OrderForm = ({
                         <span>{item.title}</span>
                         <span>Cantidad: {item.quantity}</span>
                         <span>Precio: ${item.price * item.quantity}</span>
+                        <div className="cart-actions">
+                            <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
+                            <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
+                            <button type="button" onClick={() => removeProduct(item._id)}>Eliminar</button>
+                        </div>
                     </li>
                 ))}
             </ul>
@@ -89,6 +110,13 @@ const OrderForm = ({
 
     return (
         <div className={`order-form ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`}>
+            {/* Botón para volver al estado de "Crear Pedido" */}
+            {editingOrderId && (
+                <button className="reset-form-button" onClick={resetForm}>
+                    Volver a Crear Pedido
+                </button>
+            )}
+
             {/* Estado del pedido */}
             <div className="order-status">
                 {isViewingCompletedOrder ? (
@@ -101,7 +129,7 @@ const OrderForm = ({
             </div>
 
             {/* Formulario principal */}
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={(e) => handleSubmit(e, resetForm)}>
                 {/* Nombre del cliente */}
                 <div className="form-group">
                     <label htmlFor="customerName">Nombre del Cliente:</label>
@@ -135,6 +163,9 @@ const OrderForm = ({
                 <div className="cart-container">
                     <h3>Carrito</h3>
                     {renderCart()}
+                    <div className="cart-total">
+                        <strong>Total: ${cartTotal.toFixed(2)}</strong>
+                    </div>
                     <button onClick={clearCart} className="clear-cart-button">
                         Vaciar Carrito
                     </button>
