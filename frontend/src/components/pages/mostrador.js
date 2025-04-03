@@ -6,6 +6,7 @@ import OrderList from '../lists/orderList'; // Lista de pedidos en preparación
 import CompletedOrdersList from '../lists/completedOrdersList'; // Lista de pedidos completados/cancelados
 import '../../styles/mostrador.css'; // Estilos específicos del mostrador
 import useCartStore from '../../store/useCartStore';
+import { CSSTransition } from 'react-transition-group';
 
 const Mostrador = () => {
     const { orders, isLoading } = useOrders(); // Pedidos desde TanStack Query
@@ -35,33 +36,41 @@ const Mostrador = () => {
     );
 
     return (
-        <div className="mostrador-container creating-mode">
-            <h2>Mostrador</h2>
-            <div className="mostrador-content">
-                {/* Formulario de creación de pedidos */}
-                <div className="mostrador-create-order">
-                    <OrderForm
-                        customerName={customerName}
-                        setCustomerName={setCustomerName}
-                        selectedPaymentMethod={selectedPaymentMethod}
-                        setSelectedPaymentMethod={setSelectedPaymentMethod}
-                        handleSubmit={handleSubmit}
-                        editingOrderId={editingOrderId}
-                        setEditingOrderId={setEditingOrderId}
-                    />
+        <CSSTransition
+            in={true} // Siempre mostrar en modo creación
+            timeout={300}
+            classNames="fade"
+            unmountOnExit
+            
+        >
+            <div className="mostrador-container creating-mode">
+                <h2>Mostrador</h2>
+                <div className="mostrador-content">
+                    {/* Formulario de creación de pedidos */}
+                    <div className="mostrador-create-order">
+                        <OrderForm
+                            customerName={customerName}
+                            setCustomerName={setCustomerName}
+                            selectedPaymentMethod={selectedPaymentMethod}
+                            setSelectedPaymentMethod={setSelectedPaymentMethod}
+                            handleSubmit={handleSubmit}
+                            editingOrderId={editingOrderId}
+                            setEditingOrderId={setEditingOrderId}
+                        />
+                    </div>
+
+                    {/* Lista de pedidos */}
+                    <div className="mostrador-orders-list">
+                        <OrderList orders={preparationOrders} setEditingOrderId={setEditingOrderId} />
+                    </div>
                 </div>
 
-                {/* Lista de pedidos */}
-                <div className="mostrador-orders-list">
-                    <OrderList orders={preparationOrders} setEditingOrderId={setEditingOrderId} />
+                {/* Pedidos completados/cancelados */}
+                <div className="mostrador-completed-orders">
+                    <CompletedOrdersList orders={completedOrders} />
                 </div>
             </div>
-
-            {/* Pedidos completados/cancelados */}
-            <div className="mostrador-completed-orders">
-                <CompletedOrdersList orders={completedOrders} />
-            </div>
-        </div>
+        </CSSTransition>
     );
 };
 

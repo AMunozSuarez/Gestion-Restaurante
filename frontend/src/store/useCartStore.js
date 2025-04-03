@@ -5,9 +5,12 @@ const useCartStore = create((set, get) => ({
     cartContext: 'default', // Contexto actual del carrito (por ejemplo, 'create', 'edit', etc.)
 
     // Cambiar el contexto del carrito
-    setCartContext: (context) => {
-        set({ cartContext: context });
-    },
+    setCartContext: (context) => set((state) => {
+        if (state.cartContext !== context) {
+            return { cartContext: context }; // Solo actualizar si el contexto cambia
+        }
+        return state; // No actualizar si el contexto es el mismo
+    }),
 
     // Actualizar el carrito completo
     setCart: (newCart) => {

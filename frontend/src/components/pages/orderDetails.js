@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useOrders } from '../../hooks/useOrders'; // Hook para manejar pedidos
 import useCartStore from '../../store/useCartStore'; // Store para manejar el carrito
@@ -8,6 +8,7 @@ import CompletedOrdersList from '../lists/completedOrdersList'; // Lista de pedi
 import '../../styles/mostrador.css'; // Reutilizamos los estilos de Mostrador
 import axios from 'axios'; // Asegúrate de tener axios instalado
 import { useQueryClient } from '@tanstack/react-query'; // Para invalidar la caché de pedidos
+import { CSSTransition } from 'react-transition-group'; // Importar CSSTransition
 
 const OrderDetails = () => {
     const { orderNumber } = useParams(); // Obtener el número de pedido desde la URL
@@ -18,6 +19,9 @@ const OrderDetails = () => {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Efectivo');
     const navigate = useNavigate();
     const queryClient = useQueryClient(); // Para invalidar la caché de pedidos
+
+    // Ref para el contenedor animado
+    const containerRef = useRef(null);
 
     // Buscar el pedido seleccionado y actualizar el estado
     useEffect(() => {
@@ -40,7 +44,7 @@ const OrderDetails = () => {
             setCustomerName(foundOrder.buyer);
             setSelectedPaymentMethod(foundOrder.payment);
         }
-    }, [orderNumber, orders, setCart, setCartContext]);
+    }, [orderNumber, orders, setCart]);
 
     // Función para manejar el envío del formulario
     const handleSubmit = async (e) => {
@@ -92,41 +96,41 @@ const OrderDetails = () => {
     );
 
     return (
-        <div className="mostrador-container editing-mode">
-            <h2>Detalles del Pedido</h2>
-            <div className="mostrador-content">
-
-                {/* Formulario de edición de pedidos */}
-                <div className="mostrador-edit-order">
-                    {editingOrder ? (
-                        <OrderForm
-                            customerName={customerName}
-                            setCustomerName={setCustomerName}
-                            selectedPaymentMethod={selectedPaymentMethod}
-                            setSelectedPaymentMethod={setSelectedPaymentMethod}
-                            handleSubmit={handleSubmit}
-                            editingOrderId={editingOrder._id}
-                            setEditingOrderId={() => {}}
-                            isViewingCompletedOrder={false}
-                        />
-                    ) : (
-                        <p>Selecciona un pedido para ver los detalles.</p>
-                    )}
+        <CSSTransition
+            in={!!editingOrder} // Mostrar solo si hay un pedido en edición
+            timeout={300} // Duración de la animación
+            classNames="fade" // Clases CSS para la animación
+            unmountOnExit // Desmontar el componente después de la animación de salida
+            nodeRef={containerRef} // Usar el ref explícito
+        >
+            <div ref={containerRef} className="mostrador-container editing-mode">
+                <h2>Detalles del Pedido</h2>
+                <div className="mostrador-content">
+                    <div className="mostrador-orders-list">
+                        <OrderList orders={preparationOrders} />
+                    </div>
+                    <div className="mostrador-edit-order">
+                        {editingOrder ? (
+                            <OrderForm
+                                customerName={customerName}
+                                setCustomerName={setCustomerName}
+                                selectedPaymentMethod={selectedPaymentMethod}
+                                setSelectedPaymentMethod={setSelectedPaymentMethod}
+                                handleSubmit={handleSubmit}
+                                editingOrderId={editingOrder._id}
+                                setEditingOrderId={() => {}}
+                                isViewingCompletedOrder={false}
+                            />
+                        ) : (
+                            <p>Selecciona un pedido para ver los detalles.</p>
+                        )}
+                    </div>
                 </div>
-
-                {/* Lista de pedidos */}
-                <div className="mostrador-orders-list">
-                    <OrderList orders={preparationOrders} />
+                <div className="mostrador-completed-orders">
+                    <CompletedOrdersList orders={completedOrders} />
                 </div>
-
-                
             </div>
-
-            {/* Pedidos completados/cancelados */}
-            <div className="mostrador-completed-orders">
-                <CompletedOrdersList orders={completedOrders} />
-            </div>
-        </div>
+        </CSSTransition>
     );
 };
 
