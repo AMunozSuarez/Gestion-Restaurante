@@ -4,6 +4,7 @@ import useUIStore from '../../store/useUiStore'; // Store para manejar estados d
 import { useProducts } from '../../hooks/useProducts'; // Hook para manejar productos
 import { useCategories } from '../../hooks/useCategories'; // Hook para manejar categorías
 import '../../styles/orderForm.css'; // Estilos específicos del formulario de pedido
+import { useNavigate } from 'react-router-dom';
 
 const OrderForm = ({
     customerName,
@@ -12,7 +13,7 @@ const OrderForm = ({
     setSelectedPaymentMethod,
     handleSubmit,
     editingOrderId,
-    setEditingOrderId,
+setEditingOrderId,
     isViewingCompletedOrder,
 }) => {
     const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Incluye setCart
@@ -25,6 +26,8 @@ const OrderForm = ({
     const [modalSearchQuery, setModalSearchQuery] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [cartTotal, setCartTotal] = useState(0); // Estado para el total del carrito
+    const [isEditing, setIsEditing] = React.useState(!!editingOrderId); // Determinar si estamos editando
+    const navigate = useNavigate(); // Hook para navegar entre rutas
 
     // Calcular el total del carrito cada vez que cambie
     useEffect(() => {
@@ -50,6 +53,13 @@ const OrderForm = ({
         setFilteredProducts(filtered);
     }, [categoryFilter, modalSearchQuery, products]);
 
+    useEffect(() => {
+        if (editingOrderId) {
+            setIsEditing(true);
+        } else {
+            setIsEditing(false);
+        }
+    }, [editingOrderId]);
 
     // Función para volver al estado de "Crear Pedido"
     const resetForm = () => {
@@ -112,7 +122,7 @@ const OrderForm = ({
         <div className={`order-form ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`}>
             {/* Botón para volver al estado de "Crear Pedido" */}
             {editingOrderId && (
-                <button className="reset-form-button" onClick={resetForm}>
+                <button className="reset-form-button" onClick={() => navigate(`/mostrador`)}>
                     Volver a Crear Pedido
                 </button>
             )}

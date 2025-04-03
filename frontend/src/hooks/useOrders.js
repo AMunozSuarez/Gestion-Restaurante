@@ -4,7 +4,7 @@ import axios from '../services/axiosConfig';
 // Función para obtener pedidos
 const fetchOrders = async () => {
     const response = await axios.get('/order/getAll');
-    return response.data.orders;
+    return response.data.orders || []; // Devuelve un array vacío si no hay pedidos
 };
 
 // Función para actualizar el estado de un pedido
@@ -22,19 +22,24 @@ export const useOrders = () => {
         queryFn: fetchOrders, // Función que realiza la solicitud
     });
 
-    // Actualizar estado de un pedido
-    const mutation = useMutation({
-        mutationFn: updateOrderStatus, // Función para realizar la mutación
-        onSuccess: () => {
-            // Refrescar los datos de pedidos después de una actualización
-            queryClient.invalidateQueries({ queryKey: ['orders'] });
-        },
-    });
+    // Actualizar un pedido en la lista
+    const updateOrderInList = (updatedOrder) => {
+        if (!updatedOrder || !updatedOrder._id) {
+            console.error('updatedOrder no tiene un _id válido:', updatedOrder);
+            return;
+        }
 
-    return {
-        orders,
-        isLoading,
-        error,
-        updateOrderStatus: mutation.mutate, // Función para actualizar pedidos
+        queryClient.setQueryData(['orders'], (oldOrders) => {
+            if (!oldOrders || !Array.isArray(oldOrders)) {
+                console.error('oldOrders no es un array:', oldOrders);
+                return [updatedOrder]; // Si no hay pedidos, devuelve solo el actualizado
+            }
+
+            return oldOrders.map((order) =>
+                order._id === updatedOrder._id ? updatedOrder : order
+            );
+        });
     };
+
+    return { orders, isLoading, error, updateOrderInList };
 };

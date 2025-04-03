@@ -8,6 +8,7 @@ import Mostrador from './components/pages/mostrador';
 import Delivery from './components/delivery';
 import Productos from './components/admin/productos'; 
 import Categorias from './components/admin/categorias';
+import OrderDetails from './components/pages/orderDetails';
 
 function App() {
   return (
@@ -18,7 +19,7 @@ function App() {
           
           <Route path="/" element={<Login />} />
           <Route path="/mostrador" element={<Mostrador />} />
-          <Route path="/mostrador/:orderNumber" element={<Mostrador />} />
+          <Route path="/mostrador/:orderNumber" element={<OrderDetails />} />
           <Route path="/delivery" element={<Delivery />} />
           <Route path="/principal" element={<Principal />} />
           <Route path="/admin/productos" element={<Productos />} />

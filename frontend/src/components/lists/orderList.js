@@ -1,11 +1,14 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../../styles/orderList.css'; // Estilos específicos de la lista de pedidos
 
-const OrderList = ({ orders, editingOrderId, setEditingOrderId }) => {
+const OrderList = ({ orders }) => {
+    const navigate = useNavigate();
+
     return (
         <div className="order-list">
             <h3>Pedidos en Preparación</h3>
-            <div className="order-list-header">
+<div className="order-list-header">
                 <p>#</p>
                 <p>Cliente</p>
                 <p>Estado</p>
@@ -15,8 +18,8 @@ const OrderList = ({ orders, editingOrderId, setEditingOrderId }) => {
                 {orders.map((order) => (
                     <li
                         key={order._id}
-                        onClick={() => setEditingOrderId(order._id)}
-                        className={editingOrderId === order._id ? 'editing' : ''}
+                        onClick={() => navigate(`/mostrador/${order.orderNumber}`)}
+                        className="order-item"
                     >
                         <p>{order.orderNumber}</p>
                         <p>{order.buyer}</p>
