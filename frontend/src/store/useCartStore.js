@@ -2,6 +2,12 @@ import { create } from 'zustand';
 
 const useCartStore = create((set, get) => ({
     cart: [], // Inicializa el carrito como un array vacío
+    cartContext: 'default', // Contexto actual del carrito (por ejemplo, 'create', 'edit', etc.)
+
+    // Cambiar el contexto del carrito
+    setCartContext: (context) => {
+        set({ cartContext: context });
+    },
 
     // Actualizar el carrito completo
     setCart: (newCart) => {

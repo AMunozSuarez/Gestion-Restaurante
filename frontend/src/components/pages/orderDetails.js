@@ -4,6 +4,7 @@ import { useOrders } from '../../hooks/useOrders'; // Hook para manejar pedidos
 import useCartStore from '../../store/useCartStore'; // Store para manejar el carrito
 import OrderForm from '../forms/orderForm'; // Formulario para crear/editar pedidos
 import OrderList from '../lists/orderList'; // Lista de pedidos en preparación
+import CompletedOrdersList from '../lists/completedOrdersList'; // Lista de pedidos completados/cancelados
 import '../../styles/mostrador.css'; // Reutilizamos los estilos de Mostrador
 import axios from 'axios'; // Asegúrate de tener axios instalado
 import { useQueryClient } from '@tanstack/react-query'; // Para invalidar la caché de pedidos
@@ -11,7 +12,7 @@ import { useQueryClient } from '@tanstack/react-query'; // Para invalidar la cac
 const OrderDetails = () => {
     const { orderNumber } = useParams(); // Obtener el número de pedido desde la URL
     const { orders, updateOrderInList } = useOrders(); // Obtener la lista de pedidos
-    const { cart, setCart } = useCartStore(); // Estado del carrito
+    const { cart, setCart, setCartContext } = useCartStore(); // Estado del carrito
     const [editingOrder, setEditingOrder] = useState(null);
     const [customerName, setCustomerName] = useState('');
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Efectivo');
@@ -20,6 +21,8 @@ const OrderDetails = () => {
 
     // Buscar el pedido seleccionado y actualizar el estado
     useEffect(() => {
+        setCartContext('edit'); // Establecer el contexto como "edit"
+
         const foundOrder = orders.find((o) => o.orderNumber === parseInt(orderNumber, 10));
         setEditingOrder(foundOrder || null);
 
@@ -37,7 +40,7 @@ const OrderDetails = () => {
             setCustomerName(foundOrder.buyer);
             setSelectedPaymentMethod(foundOrder.payment);
         }
-    }, [orderNumber, orders, setCart]);
+    }, [orderNumber, orders, setCart, setCartContext]);
 
     // Función para manejar el envío del formulario
     const handleSubmit = async (e) => {
@@ -89,18 +92,12 @@ const OrderDetails = () => {
     );
 
     return (
-        <div className="mostrador-container">
+        <div className="mostrador-container editing-mode">
             <h2>Detalles del Pedido</h2>
             <div className="mostrador-content">
-                {/* Lista de pedidos */}
-                <div className="mostrador-orders-list">
-                    <OrderList orders={preparationOrders} />
-                    <h3>Pedidos Completados/Cancelados</h3>
-                    <OrderList orders={completedOrders} />
-                </div>
 
-                {/* Formulario de pedido */}
-                <div className="mostrador-create-order">
+                {/* Formulario de edición de pedidos */}
+                <div className="mostrador-edit-order">
                     {editingOrder ? (
                         <OrderForm
                             customerName={customerName}
@@ -116,6 +113,18 @@ const OrderDetails = () => {
                         <p>Selecciona un pedido para ver los detalles.</p>
                     )}
                 </div>
+
+                {/* Lista de pedidos */}
+                <div className="mostrador-orders-list">
+                    <OrderList orders={preparationOrders} />
+                </div>
+
+                
+            </div>
+
+            {/* Pedidos completados/cancelados */}
+            <div className="mostrador-completed-orders">
+                <CompletedOrdersList orders={completedOrders} />
             </div>
         </div>
     );
