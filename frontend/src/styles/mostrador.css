@@ -21,7 +21,6 @@
 
 /* Modo creación */
 .creating-mode .mostrador-content {
-    
     transform: translateX(0);
 }
 
@@ -31,7 +30,7 @@
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     width: 30%;
-    min-height: 500px;
+    min-height: 400px;
     overflow-y: auto; /* Scroll si el contenido excede la altura */
     animation: slideInFromLeft 0.3s ease-in-out;
 }
@@ -44,40 +43,6 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Modo edición */
-.editing-mode .mostrador-content {  transform: translateX(-0%);
-}
-
-.editing-mode .mostrador-edit-order {
-    width: 35%;
-    background-color: #ffffff;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    min-height: 500px;
-    overflow-y: auto; /* Scroll si el contenido excede la altura */
-    animation: slideInFromRight 0.3s ease-in-out;
-}
-
-.editing-mode .mostrador-orders-list {
-    flex: 1; /* Lista ocupa más espacio */
-    background-color: #ffffff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Pedidos completados/cancelados */
-.mostrador-completed-orders {
-    margin-top: 20px;
-    background-color: #f8f9fa;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    max-height: 300px; /* Altura máxima */
-    overflow-y: auto; /* Scroll vertical */
-}
-
 /* Animaciones */
 @keyframes slideInFromLeft {
     from {
@@ -88,38 +53,4 @@
         transform: translateX(0);
         opacity: 1;
     }
-}
-
-@keyframes slideInFromRight {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
-/* Animaciones para entrada y salida */
-.fade-enter {
-    opacity: 0;
-    transform: translateX(100%);
-}
-
-.fade-enter-active {
-    opacity: 1;
-    transform: translateX(0);
-    transition: all 0.3s ease-in-out;
-}
-
-.fade-exit {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-.fade-exit-active {
-    opacity: 0;
-    transform: translateX(-100%);
-    transition: all 0.3s ease-in-out;
 }

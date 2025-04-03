@@ -68,9 +68,11 @@
 /* Resaltar el pedido en edición */
 .order-list li.editing {
     background-color: #ffd966; /* Amarillo más intenso */
-    transform: scale(1.02); /* Mantener el efecto de hover */
+    transform: scale(1.02); /* Aumentar ligeramente el tamaño */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Sombra más pronunciada */
     cursor: default; /* Cambiar el cursor para indicar que está seleccionado */
+    font-weight: bold; /* Resaltar el texto */
+    color: #4d2600; /* Marrón oscuro */
 }
 
 /* Texto dentro de los elementos de la lista */

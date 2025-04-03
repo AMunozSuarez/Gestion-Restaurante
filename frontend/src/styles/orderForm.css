@@ -278,7 +278,7 @@
 }
 
 /* Botón para vaciar el carrito */
-.clear-cart-button {
+/* .clear-cart-button {
     margin-top: 10px;
     padding: 10px 15px;
     background-color: #dc3545;
@@ -291,4 +291,28 @@
 
 .clear-cart-button:hover {
     background-color: #c82333;
+} */
+
+/* Botón para volver al estado de "Crear Pedido" */
+.reset-form-button {
+    background-color: #28a745; /* Verde */
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    margin-bottom: 15px; /* Espaciado inferior */
+}
+
+.reset-form-button:hover {
+    background-color: #218838; /* Verde más oscuro */
+    transform: scale(1.05); /* Efecto de agrandamiento */
+}
+
+.reset-form-button:active {
+    background-color: #1e7e34; /* Verde aún más oscuro */
+    transform: scale(0.95); /* Efecto de reducción al hacer clic */
 }

@@ -123,7 +123,7 @@ setEditingOrderId,
             {/* Botón para volver al estado de "Crear Pedido" */}
             {editingOrderId && (
                 <button className="reset-form-button" onClick={() => navigate(`/mostrador`)}>
-                    Volver a Crear Pedido
+                    Crear Pedido +
                 </button>
             )}
 
@@ -176,9 +176,6 @@ setEditingOrderId,
                     <div className="cart-total">
                         <strong>Total: ${cartTotal.toFixed(2)}</strong>
                     </div>
-                    <button onClick={clearCart} className="clear-cart-button">
-                        Vaciar Carrito
-                    </button>
                 </div>
 
                 {/* Método de pago */}

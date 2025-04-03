@@ -1,14 +1,15 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import '../../styles/orderList.css'; // Estilos específicos de la lista de pedidos
 
 const OrderList = ({ orders }) => {
     const navigate = useNavigate();
+    const { orderNumber } = useParams(); // Obtener el número de pedido desde la URL
 
     return (
         <div className="order-list">
             <h3>Pedidos en Preparación</h3>
-<div className="order-list-header">
+            <div className="order-list-header">
                 <p>#</p>
                 <p>Cliente</p>
                 <p>Estado</p>
@@ -19,7 +20,7 @@ const OrderList = ({ orders }) => {
                     <li
                         key={order._id}
                         onClick={() => navigate(`/mostrador/${order.orderNumber}`)}
-                        className="order-item"
+                        className={`order-item ${order.orderNumber === parseInt(orderNumber, 10) ? 'editing' : ''}`}
                     >
                         <p>{order.orderNumber}</p>
                         <p>{order.buyer}</p>

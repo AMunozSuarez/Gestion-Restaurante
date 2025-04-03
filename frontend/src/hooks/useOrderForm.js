@@ -5,7 +5,7 @@ import { useOrders } from './useOrders'; // Hook para manejar pedidos
 
 export const useOrderForm = () => {
     const { createOrder } = useCreateOrder(); // Hook para manejar la creación de pedidos
-    const { cart, setCart, clearCart } = useCartStore(); // Estado del carrito desde Zustand
+    const { cart, setCart } = useCartStore(); // Estado del carrito desde Zustand
     const { orders } = useOrders(); // Obtener pedidos existentes
     const [customerName, setCustomerName] = useState(''); // Estado para el nombre del cliente
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Efectivo'); // Estado para el método de pago
