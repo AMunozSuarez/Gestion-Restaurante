@@ -22,11 +22,11 @@
 }
 
 .creating-mode .mostrador-create-order {
-    flex: 1; /* Formulario ocupa más espacio */
     background-color: #ffffff;
     padding: 15px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    width: 30%;
     min-height: 500px;
     overflow-y: auto; /* Scroll si el contenido excede la altura */
 }
@@ -45,7 +45,7 @@
 }
 
 .editing-mode .mostrador-edit-order {
-    flex: 1; /* Formulario ocupa más espacio */
+    width: 35%;
     background-color: #ffffff;
     padding: 15px;
     border-radius: 8px;

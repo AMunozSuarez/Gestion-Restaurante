@@ -1,7 +1,7 @@
 /* Contenedor principal de la lista de pedidos */
 .order-list {
     background-color: #ffffff; /* Fondo blanco */
-    padding: 20px; /* Espaciado interno */
+    padding: 5px; /* Espaciado interno */
     border-radius: 8px; /* Bordes redondeados */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Sombra ligera */
     font-family: 'Poppins', Arial, sans-serif; /* Fuente consistente */
@@ -24,10 +24,10 @@
     align-items: center; /* Centrar verticalmente los elementos */
     background-color: #533414; /* Marrón oscuro */
     color: #ffffff; /* Texto blanco */
-    padding: 0 10px; /* Espaciado interno */
+    padding: 0 5px; /* Espaciado interno */
     border-radius: 5px; /* Bordes redondeados */
     font-weight: bold; /* Texto en negrita */
-    font-size: 17px; /* Tamaño de fuente */
+    font-size: 15px; /* Tamaño de fuente */
     margin-bottom: 10px; /* Separación de la lista */
 }
 
@@ -51,7 +51,7 @@
     justify-content: space-between; /* Espaciado uniforme entre los elementos */
     align-items: center; /* Centrar verticalmente los elementos */
     background-color: #fff8dc; /* Fondo cálido */
-    padding: 10px; /* Espaciado interno */
+    padding: 5px; /* Espaciado interno */
     margin-bottom: 10px; /* Espaciado inferior */
     border-radius: 5px; /* Bordes redondeados */
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Sombra ligera */
@@ -78,7 +78,7 @@
     margin: 0; /* Sin margen */
     flex: 1; /* Asegura que los elementos se distribuyan uniformemente */
     text-align: center; /* Centrar el texto */
-    font-size: 17px;/*año de fuente */
+    font-size: 15px;/*año de fuente */
     color: #000000; /* Marrón oscuro */
 }
 
