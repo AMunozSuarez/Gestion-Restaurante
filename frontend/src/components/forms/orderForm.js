@@ -13,7 +13,7 @@ const OrderForm = ({
     setSelectedPaymentMethod,
     handleSubmit,
     editingOrderId,
-setEditingOrderId,
+    setEditingOrderId,
     isViewingCompletedOrder,
 }) => {
     const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Incluye setCart
@@ -119,7 +119,7 @@ setEditingOrderId,
     if (productsLoading || categoriesLoading) return <p>Cargando datos...</p>;
 
     return (
-        <div className={`order-form ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`}>
+        <div className={`order-form ${isEditing ? 'editing-mode' : ''} ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`}>
             {/* Botón para volver al estado de "Crear Pedido" */}
             {editingOrderId && (
                 <button className="reset-form-button" onClick={() => navigate(`/mostrador`)}>
@@ -131,7 +131,7 @@ setEditingOrderId,
             <div className="order-status">
                 {isViewingCompletedOrder ? (
                     <p>Revisando Pedido</p>
-                ) : editingOrderId ? (
+                ) : isEditing ? (
                     <p>Editando Pedido</p>
                 ) : (
                     <p>Creando Nuevo Pedido</p>
@@ -149,6 +149,7 @@ setEditingOrderId,
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
                         disabled={isViewingCompletedOrder}
+                        className={isEditing ? 'editing-input' : ''}
                     />
                 </div>
 
@@ -186,6 +187,7 @@ setEditingOrderId,
                         value={selectedPaymentMethod}
                         onChange={(e) => setSelectedPaymentMethod(e.target.value)}
                         required
+                        className={isEditing ? 'editing-input' : ''}
                     >
                         <option value="">Seleccione un método de pago</option>
                         <option value="Efectivo">Efectivo</option>

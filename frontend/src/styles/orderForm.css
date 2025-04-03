@@ -8,6 +8,7 @@
     font-size: 14px;
     color: #4d2600; /* Marrón oscuro */
     margin-bottom: 20px;
+    transition: all 0.3s ease-in-out;
 }
 
 .order-form.viewing-completed-order {
@@ -15,6 +16,28 @@
     border: 2px solid #6c757d; /* Borde gris oscuro */
     pointer-events: none; /* Deshabilitar interacciones */
     opacity: 0.9; /* Reducir opacidad */
+}
+
+/* Modo edición */
+.order-form.editing-mode {
+    border: 2px solid #ffc107; /* Borde amarillo para indicar edición */
+    background-color: #fffbea; /* Fondo amarillo claro */
+}
+
+/* Inputs en modo edición */
+.order-form .editing-input {
+    background-color: #fff3cd; /* Fondo amarillo claro */
+    border: 1px solid #ffc107; /* Borde amarillo */
+    color: #856404; /* Texto marrón oscuro */
+    font-weight: bold; /* Texto en negrita */
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Inputs en modo edición al enfocar */
+.order-form .editing-input:focus {
+    background-color: #ffe8a1; /* Fondo amarillo más intenso */
+    border-color: #ffca2c; /* Borde amarillo más intenso */
+    outline: none; /* Sin borde adicional */
 }
 
 /* Estado del Pedido */
@@ -47,7 +70,7 @@
 
 .order-form .form-group input,
 .order-form .form-group select {
-    width: 100%;
+    width: 95%;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
