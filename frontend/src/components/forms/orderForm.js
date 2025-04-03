@@ -105,11 +105,13 @@ const OrderForm = ({
                         <span>{item.title}</span>
                         <span>Cantidad: {item.quantity}</span>
                         <span>Precio: ${item.price * item.quantity}</span>
-                        <div className="cart-actions">
-                            <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
-                            <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
-                            <button type="button" onClick={() => removeProduct(item._id)}>Eliminar</button>
-                        </div>
+                        {!isViewingCompletedOrder && (
+                            <div className="cart-actions">
+                                <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
+                                <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
+                                <button type="button" onClick={() => removeProduct(item._id)}>Eliminar</button>
+                            </div>
+                        )}
                     </li>
                 ))}
             </ul>
@@ -121,8 +123,8 @@ const OrderForm = ({
     return (
         <div className={`order-form ${isEditing ? 'editing-mode' : ''} ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`}>
             {/* Botón para volver al estado de "Crear Pedido" */}
-            {editingOrderId && (
-                <button className="reset-form-button" onClick={() => navigate(`/mostrador`)}>
+            {editingOrderId &&  (
+                <button className="reset-form-button botoncompleted" onClick={() => navigate(`/mostrador`)}>
                     Crear Pedido +
                 </button>
             )}
@@ -148,7 +150,7 @@ const OrderForm = ({
                         id="customerName"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
-                        disabled={isViewingCompletedOrder}
+                        disabled={isViewingCompletedOrder} // Deshabilitar si es un pedido completado/cancelado
                         className={isEditing ? 'editing-input' : ''}
                     />
                 </div>

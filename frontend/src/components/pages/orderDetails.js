@@ -11,44 +11,68 @@ import { CSSTransition } from 'react-transition-group'; // Importar CSSTransitio
 import '../../styles/orderDetails.css'; // Estilos específicos del mostrador
 
 const OrderDetails = () => {
-    const { orderNumber } = useParams(); // Obtener el número de pedido desde la URL
-    const { orders, updateOrderInList } = useOrders(); // Obtener la lista de pedidos
-    const { cart, setCart, setCartContext } = useCartStore(); // Estado del carrito
+    const { orderNumber } = useParams();
+    const { orders, updateOrderInList } = useOrders();
+    const { cart, setCart, setCartContext } = useCartStore();
     const [editingOrder, setEditingOrder] = useState(null);
     const [customerName, setCustomerName] = useState('');
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Efectivo');
+    const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
+    const [selectedOrderId, setSelectedOrderId] = useState(null); // Nuevo estado
     const navigate = useNavigate();
-    const queryClient = useQueryClient(); // Para invalidar la caché de pedidos
-
-    // Ref para el contenedor animado
+    const queryClient = useQueryClient();
     const containerRef = useRef(null);
 
-    // Buscar el pedido seleccionado y actualizar el estado
     useEffect(() => {
-        setCartContext('edit'); // Establecer el contexto como "edit"
+        setCartContext('edit');
 
         const foundOrder = orders.find((o) => o.orderNumber === parseInt(orderNumber, 10));
         setEditingOrder(foundOrder || null);
 
         if (foundOrder) {
-            // Actualizar el carrito con los datos del pedido seleccionado
             const cartItems = foundOrder.foods.map((item) => ({
-                _id: item.food._id, // ID del producto
-                title: item.food.title, // Título del producto
-                quantity: item.quantity, // Cantidad
-                price: item.food.price, // Precio del producto
+                _id: item.food._id,
+                title: item.food.title,
+                quantity: item.quantity,
+                price: item.food.price,
             }));
             setCart(cartItems);
 
-            // Actualizar el nombre del cliente y el método de pago
             setCustomerName(foundOrder.buyer);
             setSelectedPaymentMethod(foundOrder.payment);
-        }
-    }, [orderNumber, orders, setCart]);
 
-    // Función para manejar el envío del formulario
+            // Verificar si el pedido está completado o cancelado
+            if (foundOrder.status === 'Completado' || foundOrder.status === 'Cancelado') {
+                setIsViewingCompletedOrder(true);
+            } else {
+                setIsViewingCompletedOrder(false);
+            }
+        }
+    }, [orderNumber, orders, setCart, setCartContext]);
+
+    const handleSelectCompletedOrder = (order) => {
+        setEditingOrder(order);
+        setCustomerName(order.buyer);
+        setSelectedPaymentMethod(order.payment);
+
+        const cartItems = order.foods.map((item) => ({
+            _id: item.food._id,
+            title: item.food.title,
+            quantity: item.quantity,
+            price: item.food.price,
+        }));
+        setCart(cartItems);
+
+        setIsViewingCompletedOrder(true);
+        setSelectedOrderId(order._id); // Establecer el pedido seleccionado
+
+        // Navegar a la URL del pedido seleccionado
+        navigate(`/mostrador/${order.orderNumber}`);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isViewingCompletedOrder) return; // No permitir guardar en modo de solo visualización
 
         const updatedOrder = {
             ...editingOrder,
@@ -66,30 +90,19 @@ const OrderDetails = () => {
 
             if (response.status === 200) {
                 alert('Pedido actualizado correctamente.');
-                console.log('Pedido actualizado en la base de datos:', response.data);
-
-                // Validar que el pedido actualizado tenga un _id antes de actualizar la lista
                 if (response.data.order && response.data.order._id) {
-                    updateOrderInList(response.data.order); // Usar el campo "order"
-                } else {
-                    console.error('El pedido actualizado no tiene un _id válido:', response.data.order);
+                    updateOrderInList(response.data.order);
                 }
-
-                // Invalidar la caché de pedidos para forzar la recarga
                 queryClient.invalidateQueries(['orders']);
-
                 navigate('/mostrador');
             } else {
-                console.error('Error al actualizar el pedido:', response.data);
                 alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
             }
         } catch (error) {
-            console.error('Error al realizar la solicitud al backend:', error);
             alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
         }
     };
 
-    // Filtrar pedidos en preparación y completados/cancelados
     const preparationOrders = orders.filter((order) => order.status === 'Preparacion');
     const completedOrders = orders.filter(
         (order) => order.status === 'Completado' || order.status === 'Cancelado'
@@ -97,11 +110,11 @@ const OrderDetails = () => {
 
     return (
         <CSSTransition
-            in={!!editingOrder} // Mostrar solo si hay un pedido en edición
-            timeout={300} // Duración de la animación
-            classNames="fade" // Clases CSS para la animación
-            unmountOnExit // Desmontar el componente después de la animación de salida
-            nodeRef={containerRef} // Usar el ref explícito
+            in={!!editingOrder}
+            timeout={300}
+            classNames="fade"
+            unmountOnExit
+            nodeRef={containerRef}
         >
             <div ref={containerRef} className="mostrador-container editing-mode">
                 <h2>Detalles del Pedido</h2>
@@ -119,7 +132,7 @@ const OrderDetails = () => {
                                 handleSubmit={handleSubmit}
                                 editingOrderId={editingOrder._id}
                                 setEditingOrderId={() => {}}
-                                isViewingCompletedOrder={false}
+                                isViewingCompletedOrder={isViewingCompletedOrder} // Pasar el estado
                             />
                         ) : (
                             <p>Selecciona un pedido para ver los detalles.</p>
@@ -127,7 +140,11 @@ const OrderDetails = () => {
                     </div>
                 </div>
                 <div className="mostrador-completed-orders">
-                    <CompletedOrdersList orders={completedOrders} />
+                    <CompletedOrdersList
+                        orders={completedOrders}
+                        onSelectOrder={handleSelectCompletedOrder} // Pasar la función
+                        selectedOrderId={selectedOrderId} // Pasar el pedido seleccionado
+                    />
                 </div>
             </div>
         </CSSTransition>

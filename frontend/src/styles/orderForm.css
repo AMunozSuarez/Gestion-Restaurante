@@ -339,3 +339,8 @@
     background-color: #1e7e34; /* Verde aún más oscuro */
     transform: scale(0.95); /* Efecto de reducción al hacer clic */
 }
+
+
+.botoncompleted {
+    pointer-events:all;
+}

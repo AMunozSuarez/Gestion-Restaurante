@@ -1,15 +1,16 @@
-import React, { useEffect } from 'react';
-import { useOrders } from '../../hooks/useOrders'; // Hook para manejar pedidos
-import { useOrderForm } from '../../hooks/useOrderForm'; // Hook para manejar la lógica del formulario
-import OrderForm from '../forms/orderForm'; // Formulario para crear/editar pedidos
-import OrderList from '../lists/orderList'; // Lista de pedidos en preparación
-import CompletedOrdersList from '../lists/completedOrdersList'; // Lista de pedidos completados/cancelados
-import '../../styles/mostrador.css'; // Estilos específicos del mostrador
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useOrders } from '../../hooks/useOrders';
+import { useOrderForm } from '../../hooks/useOrderForm';
+import OrderForm from '../forms/orderForm';
+import OrderList from '../lists/orderList';
+import CompletedOrdersList from '../lists/completedOrdersList';
+import '../../styles/mostrador.css';
 import useCartStore from '../../store/useCartStore';
 import { CSSTransition } from 'react-transition-group';
 
 const Mostrador = () => {
-    const { orders, isLoading } = useOrders(); // Pedidos desde TanStack Query
+    const { orders, isLoading } = useOrders();
     const {
         customerName,
         setCustomerName,
@@ -18,13 +19,15 @@ const Mostrador = () => {
         handleSubmit,
         editingOrderId,
         setEditingOrderId,
-    } = useOrderForm(); // Hook personalizado para manejar el formulario
-
-    const { setCartContext, clearCart } = useCartStore();
+    } = useOrderForm();
+    const { setCartContext, clearCart, setCart } = useCartStore();
+    const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
+    const [selectedOrderId, setSelectedOrderId] = useState(null); // Estado para el pedido completado seleccionado
+    const navigate = useNavigate();
 
     useEffect(() => {
-        setCartContext('create'); // Establecer el contexto como "create"
-        clearCart(); // Vaciar el carrito al iniciar la creación de un pedido
+        setCartContext('create');
+        clearCart();
     }, [setCartContext, clearCart]);
 
     if (isLoading) return <p>Cargando pedidos...</p>;
@@ -35,18 +38,46 @@ const Mostrador = () => {
         (order) => order.status === 'Completado' || order.status === 'Cancelado'
     );
 
+    // Manejar la selección de un pedido completado/cancelado
+    const handleSelectCompletedOrder = (order) => {
+        setEditingOrderId(null); // Desmarcar cualquier pedido en edición
+        setSelectedOrderId(order._id); // Marcar el pedido completado seleccionado
+        setCustomerName(order.buyer);
+        setSelectedPaymentMethod(order.payment);
+
+        const cartItems = order.foods.map((item) => ({
+            _id: item.food._id,
+            title: item.food.title,
+            quantity: item.quantity,
+            price: item.food.price,
+        }));
+        setCart(cartItems);
+
+        setIsViewingCompletedOrder(true); // Activar modo de solo visualización
+
+        // Redirigir a la URL del pedido completado/cancelado
+        navigate(`/mostrador/${order.orderNumber}`);
+    };
+
+    // Manejar la selección de un pedido en edición
+    const handleSelectEditingOrder = (orderId) => {
+        setSelectedOrderId(null); // Desmarcar cualquier pedido completado seleccionado
+        setEditingOrderId(orderId); // Marcar el pedido en edición
+        setIsViewingCompletedOrder(false); // Desactivar modo de solo visualización
+        navigate(`/mostrador/${orderId}`); // Navegar al pedido en edición
+    };
+
     return (
         <CSSTransition
-            in={true} // Siempre mostrar en modo creación
+            in={true}
             timeout={300}
             classNames="fade"
             unmountOnExit
-            
         >
             <div className="mostrador-container creating-mode">
                 <h2>Mostrador</h2>
                 <div className="mostrador-content">
-                    {/* Formulario de creación de pedidos */}
+                    {/* Formulario de creación/edición de pedidos */}
                     <div className="mostrador-create-order">
                         <OrderForm
                             customerName={customerName}
@@ -56,18 +87,26 @@ const Mostrador = () => {
                             handleSubmit={handleSubmit}
                             editingOrderId={editingOrderId}
                             setEditingOrderId={setEditingOrderId}
+                            isViewingCompletedOrder={isViewingCompletedOrder}
                         />
                     </div>
 
-                    {/* Lista de pedidos */}
+                    {/* Lista de pedidos en preparación */}
                     <div className="mostrador-orders-list">
-                        <OrderList orders={preparationOrders} setEditingOrderId={setEditingOrderId} />
+                        <OrderList
+                            orders={preparationOrders}
+                            setEditingOrderId={handleSelectEditingOrder}
+                        />
                     </div>
                 </div>
 
-                {/* Pedidos completados/cancelados */}
+                {/* Lista de pedidos completados/cancelados */}
                 <div className="mostrador-completed-orders">
-                    <CompletedOrdersList orders={completedOrders} />
+                    <CompletedOrdersList
+                        orders={completedOrders}
+                        onSelectOrder={handleSelectCompletedOrder}
+                        selectedOrderId={selectedOrderId} // Pasar el pedido completado seleccionado
+                    />
                 </div>
             </div>
         </CSSTransition>

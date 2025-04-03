@@ -35,24 +35,26 @@
     border-radius: 5px; /* Bordes redondeados */
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Sombra ligera */
     transition: background-color 0.2s ease, transform 0.2s ease; /* Transiciones suaves */
+    
+    cursor: pointer; /* Cambiar el cursor al pasar */
 }
 
 /* Hover en los elementos de la lista */
 .completed-orders-list li:hover {
-    background-color: #e9ecef; /* Gris más claro */
+    background-color: #000000; /* Gris más claro */
     transform: scale(1.02); /* Aumentar ligeramente el tamaño */
 }
 
 /* Pedidos completados */
 .completed-orders-list li.Completado {
     border-left: 5px solid #28a745; /* Borde verde */
-    background-color: #e6f4ea85; /* Fondo verde claro */
+    background-color: #d1fcdd85; /* Fondo verde claro */
 }
 
 /* Pedidos cancelados */
 .completed-orders-list li.Cancelado {
     border-left: 5px solid #dc3545; /* Borde rojo */
-    background-color: #f8d7da6c; /* Fondo rojo claro */
+    background-color: #facdd06c; /* Fondo rojo claro */
 }
 
 /* Texto dentro de los elementos de la lista */
@@ -69,4 +71,14 @@
     font-weight: bold; /* Resaltar el texto */
     color: #000000; /* Verde */
     text-align: right; /* Alinear a la derecha */
+}
+
+/* Pedido seleccionado */
+.completed-orders-list li.selected {
+    background-color: #ffd966; /* Fondo amarillo */
+    transform: scale(1.02); /* Aumentar ligeramente el tamaño */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Sombra más pronunciada */
+    cursor: default; /* Cambiar el cursor para indicar que está seleccionado */
+    font-weight: bold; /* Resaltar el texto */
+    color: #4d2600; /* Marrón oscuro */
 }
