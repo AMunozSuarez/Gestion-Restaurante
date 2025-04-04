@@ -42,6 +42,7 @@
 
 /* Estado del Pedido */
 .order-status {
+    margin-top: 0;
     margin-bottom: 15px;
     text-align: center;
 }

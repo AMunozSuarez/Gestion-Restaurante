@@ -75,7 +75,6 @@ const Mostrador = () => {
             unmountOnExit
         >
             <div className="mostrador-container creating-mode">
-                <h2>Mostrador</h2>
                 <div className="mostrador-content">
                     {/* Formulario de creación/edición de pedidos */}
                     <div className="mostrador-create-order">

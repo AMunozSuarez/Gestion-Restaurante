@@ -123,11 +123,6 @@ const OrderForm = ({
     return (
         <div className={`order-form ${isEditing ? 'editing-mode' : ''} ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`}>
             {/* Botón para volver al estado de "Crear Pedido" */}
-            {editingOrderId &&  (
-                <button className="reset-form-button botoncompleted" onClick={() => navigate(`/mostrador`)}>
-                    Crear Pedido +
-                </button>
-            )}
 
             {/* Estado del pedido */}
             <div className="order-status">

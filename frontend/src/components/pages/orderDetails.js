@@ -117,7 +117,6 @@ const OrderDetails = () => {
             nodeRef={containerRef}
         >
             <div ref={containerRef} className="mostrador-container editing-mode">
-                <h2>Detalles del Pedido</h2>
                 <div className="mostrador-content">
                     <div className="mostrador-orders-list">
                         <OrderList orders={preparationOrders} />

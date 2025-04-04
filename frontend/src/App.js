@@ -9,6 +9,7 @@ import Delivery from './components/delivery';
 import Productos from './components/admin/productos'; 
 import Categorias from './components/admin/categorias';
 import OrderDetails from './components/pages/orderDetails';
+import MostradorLayout from './components/pages/mostradorLayout'; // Importar el layout del mostrador
 
 function App() {
   return (
@@ -18,8 +19,11 @@ function App() {
         <Routes>
           
           <Route path="/" element={<Login />} />
-          <Route path="/mostrador" element={<Mostrador />} />
-          <Route path="/mostrador/:orderNumber" element={<OrderDetails />} />
+          {/* Rutas relacionadas con /mostrador */}
+          <Route path="/mostrador" element={<MostradorLayout />}>
+                    <Route index element={<Mostrador />} />
+                    <Route path=":orderNumber" element={<OrderDetails />} />
+                </Route>
           <Route path="/delivery" element={<Delivery />} />
           <Route path="/principal" element={<Principal />} />
           <Route path="/admin/productos" element={<Productos />} />
