@@ -58,6 +58,7 @@
 
 /* Formulario Principal */
 .order-form .form-group {
+    margin-top: 10px;
     margin-bottom: 20px;
 }
 
@@ -88,6 +89,7 @@
 
 /* Botón de Buscar Productos */
 .order-form .form-group button {
+    margin-top: 5px;
     background-color: #007bff; /* Azul */
     color: white;
     padding: 10px 15px;
@@ -343,4 +345,18 @@
 
 .botoncompleted {
     pointer-events:all;
+}
+
+
+
+
+.order-form.order-form.viewing-completed-order{
+    border: 2px solid #6c757d; /* Borde gris oscuro */
+    background-color: #f8f9fa; /* Fondo gris claro */
+}
+
+.order-form.order-form.viewing-completed-order select{
+    background-color: #e9ecef; /* Fondo gris claro */
+    color: #6c757d; /* Texto gris oscuro */
+    cursor: not-allowed; /* Cursor de no permitido */
 }
