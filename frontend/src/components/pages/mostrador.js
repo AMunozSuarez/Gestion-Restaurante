@@ -10,7 +10,7 @@ import useCartStore from '../../store/useCartStore';
 import { CSSTransition } from 'react-transition-group';
 
 const Mostrador = () => {
-    const { orders, isLoading } = useOrders();
+    const { orders, isLoading, updateOrderStatus } = useOrders();
     const {
         customerName,
         setCustomerName,
@@ -59,6 +59,20 @@ const Mostrador = () => {
         navigate(`/mostrador/${order.orderNumber}`);
     };
 
+    // Función para marcar un pedido como completado
+    const markAsCompleted = (orderId) => {
+        console.log(`Marcando el pedido ${orderId} como completado.`);
+        updateOrderStatus(orderId, 'Completado'); // Llama a la API o actualiza el estado local
+    };
+
+    // Función para cancelar un pedido
+    const cancelOrder = (orderId) => {
+        console.log(`Cancelando el pedido ${orderId}.`);
+        updateOrderStatus(orderId, 'Cancelado'); // Llama a la API o actualiza el estado local
+    };
+
+
+
     // Manejar la selección de un pedido en edición
     const handleSelectEditingOrder = (orderId) => {
         setSelectedOrderId(null); // Desmarcar cualquier pedido completado seleccionado
@@ -87,6 +101,8 @@ const Mostrador = () => {
                             editingOrderId={editingOrderId}
                             setEditingOrderId={setEditingOrderId}
                             isViewingCompletedOrder={isViewingCompletedOrder}
+                            markAsCompleted={markAsCompleted}
+                            cancelOrder={cancelOrder} // Asegúrate de pasar esta función
                         />
                     </div>
 

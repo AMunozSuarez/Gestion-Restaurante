@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import useCartStore from '../../store/useCartStore'; // Store para manejar el carrito
 import useUIStore from '../../store/useUiStore'; // Store para manejar estados de UI
 import { useProducts } from '../../hooks/useProducts'; // Hook para manejar productos
@@ -28,6 +28,8 @@ const OrderForm = ({
     const [cartTotal, setCartTotal] = useState(0); // Estado para el total del carrito
     const [isEditing, setIsEditing] = React.useState(!!editingOrderId); // Determinar si estamos editando
     const navigate = useNavigate(); // Hook para navegar entre rutas
+
+    const searchInputRef = useRef(null); // Referencia al campo de búsqueda
 
     // Calcular el total del carrito cada vez que cambie
     useEffect(() => {
@@ -69,9 +71,19 @@ const OrderForm = ({
         setEditingOrderId(null);
     };
 
+    // Ocultar sugerencias al hacer clic fuera del campo de búsqueda
     useEffect(() => {
-        console.log('Estado del carrito actualizado:', cart);
-    }, [cart]);
+        const handleClickOutside = (event) => {
+            if (searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+                setIsSearchFocused(false);
+            }
+        };
+
+        document.addEventListener('click', handleClickOutside);
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+        };
+    }, []);
 
     const addToCart = (product) => {
         setCart((prevCart) => {
@@ -101,16 +113,35 @@ const OrderForm = ({
         return (
             <ul className="cart-list">
                 {cart.map((item, index) => (
-                    <li key={`${item._id}-${index}`}>
-                        <span>{item.title}</span>
-                        <span>Cantidad: {item.quantity}</span>
-                        <span>Precio: ${item.price * item.quantity}</span>
+                    <li key={`${item._id}-${index}`} className="cart-item">
+                        {/* Controles de cantidad */}
+                        <div className="cart-quantity">
+                            {!isViewingCompletedOrder && (
+                                <>
+                                    
+                                    <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
+                                    <span>{item.quantity}</span>
+                                    <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
+                                </>
+                            )}
+                            {isViewingCompletedOrder && <span>{item.quantity}</span>}
+                        </div>
+
+                        {/* Nombre del producto */}
+                        <span className="cart-product">{item.title}</span>
+
+                        {/* Precio total del producto */}
+                        <span className="cart-price">${(item.price * item.quantity).toFixed(0)}</span>
+
+                        {/* Botón para eliminar el producto */}
                         {!isViewingCompletedOrder && (
-                            <div className="cart-actions">
-                                <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
-                                <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
-                                <button type="button" onClick={() => removeProduct(item._id)}>Eliminar</button>
-                            </div>
+                            <button
+                                type="button"
+                                className="cart-remove"
+                                onClick={() => removeProduct(item._id)}
+                            >
+                                X
+                            </button>
                         )}
                     </li>
                 ))}
@@ -157,10 +188,26 @@ const OrderForm = ({
                         <input
                             type="text"
                             id="searchQuery"
+                            ref={searchInputRef} // Referencia al campo de búsqueda
                             value={modalSearchQuery}
                             onChange={(e) => setModalSearchQuery(e.target.value)}
                             onFocus={() => setIsSearchFocused(true)}
                         />
+                        {/* Mostrar sugerencias solo si hay texto y el campo está enfocado */}
+                        {modalSearchQuery && isSearchFocused && filteredProducts.length > 0 && (
+                            <ul className="suggestions-list">
+                                {filteredProducts.map((product, index) => (
+                                    <li
+                                        key={`${product._id}-${index}`}
+                                        onClick={() => addToCart(product)}
+                                        className="suggestion-item"
+                                    >
+                                        <span>{product.title}</span>
+                                        <span>${product.price}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                         <button type="button" onClick={() => setIsModalOpen(true)}>
                             Ver Productos +
                         </button>
@@ -172,7 +219,7 @@ const OrderForm = ({
                     <h3>Carrito</h3>
                     {renderCart()}
                     <div className="cart-total">
-                        <strong>Total: ${cartTotal.toFixed(2)}</strong>
+                        <strong>Total: ${cartTotal.toFixed(0)}</strong>
                     </div>
                 </div>
 

@@ -1,38 +1,59 @@
+/* Estilo general del header */
 header {
-    background-color: #333;
+    background-color: #4d2600; /* Marrón oscuro */
     color: white;
-    padding: 20px;
-    text-align: center;
-    font-family: Arial, sans-serif;
+    padding: 15px 20px; /* Reducir el padding para un diseño más compacto */
+    font-family: 'Poppins', Arial, sans-serif; /* Fuente moderna */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Sombra para dar profundidad */
+    position: sticky; /* Fijar el header en la parte superior */
+    top: 0;
+    z-index: 1000; /* Asegurar que esté encima de otros elementos */
 }
 
+/* Título del header */
 header h1 {
     margin: 0;
-    font-size: 2em;
+    font-size: 1.8em; /* Tamaño de fuente más compacto */
+    font-weight: bold;
+    text-align: center;
+    color: #ffd966; /* Amarillo para resaltar */
 }
 
-header nav {
-    margin-top: 10px;
-}
-
+/* Lista de navegación */
 header nav ul {
     list-style: none;
     padding: 0;
     margin: 0;
     display: flex;
-    justify-content: center; /* Centra los elementos horizontalmente */
+    justify-content: center; /* Centrar los elementos horizontalmente */
+    gap: 20px; /* Espaciado uniforme entre los elementos */
 }
 
+/* Elementos de la lista */
 header nav li {
-    margin: 0 15px;
+    margin: 0;
 }
 
+/* Enlaces de navegación */
 header nav a {
     color: white;
     text-decoration: none;
     font-size: 1.1em;
+    font-weight: 500;
+    padding: 8px 15px; /* Espaciado interno para un diseño más limpio */
+    border-radius: 5px; /* Bordes redondeados */
+    transition: background-color 0.3s ease, color 0.3s ease; /* Transiciones suaves */
 }
 
+/* Hover en los enlaces */
 header nav a:hover {
-    text-decoration: underline;
+    background-color: #ffd966; /* Fondo amarillo */
+    color: #4d2600; /* Texto marrón oscuro */
+}
+
+/* Enlace activo */
+header nav a.active {
+    background-color: #ffd966; /* Fondo amarillo */
+    color: #4d2600; /* Texto marrón oscuro */
+    font-weight: bold;
 }

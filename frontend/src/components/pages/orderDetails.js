@@ -89,7 +89,6 @@ const OrderDetails = () => {
             const response = await axios.put(`/order/update/${editingOrder._id}`, updatedOrder);
 
             if (response.status === 200) {
-                alert('Pedido actualizado correctamente.');
                 if (response.data.order && response.data.order._id) {
                     updateOrderInList(response.data.order);
                 }
