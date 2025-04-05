@@ -1,62 +1,28 @@
 const mongoose = require('mongoose');
 
 const restaurantSchema = new mongoose.Schema({
-
-    title: {
+    name: {
         type: String,
-        required: [true, 'Please enter the restaurant title'],
-        trim: true
+        required: true,
     },
-    imageUrl: {
+    address: {
         type: String,
-        trim: true
+        required: true,
     },
-    foods: {
-        type: Array,
-        default: []
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // Relación con el usuario propietario
+        required: true,
     },
-    time: {
+    subscriptionPlan: {
         type: String,
+        enum: ['Basic', 'Premium', 'Enterprise'], // Planes de suscripción
+        default: 'Basic',
     },
-    pickup: {
+    isActive: {
         type: Boolean,
-        default: true
+        default: true,
     },
-    delivery: {
-        type: Boolean,
-        default: true
-    },
-    isOpen: {
-        type: Boolean,
-        default: true
-    },
-    logoUrl: {
-        type: String,
-        trim: true
-    },
-    rating: {
-        type: Number,
-        default: 1,
-        min: 1,
-        max: 5
-    },
-    ratingCount: {
-        type: String,
-    },
-    code: {
-        type: String,
-    },
-    coords: {
-        id:{type: String},
-        lat: {type: Number},
-        lng: {type: Number},
-        address: {type: String},
-        title: {type: String},
-    }
+}, { timestamps: true });
 
-
-}, {
-    timestamps: true
-})
-
-module.exports = mongoose.model('Restaurant', restaurantSchema)
+module.exports = mongoose.model('Restaurant', restaurantSchema);

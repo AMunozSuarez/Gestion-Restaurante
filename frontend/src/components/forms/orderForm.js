@@ -29,6 +29,7 @@ const OrderForm = ({
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [cartTotal, setCartTotal] = useState(0); // Estado para el total del carrito
     const [isEditing, setIsEditing] = React.useState(!!editingOrderId); // Determinar si estamos editando
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); // Estado para la modal de cancelación
     const navigate = useNavigate(); // Hook para navegar entre rutas
 
     const searchInputRef = useRef(null); // Referencia al campo de búsqueda
@@ -265,7 +266,7 @@ const OrderForm = ({
                         <button
                             type="button"
                             className="cancel-order-button"
-                            onClick={() => handleSubmit(null, 'Cancelado')} // Pasar 'null' como primer argumento
+                            onClick={() => setIsCancelModalOpen(true)} // Abrir la modal de cancelación
                         >
                             Cancelar Pedido
                         </button>
@@ -276,7 +277,15 @@ const OrderForm = ({
 
             {/* Modal para seleccionar productos */}
             {isModalOpen && (
-                <div className="modal">
+                <div
+                    className="modal"
+                    onClick={(e) => {
+                        // Cerrar la modal si se hace clic fuera del contenido
+                        if (e.target.classList.contains('modal')) {
+                            setIsModalOpen(false);
+                        }
+                    }}
+                >
                     <div className="modal-content">
                         <h3>Seleccionar Productos</h3>
                         <input
@@ -311,6 +320,25 @@ const OrderForm = ({
                             ))}
                         </ul>
                         <button onClick={() => setIsModalOpen(false)}>Cerrar</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal para cancelar el pedido */}
+            {isCancelModalOpen && (
+                <div
+                    className="modal"
+                    onClick={(e) => {
+                        // Cerrar la modal si se hace clic fuera del contenido
+                        if (e.target.classList.contains('modal')) {
+                            setIsCancelModalOpen(false);
+                        }
+                    }}
+                >
+                    <div className="modal-content modal-actions">
+                        <h3>¿Estás seguro de que deseas cancelar el pedido?</h3>
+                        <button onClick={() => handleSubmit(null, 'Cancelado')}>Sí, cancelar</button>
+                        <button onClick={() => setIsCancelModalOpen(false)}>No, volver</button>
                     </div>
                 </div>
             )}

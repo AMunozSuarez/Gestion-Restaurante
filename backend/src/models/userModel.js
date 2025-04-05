@@ -13,6 +13,11 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
     },
+    restaurant:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Restaurant',
+        required: true
+    },
     address: {
         type: String,
         default: ''
