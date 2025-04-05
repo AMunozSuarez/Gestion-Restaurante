@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Route, Routes} from 'react-router-dom';
 import Header from './components/header';
 
 import Login from './components/login';
-import Principal from './components/principal';
 import Mostrador from './components/pages/mostrador';
 import Delivery from './components/delivery';
 import Productos from './components/admin/productos'; 
@@ -25,7 +24,6 @@ function App() {
                     <Route path=":orderNumber" element={<OrderDetails />} />
                 </Route>
           <Route path="/delivery" element={<Delivery />} />
-          <Route path="/principal" element={<Principal />} />
           <Route path="/admin/productos" element={<Productos />} />
           <Route path="/admin/categorias" element={<Categorias />} />
           {/* Puedes agregar más rutas aquí para otras páginas */}

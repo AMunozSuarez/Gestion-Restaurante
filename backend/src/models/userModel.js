@@ -18,19 +18,9 @@ const userSchema = new mongoose.Schema({
         ref: 'Restaurant',
         required: true
     },
-    address: {
-        type: String,
-        default: ''
-    },
     phone: {
         type: String,
         default: ''
-    },
-    usertype: {
-        type: String,
-        required: [true, 'Please enter your usertype'],
-        default: 'cliente',
-        enum: ['cliente', 'admin', 'trabajador', 'repartidor', 'garzon']
     },
     avatar: {
         type: String,
