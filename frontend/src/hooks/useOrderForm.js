@@ -31,9 +31,9 @@ export const useOrderForm = () => {
     }, [editingOrderId, orders, setCart]);
 
     // Función para manejar el envío del formulario
-    const handleSubmit = (e, resetForm) => {
-        e.preventDefault();
-    
+    const handleSubmit = (e, resetForm, status = 'Preparacion') => {
+        if (e && e.preventDefault) e.preventDefault(); // Verificar si 'e' existe antes de llamar a preventDefault
+
         const newOrder = {
             section: 'mostrador',
             buyer: customerName,
@@ -42,11 +42,11 @@ export const useOrderForm = () => {
                 food: item._id,
                 quantity: item.quantity,
             })),
-            status: 'Preparacion',
+            status,
         };
-    
+
         if (editingOrderId) {
-            console.log(`Editando pedido con ID: ${editingOrderId}`);
+            console.log(`Editando pedido con ID: ${editingOrderId} y estado: ${status}`);
             // Aquí puedes implementar la lógica para actualizar el pedido en el backend
             resetForm(); // Volver al estado de "Crear Pedido"
         } else {

@@ -70,8 +70,9 @@ const OrderDetails = () => {
         navigate(`/mostrador/${order.orderNumber}`);
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleSubmit = async (e, status = 'Preparacion') => {
+        if (e && e.preventDefault) e.preventDefault(); // Verificar si 'e' existe antes de llamar a preventDefault
+
         if (isViewingCompletedOrder) return; // No permitir guardar en modo de solo visualización
 
         const updatedOrder = {
@@ -83,6 +84,7 @@ const OrderDetails = () => {
                 quantity: item.quantity,
                 price: item.price,
             })),
+            status, // Usar el estado pasado como argumento
         };
 
         try {

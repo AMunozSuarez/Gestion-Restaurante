@@ -15,6 +15,8 @@ const OrderForm = ({
     editingOrderId,
     setEditingOrderId,
     isViewingCompletedOrder,
+    markAsCompleted, // Función para cerrar el pedido
+    cancelOrder, // Función para cancelar el pedido
 }) => {
     const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Incluye setCart
     const { isSearchFocused, setIsSearchFocused } = useUIStore(); // Estados de UI desde Zustand
@@ -240,6 +242,7 @@ const OrderForm = ({
                     </select>
                 </div>
 
+
                 {/* Botón de enviar */}
                 {!isViewingCompletedOrder && (
                     <button type="submit">
@@ -247,6 +250,27 @@ const OrderForm = ({
                     </button>
                 )}
             </form>
+
+            
+                {/* Botones adicionales para cerrar o cancelar el pedido */}
+                {!isViewingCompletedOrder && editingOrderId && (
+                    <div className="form-actions">
+                        <button
+                            type="button"
+                            className="mark-completed-button"
+                            onClick={() => handleSubmit(null, 'Completado')} // Pasar 'null' como primer argumento
+                        >
+                            Cerrar Pedido
+                        </button>
+                        <button
+                            type="button"
+                            className="cancel-order-button"
+                            onClick={() => handleSubmit(null, 'Cancelado')} // Pasar 'null' como primer argumento
+                        >
+                            Cancelar Pedido
+                        </button>
+                    </div>
+                )}
 
             
 
