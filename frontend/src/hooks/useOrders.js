@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from '../services/axiosConfig';
 
 // Función para obtener pedidos
@@ -7,10 +7,7 @@ const fetchOrders = async () => {
     return response.data.orders || []; // Devuelve un array vacío si no hay pedidos
 };
 
-// Función para actualizar el estado de un pedido
-const updateOrderStatus = async ({ orderId, newStatus }) => {
-    await axios.put(`/order/update/${orderId}`, { status: newStatus });
-};
+
 
 // Hook personalizado para manejar pedidos
 export const useOrders = () => {

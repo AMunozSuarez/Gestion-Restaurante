@@ -1,5 +1,4 @@
 import axios from 'axios';
-import useAuthStore from '../store/useAuthStore';
 
 const instance = axios.create({
     baseURL: 'http://localhost:3001/api', // Cambia esto según la URL de tu backend

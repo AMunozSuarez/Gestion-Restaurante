@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from '../../services/axiosConfig'; // Asegúrate de que la ruta sea correcta
 import '../../styles/admin/productos.css';
 
@@ -23,9 +23,28 @@ const Productos = () => {
         fetchCategorias();
     }, []);
 
+    // Memorizar la función filterProductos
+    const filterProductos = useCallback(() => {
+        let filtered = productos;
+
+        if (selectedCategory) {
+            filtered = filtered.filter(
+                (producto) => producto.category?._id === selectedCategory
+            );
+        }
+
+        if (searchTerm) {
+            filtered = filtered.filter((producto) =>
+                producto.title.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        setFilteredProductos(filtered);
+    }, [productos, searchTerm, selectedCategory]);
+
     useEffect(() => {
         filterProductos();
-    }, [productos, searchTerm, selectedCategory]);
+    }, [productos, searchTerm, selectedCategory, filterProductos]);
 
     // Obtener todos los productos
     const fetchProductos = async () => {
@@ -114,25 +133,6 @@ const Productos = () => {
         } catch (error) {
             console.error('Error al eliminar el producto:', error.response?.data || error.message);
         }
-    };
-
-    // Filtrar productos por categoría o búsqueda
-    const filterProductos = () => {
-        let filtered = productos;
-
-        if (selectedCategory) {
-            filtered = filtered.filter(
-                (producto) => producto.category?._id === selectedCategory
-            );
-        }
-
-        if (searchTerm) {
-            filtered = filtered.filter((producto) =>
-                producto.title.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
-
-        setFilteredProductos(filtered);
     };
 
     return (
