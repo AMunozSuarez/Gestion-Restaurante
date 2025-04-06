@@ -1,22 +1,11 @@
 const express = require('express');
-const authMiddleware = require('../middlewares/authMiddleware');
-const { createRestaurantController, getAllRestaurantsController, getRestaurantByIdController, deleteRestaurantByIdController } = require('../controllers/restaurantController');
+const { createRestaurantWithUser, getRestaurantById } = require('../controllers/restaurantController');
 const router = express.Router();
 
+// Ruta para crear un restaurante con un usuario por defecto
+router.post('/create', createRestaurantWithUser);
 
-// CREATE A NEW RESTAURANT (POST)
-router.post('/create', authMiddleware, createRestaurantController);
+// Ruta para obtener un restaurante por ID
+router.get('/get/:id', getRestaurantById);
 
-// GET ALL RESTAURANTS (GET)
-router.get('/getAll', authMiddleware, getAllRestaurantsController);
-
-// GET A RESTAURANT BY ID (GET)
-router.get('/get/:id', authMiddleware, getRestaurantByIdController);
-
-// DELETE A RESTAURANT BY ID (DELETE)
-router.delete('/delete/:id', authMiddleware, deleteRestaurantByIdController);
-
-
-
-
-module.exports = router; // Export the router
+module.exports = router;

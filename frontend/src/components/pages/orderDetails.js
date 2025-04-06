@@ -5,7 +5,7 @@ import useCartStore from '../../store/useCartStore'; // Store para manejar el ca
 import OrderForm from '../forms/orderForm'; // Formulario para crear/editar pedidos
 import OrderList from '../lists/orderList'; // Lista de pedidos en preparación
 import CompletedOrdersList from '../lists/completedOrdersList'; // Lista de pedidos completados/cancelados
-import axios from 'axios'; // Asegúrate de tener axios instalado
+import axios from '../../services/axiosConfig'; // Asegúrate de tener axios instalado
 import { useQueryClient } from '@tanstack/react-query'; // Para invalidar la caché de pedidos
 import { CSSTransition } from 'react-transition-group'; // Importar CSSTransition
 import '../../styles/orderDetails.css'; // Estilos específicos del mostrador

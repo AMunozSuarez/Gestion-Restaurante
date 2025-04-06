@@ -7,11 +7,14 @@ const createCategoryController = async (req, res) => {
         if (!title) {
             return res.status(400).json({ 
                 success: false,
-                message: 'All Category fields are required' });
+                message: 'All Category fields are required' 
+            });
         }
+
         const newCategory = new categoryModel({
             title,
-            imageUrl
+            imageUrl,
+            restaurant: req.user.restaurant, // Asocia la categoría al restaurante del usuario
         });
 
         await newCategory.save();
@@ -19,13 +22,15 @@ const createCategoryController = async (req, res) => {
         res.status(201).json({ 
             success: true,
             message: 'Category created successfully',
-            newCategory });
+            newCategory 
+        });
 
     } catch (error) {
         res.status(500).json({ 
             success: false,
             message: 'Error in Create Category',
-            error });
+            error 
+        });
     }
 }
 
@@ -35,22 +40,25 @@ const createCategoryController = async (req, res) => {
 // GET ALL CATEGORIES
 const getAllCategoriesController = async (req, res) => {
     try {
-        const categories = await categoryModel.find();
-        if (!categories) {
-            return res.status(400).json({ 
+        const categories = await categoryModel.find({ restaurant: req.user.restaurant }); // Filtra por restaurante
+        if (!categories || categories.length === 0) {
+            return res.status(404).json({ 
                 success: false,
-                message: 'No Categories found' });
+                message: 'No Categories found' 
+            });
         }
         res.status(200).json({ 
             success: true,
             totalCategories: categories.length,
-            categories });
+            categories 
+        });
 
     } catch (error) {
         res.status(500).json({ 
             success: false,
             message: 'Error in Get All Categories',
-            error });
+            error 
+        });
     }
 }
 
@@ -63,14 +71,22 @@ const updateCategoryController = async (req, res) => {
         if (!title) {
             return res.status(400).json({ 
                 success: false,
-                message: 'All Category fields are required' });
+                message: 'All Category fields are required' 
+            });
         }
-        const category = await categoryModel.findById(req.params.id);
+
+        const category = await categoryModel.findOne({ 
+            _id: req.params.id, 
+            restaurant: req.user.restaurant // Verifica que la categoría pertenezca al restaurante
+        });
+
         if (!category) {
-            return res.status(400).json({ 
+            return res.status(404).json({ 
                 success: false,
-                message: 'Category not found' });
+                message: 'Category not found' 
+            });
         }
+
         category.title = title;
         category.imageUrl = imageUrl;
         await category.save();
@@ -78,38 +94,48 @@ const updateCategoryController = async (req, res) => {
         res.status(200).json({ 
             success: true,
             message: 'Category updated successfully',
-            category });
+            category 
+        });
 
     } catch (error) {
         res.status(500).json({ 
             success: false,
             message: 'Error in Update Category',
-            error });
+            error 
+        });
     }
-}
+};
 
 
 
 const deleteCategoryController = async (req, res) => {
     try {
-        const category = await categoryModel.findByIdAndDelete(req.params.id);
+        const category = await categoryModel.findOneAndDelete({ 
+            _id: req.params.id, 
+            restaurant: req.user.restaurant // Verifica que la categoría pertenezca al restaurante
+        });
+
         if (!category) {
-            return res.status(400).json({ 
+            return res.status(404).json({ 
                 success: false,
-                message: 'Category not found' });
+                message: 'Category not found' 
+            });
         }
+
         res.status(200).json({ 
             success: true,
             message: 'Category deleted successfully',
-            category });
-        }
-    catch (error) {
+            category 
+        });
+
+    } catch (error) {
         res.status(500).json({ 
             success: false,
             message: 'Error in Delete Category',
-            error });
+            error 
+        });
     }
-}
+};
 
 
 module.exports = {

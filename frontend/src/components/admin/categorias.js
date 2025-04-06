@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from '../../services/axiosConfig'; // Asegúrate de que la ruta sea correcta
 
 import '../../styles/admin/categorias.css';
 

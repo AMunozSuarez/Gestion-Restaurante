@@ -5,7 +5,7 @@ export const useProducts = () => {
     const { data, isLoading, error } = useQuery({
         queryKey: ['products'], // Clave única para identificar esta consulta
         queryFn: async () => {
-            const response = await axios.get('/food/getall'); // Cambia la URL según tu backend
+            const response = await axios.get('/food/getAll'); // Cambia la URL según tu backend
             console.log('Respuesta de la API:', response.data); // Depuración
             // Verifica que la respuesta tenga la estructura esperada
             if (!response.data || !response.data.foods) {

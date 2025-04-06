@@ -35,7 +35,12 @@ const orderSchema = new mongoose.Schema({
         type: String,
         enum: ['Preparacion', 'En camino', 'delivered', 'Cancelado', 'Completado'],
         default: 'Preparacion'
-    }
+    },
+    restaurant: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Restaurant', // Relación con el modelo "Restaurant"
+        required: true
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);

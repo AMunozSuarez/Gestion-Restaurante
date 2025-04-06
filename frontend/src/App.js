@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes} from 'react-router-dom';
 import Header from './components/header';
 
-import Login from './components/login';
+import Login from './components/pages/login';
 import Mostrador from './components/pages/mostrador';
 import Delivery from './components/delivery';
 import Productos from './components/admin/productos'; 
@@ -17,7 +17,7 @@ function App() {
         <Header />
         <Routes>
           
-          <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
           {/* Rutas relacionadas con /mostrador */}
           <Route path="/mostrador" element={<MostradorLayout />}>
                     <Route index element={<Mostrador />} />

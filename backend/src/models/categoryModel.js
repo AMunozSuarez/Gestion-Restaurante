@@ -12,6 +12,15 @@ const categorySchema = new mongoose.Schema({
         default: 'https://openclipart.org/image/800px/289282',
         trim: true
     },
+    restaurant: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Restaurant',
+        required: true
+    },
+    isAvailable: {
+        type: Boolean,
+        default: true,
+    },
 
 }, {
     timestamps: true

@@ -1,9 +1,9 @@
 const express = require('express');
-const { getUserController, updateUserController, updatePasswordController, resetPasswordController, deleteUserController } = require('../controllers/userControllers');
+const { getUserController, updateUserController, updatePasswordController, resetPasswordController, deleteUserController, createEmployeeController } = require('../controllers/userControllers');
 const authMiddleware = require('../middlewares/authMiddleware');
+const roleMiddleware = require('../middlewares/roleMiddleware');
 
 const router = express.Router();
-
 
 // GET USER
 router.get('/getUser', authMiddleware, getUserController);
@@ -20,5 +20,7 @@ router.post('/resetPassword', authMiddleware, resetPasswordController);
 // DELETE USER
 router.delete('/deleteUser/:id', authMiddleware, deleteUserController);
 
+// Crear un empleado (solo propietarios)
+router.post('/createEmployee', authMiddleware, roleMiddleware('owner'), createEmployeeController);
 
 module.exports = router; // Export the router

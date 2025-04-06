@@ -6,6 +6,7 @@
     background-color: #302e2c; /* Marrón oscuro */
     padding: 5px 0; /* Reducir el padding */
     margin-bottom: 10px; /* Reducir el margen inferior */
+    position: sticky !important;
 }
 
 .sub-header a {

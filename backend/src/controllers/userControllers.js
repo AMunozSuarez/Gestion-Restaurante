@@ -161,8 +161,56 @@ const deleteUserController = async (req, res) => {
     }
 }
 
+const createEmployeeController = async (req, res) => {
+    try {
+        const { userName, email, password, phone } = req.body;
+        const restaurantId = req.user.restaurant; // Restaurante del propietario autenticado
 
+        // Validar campos requeridos
+        if (!userName || !email || !password) {
+            return res.status(400).send({
+                success: false,
+                message: 'Todos los campos son obligatorios.',
+            });
+        }
 
+        // Verificar si el email ya está registrado
+        const existingUser = await userModel.findOne({ email });
+        if (existingUser) {
+            return res.status(400).send({
+                success: false,
+                message: 'El correo electrónico ya está registrado.',
+            });
+        }
 
+        // Encriptar la contraseña
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
-module.exports = { getUserController, updateUserController, updatePasswordController, resetPasswordController, deleteUserController }; // Export the controllers
+        // Crear el empleado
+        const employee = new userModel({
+            userName,
+            email,
+            password: hashedPassword,
+            phone,
+            restaurant: restaurantId,
+            role: 'employee',
+        });
+
+        await employee.save();
+
+        res.status(201).send({
+            success: true,
+            message: 'Empleado creado exitosamente.',
+            employee,
+        });
+    } catch (error) {
+        console.error('Error al crear empleado:', error);
+        res.status(500).send({
+            success: false,
+            message: 'Error interno del servidor.',
+        });
+    }
+};
+
+module.exports = { getUserController, updateUserController, updatePasswordController, resetPasswordController, deleteUserController, createEmployeeController }; // Export the controllers

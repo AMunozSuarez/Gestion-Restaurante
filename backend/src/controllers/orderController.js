@@ -7,21 +7,14 @@ const createOrderController = async (req, res) => {
     try {
         const { foods, payment, buyer, customerPhone, section, status } = req.body;
 
-        if (!section) {
-            return res.status(400).send({
-                success: false,
-                message: 'Section is required'
-            });
-        }
-
-        // Validar que los alimentos existan en la base de datos
+        // Validar que los alimentos existan y pertenezcan al restaurante del usuario
         const foodIds = foods.map((item) => item.food);
-        const existingFoods = await foodModel.find({ _id: { $in: foodIds } });
+        const existingFoods = await foodModel.find({ _id: { $in: foodIds }, restaurant: req.user.restaurant });
 
         if (existingFoods.length !== foods.length) {
             return res.status(400).send({
                 success: false,
-                message: 'One or more food items do not exist in the database'
+                message: 'Uno o más alimentos no pertenecen a este restaurante'
             });
         }
 
@@ -32,7 +25,7 @@ const createOrderController = async (req, res) => {
         }, 0);
 
         // Obtener el último número de orden
-        const lastOrder = await orderModel.findOne().sort({ orderNumber: -1 });
+        const lastOrder = await orderModel.findOne({ restaurant: req.user.restaurant }).sort({ orderNumber: -1 });
         const orderNumber = lastOrder && lastOrder.orderNumber ? lastOrder.orderNumber + 1 : 1;
 
         // Crear la orden
@@ -44,22 +37,22 @@ const createOrderController = async (req, res) => {
             buyer,
             customerPhone,
             section,
-            status: status || 'Preparacion'
+            status: status || 'Preparacion',
+            restaurant: req.user.restaurant // Vincular al restaurante del usuario
         });
 
-        // Guardar la orden en la base de datos
         await order.save();
 
         res.status(201).send({
             success: true,
-            message: 'Order created successfully',
+            message: 'Pedido creado exitosamente',
             order
         });
     } catch (error) {
-        console.error('Error creating order:', error);
+        console.error('Error creando el pedido:', error);
         res.status(500).json({
             success: false,
-            message: 'Error creating order',
+            message: 'Error creando el pedido',
             error: error.message
         });
     }
@@ -68,16 +61,16 @@ const createOrderController = async (req, res) => {
 // GET ALL ORDERS
 const getAllOrdersController = async (req, res) => {
     try {
-        const orders = await orderModel.find().populate('foods.food');
+        const orders = await orderModel.find({ restaurant: req.user.restaurant }).populate('foods.food');
         if (!orders) {
-            return res.status(404).send({ 
+            return res.status(404).send({
                 success: false,
-                message: 'No order found' 
+                message: 'No se encontraron pedidos para este restaurante'
             });
         }
-        res.status(200).send({ 
+        res.status(200).send({
             success: true,
-            message: 'Orders retrieved successfully',
+            message: 'Pedidos recuperados exitosamente',
             orders
         });
     } catch (error) {
@@ -88,16 +81,16 @@ const getAllOrdersController = async (req, res) => {
 // GET AN ORDER BY ID
 const getOrderByIdController = async (req, res) => {
     try {
-        const order = await orderModel.findById(req.params.id).populate('foods.food');
+        const order = await orderModel.findOne({ _id: req.params.id, restaurant: req.user.restaurant }).populate('foods.food');
         if (!order) {
-            return res.status(404).send({ 
+            return res.status(404).send({
                 success: false,
-                message: 'Order not found' 
+                message: 'Pedido no encontrado o no pertenece a este restaurante'
             });
         }
-        res.status(200).send({ 
+        res.status(200).send({
             success: true,
-            message: 'Order retrieved successfully',
+            message: 'Pedido recuperado exitosamente',
             order
         });
     } catch (error) {
@@ -136,34 +129,25 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, customerPhone, foods, payment, section, status} = req.body;
+        const { buyer, customerPhone, foods, payment, section, status } = req.body;
 
-        // Validar que los campos requeridos estén presentes
-        // if ( !payment || !section || !status) {
-        //     console.log('Missing required fields:', { payment, section, status });
-        //     return res.status(400).json({
-        //         success: false,
-        //         message: 'Todos los campos son obligatorios',
-        //     });
-        // }
-
-        // Validar que el campo foods tenga el formato correcto
-        if (!Array.isArray(foods) || foods.some((item) => !item.food || !item.quantity)) {
-            console.log('Invalid foods format:', foods);
-            return res.status(400).json({
+        // Validar que el pedido pertenezca al restaurante del usuario
+        const order = await orderModel.findOne({ _id: req.params.id, restaurant: req.user.restaurant });
+        if (!order) {
+            return res.status(404).json({
                 success: false,
-                message: 'El campo foods debe ser un arreglo con objetos que incluyan food y quantity'
+                message: 'Pedido no encontrado o no pertenece a este restaurante'
             });
         }
 
-        // Validar que los alimentos existan en la base de datos
+        // Validar que los alimentos existan y pertenezcan al restaurante del usuario
         const foodIds = foods.map((item) => item.food);
-        const existingFoods = await foodModel.find({ _id: { $in: foodIds } });
+        const existingFoods = await foodModel.find({ _id: { $in: foodIds }, restaurant: req.user.restaurant });
 
         if (existingFoods.length !== foods.length) {
             return res.status(400).json({
                 success: false,
-                message: 'Uno o más alimentos no existen en la base de datos'
+                message: 'Uno o más alimentos no pertenecen a este restaurante'
             });
         }
 
@@ -179,13 +163,6 @@ const updateOrderController = async (req, res) => {
             { buyer, customerPhone, foods, payment, section, total, status },
             { new: true, runValidators: true }
         );
-
-        if (!updatedOrder) {
-            return res.status(404).json({
-                success: false,
-                message: 'Pedido no encontrado'
-            });
-        }
 
         res.status(200).json({
             success: true,
@@ -205,16 +182,16 @@ const updateOrderController = async (req, res) => {
 // DELETE AN ORDER
 const deleteOrderController = async (req, res) => {
     try {
-        const order = await orderModel.findByIdAndDelete(req.params.id);
+        const order = await orderModel.findOneAndDelete({ _id: req.params.id, restaurant: req.user.restaurant });
         if (!order) {
-            return res.status(404).send({ 
+            return res.status(404).send({
                 success: false,
-                message: 'Order not found' 
+                message: 'Pedido no encontrado o no pertenece a este restaurante'
             });
         }
-        res.status(200).send({ 
+        res.status(200).send({
             success: true,
-            message: 'Order deleted successfully',
+            message: 'Pedido eliminado exitosamente',
             order
         });
     } catch (error) {

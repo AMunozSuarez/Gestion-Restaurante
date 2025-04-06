@@ -12,7 +12,7 @@ const restaurantSchema = new mongoose.Schema({
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User', // Relación con el usuario propietario
-        required: true,
+        required: false,
     },
     subscriptionPlan: {
         type: String,

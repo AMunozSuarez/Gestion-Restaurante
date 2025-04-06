@@ -19,7 +19,7 @@ module.exports = (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
+        req.user = decoded; // Configura `req.user` con los datos decodificados del token
         next();
     } catch (error) {
         console.error('Internal auth error:', error);

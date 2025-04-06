@@ -4,30 +4,37 @@ const userSchema = new mongoose.Schema({
     userName: {
         type: String,
         required: [true, 'Please enter your username'],
-        trim: true
+        trim: true,
     },
     email: {
         type: String,
-        unique: true
+        unique: true,
+        required: [true, 'Please enter your email'],
     },
     password: {
         type: String,
+        required: [true, 'Please enter your password'],
     },
-    restaurant:{
+    restaurant: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Restaurant',
-        required: true
+        required: true, // Cada usuario debe estar vinculado a un restaurante
+    },
+    role: {
+        type: String,
+        enum: ['owner', 'employee'], // Roles posibles
+        default: 'employee',
     },
     phone: {
         type: String,
-        default: ''
+        default: '',
     },
     avatar: {
         type: String,
-        default: 'https://cdn-icons-png.flaticon.com/512/1144/1144760.png'
-    }
+        default: 'https://cdn-icons-png.flaticon.com/512/1144/1144760.png',
+    },
 }, {
-    timestamps: true
-})
+    timestamps: true,
+});
 
-module.exports = mongoose.model('User', userSchema)
+module.exports = mongoose.model('User', userSchema);

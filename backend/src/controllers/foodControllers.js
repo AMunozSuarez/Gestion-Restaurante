@@ -4,13 +4,15 @@ const orderModel = require('../models/orderModel');
 // CREATE A NEW FOOD
 const createFoodController = async (req, res) => {
     try {
-        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, restaurant } = req.body;
+        const { title, description, price, imageUrl, foodTags, category, code, isAvailable } = req.body;
+
         if (!title || !price || !category) {
             return res.status(400).send({ 
                 success: false,
                 message: 'Please enter the food title, price and category' 
             });
         }
+
         const food = new foodModel({
             title,
             description,
@@ -20,9 +22,9 @@ const createFoodController = async (req, res) => {
             category,
             code,
             isAvailable,
-            restaurant
+            restaurant: req.user.restaurant // Asocia el alimento al restaurante del usuario logueado
         });
-        
+
         await food.save();
         res.status(201).send({
             success: true,
@@ -49,12 +51,11 @@ const createFoodController = async (req, res) => {
 // GET ALL FOODS
 const getAllFoodsController = async (req, res) => {
     try {
-        // Usa populate para obtener los datos de la categoría asociada
-        const foods = await foodModel.find().populate('category', 'title'); // Obtén solo el título de la categoría
-        if (!foods) {
+        const foods = await foodModel.find({ restaurant: req.user.restaurant }).populate('category', 'title'); // Filtra por restaurante
+        if (!foods || foods.length === 0) {
             return res.status(404).send({ 
                 success: false,
-                message: 'No food found' 
+                message: 'No food found for this restaurant' 
             });
         }
         res.status(200).send({ 
@@ -82,16 +83,16 @@ const getAllFoodsController = async (req, res) => {
 // GET A FOOD BY ID
 const getFoodByIdController = async (req, res) => {
     try {
-        const food = await foodModel.findById(req.params.id);
+        const food = await foodModel.findOne({ _id: req.params.id, restaurant: req.user.restaurant }); // Filtra por restaurante
         if (!food) {
             return res.status(404).send({ 
                 success: false,
-                message: 'Food not found' 
+                message: 'Food not found or does not belong to this restaurant' 
             });
         }
         res.status(200).send({ 
             success: true,
-            message: 'Food by ID successfully',
+            message: 'Food retrieved successfully',
             food
         });
     } catch (error) {
@@ -108,12 +109,11 @@ const getFoodByIdController = async (req, res) => {
 // GET A FOOD BY RESTAURANT ID
 const getFoodByRestaurantIdController = async (req, res) => {
     try {
-        const restaurantId = req.params.restaurantId;
-        const foods = await foodModel.find({ restaurant: restaurantId });
-        if (!foods) {
+        const foods = await foodModel.find({ restaurant: req.user.restaurant }); // Usa el restaurante del usuario logueado
+        if (!foods || foods.length === 0) {
             return res.status(404).send({ 
                 success: false,
-                message: 'No food found' 
+                message: 'No food found for this restaurant' 
             });
         }
         res.status(200).send({ 
@@ -122,8 +122,7 @@ const getFoodByRestaurantIdController = async (req, res) => {
             totalFoods: foods.length,
             foods
         });
-    }
-    catch (error) {
+    } catch (error) {
         res.status(400).json({ message: error.message });
     }
 }
@@ -139,23 +138,18 @@ const getFoodByRestaurantIdController = async (req, res) => {
 // UPDATE A FOOD BY ID
 const updateFoodController = async (req, res) => {
     try {
-        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, restaurant } = req.body;
-        
-        const food = await foodModel.findByIdAndUpdate(req.params.id, {
-            title,
-            description,
-            price,
-            imageUrl,
-            foodTags,
-            category,
-            code,
-            isAvailable,
-            restaurant
-        }, { new: true });
+        const { title, description, price, imageUrl, foodTags, category, code, isAvailable } = req.body;
+
+        const food = await foodModel.findOneAndUpdate(
+            { _id: req.params.id, restaurant: req.user.restaurant }, // Filtra por restaurante
+            { title, description, price, imageUrl, foodTags, category, code, isAvailable },
+            { new: true }
+        );
+
         if (!food) {
             return res.status(404).send({ 
                 success: false,
-                message: 'Food not found' 
+                message: 'Food not found or does not belong to this restaurant' 
             });
         }
         res.status(200).send({ 
@@ -167,10 +161,10 @@ const updateFoodController = async (req, res) => {
         res.status(400).json({ 
             success: false,
             message: 'Error in update food controller',
-            error });
+            error
+        });
     }
-}
-
+};
 
 
 
@@ -180,11 +174,11 @@ const updateFoodController = async (req, res) => {
 // DELETE A FOOD BY ID
 const deleteFoodController = async (req, res) => {
     try {
-        const food = await foodModel.findByIdAndDelete(req.params.id);
+        const food = await foodModel.findOneAndDelete({ _id: req.params.id, restaurant: req.user.restaurant }); // Filtra por restaurante
         if (!food) {
             return res.status(404).send({ 
                 success: false,
-                message: 'Food not found' 
+                message: 'Food not found or does not belong to this restaurant' 
             });
         }
         res.status(200).send({ 
@@ -196,10 +190,10 @@ const deleteFoodController = async (req, res) => {
         res.status(400).json({ 
             success: false,
             message: 'Error in delete food controller',
-            error });
+            error
+        });
     }
-}
-
+};
 
 
 

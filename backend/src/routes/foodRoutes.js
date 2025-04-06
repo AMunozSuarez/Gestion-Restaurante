@@ -2,13 +2,14 @@ const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { createFoodController, getAllFoodsController, getFoodByIdController, getFoodByRestaurantIdController, updateFoodController, deleteFoodController, placeOrderController, OrderStatusController, orderStatusController } = require('../controllers/foodControllers');
 const adminMiddleware = require('../middlewares/adminMiddleware');
+const filterByRestaurant = require('../middlewares/filterByRestaurant');
 const router = express.Router();
 
 // CREATE A NEW FOOD
-router.post('/create', authMiddleware, createFoodController);
+router.post('/create', authMiddleware, filterByRestaurant, createFoodController);
 
 // GET ALL FOODS
-router.get('/getAll', authMiddleware, getAllFoodsController);
+router.get('/getAll', authMiddleware, filterByRestaurant, getAllFoodsController);
 
 // GET A FOOD BY ID
 router.get('/get/:id', authMiddleware, getFoodByIdController);
