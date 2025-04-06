@@ -52,12 +52,17 @@ const createFoodController = async (req, res) => {
 const getAllFoodsController = async (req, res) => {
     try {
         const foods = await foodModel.find({ restaurant: req.user.restaurant }).populate('category', 'title'); // Filtra por restaurante
+
         if (!foods || foods.length === 0) {
-            return res.status(404).send({ 
-                success: false,
-                message: 'No food found for this restaurant' 
+            console.log('No hay alimentos disponibles para este restaurante.'); // Mensaje en consola
+            return res.status(200).send({ 
+                success: true,
+                message: 'No foods found for this restaurant',
+                totalFoods: 0,
+                foods: [] // Devuelve un array vacío
             });
         }
+
         res.status(200).send({ 
             success: true,
             message: 'Foods retrieved successfully',
@@ -65,7 +70,7 @@ const getAllFoodsController = async (req, res) => {
             foods
         });
     } catch (error) {
-        res.status(400).json({ 
+        res.status(500).json({ 
             success: false,
             message: 'Error in Get All foods',
             error

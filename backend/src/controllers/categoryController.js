@@ -42,9 +42,10 @@ const getAllCategoriesController = async (req, res) => {
     try {
         const categories = await categoryModel.find({ restaurant: req.user.restaurant }); // Filtra por restaurante
         if (!categories || categories.length === 0) {
-            return res.status(404).json({ 
-                success: false,
-                message: 'No Categories found' 
+            return res.status(200).json({ 
+                success: true,
+                message: 'No Categories found for this restaurant',
+                categories: [] 
             });
         }
         res.status(200).json({ 
