@@ -1,29 +1,166 @@
-.cash-register {
+/* Estilos para la vista de caja registradora */
+/* Estilos generales */
+.cash-register{
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
     padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.cash-form {
+/* Contenedor principal */
+.cash-register-container {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 20px;
 }
 
-.cash-movements {
-    list-style: none;
-    padding: 0;
+/* Lista de cajas */
+.cash-registers {
+    flex: 1;
+    background-color: #f9f9f9;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.movement-item {
+.cash-registers-header {
     display: flex;
     justify-content: space-between;
+    background-color: #b45a00;
+    color: white;
     padding: 10px;
-    border-bottom: 1px solid #ddd;
+    border-radius: 5px;
+    font-weight: bold;
 }
 
-.movement-item.ingreso {
-    color: green;
+.cash-registers-header p {
+    flex: 1;
+    text-align: center;
 }
 
-.movement-item.egreso {
-    color: red;
+.cash-registers-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.cash-register-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #fff8dc;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.cash-register-item:hover {
+    background-color: #ffeeba;
+    transform: scale(1.02);
+}
+
+.cash-register-item p {
+    flex: 1;
+    text-align: center;
+    margin: 0;
+}
+
+/* Detalle de caja */
+.cash-register-detail {
+    flex: 1;
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Detalle de caja en formato vertical */
+.detail-vertical {
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-vertical div {
+    background-color: #f9f9f9;
+    border-radius: 5px;
+}
+
+.official-income-input {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.official-income-input label {
+    flex: 1;
+    font-weight: bold;
+}
+
+.official-income-input input {
+    flex: 2;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+
+/* Botón para abrir modal */
+.open-modal-button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.open-modal-button:hover {
+    background-color: #0056b3;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    width: 300px;
+    text-align: center;
+}
+
+.modal-content form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal-content button {
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.modal-content button[type="submit"] {
+    background-color: #28a745;
+    color: white;
+}
+
+.modal-content button[type="button"] {
+    background-color: #dc3545;
+    color: white;
 }

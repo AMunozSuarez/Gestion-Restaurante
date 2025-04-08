@@ -2,15 +2,32 @@ const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
-const { addCashMovement, getCashMovements } = require('../controllers/cashRegisterController');
+const { addCashMovement, getCashMovements, createCashRegister, getCurrentCashRegister, getAllCashRegisters, closeCashRegister, getCashRegisterById, closeOrder } = require('../controllers/cashRegisterController');
 const router = express.Router();
 
-// Add cach movement routes
-router.post('/create', authMiddleware, filterByRestaurant, addCashMovement);
+// create cash register
+router.post('/create', authMiddleware, filterByRestaurant, createCashRegister); // Route to create a new cash register
 
-// Get all cach movement routes
-router.get('/getAll', authMiddleware, filterByRestaurant, getCashMovements);
+// get current cash register
+router.get('/current', authMiddleware, filterByRestaurant, getCurrentCashRegister); // Route to get the current cash register
+
+// close cash register
+router.put('/close', authMiddleware, filterByRestaurant, closeCashRegister); // Route to close the current cash register
+
+// get all cash registers
+router.get('/cashRegister', authMiddleware, filterByRestaurant, getAllCashRegisters); // Route to get all cash registers for a restaurant
+
+// get cash register by id
+router.get('/cashRegister/:id', authMiddleware, filterByRestaurant, getCashRegisterById); // Route to get cash register by ID
+
+// add cash movement
+router.post('/movement', authMiddleware, filterByRestaurant, addCashMovement); // Route to add a cash movement
+
+// get cash movements
+router.get('/movement', authMiddleware, filterByRestaurant, getCashMovements); // Route to get all cash movements for a restaurant
 
 
+// Close an order
+router.post('/order/close', authMiddleware, filterByRestaurant, closeOrder); // Route to close an order
 
 module.exports = router; // Export the router

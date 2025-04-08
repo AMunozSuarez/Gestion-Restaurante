@@ -5,6 +5,7 @@ import { useProducts } from '../../hooks/useProducts'; // Hook para manejar prod
 import { useCategories } from '../../hooks/useCategories'; // Hook para manejar categorías
 import '../../styles/orderForm.css'; // Estilos específicos del formulario de pedido
 import { useNavigate } from 'react-router-dom';
+import { closeOrder } from '../../api/cashApi'; // Importa la función para cerrar el pedido
 
 const OrderForm = ({
     customerName,
@@ -152,6 +153,50 @@ const OrderForm = ({
         );
     };
 
+    // Función para cerrar el pedido
+    const handleCloseOrder = async () => {
+        try {
+            // Validar que haya productos en el carrito
+            if (cart.length === 0) {
+                alert('El carrito está vacío. Agrega productos antes de cerrar el pedido.');
+                return;
+            }
+
+            // Validar que se haya seleccionado un método de pago
+            if (!selectedPaymentMethod) {
+                alert('Por favor, selecciona un método de pago.');
+                return;
+            }
+
+            // Preparar los datos del pedido
+            const orderData = {
+                total: cartTotal,
+                paymentMethod: selectedPaymentMethod,
+                items: cart.map((item) => ({
+                    productId: item._id,
+                    quantity: item.quantity,
+                    price: item.price,
+                })),
+            };
+
+            // Enviar la solicitud al backend
+            const response = await closeOrder(orderData);
+
+            if (response.status === 201) {
+                alert('Pedido cerrado y registrado en la caja activa.');
+                clearCart(); // Limpiar el carrito después de cerrar el pedido
+                setCustomerName(''); // Limpiar el nombre del cliente
+                setSelectedPaymentMethod(''); // Limpiar el método de pago
+
+                // Actualizar el frontend llamando a handleSubmit con el estado 'Completado'
+                handleSubmit(null, 'Completado');
+            }
+        } catch (error) {
+            console.error('Error al cerrar el pedido:', error);
+            alert('Hubo un error al cerrar el pedido. Inténtalo nuevamente.');
+        }
+    };
+
     if (productsLoading || categoriesLoading) return <p>Cargando datos...</p>;
 
     return (
@@ -259,7 +304,7 @@ const OrderForm = ({
                         <button
                             type="button"
                             className="mark-completed-button"
-                            onClick={() => handleSubmit(null, 'Completado')} // Pasar 'null' como primer argumento
+                            onClick={handleCloseOrder} // Llama a la función para cerrar el pedido
                         >
                             Cerrar Pedido
                         </button>
