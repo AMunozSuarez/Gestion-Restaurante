@@ -11,6 +11,7 @@ const CompletedOrdersList = ({ orders, onSelectOrder }) => {
             {/* Encabezado de la lista */}
             <div className="completed-orders-header">
                 <p>#</p>
+                <p>Fecha/Hora</p> {/* Mostrar fecha/hora */}
                 <p>Cliente</p>
                 <p>Estado</p>
                 <p>Total</p>
@@ -23,9 +24,11 @@ const CompletedOrdersList = ({ orders, onSelectOrder }) => {
                         onClick={() => onSelectOrder(order)}
                     >
                         <p>#{order.orderNumber}</p>
+                        <p className="order-date">{new Date(order.createdAt).toLocaleString()}</p> {/* Mostrar fecha/hora */}
                         <p>{order.buyer}</p>
                         <p>{order.status}</p>
                         <p className="order-total">Total: ${order.total}</p>
+                        
                     </li>
                 ))}
             </ul>

@@ -117,3 +117,11 @@
 .mark-completed-button:hover {
     background-color: #218838; /* Verde más oscuro */
 }
+
+
+.order-date {
+    font-size: 0.8em; /* Tamaño de fuente más pequeño */
+    color: #888; /* Color tenue */
+    margin-top: 5px; /* Espaciado superior */
+    display: block; /* Asegura que esté en una nueva línea */
+}

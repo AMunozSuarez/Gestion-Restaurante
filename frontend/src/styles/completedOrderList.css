@@ -102,3 +102,10 @@
     font-weight: bold; /* Resaltar el texto */
     color: #4d2600; /* Marrón oscuro */
 }
+
+.order-date {
+    font-size: 0.8em; /* Tamaño de fuente más pequeño */
+    color: #888; /* Color tenue */
+    margin-top: 5px; /* Espaciado superior */
+    display: block; /* Asegura que esté en una nueva línea */
+}

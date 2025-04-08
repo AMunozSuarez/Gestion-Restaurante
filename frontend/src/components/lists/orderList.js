@@ -11,6 +11,7 @@ const OrderList = ({ orders }) => {
             <h3>Pedidos en Preparación</h3>
             <div className="order-list-header">
                 <p>#</p>
+                <p>Fecha/Hora</p> {/* Mostrar fecha/hora */}
                 <p>Cliente</p>
                 <p>Estado</p>
                 <p className="order-total-header">Total</p>
@@ -23,9 +24,11 @@ const OrderList = ({ orders }) => {
                         className={`order-item ${order.orderNumber === parseInt(orderNumber, 10) ? 'editing' : ''}`}
                     >
                         <p>{order.orderNumber}</p>
+                        <p className="order-date">{new Date(order.createdAt).toLocaleString()}</p> {/* Mostrar fecha/hora */}
                         <p>{order.buyer}</p>
                         <p>{order.status}</p>
                         <p className="order-total">${order.total}</p>
+                        
                     </li>
                 ))}
             </ul>
