@@ -1,0 +1,29 @@
+.cash-register {
+    padding: 20px;
+}
+
+.cash-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.cash-movements {
+    list-style: none;
+    padding: 0;
+}
+
+.movement-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+.movement-item.ingreso {
+    color: green;
+}
+
+.movement-item.egreso {
+    color: red;
+}

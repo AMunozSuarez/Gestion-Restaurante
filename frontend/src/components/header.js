@@ -33,6 +33,16 @@ const Header = () => {
                                     Categorías
                                 </NavLink>
                             </li>
+                            <li className="nav-item">
+                                <NavLink to="/admin/caja" className={({ isActive }) => (isActive ? 'active' : '')}>
+                                    Caja
+                                </NavLink>
+                            </li>
+                            <li className="nav-item">
+                                <NavLink to="/admin/reportes" className={({ isActive }) => (isActive ? 'active' : '')}>
+                                    Reportes
+                                </NavLink>
+                            </li>
                             <li className="nav-item logout-item">
                                 <button className="logout-button" onClick={logout}>
                                     Cerrar sesión
