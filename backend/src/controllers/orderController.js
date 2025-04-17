@@ -201,11 +201,48 @@ const deleteOrderController = async (req, res) => {
 
 
 
+
+const getFilteredOrders = async (req, res) => {
+    try {
+        const { date, status, paymentMethod } = req.query;
+
+        const filters = {
+            restaurant: req.user.restaurant, // Filtrar por el restaurante del usuario autenticado
+        };
+
+        // Filtrar por fecha (usando createdAt)
+        if (date) {
+            const startOfDay = new Date(date);
+            startOfDay.setUTCHours(0, 0, 0, 0); // Establecer el inicio del día en UTC
+            const endOfDay = new Date(date);
+            endOfDay.setUTCHours(23, 59, 59, 999); // Establecer el final del día en UTC
+            filters.createdAt = { $gte: startOfDay, $lte: endOfDay };
+        }
+
+        // Filtrar por estado
+        if (status) {
+            filters.status = status;
+        }
+
+        // Filtrar por método de pago (usando payment)
+        if (paymentMethod) {
+            filters.payment = paymentMethod;
+        }
+
+        const orders = await orderModel.find(filters).sort({ createdAt: -1 });
+        res.status(200).json({ success: true, orders });
+    } catch (error) {
+        console.error('Error en getFilteredOrders:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener las órdenes', error });
+    }
+};
+
 module.exports = {
     createOrderController,
     getAllOrdersController,
     updateOrderController,
     deleteOrderController,
     getOrderByIdController,
-    getOrderByNumberController
+    getOrderByNumberController,
+    getFilteredOrders
 };

@@ -11,6 +11,7 @@ import OrderDetails from './components/pages/orderDetails';
 import MostradorLayout from './components/pages/mostradorLayout'; // Importar el layout del mostrador
 import CashRegister from './components/admin/cashRegister'; // Importar el componente de caja
 import Reports from './components/admin/reports';
+import SalesList from './components/admin/salesList';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="/admin/productos" element={<Productos />} />
           <Route path="/admin/categorias" element={<Categorias />} />
           <Route path="/admin/caja" element={<CashRegister />} />
+          <Route path="/admin/sales" element={<SalesList />} />
           <Route path="/admin/reportes" element={<Reports />} />
           {/* Puedes agregar más rutas aquí para otras páginas */}
         </Routes>

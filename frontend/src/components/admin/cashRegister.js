@@ -99,20 +99,18 @@ const CashRegister = () => {
                 <div className="cash-registers">
                     <h3>Lista de Cajas</h3>
                     <div className="cash-registers-header">
-                        <p>#</p>
                         <p>Fecha Apertura</p>
                         <p>Estado</p>
                         <p>Saldo Inicial</p>
                         <p>Saldo Final</p>
                     </div>
                     <ul className="cash-registers-list">
-                        {allCashRegisters.map((register, index) => (
+                        {allCashRegisters.map((register) => (
                             <li
                                 key={register._id}
                                 className="cash-register-item"
                                 onClick={() => handleViewCashRegister(register._id)}
                             >
-                                <p>{index + 1}</p>
                                 <p>{new Date(register.dateOpened).toLocaleString()}</p>
                                 <p>{register.status}</p>
                                 <p>${register.initialBalance}</p>
