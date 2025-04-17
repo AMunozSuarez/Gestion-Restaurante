@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createCashRegister, getAllCashRegisters, getCashRegisterById, closeCashRegister } from '../../api/cashApi';
 import '../../styles/admin/cashRegister.css'; // Estilos específicos para la página de caja
+import AdminSubheader from './adminSubheader'; // Subheader para navegación
 
 const CashRegister = () => {
     const [allCashRegisters, setAllCashRegisters] = useState([]);
@@ -92,6 +93,8 @@ const CashRegister = () => {
 
     return (
         <div className="cash-register">
+            
+            <AdminSubheader /> {/* Subheader para cambiar entre páginas */}
             <button className="open-modal-button" onClick={() => setIsModalOpen(true)}>Crear Nueva Caja</button>
 
             <div className="cash-register-container">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../../styles/admin/salesList.css'; // Estilos específicos para la lista de ventas
 import { getSales } from '../../api/salesApi'; // API para obtener las ventas
+import AdminSubheader from './adminSubheader'; // Subheader para navegación
 
 const SalesList = () => {
     const [sales, setSales] = useState([]);
@@ -29,6 +30,7 @@ const SalesList = () => {
 
     return (
         <div className="sales-list">
+            <AdminSubheader /> {/* Subheader para cambiar entre páginas */}
             <h2>Listado de Ventas</h2>
 
             {/* Filtros */}
@@ -72,6 +74,7 @@ const SalesList = () => {
                 <thead>
                     <tr>
                         <th>Fecha</th>
+                        <th>Cliente</th>
                         <th>Estado</th>
                         <th>Método de Pago</th>
                         <th>Total</th>
@@ -81,9 +84,10 @@ const SalesList = () => {
                     {filteredSales.map((sale) => (
                         <tr key={sale._id}>
                             <td>{new Date(sale.createdAt).toLocaleString()}</td>
+                            <td>{sale.buyer}</td>
                             <td>{sale.status}</td>
                             <td>{sale.payment}</td>
-                            <td>${sale.total.toFixed(2)}</td>
+                            <td>${sale.total.toFixed(0)}</td>
                         </tr>
                     ))}
                 </tbody>
