@@ -5,16 +5,16 @@ import '../../styles/admin/adminSubheader.css'; // Estilos específicos para el 
 const AdminSubheader = () => {
     return (
         <div className="admin-subheader">
-            <NavLink to="/admin/caja" activeClassName="active-link">
+            <NavLink to="/admin/caja" className={({ isActive }) => (isActive ? 'active' : '')}>
                 Caja
             </NavLink>
-            <NavLink to="/admin/sales" activeClassName="active-link">
+            <NavLink to="/admin/sales" className={({ isActive }) => (isActive ? 'active' : '')}>
                 Ventas
             </NavLink>
-            <NavLink to="/admin/orders" activeClassName="active-link">
+            <NavLink to="/admin/orders" className={({ isActive }) => (isActive ? 'active' : '')}>
                 Pedidos
             </NavLink>
-            <NavLink to="/admin/products" activeClassName="active-link">
+            <NavLink to="/admin/products" className={({ isActive }) => (isActive ? 'active' : '')}>
                 Productos
             </NavLink>
         </div>

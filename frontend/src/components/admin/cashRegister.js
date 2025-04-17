@@ -103,6 +103,7 @@ const CashRegister = () => {
                     <h3>Lista de Cajas</h3>
                     <div className="cash-registers-header">
                         <p>Fecha Apertura</p>
+                        <p>Fecha Cierre</p>
                         <p>Estado</p>
                         <p>Saldo Inicial</p>
                         <p>Saldo Final</p>
@@ -111,10 +112,11 @@ const CashRegister = () => {
                         {allCashRegisters.map((register) => (
                             <li
                                 key={register._id}
-                                className="cash-register-item"
+                                className={`cash-register-item ${selectedCashRegister && selectedCashRegister._id === register._id ? 'active' : ''}`}
                                 onClick={() => handleViewCashRegister(register._id)}
                             >
                                 <p>{new Date(register.dateOpened).toLocaleString()}</p>
+                                <p>{register.dateClosed ? new Date(register.dateClosed).toLocaleString() : ''}</p>
                                 <p>{register.status}</p>
                                 <p>${register.initialBalance}</p>
                                 <p>${register.amountSystem}</p>
@@ -127,21 +129,39 @@ const CashRegister = () => {
                 {selectedCashRegister && (
                     <div className="cash-register-detail">
                         <h3>Detalle de Caja</h3>
-                        <div className="detail-vertical">
-                            <div>
+
+                        {/* Información general */}
+                        <section className="detail-section">
+                            <h4>Información General</h4>
+                            <div className="detail-row">
                                 <p><strong>Fecha de Apertura:</strong></p>
                                 <p>{new Date(selectedCashRegister.dateOpened).toLocaleString()}</p>
                             </div>
-                            <div>
+                            {selectedCashRegister.dateClosed && (
+                                <div className="detail-row">
+                                    <p><strong>Fecha de Cierre:</strong></p>
+                                    <p>{new Date(selectedCashRegister.dateClosed).toLocaleString()}</p>
+                                </div>
+                            )}
+                            <div className="detail-row">
                                 <p><strong>Estado:</strong></p>
                                 <p>{selectedCashRegister.status}</p>
                             </div>
-                            <div>
+                            <div className="detail-row">
                                 <p><strong>Saldo Inicial:</strong></p>
                                 <p>${selectedCashRegister.initialBalance}</p>
                             </div>
-                            <div>
-                                <p><strong>Ingresos:</strong></p>
+                        </section>
+
+                        {/* Ingresos */}
+                        <section className="detail-section">
+                            <h4>Ingresos</h4>
+                            <div className="detail-row">
+                                <p><strong>Ingresos Totales:</strong></p>
+                                <p>${Object.values(calculatePaymentMethods(selectedCashRegister.orders)).reduce((sum, total) => sum + total, 0).toFixed(0)}</p>
+                            </div>
+                            <div className="detail-row">
+                                <p><strong>Ingresos por Método de Pago:</strong></p>
                                 <ul>
                                     {Object.entries(calculatePaymentMethods(selectedCashRegister.orders)).map(([method, total]) => (
                                         <li key={method}>
@@ -150,52 +170,61 @@ const CashRegister = () => {
                                     ))}
                                 </ul>
                             </div>
-                            <div>
-                                <p><strong>Saldo Final:</strong></p>
+                        </section>
+
+                        {/* Saldo Final */}
+                        <section className="detail-section">
+                            <div className="detail-row">
+                                <p><h4><strong>Saldo Final:</strong></h4></p>
                                 <p>${selectedCashRegister.amountSystem}</p>
                             </div>
-                            {selectedCashRegister.status === 'Abierta' && (
-                                <div>
-                                    <h4>Ingresos Oficiales</h4>
-                                    <form>
-                                        {Object.keys(officialIncome).map((method) => (
-                                            <div key={method} className="official-income-input">
-                                                <label>{method}:</label>
-                                                <input
-                                                    type="number"
-                                                    value={officialIncome[method]}
-                                                    onChange={(e) =>
-                                                        setOfficialIncome({
-                                                            ...officialIncome,
-                                                            [method]: e.target.value,
-                                                        })
-                                                    }
-                                                />
-                                            </div>
-                                        ))}
-                                    </form>
-                                    <p><strong>Total Real:</strong> ${calculateOfficialTotal().toFixed(0)}</p>
-                                </div>
-                            )}
-                            {selectedCashRegister.status === 'Cerrada' && (
-                                <div>
-                                    <h4>Ingresos Oficiales Registrados</h4>
-                                    <ul>
-                                        {Object.entries(selectedCashRegister.officialIncome || {}).map(([method, total]) => (
-                                            <li key={method}>
-                                                <strong>{method}:</strong> ${total.toFixed(0)}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                    <p><strong>Total Real Registrado:</strong> ${selectedCashRegister.amountSystem.toFixed(0)}</p>
-                                </div>
-                            )}
-                        </div>
+                        </section>
+
+                        {/* Ingresos Oficiales */}
+                        {selectedCashRegister.status === 'Abierta' && (
+                            <section className="detail-section">
+                                <h4>Ingresos Oficiales</h4>
+                                <form>
+                                    {Object.keys(officialIncome).map((method) => (
+                                        <div key={method} className="official-income-input">
+                                            <label>{method}:</label>
+                                            <input
+                                                type="number"
+                                                value={officialIncome[method]}
+                                                onChange={(e) =>
+                                                    setOfficialIncome({
+                                                        ...officialIncome,
+                                                        [method]: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                    ))}
+                                </form>
+                                <p><strong>Total Real:</strong> ${calculateOfficialTotal().toFixed(2)}</p>
+                            </section>
+                        )}
+
+                        {/* Ingresos Oficiales Registrados */}
+                        {selectedCashRegister.status === 'Cerrada' && (
+                            <section className="detail-section">
+                                <h4>Ingresos Oficiales Registrados</h4>
+                                <ul>
+                                    {Object.entries(selectedCashRegister.officialIncome || {}).map(([method, total]) => (
+                                        <li key={method}>
+                                            <strong>{method}:</strong> ${total.toFixed(2)}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p><strong>Total Real Registrado:</strong> ${selectedCashRegister.amountSystem.toFixed(2)}</p>
+                            </section>
+                        )}
+
+                        {/* Botón para cerrar caja */}
                         {!selectedCashRegister.dateClosed && (
-                            <div>
-                                <h4>Cerrar Caja</h4>
+                            <section className="detail-section">
                                 <button onClick={handleCloseCashRegister}>Cerrar Caja</button>
-                            </div>
+                            </section>
                         )}
                     </div>
                 )}

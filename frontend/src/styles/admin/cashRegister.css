@@ -31,6 +31,7 @@
     padding: 10px;
     border-radius: 5px;
     font-weight: bold;
+    margin-bottom: 5px;
 }
 
 .cash-registers-header p {
@@ -45,6 +46,9 @@
 }
 
 .cash-register-item {
+    justify-content: space-between;
+    align-items: center;
+    background-color: #fff8dc;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -68,44 +72,88 @@
     margin: 0;
 }
 
+.cash-register-item.active {
+    background-color: #fcbf81;
+    color: rgb(0, 0, 0);
+    font-weight: bold;
+    border-color: #2b1806;
+    transform: scale(1.02);
+}
+
 /* Detalle de caja */
 .cash-register-detail {
-    flex: 1;
-    background-color: white;
+    display: flex;
+    flex-direction: column; /* Asegura que las secciones se apilen verticalmente */
     padding: 20px;
-    border-radius: 5px;
+    width: 35vw;
+    height: 78vh; /* Ocupa una altura fija dentro de la pantalla */
+    overflow-y: auto; /* Permite desplazamiento si el contenido excede la altura */
+    background-color: #f9f9f9;
+    border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Detalle de caja en formato vertical */
-.detail-vertical {
-    display: flex;
-    flex-direction: column;
+.detail-section {
+    padding: 10px 0;
 }
 
-.detail-vertical div {
-    background-color: #f9f9f9;
-    border-radius: 5px;
+.detail-section h4 {
+    margin-bottom: 10px;
+    color: #b45a00;
+    font-size: 1.2rem; /* Usa unidades relativas para adaptarse a diferentes tamaños de pantalla */
+    text-align: left; /* Alineación clara */
+    white-space: nowrap; /* Evita que el texto se divida en varias líneas */
+    overflow: hidden; /* Oculta el desbordamiento si el texto es demasiado largo */
+    text-overflow: ellipsis; /* Agrega puntos suspensivos si el texto es demasiado largo */
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.detail-row p {
+    margin: 0;
+}
+
+.detail-row ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.detail-row ul li {
+    margin-bottom: 5px;
 }
 
 .official-income-input {
     display: flex;
+    justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
 }
 
 .official-income-input label {
-    flex: 1;
+    margin-right: 10px;
     font-weight: bold;
 }
 
-.official-income-input input {
-    flex: 2;
-    padding: 5px;
-    border: 1px solid #ddd;
+button {
+    padding: 10px 15px;
+    background-color: #b45a00;
+    color: white;
+    border: none;
     border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    max-width: 300px; /* Limita el ancho máximo del botón */
+    align-self: center; /* Centra el botón dentro de su contenedor */
 }
 
+button:hover {
+    background-color: #944800;
+}
 
 /* Botón para abrir modal */
 .open-modal-button {
