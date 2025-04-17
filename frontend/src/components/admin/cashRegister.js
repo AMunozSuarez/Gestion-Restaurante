@@ -201,7 +201,7 @@ const CashRegister = () => {
                                         </div>
                                     ))}
                                 </form>
-                                <p><strong>Total Real:</strong> ${calculateOfficialTotal().toFixed(2)}</p>
+                                <p><strong>Total Real:</strong> ${calculateOfficialTotal().toFixed(0)}</p>
                             </section>
                         )}
 
@@ -212,11 +212,11 @@ const CashRegister = () => {
                                 <ul>
                                     {Object.entries(selectedCashRegister.officialIncome || {}).map(([method, total]) => (
                                         <li key={method}>
-                                            <strong>{method}:</strong> ${total.toFixed(2)}
+                                            <strong>{method}:</strong> ${total.toFixed(0)}
                                         </li>
                                     ))}
                                 </ul>
-                                <p><strong>Total Real Registrado:</strong> ${selectedCashRegister.amountSystem.toFixed(2)}</p>
+                                <p><strong>Total Real Registrado:</strong> ${selectedCashRegister.amountSystem.toFixed(0)}</p>
                             </section>
                         )}
 
