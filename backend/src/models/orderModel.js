@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const orderSchema = new mongoose.Schema({
     orderNumber: {
         type: Number,
-        unique: true, // Asegura que sea único
         required: true,
     },
     foods: [{

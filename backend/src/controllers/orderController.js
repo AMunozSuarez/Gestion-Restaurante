@@ -24,7 +24,7 @@ const createOrderController = async (req, res) => {
             return sum + (foodDetails.price * item.quantity);
         }, 0);
 
-        // Obtener el último número de orden
+        // Obtener el último número de orden para este restaurante
         const lastOrder = await orderModel.findOne({ restaurant: req.user.restaurant }).sort({ orderNumber: -1 });
         const orderNumber = lastOrder && lastOrder.orderNumber ? lastOrder.orderNumber + 1 : 1;
 
