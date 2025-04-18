@@ -1,0 +1,44 @@
+/* Modo edición */
+.editing-mode .delivery-content {
+    transform: translateX(0);
+}
+
+.editing-mode .delivery-edit-order {
+    background-color: #ffffff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    width: 35%; /* Ajustar el ancho del formulario */
+    min-height: 400px;
+    overflow-y: auto; /* Scroll si el contenido excede la altura */
+    animation: slideInFromRight 0.3s ease-in-out;
+}
+
+.editing-mode .delivery-orders-list {
+    flex: 1; /* Lista ocupa más espacio */
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Lista de pedidos completados */
+.delivery-completed-orders {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    height: auto; /* Ajustar la altura */
+}
+
+/* Animaciones */
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
