@@ -9,14 +9,16 @@ import { useNavigate } from 'react-router-dom';
 const OrderFormDelivery = ({
     customerName,
     setCustomerName,
-    deliveryAddress, // Dirección de entrega
-    setDeliveryAddress, // Función para actualizar la dirección
+    deliveryAddress,
+    setDeliveryAddress,
     selectedPaymentMethod,
     setSelectedPaymentMethod,
     handleSubmit,
     editingOrderId,
     setEditingOrderId,
     isViewingCompletedOrder,
+    markAsCompleted,
+    cancelOrder,
 }) => {
     const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore();
     const { isSearchFocused, setIsSearchFocused } = useUIStore();
@@ -69,7 +71,7 @@ const OrderFormDelivery = ({
     // Función para volver al estado de "Crear Pedido"
     const resetForm = () => {
         setCustomerName('');
-        setDeliveryAddress(''); // Limpiar la dirección de entrega
+        setDeliveryAddress('');
         setSelectedPaymentMethod('Efectivo');
         clearCart();
         setEditingOrderId(null);
@@ -77,6 +79,11 @@ const OrderFormDelivery = ({
 
     const addToCart = (product) => {
         setCart((prevCart) => {
+            if (!Array.isArray(prevCart)) {
+                console.error('Error: El carrito actual no es un array:', prevCart);
+                return [];
+            }
+
             const existingProduct = prevCart.find((item) => item._id === product._id);
             if (existingProduct) {
                 return prevCart.map((item) =>
@@ -89,7 +96,7 @@ const OrderFormDelivery = ({
 
     const renderCart = () => {
         if (!Array.isArray(cart) || cart.length === 0) {
-            return <p>El carrito está vacío.</p>; // Mostrar mensaje si el carrito está vacío
+            return <p>El carrito está vacío.</p>;
         }
 
         return (

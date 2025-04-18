@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useOrders } from '../../hooks/useOrders';
+import useCartStore from '../../store/useCartStore'; // Usar el store global para el carrito
 import OrderFormDelivery from '../forms/orderFormDelivery';
 import OrderListDelivery from '../lists/orderListDelivery';
 import CompletedOrdersList from '../lists/completedOrdersList';
@@ -10,11 +11,11 @@ import '../../styles/delivery.css';
 const DeliveryDetails = () => {
     const { orderNumber } = useParams();
     const { orders, updateOrderStatus } = useOrders();
+    const { cart, setCart, clearCart } = useCartStore(); // Usar el store global
     const [editingOrder, setEditingOrder] = useState(null);
     const [deliveryAddress, setDeliveryAddress] = useState('');
     const [customerName, setCustomerName] = useState('');
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
-    const [cart, setCart] = useState([]);
     const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState(null);
     const navigate = useNavigate();
@@ -28,19 +29,21 @@ const DeliveryDetails = () => {
             setCustomerName(foundOrder.buyer);
             setSelectedPaymentMethod(foundOrder.payment);
             setDeliveryAddress(foundOrder.deliveryAddress || '');
+
             const cartItems = foundOrder.foods.map((item) => ({
                 _id: item.food._id,
                 title: item.food.title,
                 quantity: item.quantity,
                 price: item.food.price,
             }));
-            setCart(cartItems); // Asegurarse de que el carrito se actualice correctamente
+            setCart(cartItems); // Actualizar el carrito en el store global
+
             setIsViewingCompletedOrder(foundOrder.status === 'Enviado' || foundOrder.status === 'Entregado');
         } else {
             setEditingOrder(null);
-            setCart([]); // Limpiar el carrito si no hay pedido seleccionado
+            clearCart(); // Limpiar el carrito si no hay pedido seleccionado
         }
-    }, [orderNumber, orders]);
+    }, [orderNumber, orders, setCart, clearCart]);
 
     const handleSubmit = (orderData, resetForm, status = 'Preparacion') => {
         const updatedOrder = {
@@ -50,22 +53,6 @@ const DeliveryDetails = () => {
         };
         console.log('Pedido actualizado:', updatedOrder);
         resetForm();
-    };
-
-    const markAsSent = (orderId) => {
-        updateOrderStatus(orderId, 'Enviado');
-    };
-
-    const markAsDelivered = (orderId) => {
-        updateOrderStatus(orderId, 'Entregado');
-    };
-
-    const resetForm = () => {
-        setCustomerName('');
-        setDeliveryAddress('');
-        setSelectedPaymentMethod('');
-        setCart([]);
-        setEditingOrder(null);
     };
 
     const preparationOrders = orders.filter((order) => order.section === 'delivery' && order.status === 'Preparacion');
@@ -99,25 +86,6 @@ const DeliveryDetails = () => {
                                 handleSubmit={handleSubmit}
                                 editingOrderId={editingOrder._id}
                                 isViewingCompletedOrder={isViewingCompletedOrder}
-                                cart={cart} // Pasar el carrito
-                                increaseQuantity={(id) => {
-                                    const updatedCart = cart.map((item) =>
-                                        item._id === id ? { ...item, quantity: item.quantity + 1 } : item
-                                    );
-                                    setCart(updatedCart);
-                                }}
-                                decreaseQuantity={(id) => {
-                                    const updatedCart = cart.map((item) =>
-                                        item._id === id && item.quantity > 1
-                                            ? { ...item, quantity: item.quantity - 1 }
-                                            : item
-                                    );
-                                    setCart(updatedCart);
-                                }}
-                                removeProduct={(id) => {
-                                    const updatedCart = cart.filter((item) => item._id !== id);
-                                    setCart(updatedCart);
-                                }}
                             />
                         ) : (
                             <p>Selecciona un pedido para ver los detalles.</p>
