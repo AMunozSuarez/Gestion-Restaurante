@@ -1,36 +1,40 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import '../../styles/orderList.css'; // Estilos específicos de la lista de pedidos
+import '../../styles/orderListDelivery.css'; // Estilos específicos para la lista de pedidos de delivery
 
 const OrderListDelivery = ({ orders }) => {
     const navigate = useNavigate();
     const { orderNumber } = useParams(); // Obtener el número de pedido desde la URL
 
-    // Filtrar solo los pedidos con sección "mostrador"
-    const mostradorOrders = orders.filter((order) => order.section === 'delivery');
+    // Filtrar solo los pedidos con sección "delivery"
+    const deliveryOrders = orders.filter((order) => order.section === 'delivery');
 
     return (
-        <div className="order-list">
+        <div className="order-list-delivery">
             <h3>Pedidos en Preparación</h3>
-            <div className="order-list-header">
+            <div className="order-list-header-delivery">
                 <p>#</p>
-                <p>Fecha/Hora</p> {/* Mostrar fecha/hora */}
+                <p>Fecha/Hora</p>
                 <p>Cliente</p>
                 <p>Estado</p>
-                <p className="order-total-header">Total</p>
+                <p className="order-total-header-delivery">Total</p>
             </div>
             <ul>
-                {mostradorOrders.map((order) => (
+                {deliveryOrders.map((order) => (
                     <li
                         key={order._id}
                         onClick={() => navigate(`/delivery/${order.orderNumber}`)}
-                        className={`order-item ${order.orderNumber === parseInt(orderNumber, 10) ? 'editing' : ''}`}
+                        className={`order-item-delivery ${
+                            order.orderNumber === parseInt(orderNumber, 10) ? 'editing-delivery' : ''
+                        }`}
                     >
                         <p>{order.orderNumber}</p>
-                        <p className="order-date">{new Date(order.createdAt).toLocaleString()}</p> {/* Mostrar fecha/hora */}
+                        <p className="order-date-delivery">
+                            {new Date(order.createdAt).toLocaleString()}
+                        </p>
                         <p>{order.buyer}</p>
                         <p>{order.status}</p>
-                        <p className="order-total">${order.total}</p>
+                        <p className="order-total-delivery">${order.total}</p>
                     </li>
                 ))}
             </ul>
