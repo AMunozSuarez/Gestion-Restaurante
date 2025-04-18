@@ -4,7 +4,7 @@
     flex-direction: column;
     gap: 20px;
     background-color: #fdf5e6;
-    padding: 20px;
+    padding: 10px !important;
     font-family: 'Poppins', Arial, sans-serif;
     font-size: 14px;
     color: #4d2600;

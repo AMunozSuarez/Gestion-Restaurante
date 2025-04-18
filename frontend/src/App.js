@@ -29,8 +29,10 @@ function App() {
                 </Route>
           {/* Rutas relacionadas con /delivery */}
 
-          <Route path="/delivery" index element={<Delivery />} />
-          <Route path="/delivery/:orderNumber" element={<DeliveryDetails />} />
+          <Route path="/delivery" element={<MostradorLayout />}>
+            <Route index element={<Delivery />} />
+            <Route path=":orderNumber" element={<DeliveryDetails />} />
+          </Route>
           {/* Rutas de administración */}
           <Route path="/admin/productos" element={<Productos />} />
           <Route path="/admin/categorias" element={<Categorias />} />

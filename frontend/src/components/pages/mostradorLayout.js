@@ -1,30 +1,48 @@
 import React from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import SubHeader from './subHeader'; // Importar el subheader
 import '../../styles/mostrador.css'; // Estilos del mostrador
+import '../../styles/deliveryDetails.css'; // Estilos de delivery
 
 const MostradorLayout = () => {
     const navigate = useNavigate();
+    const location = useLocation(); // Obtener la ruta actual
 
     const handleCreateNewOrder = () => {
-        navigate('/mostrador'); // Navegar al estado inicial de creación
+        if (location.pathname.startsWith('/mostrador')) {
+            navigate('/mostrador'); // Navegar al estado inicial de creación en mostrador
+        } else if (location.pathname.startsWith('/delivery')) {
+            navigate('/delivery'); // Navegar al estado inicial de creación en delivery
+        }
     };
 
+    // Determinar la clase del contenedor y del botón según la ruta actual
+    const containerClass = location.pathname.startsWith('/mostrador')
+        ? 'mostrador-container'
+        : 'delivery-container';
+
+    const buttonClass = location.pathname.startsWith('/mostrador')
+        ? 'create-order-button-mostrador'
+        : 'create-order-button-delivery';
+
     return (
-        <div className="mostrador-layout">
-            {/* Subheader */}
+        <>
+            {/* Subheader sin clases específicas */}
             <SubHeader />
 
-            {/* Botón para crear un nuevo pedido */}
-            <div className="create-order-button-container">
-                <button className="create-order-button" onClick={handleCreateNewOrder}>
-                    Crear Pedido +
-                </button>
-            </div>
+            {/* Contenedor principal con clases dinámicas */}
+            <div className={containerClass}>
+                {/* Botón para crear un nuevo pedido */}
+                <div className="create-order-button-container">
+                    <button className={buttonClass} onClick={handleCreateNewOrder}>
+                        Crear Pedido +
+                    </button>
+                </div>
 
-            {/* Renderizar las rutas derivadas */}
-            <Outlet />
-        </div>
+                {/* Renderizar las rutas derivadas */}
+                <Outlet />
+            </div>
+        </>
     );
 };
 

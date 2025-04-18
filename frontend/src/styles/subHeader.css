@@ -7,6 +7,7 @@
     padding: 5px 0; /* Reducir el padding */
     margin-bottom: 10px; /* Reducir el margen inferior */
     position: sticky !important;
+    margin: 0;
 }
 
 .sub-header a {
