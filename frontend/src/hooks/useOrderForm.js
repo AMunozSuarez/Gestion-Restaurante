@@ -31,11 +31,11 @@ export const useOrderForm = () => {
     }, [editingOrderId, orders, setCart]);
 
     // Función para manejar el envío del formulario
-    const handleSubmit = (e, resetForm, status = 'Preparacion') => {
+    const handleSubmit = (e, resetForm, status = 'Preparacion', section = 'mostrador') => {
         if (e && e.preventDefault) e.preventDefault(); // Verificar si 'e' existe antes de llamar a preventDefault
 
         const newOrder = {
-            section: 'mostrador',
+            section, // Ahora la sección se pasa como argumento
             buyer: customerName,
             payment: selectedPaymentMethod,
             foods: cart.map((item) => ({

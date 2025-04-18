@@ -4,7 +4,7 @@ import Header from './components/header';
 
 import Login from './components/pages/login';
 import Mostrador from './components/pages/mostrador';
-import Delivery from './components/delivery';
+import Delivery from './components/pages/delivery';
 import Productos from './components/admin/productos'; 
 import Categorias from './components/admin/categorias';
 import OrderDetails from './components/pages/orderDetails';
@@ -12,6 +12,7 @@ import MostradorLayout from './components/pages/mostradorLayout'; // Importar el
 import CashRegister from './components/admin/cashRegister'; // Importar el componente de caja
 import Reports from './components/admin/reports';
 import SalesList from './components/admin/salesList';
+import DeliveryDetails from './components/pages/deliveryDetails';
 
 function App() {
   return (
@@ -26,7 +27,11 @@ function App() {
                     <Route index element={<Mostrador />} />
                     <Route path=":orderNumber" element={<OrderDetails />} />
                 </Route>
-          <Route path="/delivery" element={<Delivery />} />
+          {/* Rutas relacionadas con /delivery */}
+
+          <Route path="/delivery" index element={<Delivery />} />
+          <Route path="/delivery/:orderNumber" element={<DeliveryDetails />} />
+          {/* Rutas de administración */}
           <Route path="/admin/productos" element={<Productos />} />
           <Route path="/admin/categorias" element={<Categorias />} />
           <Route path="/admin/caja" element={<CashRegister />} />
