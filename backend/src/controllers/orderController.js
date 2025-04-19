@@ -5,7 +5,7 @@ const foodModel = require('../models/foodModel'); // Importar el modelo de alime
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, buyer, customerPhone, section, status } = req.body;
+        const { foods, payment, buyer, customerPhone, section, status, deliveryAddress } = req.body;
 
         // Validar que los alimentos existan y pertenezcan al restaurante del usuario
         const foodIds = foods.map((item) => item.food);
@@ -37,6 +37,7 @@ const createOrderController = async (req, res) => {
             buyer,
             customerPhone,
             section,
+            deliveryAddress: section === 'delivery' ? deliveryAddress : undefined, // Solo agregar dirección si es delivery
             status: status || 'Preparacion',
             restaurant: req.user.restaurant // Vincular al restaurante del usuario
         });
@@ -129,7 +130,7 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, customerPhone, foods, payment, section, status } = req.body;
+        const { buyer, customerPhone, foods, payment, section, status, deliveryAddress } = req.body;
 
         // Validar que el pedido pertenezca al restaurante del usuario
         const order = await orderModel.findOne({ _id: req.params.id, restaurant: req.user.restaurant });
@@ -160,7 +161,16 @@ const updateOrderController = async (req, res) => {
         // Actualizar la orden
         const updatedOrder = await orderModel.findByIdAndUpdate(
             req.params.id,
-            { buyer, customerPhone, foods, payment, section, total, status },
+            {
+                buyer,
+                customerPhone,
+                foods,
+                payment,
+                section,
+                total,
+                status,
+                deliveryAddress: section === 'delivery' ? deliveryAddress : undefined, // Solo actualizar dirección si es delivery
+            },
             { new: true, runValidators: true }
         );
 

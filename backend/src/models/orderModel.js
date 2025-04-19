@@ -6,7 +6,7 @@ const orderSchema = new mongoose.Schema({
         required: true,
     },
     foods: [{
-        food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true }, // Referencia al modelo "Food"
+        food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
         quantity: { type: Number, required: true }
     }],
     payment: {
@@ -20,10 +20,20 @@ const orderSchema = new mongoose.Schema({
         required: true
     },
     buyer: {
-        type: String, // Cambiado a String para almacenar directamente el nombre del cliente
+        type: String,
     },
     customerPhone: {
         type: String,
+    },
+    deliveryAddress: {
+        type: String,
+        validate: {
+            validator: function () {
+                // Solo es requerido si la sección es "delivery"
+                return this.section !== 'delivery' || (this.deliveryAddress && this.deliveryAddress.trim().length > 0);
+            },
+            message: 'La dirección de entrega es obligatoria para pedidos de delivery.'
+        }
     },
     section: {
         type: String,
@@ -37,7 +47,7 @@ const orderSchema = new mongoose.Schema({
     },
     restaurant: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Restaurant', // Relación con el modelo "Restaurant"
+        ref: 'Restaurant',
         required: true
     },
 }, { timestamps: true });

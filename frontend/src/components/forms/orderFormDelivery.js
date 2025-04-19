@@ -19,8 +19,11 @@ const OrderFormDelivery = ({
     isViewingCompletedOrder,
     markAsCompleted,
     cancelOrder,
+    cart = [], // Prop para el carrito
+    increaseQuantity, // Función para incrementar cantidad
+    decreaseQuantity, // Función para decrementar cantidad
+    removeProduct, // Función para eliminar producto
 }) => {
-    const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore();
     const { isSearchFocused, setIsSearchFocused } = useUIStore();
     const { products, isLoading: productsLoading } = useProducts();
     const { categories, isLoading: categoriesLoading } = useCategories();
@@ -73,25 +76,11 @@ const OrderFormDelivery = ({
         setCustomerName('');
         setDeliveryAddress('');
         setSelectedPaymentMethod('Efectivo');
-        clearCart();
         setEditingOrderId(null);
     };
 
     const addToCart = (product) => {
-        setCart((prevCart) => {
-            if (!Array.isArray(prevCart)) {
-                console.error('Error: El carrito actual no es un array:', prevCart);
-                return [];
-            }
-
-            const existingProduct = prevCart.find((item) => item._id === product._id);
-            if (existingProduct) {
-                return prevCart.map((item) =>
-                    item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
-                );
-            }
-            return [...prevCart, { ...product, quantity: 1 }];
-        });
+        increaseQuantity(product._id); // Llama a la función para incrementar cantidad
     };
 
     const renderCart = () => {

@@ -22,6 +22,7 @@ const Delivery = () => {
     } = useOrderForm();
     const { setCartContext, clearCart, setCart } = useCartStore();
     const [deliveryAddress, setDeliveryAddress] = useState(''); // Estado para la dirección de entrega
+    const [customerPhone, setCustomerPhone] = useState(''); // Estado para el número de teléfono
     const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState(null);
     const navigate = useNavigate();
@@ -41,6 +42,7 @@ const Delivery = () => {
                 setCustomerName(foundOrder.buyer);
                 setSelectedPaymentMethod(foundOrder.payment);
                 setDeliveryAddress(foundOrder.deliveryAddress || ''); // Cargar la dirección de entrega
+                setCustomerPhone(foundOrder.phone || ''); // Cargar el número de teléfono
 
                 const cartItems = foundOrder.foods.map((item) => ({
                     _id: item.food._id,
@@ -71,6 +73,7 @@ const Delivery = () => {
             ...orderData,
             section: 'delivery',
             deliveryAddress, // Agregar la dirección de entrega al pedido
+            phone: customerPhone, // Agregar el número de teléfono al pedido
         };
         originalHandleSubmit(deliveryOrderData, resetForm, status, 'delivery');
     };
@@ -89,6 +92,7 @@ const Delivery = () => {
         setCustomerName(order.buyer);
         setSelectedPaymentMethod(order.payment);
         setDeliveryAddress(order.deliveryAddress || ''); // Cargar la dirección de entrega
+        setCustomerPhone(order.phone || ''); // Cargar el número de teléfono
 
         const cartItems = order.foods.map((item) => ({
             _id: item.food._id,
@@ -114,6 +118,8 @@ const Delivery = () => {
                         <OrderFormDelivery
                             customerName={customerName}
                             setCustomerName={setCustomerName}
+                            customerPhone={customerPhone} // Pasar el número de teléfono
+                            setCustomerPhone={setCustomerPhone} // Función para actualizar el número de teléfono
                             deliveryAddress={deliveryAddress} // Pasar la dirección de entrega
                             setDeliveryAddress={setDeliveryAddress} // Función para actualizar la dirección
                             selectedPaymentMethod={selectedPaymentMethod}
@@ -122,8 +128,6 @@ const Delivery = () => {
                             editingOrderId={editingOrderId}
                             setEditingOrderId={setEditingOrderId}
                             isViewingCompletedOrder={isViewingCompletedOrder}
-                            markAsCompleted={markAsSent}
-                            cancelOrder={markAsDelivered}
                         />
                     </div>
 
