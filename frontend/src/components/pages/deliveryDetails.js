@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useOrders } from '../../hooks/useOrders';
+import useCartStore from '../../store/useCartStore'; // Importar el store global
 import OrderFormDelivery from '../forms/orderFormDelivery';
 import OrderListDelivery from '../lists/orderListDelivery';
 import CompletedOrdersList from '../lists/completedOrdersList';
@@ -10,11 +11,11 @@ import '../../styles/delivery.css';
 const DeliveryDetails = () => {
     const { orderNumber } = useParams();
     const { orders, updateOrderStatus } = useOrders();
+    const { cart, setCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Usar el store global
     const [editingOrder, setEditingOrder] = useState(null);
     const [deliveryAddress, setDeliveryAddress] = useState('');
     const [customerName, setCustomerName] = useState('');
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
-    const [cart, setCart] = useState([]); // Manejar el carrito como estado local
     const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState(null);
     const navigate = useNavigate();
@@ -34,15 +35,20 @@ const DeliveryDetails = () => {
                 quantity: item.quantity,
                 price: item.food.price,
             }));
-            setCart(cartItems); // Actualizar el carrito directamente
+            setCart(cartItems); // Actualizar el carrito en el store global
             setIsViewingCompletedOrder(foundOrder.status === 'Enviado' || foundOrder.status === 'Entregado');
         } else {
-            setEditingOrder(null);
-            setCart([]); // Limpiar el carrito si no hay pedido seleccionado
+            if (editingOrder !== null) {
+                setEditingOrder(null);
+            }
+            if (cart.length > 0) {
+                setCart([]);
+            } // Limpiar el carrito en el store global si no hay pedido seleccionado
         }
-    }, [orderNumber, orders]);
+    }, [orderNumber, orders, setCart]);
 
-    const handleSubmit = (orderData, resetForm, status = 'Preparacion') => {
+    const handleSubmit = (e, orderData, resetForm, status = 'Preparacion') => {
+        e.preventDefault(); // Prevenir la recarga de la página
         const updatedOrder = {
             ...orderData,
             section: 'delivery',
@@ -64,7 +70,7 @@ const DeliveryDetails = () => {
         setCustomerName('');
         setDeliveryAddress('');
         setSelectedPaymentMethod('');
-        setCart([]);
+        setCart([]); // Limpiar el carrito en el store global
         setEditingOrder(null);
     };
 
@@ -99,25 +105,10 @@ const DeliveryDetails = () => {
                                 handleSubmit={handleSubmit}
                                 editingOrderId={editingOrder._id}
                                 isViewingCompletedOrder={isViewingCompletedOrder}
-                                cart={cart} // Pasar el carrito
-                                increaseQuantity={(id) => {
-                                    const updatedCart = cart.map((item) =>
-                                        item._id === id ? { ...item, quantity: item.quantity + 1 } : item
-                                    );
-                                    setCart(updatedCart);
-                                }}
-                                decreaseQuantity={(id) => {
-                                    const updatedCart = cart.map((item) =>
-                                        item._id === id && item.quantity > 1
-                                            ? { ...item, quantity: item.quantity - 1 }
-                                            : item
-                                    );
-                                    setCart(updatedCart);
-                                }}
-                                removeProduct={(id) => {
-                                    const updatedCart = cart.filter((item) => item._id !== id);
-                                    setCart(updatedCart);
-                                }}
+                                cart={cart} // Pasar el carrito desde el store global
+                                increaseQuantity={increaseQuantity} // Usar la función del store global
+                                decreaseQuantity={decreaseQuantity} // Usar la función del store global
+                                removeProduct={removeProduct} // Usar la función del store global
                             />
                         ) : (
                             <p>Selecciona un pedido para ver los detalles.</p>

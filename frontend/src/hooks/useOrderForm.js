@@ -63,12 +63,12 @@ export const useOrderForm = () => {
     };
 
     return {
+        editingOrderId,
+        setEditingOrderId, // Asegúrate de exportar esta función
         customerName,
         setCustomerName,
         selectedPaymentMethod,
         setSelectedPaymentMethod,
         handleSubmit,
-        editingOrderId,
-        setEditingOrderId,
     };
 };

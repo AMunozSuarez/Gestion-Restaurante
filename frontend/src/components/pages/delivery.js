@@ -29,9 +29,10 @@ const Delivery = () => {
     const { orderNumber } = useParams();
 
     useEffect(() => {
+        // Establecer el contexto del carrito solo una vez al montar el componente
         setCartContext('delivery');
-        clearCart();
-    }, [setCartContext, clearCart]);
+        clearCart(); // Limpiar el carrito solo al montar
+    }, []); // Elimina dependencias innecesarias como setCartContext y clearCart
 
     useEffect(() => {
         if (orderNumber) {
@@ -41,8 +42,8 @@ const Delivery = () => {
                 setSelectedOrderId(foundOrder._id);
                 setCustomerName(foundOrder.buyer);
                 setSelectedPaymentMethod(foundOrder.payment);
-                setDeliveryAddress(foundOrder.deliveryAddress || ''); // Cargar la dirección de entrega
-                setCustomerPhone(foundOrder.phone || ''); // Cargar el número de teléfono
+                setDeliveryAddress(foundOrder.deliveryAddress || '');
+                setCustomerPhone(foundOrder.phone || '');
 
                 const cartItems = foundOrder.foods.map((item) => ({
                     _id: item.food._id,
@@ -50,15 +51,15 @@ const Delivery = () => {
                     quantity: item.quantity,
                     price: item.food.price,
                 }));
-                setCart(cartItems);
-                setIsViewingCompletedOrder(false); // Asegurarse de que no esté en modo de solo visualización
+                setCart(cartItems); // Actualizar el carrito solo si cambia el pedido
+                setIsViewingCompletedOrder(false);
             }
         } else {
             setEditingOrderId(null);
             setSelectedOrderId(null);
             setIsViewingCompletedOrder(false);
         }
-    }, [orderNumber, orders, setCart, setCustomerName, setSelectedPaymentMethod, setEditingOrderId]);
+    }, [orderNumber, orders]); // Elimina dependencias innecesarias como setCart
 
     if (isLoading) return <p>Cargando pedidos...</p>;
 

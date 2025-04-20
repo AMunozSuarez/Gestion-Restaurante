@@ -19,14 +19,11 @@ const OrderFormDelivery = ({
     isViewingCompletedOrder,
     markAsCompleted,
     cancelOrder,
-    cart = [], // Prop para el carrito
-    increaseQuantity, // Función para incrementar cantidad
-    decreaseQuantity, // Función para decrementar cantidad
-    removeProduct, // Función para eliminar producto
 }) => {
-    const { isSearchFocused, setIsSearchFocused } = useUIStore();
-    const { products, isLoading: productsLoading } = useProducts();
-    const { categories, isLoading: categoriesLoading } = useCategories();
+    const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Manejo del carrito
+    const { isSearchFocused, setIsSearchFocused } = useUIStore(); // Estados de UI
+    const { products, isLoading: productsLoading } = useProducts(); // Productos
+    const { categories, isLoading: categoriesLoading } = useCategories(); // Categorías
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [categoryFilter, setCategoryFilter] = useState('');
@@ -76,13 +73,24 @@ const OrderFormDelivery = ({
         setCustomerName('');
         setDeliveryAddress('');
         setSelectedPaymentMethod('Efectivo');
-        setEditingOrderId(null);
+        clearCart(); // Limpiar el carrito
+        setEditingOrderId(null); // Restablecer el ID del pedido en edición
     };
 
+    // Función para añadir productos al carrito
     const addToCart = (product) => {
-        increaseQuantity(product._id); // Llama a la función para incrementar cantidad
+        setCart((prevCart) => {
+            const existingProduct = prevCart.find((item) => item._id === product._id);
+            if (existingProduct) {
+                return prevCart.map((item) =>
+                    item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
+                );
+            }
+            return [...prevCart, { ...product, quantity: 1 }];
+        });
     };
 
+    // Mostrar el carrito
     const renderCart = () => {
         if (!Array.isArray(cart) || cart.length === 0) {
             return <p>El carrito está vacío.</p>;
@@ -133,7 +141,18 @@ const OrderFormDelivery = ({
                 )}
             </div>
 
-            <form onSubmit={(e) => handleSubmit(e, resetForm)}>
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault(); // Prevenir la recarga de la página
+                    const orderData = {
+                        customerName,
+                        deliveryAddress,
+                        paymentMethod: selectedPaymentMethod,
+                        cart, // Incluye los productos del carrito
+                    };
+                    handleSubmit(e, resetForm, 'Preparacion', 'delivery'); // Asegúrate de pasar resetForm
+                }}
+            >
                 <div className="form-group">
                     <label htmlFor="customerName">Nombre del Cliente:</label>
                     <input
@@ -182,6 +201,9 @@ const OrderFormDelivery = ({
                                 ))}
                             </ul>
                         )}
+                        <button type="button" onClick={() => setIsModalOpen(true)}>
+                            Ver Productos +
+                        </button>
                     </div>
                 )}
 
@@ -214,6 +236,53 @@ const OrderFormDelivery = ({
                     </button>
                 )}
             </form>
+
+            {isModalOpen && (
+                <div
+                    className="modal"
+                    onClick={(e) => {
+                        if (e.target.classList.contains('modal')) {
+                            setIsModalOpen(false);
+                        }
+                    }}
+                >
+                    <div className="modal-content">
+                        <h3>Seleccionar Productos</h3>
+                        <input
+                            type="text"
+                            placeholder="Buscar productos..."
+                            value={modalSearchQuery}
+                            onChange={(e) => setModalSearchQuery(e.target.value)}
+                        />
+                        <div className="categories">
+                            <button
+                                className={categoryFilter === '' ? 'active' : ''}
+                                onClick={() => setCategoryFilter('')}
+                            >
+                                Todas
+                            </button>
+                            {categories.map((category, index) => (
+                                <button
+                                    key={`${category._id}-${index}`}
+                                    className={categoryFilter === category._id ? 'active' : ''}
+                                    onClick={() => setCategoryFilter(category._id)}
+                                >
+                                    {category.title}
+                                </button>
+                            ))}
+                        </div>
+                        <ul className="products-list">
+                            {filteredProducts.map((product, index) => (
+                                <li key={`${product._id}-${index}`} onClick={() => addToCart(product)}>
+                                    <span>{product.title}</span>
+                                    <span>${product.price}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <button onClick={() => setIsModalOpen(false)}>Cerrar</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
