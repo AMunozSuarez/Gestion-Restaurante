@@ -15,7 +15,7 @@ export const useOrders = () => {
 
     // Obtener pedidos
     const { data: orders = [], isLoading, error } = useQuery({
-        queryKey: ['orders'], // Clave única para identificar esta consulta
+        queryKey: ['orders'], // Clave única para identificar esta consulta 
         queryFn: fetchOrders, // Función que realiza la solicitud
     });
 

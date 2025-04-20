@@ -8,10 +8,11 @@ import CompletedOrdersList from '../lists/completedOrdersList';
 import { CSSTransition } from 'react-transition-group';
 import '../../styles/delivery.css';
 import axios from '../../services/axiosConfig';
+import { useQueryClient } from '@tanstack/react-query';
 
 const DeliveryDetails = () => {
     const { orderNumber } = useParams();
-    const { orders, updateOrderStatus } = useOrders();
+    const { orders, updateOrderStatus, updateOrderInList } = useOrders();
     const { cart, setCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Usar el store global
     const [editingOrder, setEditingOrder] = useState(null);
     const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -21,6 +22,7 @@ const DeliveryDetails = () => {
     const [selectedOrderId, setSelectedOrderId] = useState(null);
     const navigate = useNavigate();
     const containerRef = useRef(null);
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         // Buscar el pedido por número de pedido
@@ -52,6 +54,7 @@ const DeliveryDetails = () => {
         e.preventDefault();
 
         const updatedOrder = {
+            _id: editingOrder._id, // Asegúrate de incluir el _id del pedido
             buyer: customerName, // Nombre del cliente
             payment: selectedPaymentMethod, // Método de pago
             foods: cart.map((item) => ({
@@ -69,10 +72,12 @@ const DeliveryDetails = () => {
             const response = await axios.put(`/order/update/${editingOrder._id}`, updatedOrder);
 
             if (response.status === 200) {
-                console.log('Pedido actualizado correctamente:', response.data);
+                console.log('Pedido actualizado correctamente:', response.data.order);
+
+                // Invalida la consulta para recargar la lista de pedidos
+                queryClient.invalidateQueries(['orders']);
+                navigate('/delivery'); // Redirigir a la lista de pedidos después de actualizar
                 resetForm();
-                setEditingOrder(null);
-                navigate('/delivery'); // Redirigir a la lista de pedidos
             } else {
                 console.error('Error al actualizar el pedido:', response.statusText);
                 alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
