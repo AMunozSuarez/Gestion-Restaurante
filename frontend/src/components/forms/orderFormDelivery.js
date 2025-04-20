@@ -142,17 +142,17 @@ const OrderFormDelivery = ({
             </div>
 
             <form
-                onSubmit={(e) => {
-                    e.preventDefault(); // Prevenir la recarga de la página
-                    const orderData = {
-                        customerName,
-                        deliveryAddress,
-                        paymentMethod: selectedPaymentMethod,
-                        cart, // Incluye los productos del carrito
-                    };
-                    handleSubmit(e, resetForm, 'Preparacion', 'delivery'); // Asegúrate de pasar resetForm
-                }}
-            >
+    onSubmit={(e) => {
+        e.preventDefault(); // Prevenir la recarga de la página
+        const orderData = {
+            customerName,
+            deliveryAddress,
+            paymentMethod: selectedPaymentMethod,
+            cart, // Incluye los productos del carrito
+        };
+        handleSubmit(e, orderData, resetForm, editingOrderId ? 'Preparacion' : 'Preparacion');
+    }}
+>
                 <div className="form-group">
                     <label htmlFor="customerName">Nombre del Cliente:</label>
                     <input

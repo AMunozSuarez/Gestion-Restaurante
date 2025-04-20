@@ -79,6 +79,14 @@ const Delivery = () => {
         originalHandleSubmit(deliveryOrderData, resetForm, status, 'delivery');
     };
 
+    const resetForm = () => {
+        setCustomerName('');
+        setDeliveryAddress('');
+        setSelectedPaymentMethod('Efectivo');
+        clearCart(); // Limpiar el carrito
+        setEditingOrderId(null); // Restablecer el ID del pedido en edición
+    };
+
     const markAsSent = (orderId) => {
         updateOrderStatus(orderId, 'Enviado');
     };
@@ -129,6 +137,7 @@ const Delivery = () => {
                             editingOrderId={editingOrderId}
                             setEditingOrderId={setEditingOrderId}
                             isViewingCompletedOrder={isViewingCompletedOrder}
+                            resetForm={resetForm} // Pasa resetForm al componente
                         />
                     </div>
 

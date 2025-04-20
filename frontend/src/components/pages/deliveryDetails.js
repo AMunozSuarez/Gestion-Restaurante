@@ -7,6 +7,7 @@ import OrderListDelivery from '../lists/orderListDelivery';
 import CompletedOrdersList from '../lists/completedOrdersList';
 import { CSSTransition } from 'react-transition-group';
 import '../../styles/delivery.css';
+import axios from '../../services/axiosConfig';
 
 const DeliveryDetails = () => {
     const { orderNumber } = useParams();
@@ -47,15 +48,39 @@ const DeliveryDetails = () => {
         }
     }, [orderNumber, orders, setCart]);
 
-    const handleSubmit = (e, orderData, resetForm, status = 'Preparacion') => {
-        e.preventDefault(); // Prevenir la recarga de la página
+    const handleSubmit = async (e, orderData, resetForm, status = 'Preparacion') => {
+        e.preventDefault();
+
         const updatedOrder = {
-            ...orderData,
-            section: 'delivery',
-            deliveryAddress,
+            buyer: customerName, // Nombre del cliente
+            payment: selectedPaymentMethod, // Método de pago
+            foods: cart.map((item) => ({
+                food: item._id, // ID del producto
+                quantity: item.quantity, // Cantidad
+            })), // Productos en el carrito
+            section: 'delivery', // Sección del pedido
+            deliveryAddress, // Dirección de entrega
+            status, // Estado del pedido
         };
+
         console.log('Pedido actualizado:', updatedOrder);
-        resetForm();
+
+        try {
+            const response = await axios.put(`/order/update/${editingOrder._id}`, updatedOrder);
+
+            if (response.status === 200) {
+                console.log('Pedido actualizado correctamente:', response.data);
+                resetForm();
+                setEditingOrder(null);
+                navigate('/delivery'); // Redirigir a la lista de pedidos
+            } else {
+                console.error('Error al actualizar el pedido:', response.statusText);
+                alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
+            }
+        } catch (error) {
+            console.error('Error al actualizar el pedido:', error);
+            alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
+        }
     };
 
     const markAsSent = (orderId) => {
@@ -96,20 +121,22 @@ const DeliveryDetails = () => {
                     <div className="delivery-edit-order">
                         {editingOrder ? (
                             <OrderFormDelivery
-                                customerName={customerName}
-                                setCustomerName={setCustomerName}
-                                deliveryAddress={deliveryAddress}
-                                setDeliveryAddress={setDeliveryAddress}
-                                selectedPaymentMethod={selectedPaymentMethod}
-                                setSelectedPaymentMethod={setSelectedPaymentMethod}
-                                handleSubmit={handleSubmit}
-                                editingOrderId={editingOrder._id}
-                                isViewingCompletedOrder={isViewingCompletedOrder}
-                                cart={cart} // Pasar el carrito desde el store global
-                                increaseQuantity={increaseQuantity} // Usar la función del store global
-                                decreaseQuantity={decreaseQuantity} // Usar la función del store global
-                                removeProduct={removeProduct} // Usar la función del store global
-                            />
+                            customerName={customerName}
+                            setCustomerName={setCustomerName}
+                            deliveryAddress={deliveryAddress}
+                            setDeliveryAddress={setDeliveryAddress}
+                            selectedPaymentMethod={selectedPaymentMethod}
+                            setSelectedPaymentMethod={setSelectedPaymentMethod}
+                            handleSubmit={handleSubmit}
+                            editingOrderId={editingOrder ? editingOrder._id : null}
+                            setEditingOrderId={setEditingOrder} // Pasa setEditingOrderId correctamente
+                            isViewingCompletedOrder={isViewingCompletedOrder}
+                            cart={cart}
+                            increaseQuantity={increaseQuantity}
+                            decreaseQuantity={decreaseQuantity}
+                            removeProduct={removeProduct}
+                            resetForm={resetForm}
+                        />
                         ) : (
                             <p>Selecciona un pedido para ver los detalles.</p>
                         )}
