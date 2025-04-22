@@ -154,7 +154,14 @@ const OrderFormDelivery = ({
                                 />
                             </div>
                         )}
-                        {item.comment && <p className="cart-comment-text">Comentario: {item.comment}</p>}
+                        {item.comment && activeCommentId !== item._id && (
+                            <p
+                                className="cart-comment-text"
+                                onClick={() => setActiveCommentId(item._id)}
+                            >
+                                {item.comment}
+                            </p>
+                        )}
                     </li>
                 ))}
             </ul>

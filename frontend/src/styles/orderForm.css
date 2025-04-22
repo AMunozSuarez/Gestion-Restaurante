@@ -705,5 +705,11 @@
     font-size: 0.9em;
     color: #555;
     margin-top: 5px;
-    margin-left: 0; /* Alinea el comentario con el cuadro de texto */
+    margin-left: 0;
+    cursor: pointer; /* Indica que es clickeable */
+    transition: color 0.3s ease;
+}
+
+.cart-comment-text:hover {
+    color: #007bff; /* Cambia de color al pasar el cursor */
 }
