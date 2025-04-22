@@ -518,3 +518,24 @@
     background-color: #6c757d; /* Gris */
     color: white;
 }
+
+
+.cart-comment {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.cart-comment:hover {
+    background-color: #0056b3;
+}
+
+.cart-comment-text {
+    font-size: 0.9em;
+    color: #555;
+    margin-top: 5px;
+}

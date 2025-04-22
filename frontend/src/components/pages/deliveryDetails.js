@@ -37,6 +37,7 @@ const DeliveryDetails = () => {
                 title: item.food.title,
                 quantity: item.quantity,
                 price: item.food.price,
+                comment: item.comment || '', // Agregar comentario si existe
             }));
             setCart(cartItems); // Actualizar el carrito en el store global
             setIsViewingCompletedOrder(foundOrder.status === 'Enviado' || foundOrder.status === 'Entregado');
@@ -60,6 +61,7 @@ const DeliveryDetails = () => {
             foods: cart.map((item) => ({
                 food: item._id, // ID del producto
                 quantity: item.quantity, // Cantidad
+                comment: item.comment || '', // Comentario (si existe)
             })), // Productos en el carrito
             section: 'delivery', // Sección del pedido
             deliveryAddress, // Dirección de entrega

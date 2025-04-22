@@ -90,6 +90,18 @@ const OrderFormDelivery = ({
         });
     };
 
+    // Función para manejar la adición de comentarios
+    const handleAddComment = (productId) => {
+        const comment = prompt('Escribe un comentario para este producto:');
+        if (comment !== null) {
+            setCart((prevCart) =>
+                prevCart.map((item) =>
+                    item._id === productId ? { ...item, comment } : item
+                )
+            );
+        }
+    };
+
     // Mostrar el carrito
     const renderCart = () => {
         if (!Array.isArray(cart) || cart.length === 0) {
@@ -113,14 +125,24 @@ const OrderFormDelivery = ({
                         <span className="cart-product">{item.title}</span>
                         <span className="cart-price">${(item.price * item.quantity).toFixed(0)}</span>
                         {!isViewingCompletedOrder && (
-                            <button
-                                type="button"
-                                className="cart-remove"
-                                onClick={() => removeProduct(item._id)}
-                            >
-                                X
-                            </button>
+                            <>
+                                <button
+                                    type="button"
+                                    className="cart-remove"
+                                    onClick={() => removeProduct(item._id)}
+                                >
+                                    X
+                                </button>
+                                <button
+                                    type="button"
+                                    className="cart-comment"
+                                    onClick={() => handleAddComment(item._id)}
+                                >
+                                    Añadir Comentario
+                                </button>
+                            </>
                         )}
+                        {item.comment && <p className="cart-comment-text">Comentario: {item.comment}</p>}
                     </li>
                 ))}
             </ul>
