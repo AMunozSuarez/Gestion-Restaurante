@@ -7,7 +7,8 @@ const orderSchema = new mongoose.Schema({
     },
     foods: [{
         food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
-        quantity: { type: Number, required: true }
+        quantity: { type: Number, required: true },
+        comment: { type: String, default: '' } // Nuevo campo para comentarios
     }],
     payment: {
         type: String,
