@@ -223,7 +223,7 @@ const CashRegister = () => {
                         {/* Botón para cerrar caja */}
                         {!selectedCashRegister.dateClosed && (
                             <section className="detail-section">
-                                <button onClick={handleCloseCashRegister}>Cerrar Caja</button>
+                                <button className='button-cashregister' onClick={handleCloseCashRegister}>Cerrar Caja</button>
                             </section>
                         )}
                     </div>

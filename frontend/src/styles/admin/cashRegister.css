@@ -137,7 +137,7 @@
     font-weight: bold;
 }
 
-button {
+.button-cashregister {
     padding: 10px 15px;
     background-color: #b45a00;
     color: white;
@@ -149,7 +149,7 @@ button {
     align-self: center; /* Centra el botón dentro de su contenedor */
 }
 
-button:hover {
+.button-cashregister:hover {
     background-color: #944800;
 }
 

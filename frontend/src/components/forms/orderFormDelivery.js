@@ -4,6 +4,8 @@ import useUIStore from '../../store/useUiStore'; // Store para manejar estados d
 import { useProducts } from '../../hooks/useProducts'; // Hook para manejar productos
 import { useCategories } from '../../hooks/useCategories'; // Hook para manejar categorías
 import '../../styles/orderForm.css'; // Estilos específicos del formulario de pedido
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 
 const OrderFormDelivery = ({
@@ -32,6 +34,7 @@ const OrderFormDelivery = ({
     const [cartTotal, setCartTotal] = useState(0);
     const [isEditing, setIsEditing] = useState(!!editingOrderId);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [activeCommentId, setActiveCommentId] = useState(null); // ID del producto con el cuadro de texto activo
     const navigate = useNavigate();
 
     const searchInputRef = useRef(null);
@@ -91,15 +94,13 @@ const OrderFormDelivery = ({
     };
 
     // Función para manejar la adición de comentarios
-    const handleAddComment = (productId) => {
-        const comment = prompt('Escribe un comentario para este producto:');
-        if (comment !== null) {
-            setCart((prevCart) =>
-                prevCart.map((item) =>
-                    item._id === productId ? { ...item, comment } : item
-                )
-            );
-        }
+    const handleAddComment = (productId, comment) => {
+        setCart((prevCart) =>
+            prevCart.map((item) =>
+                item._id === productId ? { ...item, comment } : item
+            )
+        );
+        setActiveCommentId(null); // Cerrar el cuadro de texto después de guardar
     };
 
     // Mostrar el carrito
@@ -112,20 +113,29 @@ const OrderFormDelivery = ({
             <ul className="cart-list">
                 {cart.map((item, index) => (
                     <li key={`${item._id}-${index}`} className="cart-item">
-                        <div className="cart-quantity">
+                        <div className="cart-row">
+                            <div className="cart-quantity">
+                                {!isViewingCompletedOrder && (
+                                    <>
+                                        <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
+                                        <span>{item.quantity}</span>
+                                        <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
+                                    </>
+                                )}
+                                {isViewingCompletedOrder && <span>{item.quantity}</span>}
+                            </div>
+                            <div className="cart-product-container">
+                                <span className="cart-product">{item.title}</span>
+                                <button
+                                    type="button"
+                                    className="cart-comment"
+                                    onClick={() => setActiveCommentId(activeCommentId === item._id ? null : item._id)}
+                                >
+                                    <FontAwesomeIcon icon={faCommentDots} />
+                                </button>
+                            </div>
+                            <span className="cart-price">${(item.price * item.quantity).toFixed(0)}</span>
                             {!isViewingCompletedOrder && (
-                                <>
-                                    <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
-                                    <span>{item.quantity}</span>
-                                    <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
-                                </>
-                            )}
-                            {isViewingCompletedOrder && <span>{item.quantity}</span>}
-                        </div>
-                        <span className="cart-product">{item.title}</span>
-                        <span className="cart-price">${(item.price * item.quantity).toFixed(0)}</span>
-                        {!isViewingCompletedOrder && (
-                            <>
                                 <button
                                     type="button"
                                     className="cart-remove"
@@ -133,14 +143,16 @@ const OrderFormDelivery = ({
                                 >
                                     X
                                 </button>
-                                <button
-                                    type="button"
-                                    className="cart-comment"
-                                    onClick={() => handleAddComment(item._id)}
-                                >
-                                    Añadir Comentario
-                                </button>
-                            </>
+                            )}
+                        </div>
+                        {activeCommentId === item._id && (
+                            <div className="cart-comment-box">
+                                <textarea
+                                    placeholder="Escribe un comentario..."
+                                    defaultValue={item.comment || ''}
+                                    onBlur={(e) => handleAddComment(item._id, e.target.value)}
+                                />
+                            </div>
                         )}
                         {item.comment && <p className="cart-comment-text">Comentario: {item.comment}</p>}
                     </li>
@@ -164,17 +176,17 @@ const OrderFormDelivery = ({
             </div>
 
             <form
-    onSubmit={(e) => {
-        e.preventDefault(); // Prevenir la recarga de la página
-        const orderData = {
-            customerName,
-            deliveryAddress,
-            paymentMethod: selectedPaymentMethod,
-            cart, // Incluye los productos del carrito
-        };
-        handleSubmit(e, orderData, resetForm, editingOrderId ? 'Preparacion' : 'Preparacion');
-    }}
->
+                onSubmit={(e) => {
+                    e.preventDefault(); // Prevenir la recarga de la página
+                    const orderData = {
+                        customerName,
+                        deliveryAddress,
+                        paymentMethod: selectedPaymentMethod,
+                        cart, // Incluye los productos del carrito
+                    };
+                    handleSubmit(e, orderData, resetForm, editingOrderId ? 'Preparacion' : 'Preparacion');
+                }}
+            >
                 <div className="form-group">
                     <label htmlFor="customerName">Nombre del Cliente:</label>
                     <input
