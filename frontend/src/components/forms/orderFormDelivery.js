@@ -34,10 +34,10 @@ const OrderFormDelivery = ({
     const [cartTotal, setCartTotal] = useState(0);
     const [isEditing, setIsEditing] = useState(!!editingOrderId);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-    const [activeCommentId, setActiveCommentId] = useState(null); // ID del producto con el cuadro de texto activo
     const navigate = useNavigate();
 
     const searchInputRef = useRef(null);
+    const textAreaRefs = useRef({}); // Referencias para las cajas de texto
 
     // Calcular el total del carrito cada vez que cambie
     useEffect(() => {
@@ -97,10 +97,32 @@ const OrderFormDelivery = ({
     const handleAddComment = (productId, comment) => {
         setCart((prevCart) =>
             prevCart.map((item) =>
-                item._id === productId ? { ...item, comment } : item
+                item._id === productId ? { ...item, comment, isEditing: false } : item
             )
         );
-        setActiveCommentId(null); // Cerrar el cuadro de texto después de guardar
+    };
+
+    // Función para activar el modo de edición del comentario y enfocar el elemento editable
+    const handleEditComment = (productId) => {
+        setCart((prevCart) =>
+            prevCart.map((item) =>
+                item._id === productId ? { ...item, isEditing: true } : { ...item, isEditing: false }
+            )
+        );
+
+        // Esperar a que el estado se actualice y luego enfocar el elemento editable
+        setTimeout(() => {
+            if (textAreaRefs.current[productId]) {
+                const editableDiv = textAreaRefs.current[productId];
+                editableDiv.focus();
+                const range = document.createRange();
+                const sel = window.getSelection();
+                range.selectNodeContents(editableDiv);
+                range.collapse(false); // Coloca el cursor al final
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+        }, 0);
     };
 
     // Mostrar el carrito
@@ -112,57 +134,64 @@ const OrderFormDelivery = ({
         return (
             <ul className="cart-list">
                 {cart.map((item, index) => (
-                    <li key={`${item._id}-${index}`} className="cart-item">
-                        <div className="cart-row">
-                            <div className="cart-quantity">
+                    <React.Fragment key={`${item._id}-${index}`}>
+                        <li className="cart-item">
+                            <div className="cart-row">
+                                <div className="cart-quantity">
+                                    {!isViewingCompletedOrder && (
+                                        <>
+                                            <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
+                                            <span>{item.quantity}</span>
+                                            <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
+                                        </>
+                                    )}
+                                    {isViewingCompletedOrder && <span>{item.quantity}</span>}
+                                </div>
+                                <div className="cart-product-container">
+                                    <span className="cart-product">{item.title}</span>
+                                    <button
+                                        type="button"
+                                        className="cart-comment"
+                                        onClick={() => handleEditComment(item._id)}
+                                    >
+                                        <FontAwesomeIcon icon={faCommentDots} />
+                                    </button>
+                                </div>
+                                <span className="cart-price">${(item.price * item.quantity).toFixed(0)}</span>
                                 {!isViewingCompletedOrder && (
-                                    <>
-                                        <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
-                                        <span>{item.quantity}</span>
-                                        <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
-                                    </>
+                                    <button
+                                        type="button"
+                                        className="cart-remove"
+                                        onClick={() => removeProduct(item._id)}
+                                    >
+                                        X
+                                    </button>
                                 )}
-                                {isViewingCompletedOrder && <span>{item.quantity}</span>}
                             </div>
-                            <div className="cart-product-container">
-                                <span className="cart-product">{item.title}</span>
-                                <button
-                                    type="button"
-                                    className="cart-comment"
-                                    onClick={() => setActiveCommentId(activeCommentId === item._id ? null : item._id)}
-                                >
-                                    <FontAwesomeIcon icon={faCommentDots} />
-                                </button>
-                            </div>
-                            <span className="cart-price">${(item.price * item.quantity).toFixed(0)}</span>
-                            {!isViewingCompletedOrder && (
-                                <button
-                                    type="button"
-                                    className="cart-remove"
-                                    onClick={() => removeProduct(item._id)}
-                                >
-                                    X
-                                </button>
+                            {item.isEditing && (
+                                <div className="cart-comment-text">
+                                    <div
+                                        ref={(el) => (textAreaRefs.current[item._id] = el)} // Asigna la referencia
+                                        contentEditable="true"
+                                        className="editable-comment"
+                                        onBlur={(e) => handleAddComment(item._id, e.target.textContent)}
+                                        suppressContentEditableWarning={true} // Evita advertencias de React
+                                    >
+                                        {item.comment || 'Escribe un comentario...'}
+                                    </div>
+                                </div>
                             )}
-                        </div>
-                        {activeCommentId === item._id && (
-                            <div className="cart-comment-box">
-                                <textarea
-                                    placeholder="Escribe un comentario..."
-                                    defaultValue={item.comment || ''}
-                                    onBlur={(e) => handleAddComment(item._id, e.target.value)}
-                                />
-                            </div>
-                        )}
-                        {item.comment && activeCommentId !== item._id && (
-                            <p
-                                className="cart-comment-text"
-                                onClick={() => setActiveCommentId(item._id)}
-                            >
-                                {item.comment}
-                            </p>
-                        )}
-                    </li>
+                            {item.comment && !item.isEditing && (
+                                <p
+                                    className="cart-comment-text"
+                                    onClick={() => handleEditComment(item._id)}
+                                >
+                                    {item.comment}
+                                </p>
+                            )}
+                        </li>
+                        <hr className="cart-divider" /> {/* Línea separadora */}
+                    </React.Fragment>
                 ))}
             </ul>
         );

@@ -693,23 +693,49 @@
 }
 
 .cart-comment-box textarea {
-    width: 100%;
+    width: 97%;
+    background-color: #f0dbae;
     padding: 8px;
-    border: 1px solid #ccc;
+    border: 1px solid #ccc !important;
     border-radius: 5px;
     font-size: 14px;
+    height: 10px;
+    
     resize: none;
 }
 
 .cart-comment-text {
+    background-color: #f0dbae;
+    padding: 5px;
+    border-radius: 5px;
     font-size: 0.9em;
-    color: #555;
+    color: #555555;
     margin-top: 5px;
-    margin-left: 0;
+    margin-bottom: 0px;
     cursor: pointer; /* Indica que es clickeable */
     transition: color 0.3s ease;
+    width: 100%;
 }
 
 .cart-comment-text:hover {
     color: #007bff; /* Cambia de color al pasar el cursor */
+}
+
+.editable-comment {
+    width: 100%;
+    background-color: #f0dbae;
+    border-radius: 5px;
+    color: #333;
+    outline: none; /* Elimina el borde azul al enfocar */
+    cursor: text;
+    transition: border-color 0.3s ease;
+}
+
+.editable-comment:focus {
+}
+
+.cart-divider {
+    border: none;
+    border-top: 1px solid #ddd; /* Línea gris claro */
+    margin: 5px 0; /* Espaciado arriba y abajo */
 }
