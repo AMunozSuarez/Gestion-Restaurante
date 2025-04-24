@@ -94,27 +94,36 @@ const OrderFormDelivery = ({
     };
 
     // Función para manejar la adición de comentarios
-    const handleAddComment = (productId, comment) => {
+    const handleAddComment = (productId, commentHtml) => {
+        const comment = commentHtml
+            .replace(/<br\s*\/?>/gi, '\n') // Reemplaza <br> por \n
+            .replace(/<\/div><div>/gi, '\n') // Reemplaza cierre y apertura de <div> por \n
+            .replace(/<\/?div>/gi, ''); // Elimina etiquetas <div>
+
         setCart((prevCart) =>
             prevCart.map((item) =>
-                item._id === productId ? { ...item, comment, isEditing: false } : item
+                item._id === productId ? { ...item, comment: comment.trim() } : item
             )
         );
     };
 
-    // Función para activar el modo de edición del comentario y enfocar el elemento editable
-    const handleEditComment = (productId) => {
+    // Función para activar o desactivar el modo de edición del comentario
+    const handleToggleEditComment = (productId) => {
         setCart((prevCart) =>
             prevCart.map((item) =>
-                item._id === productId ? { ...item, isEditing: true } : { ...item, isEditing: false }
+                item._id === productId
+                    ? { ...item, isEditing: !item.isEditing } // Alterna el estado de edición
+                    : { ...item, isEditing: false } // Desactiva la edición para otros productos
             )
         );
 
-        // Esperar a que el estado se actualice y luego enfocar el elemento editable
+        // Si se activa el modo de edición, enfocar el elemento editable
         setTimeout(() => {
             if (textAreaRefs.current[productId]) {
                 const editableDiv = textAreaRefs.current[productId];
                 editableDiv.focus();
+
+                // Coloca el cursor al final del texto
                 const range = document.createRange();
                 const sel = window.getSelection();
                 range.selectNodeContents(editableDiv);
@@ -152,7 +161,7 @@ const OrderFormDelivery = ({
                                     <button
                                         type="button"
                                         className="cart-comment"
-                                        onClick={() => handleEditComment(item._id)}
+                                        onClick={() => handleToggleEditComment(item._id)}
                                     >
                                         <FontAwesomeIcon icon={faCommentDots} />
                                     </button>
@@ -169,24 +178,30 @@ const OrderFormDelivery = ({
                                 )}
                             </div>
                             {item.isEditing && (
-                                <div className="cart-comment-text">
+                                <div className="cart-comment-box">
                                     <div
                                         ref={(el) => (textAreaRefs.current[item._id] = el)} // Asigna la referencia
                                         contentEditable="true"
                                         className="editable-comment"
-                                        onBlur={(e) => handleAddComment(item._id, e.target.textContent)}
+                                        onBlur={(e) => handleAddComment(item._id, e.target.innerHTML)} // Usa innerHTML
                                         suppressContentEditableWarning={true} // Evita advertencias de React
-                                    >
-                                        {item.comment || 'Escribe un comentario...'}
-                                    </div>
+                                        dangerouslySetInnerHTML={{
+                                            __html: (item.comment || '').replace(/\n/g, '<br>'), // Convierte \n a <br>
+                                        }}
+                                    />
                                 </div>
                             )}
                             {item.comment && !item.isEditing && (
                                 <p
                                     className="cart-comment-text"
-                                    onClick={() => handleEditComment(item._id)}
+                                    onClick={() => handleToggleEditComment(item._id)}
                                 >
-                                    {item.comment}
+                                    {item.comment.split('\n').map((line, i) => (
+                                        <React.Fragment key={i}>
+                                            {line}
+                                            <br />
+                                        </React.Fragment>
+                                    ))}
                                 </p>
                             )}
                         </li>

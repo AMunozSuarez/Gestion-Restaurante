@@ -688,17 +688,24 @@
 }
 
 .cart-comment-box {
-    margin-top: 10px;
+    margin-top: 5px;
     width: 100%; /* Asegura que ocupe todo el ancho */
+    background-color: #f0dbae;
+    padding: 5px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    color: #555555;
+    margin-top: 5px;
+    margin-bottom: 0px;
+    font-size: 12.8px;
 }
 
 .cart-comment-box textarea {
     width: 97%;
     background-color: #f0dbae;
-    padding: 8px;
-    border: 1px solid #ccc !important;
+    border: 1px solid #ccc;
     border-radius: 5px;
-    font-size: 14px;
+    font-size: 12px;
     height: 10px;
     
     resize: none;
@@ -731,8 +738,6 @@
     transition: border-color 0.3s ease;
 }
 
-.editable-comment:focus {
-}
 
 .cart-divider {
     border: none;
