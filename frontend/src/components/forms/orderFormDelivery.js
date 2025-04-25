@@ -97,12 +97,14 @@ const OrderFormDelivery = ({
     const handleAddComment = (productId, commentHtml) => {
         const comment = commentHtml
             .replace(/<br\s*\/?>/gi, '\n') // Reemplaza <br> por \n
-            .replace(/<\/div><div>/gi, '\n') // Reemplaza cierre y apertura de <div> por \n
-            .replace(/<\/?div>/gi, ''); // Elimina etiquetas <div>
+            .replace(/<\/div>\s*<div>/gi, '\n') // Reemplaza cierre y apertura de <div> por \n
+            .replace(/<\/?div>/gi, '') // Elimina etiquetas <div>
+            .replace(/&nbsp;/gi, ' ') // Reemplaza espacios no separables (&nbsp;) por espacios normales
+            .trim(); // Elimina espacios al inicio y al final
 
         setCart((prevCart) =>
             prevCart.map((item) =>
-                item._id === productId ? { ...item, comment: comment.trim() } : item
+                item._id === productId ? { ...item, comment } : item
             )
         );
     };

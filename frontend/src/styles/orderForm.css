@@ -641,18 +641,6 @@
     background-color: #0056b3;
 }
 
-.cart-product-container {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 1;
-}
-
-.cart-product {
-    font-weight: bold;
-    color: #4d2600; /* Marrón oscuro */
-}
-
 .cart-comment {
     background: none;
     border: none;
