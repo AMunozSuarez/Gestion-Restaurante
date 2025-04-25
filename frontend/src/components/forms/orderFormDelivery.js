@@ -3,6 +3,7 @@ import useCartStore from '../../store/useCartStore'; // Store para manejar el ca
 import useUIStore from '../../store/useUiStore'; // Store para manejar estados de UI
 import { useProducts } from '../../hooks/useProducts'; // Hook para manejar productos
 import { useCategories } from '../../hooks/useCategories'; // Hook para manejar categorías
+import useCommentHandler from '../../hooks/useCommentHandler';
 import '../../styles/orderForm.css'; // Estilos específicos del formulario de pedido
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
@@ -37,13 +38,17 @@ const OrderFormDelivery = ({
     const navigate = useNavigate();
 
     const searchInputRef = useRef(null);
-    const textAreaRefs = useRef({}); // Referencias para las cajas de texto
+    const { textAreaRefs, handleAddComment, handleToggleEditComment } = useCommentHandler(setCart);
 
     // Calcular el total del carrito cada vez que cambie
     useEffect(() => {
         const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
         setCartTotal(total);
     }, [cart]);
+
+    useEffect(() => {
+            console.log('Estado del carrito:', cart);
+        }, [cart]);
 
     // Filtrar productos por categoría o búsqueda
     useEffect(() => {
@@ -91,49 +96,6 @@ const OrderFormDelivery = ({
             }
             return [...prevCart, { ...product, quantity: 1 }];
         });
-    };
-
-    // Función para manejar la adición de comentarios
-    const handleAddComment = (productId, commentHtml) => {
-        const comment = commentHtml
-            .replace(/<br\s*\/?>/gi, '\n') // Reemplaza <br> por \n
-            .replace(/<\/div>\s*<div>/gi, '\n') // Reemplaza cierre y apertura de <div> por \n
-            .replace(/<\/?div>/gi, '') // Elimina etiquetas <div>
-            .replace(/&nbsp;/gi, ' ') // Reemplaza espacios no separables (&nbsp;) por espacios normales
-            .trim(); // Elimina espacios al inicio y al final
-
-        setCart((prevCart) =>
-            prevCart.map((item) =>
-                item._id === productId ? { ...item, comment } : item
-            )
-        );
-    };
-
-    // Función para activar o desactivar el modo de edición del comentario
-    const handleToggleEditComment = (productId) => {
-        setCart((prevCart) =>
-            prevCart.map((item) =>
-                item._id === productId
-                    ? { ...item, isEditing: !item.isEditing } // Alterna el estado de edición
-                    : { ...item, isEditing: false } // Desactiva la edición para otros productos
-            )
-        );
-
-        // Si se activa el modo de edición, enfocar el elemento editable
-        setTimeout(() => {
-            if (textAreaRefs.current[productId]) {
-                const editableDiv = textAreaRefs.current[productId];
-                editableDiv.focus();
-
-                // Coloca el cursor al final del texto
-                const range = document.createRange();
-                const sel = window.getSelection();
-                range.selectNodeContents(editableDiv);
-                range.collapse(false); // Coloca el cursor al final
-                sel.removeAllRanges();
-                sel.addRange(range);
-            }
-        }, 0);
     };
 
     // Mostrar el carrito

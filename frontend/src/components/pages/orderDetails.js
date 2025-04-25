@@ -35,6 +35,7 @@ const OrderDetails = () => {
                 title: item.food.title,
                 quantity: item.quantity,
                 price: item.food.price,
+                comment: item.comment || '', // Agregar comentario si existe
             }));
             setCart(cartItems);
 
@@ -60,6 +61,7 @@ const OrderDetails = () => {
             title: item.food.title,
             quantity: item.quantity,
             price: item.food.price,
+            comment: item.comment || '', // Agregar comentario si existe
         }));
         setCart(cartItems);
 
@@ -83,9 +85,12 @@ const OrderDetails = () => {
                 food: item._id,
                 quantity: item.quantity,
                 price: item.price,
+                comment: item.comment || '', // Agregar comentario si existe
             })),
             status, // Usar el estado pasado como argumento
         };
+
+        console.log('Actualizando pedido:', updatedOrder);
 
         try {
             const response = await axios.put(`/order/update/${editingOrder._id}`, updatedOrder);
