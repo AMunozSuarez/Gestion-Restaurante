@@ -96,21 +96,28 @@ const OrderForm = ({
 
     const addToCart = (product) => {
         setCart((prevCart) => {
-            if (!Array.isArray(prevCart)) {
-                console.error('Error: El carrito actual no es un array:', prevCart);
-                return []; // Devuelve un array vacío como fallback
-            }
-
             const existingProduct = prevCart.find((item) => item._id === product._id);
             if (existingProduct) {
-                console.log('Actualizando cantidad del producto:', product);
                 return prevCart.map((item) =>
                     item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
                 );
             }
-            console.log('Agregando nuevo producto al carrito:', product);
             return [...prevCart, { ...product, quantity: 1 }];
         });
+
+        // Limpiar el campo de búsqueda después de seleccionar un producto
+        setModalSearchQuery('');
+
+        // Forzar re-renderizado de las sugerencias
+        setIsSearchFocused(false); // Desactiva el estado temporalmente
+        setTimeout(() => {
+            setIsSearchFocused(true); // Reactiva el estado después de un breve retraso
+        }, 0);
+
+        // Volver a enfocar el campo de búsqueda
+        if (searchInputRef.current) {
+            searchInputRef.current.focus();
+        }
     };
 
     // Mostrar el carrito
