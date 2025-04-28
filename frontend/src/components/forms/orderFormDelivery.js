@@ -12,6 +12,8 @@ import { useNavigate } from 'react-router-dom';
 const OrderFormDelivery = ({
     customerName,
     setCustomerName,
+    customerPhone,
+    setCustomerPhone,
     deliveryAddress,
     setDeliveryAddress,
     selectedPaymentMethod,
@@ -205,6 +207,17 @@ const OrderFormDelivery = ({
                     handleSubmit(e, resetForm, orderData.status, orderData.section);
                 }}
             >
+                <div className="form-group">
+                    <label htmlFor="customerPhone">Teléfono del Cliente:</label>
+                    <input
+                        type="text"
+                        id="customerPhone"
+                        value={customerPhone} // Mostrar el valor de customerPhone
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        disabled={isViewingCompletedOrder} // Deshabilitar si se está viendo un pedido completado
+                        required
+                    />
+                </div>
                 <div className="form-group">
                     <label htmlFor="customerName">Nombre del Cliente:</label>
                     <input

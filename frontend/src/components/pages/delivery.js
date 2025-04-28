@@ -115,6 +115,7 @@ const Delivery = () => {
 
         setIsViewingCompletedOrder(false); // Asegurarse de que no esté en modo de solo visualización
     };
+    console.log('Número de teléfono:', customerPhone);
 
     return (
         <CSSTransition

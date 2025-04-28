@@ -17,6 +17,7 @@ const DeliveryDetails = () => {
     const [editingOrder, setEditingOrder] = useState(null);
     const [deliveryAddress, setDeliveryAddress] = useState('');
     const [customerName, setCustomerName] = useState('');
+    const [customerPhone, setCustomerPhone] = useState(''); // Estado para el número de teléfono
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
     const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -32,6 +33,7 @@ const DeliveryDetails = () => {
             setCustomerName(foundOrder.buyer);
             setSelectedPaymentMethod(foundOrder.payment);
             setDeliveryAddress(foundOrder.deliveryAddress || '');
+            setCustomerPhone(foundOrder.customerPhone || ''); // Cargar el número de teléfono
             const cartItems = foundOrder.foods.map((item) => ({
                 _id: item.food._id,
                 title: item.food.title,
@@ -49,6 +51,7 @@ const DeliveryDetails = () => {
                 setCart([]);
             } // Limpiar el carrito en el store global si no hay pedido seleccionado
         }
+        console.log('Pedido encontrado:', foundOrder);
     }, [orderNumber, orders, setCart]);
 
     const handleSubmit = async (e, orderData, status = 'Preparacion') => {
@@ -66,6 +69,7 @@ const DeliveryDetails = () => {
             section: 'delivery', // Sección del pedido
             deliveryAddress, // Dirección de entrega
             status, // Estado del pedido
+            customerPhone
         };
 
         console.log('Pedido actualizado:', updatedOrder);
@@ -122,6 +126,8 @@ const DeliveryDetails = () => {
                             <OrderFormDelivery
                             customerName={customerName}
                             setCustomerName={setCustomerName}
+                            customerPhone={customerPhone} // Cargar el número de teléfono
+                            setCustomerPhone={setCustomerPhone} // Función para actualizar el número de teléfono
                             deliveryAddress={deliveryAddress}
                             setDeliveryAddress={setDeliveryAddress}
                             selectedPaymentMethod={selectedPaymentMethod}
