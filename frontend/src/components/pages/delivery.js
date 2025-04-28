@@ -115,7 +115,6 @@ const Delivery = () => {
 
         setIsViewingCompletedOrder(false); // Asegurarse de que no esté en modo de solo visualización
     };
-    console.log('Número de teléfono:', customerPhone);
 
     return (
         <CSSTransition
@@ -125,22 +124,30 @@ const Delivery = () => {
             unmountOnExit
         >
             <div className="delivery-container creating-mode">
+                {/* Botón para crear un nuevo pedido */}
+                <button
+                    className="create-order-button"
+                    onClick={() => navigate('/delivery')}
+                >
+                    Crear Pedido +
+                </button>
+
                 <div className="delivery-content">
                     <div className="delivery-create-order">
                         <OrderFormDelivery
                             customerName={customerName}
                             setCustomerName={setCustomerName}
-                            customerPhone={customerPhone} // Pasar el número de teléfono
-                            setCustomerPhone={setCustomerPhone} // Función para actualizar el número de teléfono
-                            deliveryAddress={deliveryAddress} // Pasar la dirección de entrega
-                            setDeliveryAddress={setDeliveryAddress} // Función para actualizar la dirección
+                            customerPhone={customerPhone}
+                            setCustomerPhone={setCustomerPhone}
+                            deliveryAddress={deliveryAddress}
+                            setDeliveryAddress={setDeliveryAddress}
                             selectedPaymentMethod={selectedPaymentMethod}
                             setSelectedPaymentMethod={setSelectedPaymentMethod}
                             handleSubmit={handleSubmit}
                             editingOrderId={editingOrderId}
                             setEditingOrderId={setEditingOrderId}
                             isViewingCompletedOrder={isViewingCompletedOrder}
-                            resetForm={resetForm} // Pasa resetForm al componente
+                            resetForm={resetForm}
                         />
                     </div>
 

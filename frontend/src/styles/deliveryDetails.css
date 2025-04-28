@@ -32,22 +32,6 @@
 }
 
 
-.create-order-button-delivery{
-    padding: 10px 15px;
-    background-color: #b45a00;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    max-width: 300px; /* Limita el ancho máximo del botón */
-    align-self: center; /* Centra el botón dentro de su contenedor */
-}
-
-.create-order-button-delivery:hover{
-    background-color: #944800;
-}
-
 
 
 /* Animaciones */

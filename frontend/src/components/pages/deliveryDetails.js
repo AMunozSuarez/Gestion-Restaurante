@@ -114,6 +114,14 @@ const DeliveryDetails = () => {
             nodeRef={containerRef}
         >
             <div ref={containerRef} className="delivery-container editing-mode">
+                {/* Botón para crear un nuevo pedido */}
+                <button
+                    className="create-order-button"
+                    onClick={() => navigate('/delivery')}
+                >
+                    Crear Pedido +
+                </button>
+
                 <div className="delivery-content">
                     <div className="delivery-orders-list">
                         <OrderListDelivery
@@ -124,23 +132,23 @@ const DeliveryDetails = () => {
                     <div className="delivery-edit-order">
                         {editingOrder ? (
                             <OrderFormDelivery
-                            customerName={customerName}
-                            setCustomerName={setCustomerName}
-                            customerPhone={customerPhone} // Cargar el número de teléfono
-                            setCustomerPhone={setCustomerPhone} // Función para actualizar el número de teléfono
-                            deliveryAddress={deliveryAddress}
-                            setDeliveryAddress={setDeliveryAddress}
-                            selectedPaymentMethod={selectedPaymentMethod}
-                            setSelectedPaymentMethod={setSelectedPaymentMethod}
-                            handleSubmit={handleSubmit}
-                            editingOrderId={editingOrder ? editingOrder._id : null}
-                            setEditingOrderId={setEditingOrder} // Pasa setEditingOrderId correctamente
-                            isViewingCompletedOrder={isViewingCompletedOrder}
-                            cart={cart}
-                            increaseQuantity={increaseQuantity}
-                            decreaseQuantity={decreaseQuantity}
-                            removeProduct={removeProduct}
-                        />
+                                customerName={customerName}
+                                setCustomerName={setCustomerName}
+                                customerPhone={customerPhone}
+                                setCustomerPhone={setCustomerPhone}
+                                deliveryAddress={deliveryAddress}
+                                setDeliveryAddress={setDeliveryAddress}
+                                selectedPaymentMethod={selectedPaymentMethod}
+                                setSelectedPaymentMethod={setSelectedPaymentMethod}
+                                handleSubmit={handleSubmit}
+                                editingOrderId={editingOrder ? editingOrder._id : null}
+                                setEditingOrderId={setEditingOrder}
+                                isViewingCompletedOrder={isViewingCompletedOrder}
+                                cart={cart}
+                                increaseQuantity={increaseQuantity}
+                                decreaseQuantity={decreaseQuantity}
+                                removeProduct={removeProduct}
+                            />
                         ) : (
                             <p>Selecciona un pedido para ver los detalles.</p>
                         )}

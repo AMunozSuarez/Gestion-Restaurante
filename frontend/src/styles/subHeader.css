@@ -29,31 +29,3 @@
     color: #4d2600; /* Marrón oscuro */
 }
 
-/* Botón para crear un nuevo pedido */
-.create-order-button-container {
-    display: flex;
-    justify-content: left;
-    margin-left: 21px;
-}
-
-.create-order-button {
-    background-color: #28a745; /* Verde */
-    color: white;
-    padding: 8px 15px; /* Reducir el padding */
-    border: none;
-    border-radius: 5px;
-    font-size: 14px; /* Reducir el tamaño de fuente */
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-}
-
-.create-order-button:hover {
-    background-color: #218838; /* Verde más oscuro */
-    transform: scale(1.05); /* Efecto de agrandamiento */
-}
-
-.create-order-button:active {
-    background-color: #1e7e34; /* Verde aún más oscuro */
-    transform: scale(0.95); /* Efecto de reducción al hacer clic */
-}

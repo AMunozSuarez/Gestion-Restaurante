@@ -32,13 +32,6 @@ const MostradorLayout = () => {
 
             {/* Contenedor principal con clases dinámicas */}
             <div className={containerClass}>
-                {/* Botón para crear un nuevo pedido */}
-                <div className="create-order-button-container">
-                    <button className={buttonClass} onClick={handleCreateNewOrder}>
-                        Crear Pedido +
-                    </button>
-                </div>
-
                 {/* Renderizar las rutas derivadas */}
                 <Outlet />
             </div>

@@ -9,6 +9,7 @@
     font-size: 14px;
     color: #004d66; /* Texto azul oscuro */
     transition: all 0.3s ease-in-out;
+    position: relative;
 }
 
 /* Contenido Principal */
@@ -26,6 +27,7 @@
 .creating-mode .delivery-create-order {
     background-color: #ffffff;
     padding: 15px;
+    padding-top: 0;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     width: 30%; /* Ajustar el ancho para que sea similar a mostrador */
@@ -63,4 +65,25 @@
         transform: translateX(0);
         opacity: 1;
     }
+}
+
+
+.create-order-button {
+    position: absolute; /* Posiciona el botón fuera del flujo normal */
+    top: 0px; /* Ajusta la posición vertical */
+    left: 20px; /* Ajusta la posición horizontal */
+    background-color: #007399;
+    color: #ffffff;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease;
+    z-index: 10; /* Asegura que el botón esté por encima de otros elementos */
+}
+
+.create-order-button:hover {
+    background-color: #005f73;
 }

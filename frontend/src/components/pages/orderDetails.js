@@ -123,6 +123,14 @@ const OrderDetails = () => {
             nodeRef={containerRef}
         >
             <div ref={containerRef} className="mostrador-container editing-mode">
+                {/* Botón para crear un nuevo pedido */}
+                <button
+                    className="create-order-button-mostrador"
+                    onClick={() => navigate('/mostrador')}
+                >
+                    Crear Pedido +
+                </button>
+
                 <div className="mostrador-content">
                     <div className="mostrador-orders-list">
                         <OrderList orders={preparationOrders} />

@@ -20,6 +20,7 @@
 
 /* Modo edición */
 .order-form.editing-mode {
+    padding-top: 0;
     border: 2px solid #ffc107; /* Borde amarillo para indicar edición */
     background-color: #fffbea; /* Fondo amarillo claro */
 }
@@ -732,3 +733,4 @@
     border-top: 1px solid #ddd; /* Línea gris claro */
     margin: 5px 0; /* Espaciado arriba y abajo */
 }
+
