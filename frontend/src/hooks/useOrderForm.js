@@ -47,15 +47,15 @@ export const useOrderForm = () => {
 
         if (editingOrderId) {
             console.log(`Editando pedido con ID: ${editingOrderId} y estado: ${status}`);
-            // Aquí puedes implementar la lógica para actualizar el pedido en el backend
-            resetForm(); // Volver al estado de "Crear Pedido"
+            if (typeof resetForm === 'function') resetForm(); // Verificar si resetForm es una función
         } else {
             createOrder(newOrder, {
                 onSuccess: () => {
-                    resetForm(); // Volver al estado de "Crear Pedido"
+                    if (typeof resetForm === 'function') resetForm(); // Verificar si resetForm es una función
                 },
                 onError: (error) => {
                     console.error('Error al crear el pedido:', error);
+                    console.log('order:', newOrder);
                     alert('Hubo un error al crear el pedido. Intente nuevamente.');
                 },
             });

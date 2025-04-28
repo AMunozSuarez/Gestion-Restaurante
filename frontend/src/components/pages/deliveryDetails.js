@@ -51,7 +51,7 @@ const DeliveryDetails = () => {
         }
     }, [orderNumber, orders, setCart]);
 
-    const handleSubmit = async (e, orderData, resetForm, status = 'Preparacion') => {
+    const handleSubmit = async (e, orderData, status = 'Preparacion') => {
         e.preventDefault();
 
         const updatedOrder = {
@@ -79,7 +79,6 @@ const DeliveryDetails = () => {
                 // Invalida la consulta para recargar la lista de pedidos
                 queryClient.invalidateQueries(['orders']);
                 navigate('/delivery'); // Redirigir a la lista de pedidos después de actualizar
-                resetForm();
             } else {
                 console.error('Error al actualizar el pedido:', response.statusText);
                 alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
@@ -98,13 +97,6 @@ const DeliveryDetails = () => {
         updateOrderStatus(orderId, 'Entregado');
     };
 
-    const resetForm = () => {
-        setCustomerName('');
-        setDeliveryAddress('');
-        setSelectedPaymentMethod('');
-        setCart([]); // Limpiar el carrito en el store global
-        setEditingOrder(null);
-    };
 
     const preparationOrders = orders.filter((order) => order.section === 'delivery' && order.status === 'Preparacion');
     const completedOrders = orders.filter((order) => order.section === 'delivery' && (order.status === 'Enviado' || order.status === 'Entregado'));
@@ -142,7 +134,6 @@ const DeliveryDetails = () => {
                             increaseQuantity={increaseQuantity}
                             decreaseQuantity={decreaseQuantity}
                             removeProduct={removeProduct}
-                            resetForm={resetForm}
                         />
                         ) : (
                             <p>Selecciona un pedido para ver los detalles.</p>

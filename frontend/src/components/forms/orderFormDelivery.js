@@ -198,8 +198,11 @@ const OrderFormDelivery = ({
                         deliveryAddress,
                         paymentMethod: selectedPaymentMethod,
                         cart, // Incluye los productos del carrito
+                        section: 'delivery', // Sección del pedido
+                        status: editingOrderId ? 'Preparacion' : 'Preparacion', // Estado inicial del pedido
                     };
-                    handleSubmit(e, orderData, resetForm, editingOrderId ? 'Preparacion' : 'Preparacion');
+                    console.log('Datos del pedido:', orderData);
+                    handleSubmit(e, resetForm, orderData.status, orderData.section);
                 }}
             >
                 <div className="form-group">
