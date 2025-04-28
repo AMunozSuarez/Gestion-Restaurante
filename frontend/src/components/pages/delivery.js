@@ -72,11 +72,13 @@ const Delivery = () => {
     const handleSubmit = (orderData, resetForm, status = 'Preparacion') => {
         const deliveryOrderData = {
             ...orderData,
-            section: 'delivery',
-            deliveryAddress, // Agregar la dirección de entrega al pedido
-            phone: customerPhone, // Agregar el número de teléfono al pedido
+            deliveryAddress, // Agregar la dirección de entrega
+            phone: customerPhone, // Agregar el número de teléfono
         };
-        originalHandleSubmit(deliveryOrderData, resetForm, status, 'delivery');
+        originalHandleSubmit(deliveryOrderData, resetForm, status, 'delivery', {
+            deliveryAddress,
+            customerPhone,
+        });
     };
 
     const resetForm = () => {

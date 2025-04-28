@@ -31,11 +31,11 @@ export const useOrderForm = () => {
     }, [editingOrderId, orders, setCart]);
 
     // Función para manejar el envío del formulario
-    const handleSubmit = (e, resetForm, status = 'Preparacion', section = 'mostrador') => {
-        if (e && e.preventDefault) e.preventDefault(); // Verificar si 'e' existe antes de llamar a preventDefault
+    const handleSubmit = (e, resetForm, status = 'Preparacion', section = 'mostrador', extraData = {}) => {
+        if (e && e.preventDefault) e.preventDefault();
 
         const newOrder = {
-            section, // Ahora la sección se pasa como argumento
+            section,
             buyer: customerName,
             payment: selectedPaymentMethod,
             foods: cart.map((item) => ({
@@ -43,19 +43,19 @@ export const useOrderForm = () => {
                 quantity: item.quantity,
             })),
             status,
+            ...extraData, // Agregar datos adicionales como deliveryAddress y customerPhone
         };
 
         if (editingOrderId) {
             console.log(`Editando pedido con ID: ${editingOrderId} y estado: ${status}`);
-            if (typeof resetForm === 'function') resetForm(); // Verificar si resetForm es una función
+            if (typeof resetForm === 'function') resetForm();
         } else {
             createOrder(newOrder, {
                 onSuccess: () => {
-                    if (typeof resetForm === 'function') resetForm(); // Verificar si resetForm es una función
+                    if (typeof resetForm === 'function') resetForm();
                 },
                 onError: (error) => {
                     console.error('Error al crear el pedido:', error);
-                    console.log('order:', newOrder);
                     alert('Hubo un error al crear el pedido. Intente nuevamente.');
                 },
             });
