@@ -18,6 +18,7 @@
     gap: 20px;
     position: relative;
     overflow: hidden;
+    align-items: flex-start;
 }
 
 .creating-mode .delivery-content {
@@ -70,7 +71,7 @@
 
 .create-order-button {
     position: absolute; /* Posiciona el botón fuera del flujo normal */
-    top: 0px; /* Ajusta la posición vertical */
+    top: 20px; /* Ajusta la posición vertical */
     left: 20px; /* Ajusta la posición horizontal */
     background-color: #007399;
     color: #ffffff;

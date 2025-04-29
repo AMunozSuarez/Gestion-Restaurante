@@ -247,7 +247,6 @@ const OrderForm = ({
 
     return (
         <div className={`order-form ${isEditing ? 'editing-mode' : ''} ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`}>
-            {/* Botón para volver al estado de "Crear Pedido" */}
 
             {/* Estado del pedido */}
             <div className="order-status">
@@ -286,6 +285,7 @@ const OrderForm = ({
                             value={modalSearchQuery}
                             onChange={(e) => setModalSearchQuery(e.target.value)}
                             onFocus={() => setIsSearchFocused(true)}
+                            className={isEditing ? 'editing-input' : ''}
                         />
                         {/* Mostrar sugerencias solo si hay texto y el campo está enfocado */}
                         {modalSearchQuery && isSearchFocused && filteredProducts.length > 0 && (

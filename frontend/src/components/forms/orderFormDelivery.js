@@ -228,6 +228,7 @@ const OrderFormDelivery = ({
                         value={customerPhone} // Mostrar el valor de customerPhone
                         onChange={(e) => setCustomerPhone(e.target.value)}
                         disabled={isViewingCompletedOrder} // Deshabilitar si se está viendo un pedido completado
+                        className={isEditing ? 'editing-input' : ''}
                         required
                     />
                 </div>
@@ -239,6 +240,7 @@ const OrderFormDelivery = ({
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
                         disabled={isViewingCompletedOrder}
+                        className={isEditing ? 'editing-input' : ''}
                     />
                 </div>
 
@@ -250,6 +252,7 @@ const OrderFormDelivery = ({
                         value={deliveryAddress}
                         onChange={(e) => setDeliveryAddress(e.target.value)}
                         disabled={isViewingCompletedOrder}
+                        className={isEditing ? 'editing-input' : ''}
                         required
                     />
                 </div>
@@ -264,6 +267,7 @@ const OrderFormDelivery = ({
                             value={modalSearchQuery}
                             onChange={(e) => setModalSearchQuery(e.target.value)}
                             onFocus={() => setIsSearchFocused(true)}
+                            className={isEditing ? 'editing-input' : ''}
                         />
                         {modalSearchQuery && isSearchFocused && filteredProducts.length > 0 && (
                             <ul className="suggestions-list">
@@ -299,6 +303,7 @@ const OrderFormDelivery = ({
                         id="paymentMethod"
                         value={selectedPaymentMethod}
                         onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                        className={isEditing ? 'editing-input' : ''}
                         required
                     >
                         <option value="">Seleccione un método de pago</option>

@@ -18,6 +18,7 @@
     display: flex;
     position: relative;
     overflow: hidden;
+    align-items: flex-start;
 }
 
 /* Modo creación */
@@ -46,14 +47,14 @@
 }
 
 .create-order-button-mostrador:hover{
-    background-color: #944800;
+    background-color: #3e6844;
 }
 
 .create-order-button-mostrador {
     position: absolute; /* Posiciona el botón fuera del flujo normal */
-    top: 0px; /* Ajusta la posición vertical */
+    top: 20px; /* Ajusta la posición vertical */
     left: 20px; /* Ajusta la posición horizontal */
-    background-color: #b45a00;
+    background-color: #4e8355;
     color: #ffffff;
     border: none;
     border-radius: 5px;
