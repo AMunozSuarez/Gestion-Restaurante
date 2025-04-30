@@ -81,6 +81,14 @@ const Mostrador = () => {
         navigate(`/mostrador/${orderId}`); // Navegar al pedido en edición
     };
 
+    // Función para volver al estado de "Crear Pedido"
+        const resetForm = () => {
+            setCustomerName('');
+            setSelectedPaymentMethod('Efectivo');
+            clearCart();
+            setEditingOrderId(null);
+        };
+
     return (
         <CSSTransition
             in={true}
@@ -92,7 +100,9 @@ const Mostrador = () => {
                 {/* Botón para crear un nuevo pedido */}
                 <button
                     className="create-order-button-mostrador"
-                    onClick={() => navigate('/mostrador')}
+                    onClick={() => {
+                        resetForm(); // Restablecer el formulario al crear un nuevo pedido
+                        navigate('/mostrador');}}
                 >
                     Crear Pedido +
                 </button>
@@ -111,6 +121,7 @@ const Mostrador = () => {
                             isViewingCompletedOrder={isViewingCompletedOrder}
                             markAsCompleted={markAsCompleted}
                             cancelOrder={cancelOrder} // Asegúrate de pasar esta función
+                            resetForm={resetForm} // Asegúrate de pasar esta función
                         />
                     </div>
 

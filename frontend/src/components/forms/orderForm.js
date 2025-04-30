@@ -19,8 +19,10 @@ const OrderForm = ({
     editingOrderId,
     setEditingOrderId,
     isViewingCompletedOrder,
+    resetForm,
     markAsCompleted, // Función para cerrar el pedido
     cancelOrder, // Función para cancelar el pedido
+    
 }) => {
     const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Incluye setCart
     const { isSearchFocused, setIsSearchFocused } = useUIStore(); // Estados de UI desde Zustand
@@ -72,13 +74,7 @@ const OrderForm = ({
         }
     }, [editingOrderId]);
 
-    // Función para volver al estado de "Crear Pedido"
-    const resetForm = () => {
-        setCustomerName('');
-        setSelectedPaymentMethod('Efectivo');
-        clearCart();
-        setEditingOrderId(null);
-    };
+    
 
     // Ocultar sugerencias al hacer clic fuera del campo de búsqueda
     useEffect(() => {

@@ -82,6 +82,7 @@ const OrderFormDelivery = ({
     const resetForm = () => {
         setCustomerName('');
         setDeliveryAddress('');
+        setCustomerPhone('');
         setSelectedPaymentMethod('Efectivo');
         clearCart(); // Limpiar el carrito
         setEditingOrderId(null); // Restablecer el ID del pedido en edición
