@@ -60,25 +60,25 @@
 
 /* Formulario Principal */
 .order-form .form-group {
-    margin-top: 10px;
-    margin-bottom: 20px;
+    display: flex; /* Alinea los elementos en una fila */
+    align-items: center; /* Centra verticalmente los elementos */
+    justify-content: flex-start; /* Alinea los elementos al inicio */
+    gap: 10px; /* Espaciado entre el label y el input */
+    margin-bottom: 15px; /* Espaciado inferior entre grupos */
 }
 
 .order-form .form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #4d2600; /* Marrón oscuro */
-    font-size: 15px;
+    width: 200px; /* Ancho fijo para los labels */
+    text-align: right; /* Alinea el texto del label a la derecha */
+    font-weight: bold; /* Negrita para los labels */
 }
 
 .order-form .form-group input,
 .order-form .form-group select {
-    width: 95%;
+    flex: 1; /* Permite que los inputs ocupen el espacio restante */
     padding: 5px;
     border: 1px solid #ccc;
     border-radius: 5px;
-    font-family: 'Poppins', Arial, sans-serif; /* Fuente consistente */
     font-size: 14px;
     color: #333; /* Texto oscuro */
 }
@@ -606,43 +606,6 @@
     background-color: #0056b3;
 }
 
-.cart-item {
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
-    display: flex;
-    flex-direction: column; /* Asegura que los elementos se apilen verticalmente */
-}
-
-.cart-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    width: 100%; /* Asegura que ocupe todo el ancho */
-}
-
-.cart-quantity {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.cart-quantity button {
-    padding: 5px 10px;
-    border: none;
-    border-radius: 5px;
-    background-color: #007bff;
-    color: white;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.3s ease;
-}
-
-.cart-quantity button:hover {
-    background-color: #0056b3;
-}
-
 .cart-comment {
     background: none;
     border: none;
@@ -735,3 +698,19 @@
     margin: 5px 0; /* Espaciado arriba y abajo */
 }
 
+.order-form .form-group.search-group {
+    display: block; /* Cambia a diseño en bloque */
+}
+
+.order-form .form-group.search-group label {
+    margin-bottom: 5px; /* Espaciado entre el label y el input */
+    text-align: left; /* Alinea el texto del label a la izquierda */
+}
+
+.order-form .form-group.search-group input {
+    width: 100%; /* Asegura que el input ocupe todo el ancho */
+}
+
+.payment-method {
+    margin-top: 15px;
+}

@@ -276,7 +276,7 @@ const OrderForm = ({
 
                 {/* Campo de búsqueda de productos */}
                 {!isViewingCompletedOrder && (
-                    <div className="form-group">
+                    <div className="form-group search-group">
                         <label htmlFor="searchQuery">Buscar Productos:</label>
                         <input
                             type="text"
@@ -318,7 +318,7 @@ const OrderForm = ({
                 </div>
 
                 {/* Método de pago */}
-                <div className="form-group">
+                <div className="form-group payment-method">
                     <label htmlFor="paymentMethod">Método de Pago:</label>
                     <select
                         id="paymentMethod"
