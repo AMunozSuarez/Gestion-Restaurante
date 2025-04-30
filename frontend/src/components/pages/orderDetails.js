@@ -100,7 +100,7 @@ const OrderDetails = () => {
                     updateOrderInList(response.data.order);
                 }
                 queryClient.invalidateQueries(['orders']);
-                navigate('/mostrador');
+                // navigate('/mostrador');
             } else {
                 alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
             }

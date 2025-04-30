@@ -424,7 +424,9 @@ const OrderForm = ({
                 >
                     <div className="modal-content modal-actions">
                         <h3>¿Estás seguro de que deseas cancelar el pedido?</h3>
-                        <button onClick={() => handleSubmit(null, 'Cancelado')}>Sí, cancelar</button>
+                        <button onClick={() => {
+                            handleSubmit(null, 'Cancelado');
+                            setIsCancelModalOpen(false)}}>Sí, cancelar</button>
                         <button onClick={() => setIsCancelModalOpen(false)}>No, volver</button>
                     </div>
                 </div>

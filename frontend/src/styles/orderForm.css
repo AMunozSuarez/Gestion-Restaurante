@@ -7,7 +7,7 @@
     font-family: 'Poppins', Arial, sans-serif; /* Fuente consistente */
     font-size: 14px;
     color: #4d2600; /* Marrón oscuro */
-    margin-bottom: 20px;
+    margin-bottom: 5px;
     transition: all 0.3s ease-in-out;
 }
 
@@ -262,7 +262,6 @@
     align-items: center;
     padding: 10px;
     padding-bottom: 0;
-    border-bottom: 1px solid #eee;
     font-size: 14px;
     font-family: 'Poppins', Arial, sans-serif;
     flex-direction: column; /* Asegura que los elementos se apilen verticalmente */
@@ -436,6 +435,13 @@
     background-color: #c82333; /* Rojo más oscuro */
 }
 
+.modal-content.modal-actions {
+    top: 250px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
 
 .modal-actions button {
     margin: 10px;
@@ -453,6 +459,10 @@
 .modal-actions button:last-child {
     background-color: #6c757d; /* Gris */
     color: white;
+}
+
+.modal-actions button:hover {
+    opacity: 0.8; /* Efecto de opacidad al pasar el cursor */
 }
 
 .cart-row {
