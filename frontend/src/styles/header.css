@@ -2,7 +2,7 @@
 header {
     background-color: #4d2600; /* Marrón oscuro */
     color: white;
-    padding: 15px 20px; /* Reducir el padding para un diseño más compacto */
+    padding: 10px 20px; /* Reducir el padding para un diseño más compacto */
     font-family: 'Poppins', Arial, sans-serif; /* Fuente moderna */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Sombra para dar profundidad */
     top: 0;
