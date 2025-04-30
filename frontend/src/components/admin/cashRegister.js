@@ -233,7 +233,7 @@ const CashRegister = () => {
             {/* Modal para crear una nueva caja */}
             {isModalOpen && (
                 <div className="modal">
-                    <div className="modal-content">
+                    <div className="modal-content-cashregister">
                         <h3>Crear Nueva Caja</h3>
                         <form onSubmit={handleCreateCashRegister}>
                             <input

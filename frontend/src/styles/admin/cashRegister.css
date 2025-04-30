@@ -181,7 +181,7 @@
     align-items: center;
 }
 
-.modal-content {
+.modal-content-cashregister {
     background-color: white;
     padding: 20px;
     border-radius: 5px;
@@ -189,25 +189,41 @@
     text-align: center;
 }
 
-.modal-content form {
+.modal-content-cashregister form {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-.modal-content button {
+.modal-content-cashregister h3 {
+    margin-bottom: 20px;
+    color: #3b2108;
+}
+
+
+.modal-content-cashregister input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.modal-content-cashregister button {
     padding: 10px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
 }
 
-.modal-content button[type="submit"] {
+.modal-content-cashregister button[type="submit"] {
     background-color: #28a745;
     color: white;
 }
 
-.modal-content button[type="button"] {
+.modal-content-cashregister button[type="button"] {
     background-color: #dc3545;
     color: white;
+}
+
+.modal-content-cashregister button:hover {
+    opacity: 0.8;
 }
