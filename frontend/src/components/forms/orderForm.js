@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import useCartStore from '../../store/useCartStore'; // Store para manejar el carrito
 import useUIStore from '../../store/useUiStore'; // Store para manejar estados de UI
 import { useProducts } from '../../hooks/useProducts'; // Hook para manejar productos
@@ -363,53 +364,55 @@ const OrderForm = ({
             
 
             {/* Modal para seleccionar productos */}
-            {isModalOpen && (
-                <div
-                    className="modal"
-                    onClick={(e) => {
-                        // Cerrar la modal si se hace clic fuera del contenido
-                        if (e.target.classList.contains('modal')) {
-                            setIsModalOpen(false);
-                        }
-                    }}
-                >
-                    <div className="modal-content">
-                        <h3>Seleccionar Productos</h3>
-                        <input
-                            type="text"
-                            placeholder="Buscar productos..."
-                            value={modalSearchQuery}
-                            onChange={(e) => setModalSearchQuery(e.target.value)}
-                        />
-                        <div className="categories">
-                            <button
-                                className={categoryFilter === '' ? 'active' : ''}
-                                onClick={() => setCategoryFilter('')}
-                            >
-                                Todas
-                            </button>
-                            {categories.map((category, index) => (
+            {isModalOpen &&
+                ReactDOM.createPortal(
+                    <div
+                        className="modal"
+                        onClick={(e) => {
+                            // Cerrar la modal si se hace clic fuera del contenido
+                            if (e.target.classList.contains('modal')) {
+                                setIsModalOpen(false);
+                            }
+                        }}
+                    >
+                        <div className="modal-content">
+                            <h3>Seleccionar Productos</h3>
+                            <input
+                                type="text"
+                                placeholder="Buscar productos..."
+                                value={modalSearchQuery}
+                                onChange={(e) => setModalSearchQuery(e.target.value)}
+                            />
+                            <div className="categories">
                                 <button
-                                    key={`${category._id}-${index}`}
-                                    className={categoryFilter === category._id ? 'active' : ''}
-                                    onClick={() => setCategoryFilter(category._id)}
+                                    className={categoryFilter === '' ? 'active' : ''}
+                                    onClick={() => setCategoryFilter('')}
                                 >
-                                    {category.title}
+                                    Todas
                                 </button>
-                            ))}
+                                {categories.map((category, index) => (
+                                    <button
+                                        key={`${category._id}-${index}`}
+                                        className={categoryFilter === category._id ? 'active' : ''}
+                                        onClick={() => setCategoryFilter(category._id)}
+                                    >
+                                        {category.title}
+                                    </button>
+                                ))}
+                            </div>
+                            <ul className="products-list">
+                                {filteredProducts.map((product, index) => (
+                                    <li key={`${product._id}-${index}`} onClick={() => addToCart(product)}>
+                                        <span>{product.title}</span>
+                                        <span>${product.price}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <button onClick={() => setIsModalOpen(false)}>Cerrar</button>
                         </div>
-                        <ul className="products-list">
-                            {filteredProducts.map((product, index) => (
-                                <li key={`${product._id}-${index}`} onClick={() => addToCart(product)}>
-                                    <span>{product.title}</span>
-                                    <span>${product.price}</span>
-                                </li>
-                            ))}
-                        </ul>
-                        <button onClick={() => setIsModalOpen(false)}>Cerrar</button>
-                    </div>
-                </div>
-            )}
+                    </div>,
+                    document.getElementById('modal-root') // Renderizar en el nodo modal-root
+                )}
 
             {/* Modal para cancelar el pedido */}
             {isCancelModalOpen && (
