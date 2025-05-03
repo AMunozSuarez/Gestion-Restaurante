@@ -55,8 +55,9 @@ const DeliveryDetails = () => {
     }, [orderNumber, orders, setCart]);
 
     const handleSubmit = async (e, orderData, status = 'Preparacion') => {
-        e.preventDefault();
-
+        if (e) {
+            e.preventDefault();
+        }
         const updatedOrder = {
             _id: editingOrder._id, // Asegúrate de incluir el _id del pedido
             buyer: customerName, // Nombre del cliente

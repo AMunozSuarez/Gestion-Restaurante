@@ -67,7 +67,7 @@ const Delivery = () => {
 
     const preparationOrders = deliveryOrders.filter((order) => order.status === 'Preparacion');
     const sentOrders = deliveryOrders.filter((order) => order.status === 'Enviado');
-    const deliveredOrders = deliveryOrders.filter((order) => order.status === 'Entregado');
+    const deliveredOrders = deliveryOrders.filter((order) => order.status === 'Enviado');
 
     const handleSubmit = (orderData, resetForm, status = 'Preparacion') => {
         const deliveryOrderData = {
@@ -155,34 +155,24 @@ const Delivery = () => {
                         />
                     </div>
 
-                    {editingOrderId && (
-                        <div className="delivery-orders-list">
-                            <OrderListDelivery
-                                orders={preparationOrders}
-                                setEditingOrderId={setEditingOrderId}
-                            />
-                        </div>
-                    )}
 
-                    {!editingOrderId && (
                         <div className="delivery-orders-list">
                             <OrderListDelivery
                                 orders={preparationOrders}
                                 setEditingOrderId={setEditingOrderId}
                             />
                         </div>
-                    )}
+                    
+
                 </div>
 
-                {!editingOrderId && (
                     <div className="delivery-completed-orders">
                         <CompletedOrdersList
-                            orders={[...sentOrders, ...deliveredOrders]}
+                            orders={deliveredOrders}
                             onSelectOrder={handleSelectDeliveredOrder}
                             selectedOrderId={selectedOrderId}
                         />
                     </div>
-                )}
             </div>
         </CSSTransition>
     );

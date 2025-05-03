@@ -9,6 +9,7 @@ import '../../styles/orderForm.css'; // Estilos específicos del formulario de p
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
+import { closeOrder } from '../../api/cashApi'; // Importa la función para cerrar el pedido
 
 const OrderFormDelivery = ({
     customerName,
@@ -31,13 +32,13 @@ const OrderFormDelivery = ({
     const { products, isLoading: productsLoading } = useProducts(); // Productos
     const { categories, isLoading: categoriesLoading } = useCategories(); // Categorías
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false); // Modal para productos
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); // Modal para cancelar pedido
     const [categoryFilter, setCategoryFilter] = useState('');
     const [modalSearchQuery, setModalSearchQuery] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [cartTotal, setCartTotal] = useState(0);
     const [isEditing, setIsEditing] = useState(!!editingOrderId);
-    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const navigate = useNavigate();
 
     const searchInputRef = useRef(null);
@@ -50,8 +51,12 @@ const OrderFormDelivery = ({
     }, [cart]);
 
     useEffect(() => {
-            console.log('Estado del carrito:', cart);
-        }, [cart]);
+        if (editingOrderId) {
+            setIsEditing(true);
+        } else {
+            setIsEditing(false);
+        }
+    }, [editingOrderId]);
 
     // Filtrar productos por categoría o búsqueda
     useEffect(() => {
@@ -114,7 +119,45 @@ const OrderFormDelivery = ({
             searchInputRef.current.focus();
         }
     };
+    // Función para cerrar el pedido
+    const handleCloseOrder = async () => {
+        try {
 
+            if (!selectedPaymentMethod) {
+                alert('Por favor, selecciona un método de pago.');
+                return;
+            }
+
+            const orderData = {
+                total: cartTotal,
+                paymentMethod: selectedPaymentMethod,
+                items: cart.map((item) => ({
+                    productId: item._id,
+                    quantity: item.quantity,
+                    price: item.price,
+                })),
+            };
+
+            console.log('Cerrando pedido:', orderData);
+
+            // Enviar la solicitud al backend
+            const response = await closeOrder(orderData);
+            if (response.status === 201) {
+            // Simula el cierre del pedido
+            alert('Pedido cerrado correctamente.');
+            clearCart(); // Limpia el carrito
+            setCustomerName(''); // Limpia el nombre del cliente
+            setDeliveryAddress(''); // Limpia la dirección de entrega
+            setSelectedPaymentMethod(''); // Limpia el método de pago
+            setEditingOrderId(null); // Restablece el ID del pedido en edición
+
+            handleSubmit(null, resetForm, 'Enviado', 'delivery'); // Llama a la función de envío con los datos del pedido
+            }
+        } catch (error) {
+            console.error('Error al cerrar el pedido:', error);
+            alert('Hubo un error al cerrar el pedido. Inténtalo nuevamente.');
+        }
+    };
     // Mostrar el carrito
     const renderCart = () => {
         if (!Array.isArray(cart) || cart.length === 0) {
@@ -227,9 +270,9 @@ const OrderFormDelivery = ({
                     <input
                         type="text"
                         id="customerPhone"
-                        value={customerPhone} // Mostrar el valor de customerPhone
+                        value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
-                        disabled={isViewingCompletedOrder} // Deshabilitar si se está viendo un pedido completado
+                        disabled={isViewingCompletedOrder}
                         className={isEditing ? 'editing-input' : ''}
                         required
                     />
@@ -322,7 +365,54 @@ const OrderFormDelivery = ({
                 )}
             </form>
 
-            {/* Modal usando React Portals */}
+            {/* Botones adicionales para cerrar o cancelar el pedido */}
+            {!isViewingCompletedOrder && editingOrderId && (
+                <div className="form-actions">
+                    <button
+                        type="button"
+                        className="mark-completed-button"
+                        onClick={handleCloseOrder}
+                    >
+                        Cerrar Pedido
+                    </button>
+                    <button
+                        type="button"
+                        className="cancel-order-button"
+                        onClick={() => setIsCancelModalOpen(true)}
+                    >
+                        Cancelar Pedido
+                    </button>
+                </div>
+            )}
+
+            {/* Modal para cancelar el pedido */}
+            {isCancelModalOpen &&
+                ReactDOM.createPortal(
+                    <div
+                        className="modal"
+                        onClick={(e) => {
+                            if (e.target.classList.contains('modal')) {
+                                setIsCancelModalOpen(false);
+                            }
+                        }}
+                    >
+                        <div className="modal-content modal-actions">
+                            <h3>¿Estás seguro de que deseas cancelar el pedido?</h3>
+                            <button
+                                onClick={() => {
+                                    cancelOrder(editingOrderId);
+                                    setIsCancelModalOpen(false);
+                                }}
+                            >
+                                Sí, cancelar
+                            </button>
+                            <button onClick={() => setIsCancelModalOpen(false)}>No, volver</button>
+                        </div>
+                    </div>,
+                    document.getElementById('modal-root')
+                )}
+
+            {/* Modal para productos */}
             {isModalOpen &&
                 ReactDOM.createPortal(
                     <div
@@ -369,7 +459,7 @@ const OrderFormDelivery = ({
                             <button onClick={() => setIsModalOpen(false)}>Cerrar</button>
                         </div>
                     </div>,
-                    document.getElementById('modal-root') // Renderizar en el nodo modal-root
+                    document.getElementById('modal-root')
                 )}
         </div>
     );

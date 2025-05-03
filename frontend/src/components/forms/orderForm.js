@@ -21,9 +21,6 @@ const OrderForm = ({
     setEditingOrderId,
     isViewingCompletedOrder,
     resetForm,
-    markAsCompleted, // Función para cerrar el pedido
-    cancelOrder, // Función para cancelar el pedido
-    
 }) => {
     const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Incluye setCart
     const { isSearchFocused, setIsSearchFocused } = useUIStore(); // Estados de UI desde Zustand
@@ -221,6 +218,7 @@ const OrderForm = ({
                     price: item.price,
                 })),
             };
+            console.log('Cerrando pedido con datos:', orderData);
 
             // Enviar la solicitud al backend
             const response = await closeOrder(orderData);
