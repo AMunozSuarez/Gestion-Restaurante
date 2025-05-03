@@ -585,7 +585,7 @@
 }
 
 .order-form .form-group.search-group input {
-    width: 100%; /* Asegura que el input ocupe todo el ancho */
+    width: 98%; /* Asegura que el input ocupe todo el ancho */
 }
 
 .payment-method {
