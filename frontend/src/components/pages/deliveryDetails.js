@@ -16,6 +16,7 @@ const DeliveryDetails = () => {
     const { cart, setCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Usar el store global
     const [editingOrder, setEditingOrder] = useState(null);
     const [deliveryAddress, setDeliveryAddress] = useState('');
+    const [deliveryCost, setDeliveryCost] = useState(''); // Estado para el costo de envío
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState(''); // Estado para el número de teléfono
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
@@ -34,6 +35,7 @@ const DeliveryDetails = () => {
             setSelectedPaymentMethod(foundOrder.payment);
             setDeliveryAddress(foundOrder.deliveryAddress || '');
             setCustomerPhone(foundOrder.customerPhone || ''); // Cargar el número de teléfono
+            setDeliveryCost(foundOrder.deliveryCost || ''); // Cargar el costo de envío
             const cartItems = foundOrder.foods.map((item) => ({
                 _id: item.food._id,
                 title: item.food.title,
@@ -69,6 +71,7 @@ const DeliveryDetails = () => {
             })), // Productos en el carrito
             section: 'delivery', // Sección del pedido
             deliveryAddress, // Dirección de entrega
+            deliveryCost: Number(deliveryCost) || 0, // Costo de envío (asegúrate de convertirlo a número)
             status, // Estado del pedido
             customerPhone
         };
@@ -139,6 +142,8 @@ const DeliveryDetails = () => {
                                 setCustomerPhone={setCustomerPhone}
                                 deliveryAddress={deliveryAddress}
                                 setDeliveryAddress={setDeliveryAddress}
+                                deliveryCost={deliveryCost} // Pasa el estado del costo de envío
+                                setDeliveryCost={setDeliveryCost} // Pasa la función para actualizar el costo de envío
                                 selectedPaymentMethod={selectedPaymentMethod}
                                 setSelectedPaymentMethod={setSelectedPaymentMethod}
                                 handleSubmit={handleSubmit}

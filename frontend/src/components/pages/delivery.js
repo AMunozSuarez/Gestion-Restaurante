@@ -22,6 +22,7 @@ const Delivery = () => {
     } = useOrderForm();
     const { setCartContext, clearCart, setCart } = useCartStore();
     const [deliveryAddress, setDeliveryAddress] = useState(''); // Estado para la dirección de entrega
+    const [deliveryCost, setDeliveryCost] = useState(''); // Estado para el costo de envío
     const [customerPhone, setCustomerPhone] = useState(''); // Estado para el número de teléfono
     const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -72,12 +73,14 @@ const Delivery = () => {
     const handleSubmit = (orderData, resetForm, status = 'Preparacion') => {
         const deliveryOrderData = {
             ...orderData,
+            deliveryCost: Number(deliveryCost) || 0, // Costo de envío (asegúrate de convertirlo a número)
             deliveryAddress, // Agregar la dirección de entrega
             phone: customerPhone, // Agregar el número de teléfono
         };
         originalHandleSubmit(deliveryOrderData, resetForm, status, 'delivery', {
             deliveryAddress,
             customerPhone,
+            deliveryCost
         });
     };
 
@@ -145,6 +148,8 @@ const Delivery = () => {
                             setCustomerPhone={setCustomerPhone}
                             deliveryAddress={deliveryAddress}
                             setDeliveryAddress={setDeliveryAddress}
+                            deliveryCost={deliveryCost} // Pasa el estado del costo de envío
+                            setDeliveryCost={setDeliveryCost} // Pasa la función para actualizar el costo de envío
                             selectedPaymentMethod={selectedPaymentMethod}
                             setSelectedPaymentMethod={setSelectedPaymentMethod}
                             handleSubmit={handleSubmit}

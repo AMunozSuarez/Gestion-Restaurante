@@ -18,6 +18,8 @@ const OrderFormDelivery = ({
     setCustomerPhone,
     deliveryAddress,
     setDeliveryAddress,
+    deliveryCost, // Nuevo estado para el costo de envío
+    setDeliveryCost, // Función para actualizar el costo de envío
     selectedPaymentMethod,
     setSelectedPaymentMethod,
     handleSubmit,
@@ -89,6 +91,7 @@ const OrderFormDelivery = ({
         setCustomerName('');
         setDeliveryAddress('');
         setCustomerPhone('');
+        setDeliveryCost(''); // Restablecer el costo de envío
         setSelectedPaymentMethod('Efectivo');
         clearCart(); // Limpiar el carrito
         setEditingOrderId(null); // Restablecer el ID del pedido en edición
@@ -122,36 +125,35 @@ const OrderFormDelivery = ({
     // Función para cerrar el pedido
     const handleCloseOrder = async () => {
         try {
-
             if (!selectedPaymentMethod) {
                 alert('Por favor, selecciona un método de pago.');
                 return;
             }
-
+    
             const orderData = {
-                total: cartTotal,
+                total: cartTotal + (Number(deliveryCost) || 0), // Asegurarse de que sea un número
                 paymentMethod: selectedPaymentMethod,
                 items: cart.map((item) => ({
                     productId: item._id,
                     quantity: item.quantity,
                     price: item.price,
                 })),
+                deliveryCost: Number(deliveryCost) || 0, // Convertir a número
             };
-
+    
             console.log('Cerrando pedido:', orderData);
-
+    
             // Enviar la solicitud al backend
             const response = await closeOrder(orderData);
             if (response.status === 201) {
-            // Simula el cierre del pedido
-            alert('Pedido cerrado correctamente.');
-            clearCart(); // Limpia el carrito
-            setCustomerName(''); // Limpia el nombre del cliente
-            setDeliveryAddress(''); // Limpia la dirección de entrega
-            setSelectedPaymentMethod(''); // Limpia el método de pago
-            setEditingOrderId(null); // Restablece el ID del pedido en edición
-
-            handleSubmit(null, resetForm, 'Enviado', 'delivery'); // Llama a la función de envío con los datos del pedido
+                alert('Pedido cerrado correctamente.');
+                clearCart();
+                setCustomerName('');
+                setDeliveryAddress('');
+                setDeliveryCost(''); // Limpia el costo de envío
+                setSelectedPaymentMethod('');
+                setEditingOrderId(null);
+                handleSubmit(null, resetForm, 'Enviado', 'delivery');
             }
         } catch (error) {
             console.error('Error al cerrar el pedido:', error);
@@ -256,13 +258,14 @@ const OrderFormDelivery = ({
                     const orderData = {
                         customerName,
                         deliveryAddress,
+                        deliveryCost,
                         paymentMethod: selectedPaymentMethod,
                         cart, // Incluye los productos del carrito
                         section: 'delivery', // Sección del pedido
                         status: editingOrderId ? 'Preparacion' : 'Preparacion', // Estado inicial del pedido
                     };
                     console.log('Datos del pedido:', orderData);
-                    handleSubmit(e, resetForm, orderData.status, orderData.section);
+                    handleSubmit(e, resetForm, orderData.status, orderData.section, orderData.deliveryCost);
                 }}
             >
                 <div className="form-group">
@@ -296,6 +299,20 @@ const OrderFormDelivery = ({
                         id="deliveryAddress"
                         value={deliveryAddress}
                         onChange={(e) => setDeliveryAddress(e.target.value)}
+                        disabled={isViewingCompletedOrder}
+                        className={isEditing ? 'editing-input' : ''}
+                        required
+                    />
+                </div>
+
+                {/* Nuevo campo para el costo de envío */}
+                <div className="form-group">
+                    <label htmlFor="deliveryCost">Costo de Envío:</label>
+                    <input
+                        type="number"
+                        id="deliveryCost"
+                        value={deliveryCost}
+                        onChange={(e) => setDeliveryCost(Number(e.target.value))} // Convertir a número
                         disabled={isViewingCompletedOrder}
                         className={isEditing ? 'editing-input' : ''}
                         required
@@ -338,8 +355,8 @@ const OrderFormDelivery = ({
                     <h3>Carrito</h3>
                     {renderCart()}
                     <div className="cart-total">
-                        <strong>Total: ${cartTotal.toFixed(0)}</strong>
-                    </div>
+    <strong>Total: ${(cartTotal + (Number(deliveryCost) || 0)).toFixed(0)}</strong>
+</div>
                 </div>
 
                 <div className="form-group payment-method">

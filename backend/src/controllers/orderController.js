@@ -5,7 +5,7 @@ const foodModel = require('../models/foodModel'); // Importar el modelo de alime
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, buyer, customerPhone, section, status, deliveryAddress } = req.body;
+        const { foods, payment, buyer, customerPhone, section, status, deliveryAddress, deliveryCost } = req.body;
 
         // Validar que los alimentos existan y pertenezcan al restaurante del usuario
         const foodIds = foods.map((item) => item.food);
@@ -22,7 +22,7 @@ const createOrderController = async (req, res) => {
         const total = foods.reduce((sum, item) => {
             const foodDetails = existingFoods.find((food) => food._id.toString() === item.food);
             return sum + (foodDetails.price * item.quantity);
-        }, 0);
+        }, 0) + (deliveryCost || 0); // Sumar el costo de envío al total
 
         // Obtener el último número de orden para este restaurante
         const lastOrder = await orderModel.findOne({ restaurant: req.user.restaurant }).sort({ orderNumber: -1 });
@@ -34,6 +34,7 @@ const createOrderController = async (req, res) => {
             foods,
             payment,
             total,
+            deliveryCost, // Agregar el costo de envío
             buyer,
             customerPhone,
             section,
@@ -43,6 +44,7 @@ const createOrderController = async (req, res) => {
         });
 
         await order.save();
+        console.log('Pedido guardado:', order);
 
         res.status(201).send({
             success: true,
@@ -130,7 +132,7 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, customerPhone, foods, payment, section, status, deliveryAddress } = req.body;
+        const { buyer, customerPhone, foods, payment, section, status, deliveryAddress, deliveryCost } = req.body;
 
         // Validar que el pedido pertenezca al restaurante del usuario
         const order = await orderModel.findOne({ _id: req.params.id, restaurant: req.user.restaurant });
@@ -156,7 +158,7 @@ const updateOrderController = async (req, res) => {
         const total = foods.reduce((sum, item) => {
             const foodDetails = existingFoods.find((food) => food._id.toString() === item.food);
             return sum + (foodDetails.price * item.quantity);
-        }, 0);
+        }, 0) + (deliveryCost || 0); // Sumar el costo de envío al total
 
         // Actualizar la orden
         const updatedOrder = await orderModel.findByIdAndUpdate(
@@ -168,6 +170,7 @@ const updateOrderController = async (req, res) => {
                 payment,
                 section,
                 total,
+                deliveryCost, // Actualizar el costo de envío
                 status,
                 deliveryAddress: section === 'delivery' ? deliveryAddress : undefined, // Solo actualizar dirección si es delivery
             },

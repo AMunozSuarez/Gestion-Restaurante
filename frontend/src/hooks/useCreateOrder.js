@@ -9,7 +9,9 @@ export const useCreateOrder = () => {
         mutationFn: async (newOrder) => {
             try {
                 const response = await axios.post('/order/create', newOrder);
+                console.log('Pedido creado:', response.data.order);
                 return response.data;
+                
             } catch (error) {
                 console.error('Error en la solicitud al backend:', error.response?.data || error.message);
                 throw error;

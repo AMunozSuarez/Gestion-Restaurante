@@ -20,6 +20,10 @@ const orderSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    deliveryCost: { // Nuevo campo para el costo de envío
+        type: Number,
+        default: 0, // Valor predeterminado si no se proporciona
+    },
     buyer: {
         type: String,
     },

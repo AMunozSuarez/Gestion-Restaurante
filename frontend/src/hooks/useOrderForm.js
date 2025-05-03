@@ -10,6 +10,7 @@ export const useOrderForm = () => {
     const [customerName, setCustomerName] = useState(''); // Estado para el nombre del cliente
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Efectivo'); // Estado para el método de pago
     const [editingOrderId, setEditingOrderId] = useState(null); // ID del pedido que se está editando
+    const [deliveryCost, setDeliveryCost] = useState(''); // Estado para el costo de envío
 
     // Cargar los datos del pedido seleccionado para editar
     useEffect(() => {
@@ -43,9 +44,11 @@ export const useOrderForm = () => {
                 quantity: item.quantity,
             })),
             status,
-            ...extraData, // Agregar datos adicionales como deliveryAddress y customerPhone
+            deliveryCost: Number(deliveryCost) || 0, // Convertir a número
+            ...extraData, // Fusionar datos adicionales como deliveryAddress y customerPhone
         };
 
+        console.log('Datos preparados para enviar:', newOrder);
 
         if (editingOrderId) {
             console.log(`Editando pedido con ID: ${editingOrderId} y estado: ${status}`);
@@ -71,5 +74,7 @@ export const useOrderForm = () => {
         selectedPaymentMethod,
         setSelectedPaymentMethod,
         handleSubmit,
+        deliveryCost,
+        setDeliveryCost,
     };
 };
