@@ -247,7 +247,7 @@
 }
 
 .order-form button[type="submit"]:hover {
-    background-color: #e65c00; /* Naranja más oscuro */
+    opacity: 0.8; /* Efecto de opacidad al pasar el cursor */
 }
 
 /* Contenedor del carrito */
