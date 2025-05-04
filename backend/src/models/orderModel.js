@@ -5,55 +5,46 @@ const orderSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
-    foods: [{
-        food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
-        quantity: { type: Number, required: true },
-        comment: { type: String, default: '' } // Nuevo campo para comentarios
-    }],
+    foods: [
+        {
+            food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
+            quantity: { type: Number, required: true },
+            comment: { type: String, default: '' },
+        },
+    ],
     payment: {
         type: String,
         enum: ['Efectivo', 'Debito', 'Transferencia'],
         default: 'Efectivo',
-        required: [true, 'Please select a payment method']
+        required: [true, 'Please select a payment method'],
     },
     total: {
         type: Number,
-        required: true
-    },
-    deliveryCost: { // Nuevo campo para el costo de envío
-        type: Number,
-        default: 0, // Valor predeterminado si no se proporciona
+        required: true,
     },
     buyer: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Customer', // Referencia al modelo de clientes
+        required: true,
     },
-    customerPhone: {
-        type: String,
-    },
-    deliveryAddress: {
-        type: String,
-        validate: {
-            validator: function () {
-                // Solo es requerido si la sección es "delivery"
-                return this.section !== 'delivery' || (this.deliveryAddress && this.deliveryAddress.trim().length > 0);
-            },
-            message: 'La dirección de entrega es obligatoria para pedidos de delivery.'
-        }
+    selectedAddress: {
+        type: String, // Almacena la dirección seleccionada del cliente
+        required: true,
     },
     section: {
         type: String,
         enum: ['delivery', 'mostrador'],
-        required: true
+        required: true,
     },
     status: {
         type: String,
         enum: ['Preparacion', 'En camino', 'Enviado', 'Cancelado', 'Completado'],
-        default: 'Preparacion'
+        default: 'Preparacion',
     },
     restaurant: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Restaurant',
-        required: true
+        required: true,
     },
 }, { timestamps: true });
 

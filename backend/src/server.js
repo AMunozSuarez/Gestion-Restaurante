@@ -25,6 +25,7 @@ app.use('/api/food', require('./routes/foodRoutes')); // Use the food routes
 app.use('/api/order', require('./routes/orderRoutes')); // Use the order routes
 app.use('/api/report', require('./routes/reportRoutes')); // Use the report routes
 app.use('/api/cash', require('./routes/cashRoutes')); // Use the cash register routes
+app.use('/api/customer', require('./routes/customerRoutes')); // Use the customer routes
 
 
 
