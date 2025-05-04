@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useOrders } from '../../hooks/useOrders';
 import { useOrderForm } from '../../hooks/useOrderForm';
-import OrderFormDelivery from '../forms/orderFormDelivery'; // Importar el nuevo formulario especializado
+import OrderFormDelivery from '../forms/orderFormDelivery'; // Importar el formulario especializado
 import CompletedOrdersList from '../lists/completedOrdersList';
 import '../../styles/delivery.css';
 import useCartStore from '../../store/useCartStore';
@@ -14,16 +14,21 @@ const Delivery = () => {
     const {
         customerName,
         setCustomerName,
+        customerPhone,
+        setCustomerPhone,
+        deliveryAddress,
+        setDeliveryAddress,
+        deliveryCost,
+        setDeliveryCost,
         selectedPaymentMethod,
         setSelectedPaymentMethod,
-        handleSubmit: originalHandleSubmit,
+        handleSubmit,
         editingOrderId,
         setEditingOrderId,
-    } = useOrderForm();
+        comment,
+        setComment,
+    } = useOrderForm(); // Usar el hook actualizado
     const { setCartContext, clearCart, setCart } = useCartStore();
-    const [deliveryAddress, setDeliveryAddress] = useState(''); // Estado para la dirección de entrega
-    const [deliveryCost, setDeliveryCost] = useState(''); // Estado para el costo de envío
-    const [customerPhone, setCustomerPhone] = useState(''); // Estado para el número de teléfono
     const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState(null);
     const navigate = useNavigate();
@@ -41,16 +46,19 @@ const Delivery = () => {
             if (foundOrder) {
                 setEditingOrderId(foundOrder._id);
                 setSelectedOrderId(foundOrder._id);
-                setCustomerName(foundOrder.buyer);
+                setCustomerName(foundOrder.buyer.name);
+                setCustomerPhone(foundOrder.buyer.phone);
+                setDeliveryAddress(foundOrder.selectedAddress || '');
+                setDeliveryCost(foundOrder.buyer.deliveryAddress.deliveryCost || 0);
                 setSelectedPaymentMethod(foundOrder.payment);
-                setDeliveryAddress(foundOrder.deliveryAddress || '');
-                setCustomerPhone(foundOrder.phone || '');
+                setComment(foundOrder.comment || '');
 
                 const cartItems = foundOrder.foods.map((item) => ({
                     _id: item.food._id,
                     title: item.food.title,
                     quantity: item.quantity,
                     price: item.food.price,
+                    comment: item.comment || '',
                 }));
                 setCart(cartItems); // Actualizar el carrito solo si cambia el pedido
                 setIsViewingCompletedOrder(false);
@@ -60,7 +68,7 @@ const Delivery = () => {
             setSelectedOrderId(null);
             setIsViewingCompletedOrder(false);
         }
-    }, [orderNumber, orders]); // Elimina dependencias innecesarias como setCart
+    }, [orderNumber, orders, setCart]); // Elimina dependencias innecesarias como setCart
 
     if (isLoading) return <p>Cargando pedidos...</p>;
 
@@ -68,27 +76,15 @@ const Delivery = () => {
 
     const preparationOrders = deliveryOrders.filter((order) => order.status === 'Preparacion');
     const sentOrders = deliveryOrders.filter((order) => order.status === 'Enviado');
-    const deliveredOrders = deliveryOrders.filter((order) => order.status === 'Enviado');
-
-    const handleSubmit = (orderData, resetForm, status = 'Preparacion') => {
-        const deliveryOrderData = {
-            ...orderData,
-            deliveryCost: Number(deliveryCost) || 0, // Costo de envío (asegúrate de convertirlo a número)
-            deliveryAddress, // Agregar la dirección de entrega
-            phone: customerPhone, // Agregar el número de teléfono
-        };
-        originalHandleSubmit(deliveryOrderData, resetForm, status, 'delivery', {
-            deliveryAddress,
-            customerPhone,
-            deliveryCost
-        });
-    };
+    const deliveredOrders = deliveryOrders.filter((order) => order.status === 'Entregado');
 
     const resetForm = () => {
         setCustomerName('');
         setDeliveryAddress('');
         setSelectedPaymentMethod('Efectivo');
-        setCustomerPhone(''); // Restablecer el número de teléfono
+        setCustomerPhone('');
+        setDeliveryCost(0);
+        setComment('');
         clearCart(); // Limpiar el carrito
         setEditingOrderId(null); // Restablecer el ID del pedido en edición
     };
@@ -104,16 +100,19 @@ const Delivery = () => {
     const handleSelectDeliveredOrder = (order) => {
         setEditingOrderId(order._id); // Activar modo de edición
         setSelectedOrderId(order._id);
-        setCustomerName(order.buyer);
+        setCustomerName(order.buyer.name);
+        setCustomerPhone(order.buyer.phone);
+        setDeliveryAddress(order.selectedAddress || ''); // Cargar la dirección de entrega
+        setDeliveryCost(order.deliveryCost || 0); // Cargar el costo de envío
         setSelectedPaymentMethod(order.payment);
-        setDeliveryAddress(order.deliveryAddress || ''); // Cargar la dirección de entrega
-        setCustomerPhone(order.phone || ''); // Cargar el número de teléfono
+        setComment(order.comment || '');
 
         const cartItems = order.foods.map((item) => ({
             _id: item.food._id,
             title: item.food.title,
             quantity: item.quantity,
             price: item.food.price,
+            comment: item.comment || '',
         }));
         setCart(cartItems);
 
@@ -130,14 +129,14 @@ const Delivery = () => {
             <div className="delivery-container creating-mode">
                 {/* Botón para crear un nuevo pedido */}
                 <button
-    className="create-order-button"
-    onClick={() => {
-        resetForm(); // Limpia el formulario
-        navigate('/delivery'); // Navega a la página de creación de pedidos
-    }}
->
-    Crear Pedido +
-</button>
+                    className="create-order-button"
+                    onClick={() => {
+                        resetForm(); // Limpia el formulario
+                        navigate('/delivery'); // Navega a la página de creación de pedidos
+                    }}
+                >
+                    Crear Pedido +
+                </button>
 
                 <div className="delivery-content">
                     <div className="delivery-create-order">
@@ -157,20 +156,18 @@ const Delivery = () => {
                             setEditingOrderId={setEditingOrderId}
                             isViewingCompletedOrder={isViewingCompletedOrder}
                             resetForm={resetForm}
+                            comment={comment}
+                            setComment={setComment}
                         />
                     </div>
 
-
-                        <div className="delivery-orders-list">
-                            <OrderListDelivery
-                                orders={preparationOrders}
-                                setEditingOrderId={setEditingOrderId}
-                            />
-                        </div>
-                    
-
+                    <div className="delivery-orders-list">
+                        <OrderListDelivery
+                            orders={preparationOrders}
+                            setEditingOrderId={setEditingOrderId}
+                        />
+                    </div>
                 </div>
-
                     <div className="delivery-completed-orders">
                         <CompletedOrdersList
                             orders={deliveredOrders}
@@ -178,6 +175,7 @@ const Delivery = () => {
                             selectedOrderId={selectedOrderId}
                         />
                     </div>
+                
             </div>
         </CSSTransition>
     );

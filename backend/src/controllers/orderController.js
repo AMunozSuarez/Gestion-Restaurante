@@ -102,20 +102,26 @@ const createOrderController = async (req, res) => {
 // GET ALL ORDERS
 const getAllOrdersController = async (req, res) => {
     try {
-        const orders = await orderModel.find({ restaurant: req.user.restaurant }).populate('foods.food');
+        const orders = await orderModel
+            .find({ restaurant: req.user.restaurant })
+            .populate('foods.food') // Incluir los datos de los alimentos
+            .populate('buyer'); // Incluir los datos del cliente
+
         if (!orders) {
             return res.status(404).send({
                 success: false,
-                message: 'No se encontraron pedidos para este restaurante'
+                message: 'No se encontraron pedidos para este restaurante',
             });
         }
+
         res.status(200).send({
             success: true,
             message: 'Pedidos recuperados exitosamente',
-            orders
+            orders,
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Error recuperando los pedidos:', error);
+        res.status(500).json({ success: false, message: 'Error recuperando los pedidos', error });
     }
 };
 
@@ -124,7 +130,7 @@ const getOrderByIdController = async (req, res) => {
     try {
         const order = await orderModel
             .findOne({ _id: req.params.id, restaurant: req.user.restaurant })
-            .populate('foods.food')
+            .populate('foods.food') // Incluir los datos de los alimentos
             .populate('buyer'); // Incluir los datos del cliente
 
         if (!order) {
@@ -153,25 +159,28 @@ const getOrderByIdController = async (req, res) => {
 const getOrderByNumberController = async (req, res) => {
     try {
         const { orderNumber } = req.params;
-        const order = await orderModel.findOne({ orderNumber }).populate('foods.food');
+        const order = await orderModel
+            .findOne({ orderNumber })
+            .populate('foods.food') // Incluir los datos de los alimentos
+            .populate('buyer'); // Incluir los datos del cliente
 
         if (!order) {
             return res.status(404).send({
                 success: false,
-                message: 'Order not found',
+                message: 'Pedido no encontrado',
             });
         }
 
         res.status(200).send({
             success: true,
-            message: 'Order retrieved successfully',
+            message: 'Pedido recuperado exitosamente',
             order,
         });
     } catch (error) {
-        console.error('Error retrieving order by number:', error);
+        console.error('Error recuperando el pedido por número:', error);
         res.status(500).json({
             success: false,
-            message: 'Error retrieving order',
+            message: 'Error recuperando el pedido',
             error: error.message,
         });
     }
@@ -207,6 +216,13 @@ const updateOrderController = async (req, res) => {
             // Actualizar el cliente existente
             customer.name = buyer.name; // Actualizar el nombre si es necesario
             customer.comment = buyer.comment || customer.comment; // Actualizar el comentario si se proporciona
+            customer.addresses.forEach((addr) => {
+                if (addr.address === selectedAddress) {
+                    addr.deliveryCost = buyer.addresses.find((newAddr) => newAddr.address === selectedAddress).deliveryCost;
+                }
+            }
+        ); //
+
 
             // Agregar nuevas direcciones si no existen
             buyer.addresses.forEach((newAddress) => {

@@ -31,11 +31,11 @@ const DeliveryDetails = () => {
         const foundOrder = orders.find((order) => order.orderNumber === parseInt(orderNumber, 10));
         if (foundOrder) {
             setEditingOrder(foundOrder);
-            setCustomerName(foundOrder.buyer);
+            setCustomerName(foundOrder.buyer.name); // Leer el nombre del cliente desde el objeto buyer
+            setCustomerPhone(foundOrder.buyer.phone); // Leer el teléfono del cliente desde el objeto buyer
             setSelectedPaymentMethod(foundOrder.payment);
-            setDeliveryAddress(foundOrder.deliveryAddress || '');
-            setCustomerPhone(foundOrder.customerPhone || ''); // Cargar el número de teléfono
-            setDeliveryCost(foundOrder.deliveryCost || ''); // Cargar el costo de envío
+            setDeliveryAddress(foundOrder.selectedAddress || ''); // Leer la dirección seleccionada
+            setDeliveryCost(foundOrder.total - foundOrder.foods.reduce((sum, item) => sum + item.food.price * item.quantity, 0)); // Calcular el costo de envío
             const cartItems = foundOrder.foods.map((item) => ({
                 _id: item.food._id,
                 title: item.food.title,
@@ -60,9 +60,20 @@ const DeliveryDetails = () => {
         if (e) {
             e.preventDefault();
         }
+
         const updatedOrder = {
             _id: editingOrder._id, // Asegúrate de incluir el _id del pedido
-            buyer: customerName, // Nombre del cliente
+            buyer: {
+                name: customerName, // Nombre del cliente
+                phone: customerPhone, // Teléfono del cliente
+                addresses: [
+                    {
+                        address: deliveryAddress, // Dirección de entrega
+                        deliveryCost: Number(deliveryCost) || 0, // Costo de envío actualizado
+                    },
+                ],
+                comment: orderData.comment || '', // Comentario del cliente (si existe)
+            },
             payment: selectedPaymentMethod, // Método de pago
             foods: cart.map((item) => ({
                 food: item._id, // ID del producto
@@ -70,10 +81,9 @@ const DeliveryDetails = () => {
                 comment: item.comment || '', // Comentario (si existe)
             })), // Productos en el carrito
             section: 'delivery', // Sección del pedido
-            deliveryAddress, // Dirección de entrega
-            deliveryCost: Number(deliveryCost) || 0, // Costo de envío (asegúrate de convertirlo a número)
+            selectedAddress: deliveryAddress, // Dirección de entrega
+            deliveryCost: Number(deliveryCost) || 0, // Asegúrate de incluir el costo de envío aquí
             status, // Estado del pedido
-            customerPhone
         };
 
         console.log('Pedido actualizado:', updatedOrder);

@@ -255,16 +255,33 @@ const OrderFormDelivery = ({
             <form
                 onSubmit={(e) => {
                     e.preventDefault(); // Prevenir la recarga de la página
+
+                    // Construir el objeto de datos del pedido
                     const orderData = {
-                        customerName,
-                        deliveryAddress,
-                        deliveryCost,
-                        paymentMethod: selectedPaymentMethod,
-                        cart, // Incluye los productos del carrito
+                        buyer: {
+                            name: customerName, // Nombre del cliente
+                            phone: customerPhone, // Teléfono del cliente
+                            addresses: [
+                                {
+                                    address: deliveryAddress, // Dirección de entrega
+                                    deliveryCost: Number(deliveryCost) || 0, // Costo de envío
+                                },
+                            ],
+                        },
+                        selectedAddress: deliveryAddress, // Dirección seleccionada
+                        foods: cart.map((item) => ({
+                            food: item._id, // ID del producto
+                            quantity: item.quantity, // Cantidad
+                            comment: item.comment || '', // Comentario (si existe)
+                        })), // Productos en el carrito
+                        payment: selectedPaymentMethod, // Método de pago
                         section: 'delivery', // Sección del pedido
                         status: editingOrderId ? 'Preparacion' : 'Preparacion', // Estado inicial del pedido
                     };
+
                     console.log('Datos del pedido:', orderData);
+
+                    // Llamar a la función handleSubmit con los datos del pedido
                     handleSubmit(e, resetForm, orderData.status, orderData.section, orderData.deliveryCost);
                 }}
             >

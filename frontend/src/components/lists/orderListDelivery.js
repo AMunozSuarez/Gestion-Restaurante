@@ -32,7 +32,7 @@ const OrderListDelivery = ({ orders }) => {
                         <p className="order-date-delivery">
                             {new Date(order.createdAt).toLocaleString()}
                         </p>
-                        <p>{order.buyer}</p>
+                        <p>{order.status}</p>
                         <p>{order.status}</p>
                         <p className="order-total-delivery">${order.total}</p>
                     </li>
