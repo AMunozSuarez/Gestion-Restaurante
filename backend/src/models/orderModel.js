@@ -22,14 +22,15 @@ const orderSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
+    name: {
+        type: String,
+    },
     buyer: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Customer', // Referencia al modelo de clientes
-        required: true,
     },
     selectedAddress: {
         type: String, // Almacena la dirección seleccionada del cliente
-        required: true,
     },
     section: {
         type: String,

@@ -42,7 +42,7 @@ const Mostrador = () => {
     const handleSelectCompletedOrder = (order) => {
         setEditingOrderId(null); // Desmarcar cualquier pedido en edición
         setSelectedOrderId(order._id); // Marcar el pedido completado seleccionado
-        setCustomerName(order.buyer);
+        setCustomerName(order.buyer.name);
         setSelectedPaymentMethod(order.payment);
 
         const cartItems = order.foods.map((item) => ({
@@ -54,6 +54,7 @@ const Mostrador = () => {
         setCart(cartItems);
 
         setIsViewingCompletedOrder(true); // Activar modo de solo visualización
+        console.log('Pedido seleccionado:', order);
 
         // Redirigir a la URL del pedido completado/cancelado
         navigate(`/mostrador/${order.orderNumber}`);

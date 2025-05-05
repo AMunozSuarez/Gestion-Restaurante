@@ -40,7 +40,7 @@ export const useOrderForm = () => {
     }, [editingOrderId, orders, setCart]);
 
     // Función para manejar el envío del formulario
-    const handleSubmit = (e, resetForm, status = 'Preparacion', section = 'delivery', extraData = {}) => {
+    const handleSubmit = (e, resetForm, status = 'Preparacion', section = 'mostrador', extraData = {}) => {
         if (e && e.preventDefault) e.preventDefault();
 
         const newOrder = {

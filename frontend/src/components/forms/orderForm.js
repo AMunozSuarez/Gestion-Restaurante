@@ -210,14 +210,15 @@ const OrderForm = ({
 
             // Preparar los datos del pedido
             const orderData = {
-                total: cartTotal,
-                paymentMethod: selectedPaymentMethod,
+                total: cartTotal, // Total del pedido
+                paymentMethod: selectedPaymentMethod, // Método de pago seleccionado
                 items: cart.map((item) => ({
-                    productId: item._id,
-                    quantity: item.quantity,
-                    price: item.price,
+                    productId: item._id, // ID del producto
+                    quantity: item.quantity, // Cantidad
+                    price: item.price, // Precio del producto
                 })),
             };
+
             console.log('Cerrando pedido con datos:', orderData);
 
             // Enviar la solicitud al backend

@@ -28,7 +28,7 @@ const OrderList = ({ orders }) => {
                     >
                         <p>{order.orderNumber}</p>
                         <p className="order-date">{new Date(order.createdAt).toLocaleString()}</p> {/* Mostrar fecha/hora */}
-                        <p>{order.buyer}</p>
+                        <p>{order.buyer ? order.buyer.name : 'Sin cliente'}</p> {/* Manejar casos donde buyer es null */}
                         <p>{order.status}</p>
                         <p className="order-total">${order.total}</p>
                     </li>

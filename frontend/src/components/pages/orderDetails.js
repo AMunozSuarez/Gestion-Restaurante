@@ -39,7 +39,8 @@ const OrderDetails = () => {
             }));
             setCart(cartItems);
 
-            setCustomerName(foundOrder.buyer);
+            // Verificar si buyer es null antes de acceder a sus propiedades
+            setCustomerName(foundOrder.buyer ? foundOrder.buyer.name : '');
             setSelectedPaymentMethod(foundOrder.payment);
 
             // Verificar si el pedido está completado o cancelado
@@ -53,7 +54,9 @@ const OrderDetails = () => {
 
     const handleSelectCompletedOrder = (order) => {
         setEditingOrder(order);
-        setCustomerName(order.buyer);
+
+        // Verificar si buyer es null antes de acceder a sus propiedades
+        setCustomerName(order.buyer ? order.buyer.name : '');
         setSelectedPaymentMethod(order.payment);
 
         const cartItems = order.foods.map((item) => ({

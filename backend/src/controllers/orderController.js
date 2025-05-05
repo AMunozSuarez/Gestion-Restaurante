@@ -8,45 +8,51 @@ const createOrderController = async (req, res) => {
     try {
         const { foods, payment, buyer, section, status, selectedAddress } = req.body;
 
-        // Verificar si el cliente ya existe (por número de teléfono)
-        let customer = await Customer.findOne({ phone: buyer.phone });
+        let customer = null;
+        let deliveryCost = 0;
 
-        if (!customer) {
-            // Crear un nuevo cliente si no existe
-            customer = new Customer({
-                name: buyer.name,
-                phone: buyer.phone,
-                addresses: buyer.addresses || [], // Direcciones proporcionadas
-                comment: buyer.comment || '', // Comentario opcional
-            });
-            await customer.save();
-        } else {
-            // Actualizar el cliente existente
-            customer.name = buyer.name; // Actualizar el nombre si es necesario
-            customer.comment = buyer.comment || customer.comment; // Actualizar el comentario si se proporciona
+        // Verificar si se proporciona el campo phone
+        if (buyer && buyer.phone) {
+            // Buscar o crear el cliente
+            customer = await Customer.findOne({ phone: buyer.phone });
 
-            // Agregar nuevas direcciones si no existen
-            buyer.addresses.forEach((newAddress) => {
-                const existingAddress = customer.addresses.find(
-                    (addr) => addr.address === newAddress.address
-                );
-                if (!existingAddress) {
-                    customer.addresses.push(newAddress);
-                }
-            });
+            if (!customer) {
+                // Crear un nuevo cliente si no existe
+                customer = new Customer({
+                    name: buyer.name,
+                    phone: buyer.phone,
+                    addresses: buyer.addresses || [], // Direcciones proporcionadas
+                    comment: buyer.comment || '', // Comentario opcional
+                });
+                await customer.save();
+            } else {
+                // Actualizar el cliente existente
+                customer.name = buyer.name; // Actualizar el nombre si es necesario
+                customer.comment = buyer.comment || customer.comment; // Actualizar el comentario si se proporciona
 
-            await customer.save();
+                // Agregar nuevas direcciones si no existen
+                buyer.addresses.forEach((newAddress) => {
+                    const existingAddress = customer.addresses.find(
+                        (addr) => addr.address === newAddress.address
+                    );
+                    if (!existingAddress) {
+                        customer.addresses.push(newAddress);
+                    }
+                });
+
+                await customer.save();
+            }
+
+            // Validar que la dirección seleccionada esté entre las direcciones del cliente
+            const selectedAddressObj = customer.addresses.find((addr) => addr.address === selectedAddress);
+            if (!selectedAddressObj) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'La dirección seleccionada no está asociada al cliente',
+                });
+            }
+            deliveryCost = selectedAddressObj.deliveryCost;
         }
-
-        // Validar que la dirección seleccionada esté entre las direcciones del cliente
-        const selectedAddressObj = customer.addresses.find((addr) => addr.address === selectedAddress);
-        if (!selectedAddressObj) {
-            return res.status(400).json({
-                success: false,
-                message: 'La dirección seleccionada no está asociada al cliente',
-            });
-        }
-        const deliveryCost = selectedAddressObj.deliveryCost;
 
         // Validar que los alimentos existan y pertenezcan al restaurante del usuario
         const foodIds = foods.map((item) => item.food);
@@ -75,8 +81,9 @@ const createOrderController = async (req, res) => {
             foods,
             payment,
             total,
-            buyer: customer._id, // Referencia al cliente
-            selectedAddress, // Guardar la dirección seleccionada
+            name: !customer ? buyer.name : null, // Usar el nombre temporal si no hay un cliente
+            buyer: customer ? customer._id : null, // Referencia al cliente si existe
+            selectedAddress: customer ? selectedAddress : null, // Guardar la dirección seleccionada si existe
             section,
             status: status || 'Preparacion',
             restaurant: req.user.restaurant,
@@ -191,55 +198,56 @@ const updateOrderController = async (req, res) => {
     try {
         const { buyer, foods, payment, section, status, selectedAddress } = req.body;
 
-        // Validar que el pedido pertenezca al restaurante del usuario
-        const order = await orderModel.findOne({ _id: req.params.id, restaurant: req.user.restaurant });
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Pedido no encontrado o no pertenece a este restaurante',
-            });
-        }
+        let customer = null;
+        let deliveryCost = 0;
 
-        // Verificar si el cliente ya existe (por número de teléfono)
-        let customer = await Customer.findOne({ phone: buyer.phone });
+        // Verificar si se proporciona el campo phone
+        if (buyer && buyer.phone) {
+            // Buscar o crear el cliente
+            customer = await Customer.findOne({ phone: buyer.phone });
 
-        if (!customer) {
-            // Crear un nuevo cliente si no existe
-            customer = new Customer({
-                name: buyer.name,
-                phone: buyer.phone,
-                addresses: buyer.addresses || [], // Direcciones proporcionadas
-                comment: buyer.comment || '', // Comentario opcional
-            });
-            await customer.save();
-        } else {
-            // Actualizar el cliente existente
-            customer.name = buyer.name; // Actualizar el nombre si es necesario
-            customer.comment = buyer.comment || customer.comment; // Actualizar el comentario si se proporciona
-            customer.addresses.forEach((addr) => {
-                if (addr.address === selectedAddress) {
-                    addr.deliveryCost = buyer.addresses.find((newAddr) => newAddr.address === selectedAddress).deliveryCost;
-                }
+            if (!customer) {
+                // Crear un nuevo cliente si no existe
+                customer = new Customer({
+                    name: buyer.name,
+                    phone: buyer.phone,
+                    addresses: buyer.addresses || [], // Direcciones proporcionadas
+                    comment: buyer.comment || '', // Comentario opcional
+                });
+                await customer.save();
+            } else {
+                // Actualizar el cliente existente
+                customer.name = buyer.name; // Actualizar el nombre si es necesario
+                customer.comment = buyer.comment || customer.comment; // Actualizar el comentario si se proporciona
+                customer.addresses.forEach((addr) => {
+                    if (addr.address === selectedAddress) {
+                        addr.deliveryCost = buyer.addresses.find((newAddr) => newAddr.address === selectedAddress).deliveryCost;
+                    }
+                });
+
+                // Agregar nuevas direcciones si no existen
+                buyer.addresses.forEach((newAddress) => {
+                    const existingAddress = customer.addresses.find(
+                        (addr) => addr.address === newAddress.address
+                    );
+                    if (!existingAddress) {
+                        customer.addresses.push(newAddress);
+                    }
+                });
+
+                await customer.save();
             }
-        ); //
 
-
-            // Agregar nuevas direcciones si no existen
-            buyer.addresses.forEach((newAddress) => {
-                const existingAddress = customer.addresses.find(
-                    (addr) => addr.address === newAddress.address
-                );
-                if (!existingAddress) {
-                    customer.addresses.push(newAddress);
-                }
-            });
-
-            await customer.save();
+            // Validar que la dirección seleccionada esté entre las direcciones del cliente
+            const selectedAddressObj = customer.addresses.find((addr) => addr.address === selectedAddress);
+            if (!selectedAddressObj) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'La dirección seleccionada no está asociada al cliente',
+                });
+            }
+            deliveryCost = selectedAddressObj.deliveryCost;
         }
-
-        // Validar que la dirección seleccionada esté entre las direcciones del cliente
-        const selectedAddressObj = customer.addresses.find((addr) => addr.address === selectedAddress);
-        const deliveryCost = selectedAddressObj.deliveryCost;
 
         // Validar que los alimentos existan y pertenezcan al restaurante del usuario
         const foodIds = foods.map((item) => item.food);
@@ -262,13 +270,14 @@ const updateOrderController = async (req, res) => {
         const updatedOrder = await orderModel.findByIdAndUpdate(
             req.params.id,
             {
-                buyer: customer._id,
+                name: !customer ? buyer.name : null, // Usar el nombre temporal si no hay un cliente
+                buyer: customer ? customer._id : null, // Referencia al cliente si existe
                 foods,
                 payment,
                 section,
                 total,
                 status,
-                selectedAddress, // Actualizar la dirección seleccionada
+                selectedAddress: customer ? selectedAddress : null, // Actualizar la dirección seleccionada si existe
             },
             { new: true, runValidators: true }
         );
