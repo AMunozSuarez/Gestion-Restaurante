@@ -96,7 +96,6 @@ const DeliveryDetails = () => {
 
                 // Invalida la consulta para recargar la lista de pedidos
                 queryClient.invalidateQueries(['orders']);
-                navigate('/delivery'); // Redirigir a la lista de pedidos después de actualizar
             } else {
                 console.error('Error al actualizar el pedido:', response.statusText);
                 alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
