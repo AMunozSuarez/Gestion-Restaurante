@@ -144,12 +144,12 @@ const OrderFormDelivery = ({
                 deliveryCost: Number(deliveryCost) || 0, // Convertir a número
             };
     
-            console.log('Cerrando pedido:', orderData);
+            console.log('Enviando pedido:', orderData);
     
             // Enviar la solicitud al backend
             const response = await closeOrder(orderData);
             if (response.status === 201) {
-                alert('Pedido cerrado correctamente.');
+                alert('Pedido enviado correctamente.');
                 clearCart();
                 setCustomerName('');
                 setDeliveryAddress('');
@@ -163,6 +163,8 @@ const OrderFormDelivery = ({
             alert('Hubo un error al cerrar el pedido. Inténtalo nuevamente.');
         }
     };
+
+
     // Mostrar el carrito
     const renderCart = () => {
         if (!Array.isArray(cart) || cart.length === 0) {
@@ -429,7 +431,7 @@ const OrderFormDelivery = ({
                         className="mark-completed-button"
                         onClick={handleCloseOrder}
                     >
-                        Cerrar Pedido
+                        Enviar Pedido
                     </button>
                     <button
                         type="button"
@@ -456,7 +458,7 @@ const OrderFormDelivery = ({
                             <h3>¿Estás seguro de que deseas cancelar el pedido?</h3>
                             <button
                                 onClick={() => {
-                                    cancelOrder(editingOrderId);
+                                    handleSubmit(null, resetForm, 'Cancelado', 'delivery');
                                     setIsCancelModalOpen(false);
                                 }}
                             >

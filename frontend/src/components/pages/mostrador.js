@@ -35,16 +35,16 @@ const Mostrador = () => {
 
     // Filtrar pedidos en preparación y completados/cancelados
     const preparationOrders = orders.filter((order) => order.status === 'Preparacion');
-    const completedOrders = orders.filter(
-        (order) => order.status === 'Completado' || order.status === 'Cancelado'
-    );
+    const completedOrders = orders.filter((order) => order.section === 'mostrador' && (order.status === 'Completado' || order.status === 'Cancelado'));
 
     // Manejar la selección de un pedido completado/cancelado
     const handleSelectCompletedOrder = (order) => {
         setEditingOrderId(null); // Desmarcar cualquier pedido en edición
         setSelectedOrderId(order._id); // Marcar el pedido completado seleccionado
-        setCustomerName(order.buyer.name);
+        setCustomerName(order.buyer?.name || '');
         setSelectedPaymentMethod(order.payment);
+        setComment(order.comment || ''); // Establecer el comentario si existe
+        
 
         const cartItems = order.foods.map((item) => ({
             _id: item.food._id,
@@ -67,11 +67,7 @@ const Mostrador = () => {
         updateOrderStatus(orderId, 'Completado'); // Llama a la API o actualiza el estado local
     };
 
-    // Función para cancelar un pedido
-    const cancelOrder = (orderId) => {
-        console.log(`Cancelando el pedido ${orderId}.`);
-        updateOrderStatus(orderId, 'Cancelado'); // Llama a la API o actualiza el estado local
-    };
+    
 
 
 
@@ -123,7 +119,6 @@ const Mostrador = () => {
                             setEditingOrderId={setEditingOrderId}
                             isViewingCompletedOrder={isViewingCompletedOrder}
                             markAsCompleted={markAsCompleted}
-                            cancelOrder={cancelOrder} // Asegúrate de pasar esta función
                             resetForm={resetForm} // Asegúrate de pasar esta función
                             comment={comment} // Pasa el estado del comentario
                             setComment={setComment} // Pasa la función para actualizar el comentario

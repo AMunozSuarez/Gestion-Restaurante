@@ -22,7 +22,7 @@
     display: flex; /* Usar Flexbox para alinear en fila */
     justify-content: space-between; /* Espaciado uniforme entre los elementos */
     align-items: center; /* Centrar verticalmente los elementos */
-    background-color: #302e2c; /* Marrón oscuro */
+    background-color: #19513f; /* Marrón oscuro */
     color: #ffffff; /* Texto blanco */
     padding: 10px; /* Espaciado interno */
     border-radius: 5px; /* Bordes redondeados */
@@ -70,6 +70,12 @@
 .completed-orders-list li.Completado {
     border-left: 5px solid #28a745; /* Borde verde */
     background-color: #d1fcdd; /* Fondo verde claro */
+}
+
+/* Pedidos enviados */
+.completed-orders-list li.Enviado {
+    border-left: 5px solid #007bff; /* Borde azul */
+    background-color: #d1e7ff; /* Fondo azul claro */
 }
 
 /* Pedidos cancelados */

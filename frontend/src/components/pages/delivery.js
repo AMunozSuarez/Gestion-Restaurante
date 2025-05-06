@@ -72,11 +72,8 @@ const Delivery = () => {
 
     if (isLoading) return <p>Cargando pedidos...</p>;
 
-    const deliveryOrders = orders.filter((order) => order.section === 'delivery');
-
-    const preparationOrders = deliveryOrders.filter((order) => order.status === 'Preparacion');
-    const sentOrders = deliveryOrders.filter((order) => order.status === 'Enviado');
-    const deliveredOrders = deliveryOrders.filter((order) => order.status === 'Entregado');
+    const preparationOrders = orders.filter((order) => order.section === 'delivery' && order.status === 'Preparacion');
+    const completedOrders = orders.filter((order) => order.section === 'delivery' && (order.status === 'Enviado' || order.status === 'Cancelado'));
 
     const resetForm = () => {
         setCustomerName('');
@@ -97,7 +94,14 @@ const Delivery = () => {
         updateOrderStatus(orderId, 'Entregado');
     };
 
-    const handleSelectDeliveredOrder = (order) => {
+    // Función para cancelar un pedido
+    const cancelOrder = (orderId) => {
+        console.log(`Cancelando el pedido ${orderId}.`);
+        updateOrderStatus(orderId, 'Cancelado'); // Llama a la API o actualiza el estado local
+    };
+
+    const handleSelectCompletedOrder = (order) => {
+        setEditingOrderId(null); // Desmarcar cualquier pedido en edición
         setEditingOrderId(order._id); // Activar modo de edición
         setSelectedOrderId(order._id);
         setCustomerName(order.buyer.name);
@@ -116,7 +120,8 @@ const Delivery = () => {
         }));
         setCart(cartItems);
 
-        setIsViewingCompletedOrder(false); // Asegurarse de que no esté en modo de solo visualización
+        setIsViewingCompletedOrder(true); // Asegurarse de que no esté en modo de solo visualización
+        navigate(`/delivery/${order.orderNumber}`); // Navegar a la URL del pedido
     };
 
     return (
@@ -158,6 +163,7 @@ const Delivery = () => {
                             resetForm={resetForm}
                             comment={comment}
                             setComment={setComment}
+                            cancelOrder={cancelOrder} // Asegúrate de pasar esta función
                         />
                     </div>
 
@@ -170,9 +176,10 @@ const Delivery = () => {
                 </div>
                     <div className="delivery-completed-orders">
                         <CompletedOrdersList
-                            orders={deliveredOrders}
-                            onSelectOrder={handleSelectDeliveredOrder}
+                            orders={completedOrders}
+                            onSelectOrder={handleSelectCompletedOrder}
                             selectedOrderId={selectedOrderId}
+                            section="delivery" // Pasar la sección para el título dinámico
                         />
                     </div>
                 

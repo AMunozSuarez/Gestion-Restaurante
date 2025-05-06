@@ -58,6 +58,31 @@ const DeliveryDetails = () => {
         console.log('Pedido encontrado:', foundOrder);
     }, [orderNumber, orders, setCart]);
 
+    const handleSelectCompletedOrder = (order) => {
+        setEditingOrder(order);
+        setCustomerName(order.buyer.name); // Leer el nombre del cliente desde el objeto buyer
+        setCustomerPhone(order.buyer.phone); // Leer el teléfono del cliente desde el objeto buyer
+        setComment(order.comment || order.buyer.comment || ''); // Leer el comentario del cliente
+        setSelectedPaymentMethod(order.payment);
+        setDeliveryAddress(order.selectedAddress || ''); // Leer la dirección seleccionada
+        setDeliveryCost(order.total - order.foods.reduce((sum, item) => sum + item.food.price * item.quantity, 0)); // Calcular el costo de envío
+        const cartItems = order.foods.map((item) => ({
+            _id: item.food._id,
+            title: item.food.title,
+            quantity: item.quantity,
+            price: item.food.price,
+            comment: item.comment || '', // Agregar comentario si existe
+        }));
+        setCart(cartItems); // Actualizar el carrito en el store global
+
+        setIsViewingCompletedOrder(true);
+        setSelectedOrderId(order._id); // Establecer el pedido seleccionado
+        console.log('Pedido seleccionado:', order);
+
+        // Navegar a la URL del pedido seleccionado
+        navigate(`/delivery/${order.orderNumber}`);
+    };
+
     const handleSubmit = async (e, orderData, status = 'Preparacion') => {
         if (e) {
             e.preventDefault();
@@ -176,8 +201,9 @@ const DeliveryDetails = () => {
                 <div className="delivery-completed-orders">
                     <CompletedOrdersList
                         orders={completedOrders}
-                        onSelectOrder={(order) => setEditingOrder(order)}
+                        onSelectOrder={handleSelectCompletedOrder}
                         selectedOrderId={selectedOrderId}
+                        section={'delivery'}
                     />
                 </div>
             </div>

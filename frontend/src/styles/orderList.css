@@ -22,7 +22,7 @@
     display: flex; /* Usar Flexbox para alinear en fila */
     justify-content: space-between; /* Espaciado uniforme entre los elementos */
     align-items: center; /* Centrar verticalmente los elementos */
-    background-color: #533414; /* Marrón oscuro */
+    background-color: #ae651c; /* Marrón oscuro */
     color: #ffffff; /* Texto blanco */
     padding: 0 5px; /* Espaciado interno */
     border-radius: 5px; /* Bordes redondeados */

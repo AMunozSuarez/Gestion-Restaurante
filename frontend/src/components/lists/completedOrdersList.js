@@ -2,12 +2,15 @@ import React from 'react';
 import { useParams } from 'react-router-dom'; // Importar useParams para obtener el orderNumber de la URL
 import '../../styles/completedOrderList.css';
 
-const CompletedOrdersList = ({ orders, onSelectOrder }) => {
+const CompletedOrdersList = ({ orders, onSelectOrder, section }) => {
     const { orderNumber } = useParams(); // Obtener el número de pedido desde la URL
+
+    // Determinar el título dinámicamente según la sección
+    const title = section === 'delivery' ? 'Pedidos Enviados' : 'Pedidos Completados/Cancelados';
 
     return (
         <div className="completed-orders-list">
-            <h3>Pedidos Completados/Cancelados</h3>
+            <h3>{title}</h3> {/* Mostrar el título dinámico */}
             {/* Encabezado de la lista */}
             <div className="completed-orders-header">
                 <p>#</p>
@@ -28,7 +31,6 @@ const CompletedOrdersList = ({ orders, onSelectOrder }) => {
                         <p>{order.buyer ? order.buyer.name : order.name}</p>
                         <p>{order.status}</p>
                         <p className="order-total">Total: ${order.total}</p>
-                        
                     </li>
                 ))}
             </ul>

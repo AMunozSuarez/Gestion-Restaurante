@@ -12,7 +12,7 @@ export const useOrderForm = () => {
     const [deliveryAddress, setDeliveryAddress] = useState(''); // Estado para la dirección de entrega
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Efectivo'); // Estado para el método de pago
     const [editingOrderId, setEditingOrderId] = useState(null); // ID del pedido que se está editando
-    const [deliveryCost, setDeliveryCost] = useState(0); // Estado para el costo de envío
+    const [deliveryCost, setDeliveryCost] = useState(''); // Estado para el costo de envío
     const [comment, setComment] = useState(''); // Estado para comentarios opcionales
 
     // Cargar los datos del pedido seleccionado para editar

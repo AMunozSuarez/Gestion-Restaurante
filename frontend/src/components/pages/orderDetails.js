@@ -117,9 +117,7 @@ const OrderDetails = () => {
     };
 
     const preparationOrders = orders.filter((order) => order.status === 'Preparacion');
-    const completedOrders = orders.filter(
-        (order) => order.status === 'Completado' || order.status === 'Cancelado'
-    );
+    const completedOrders = orders.filter((order) => order.section === 'mostrador' && (order.status === 'Completado' || order.status === 'Cancelado'));
 
     return (
         <CSSTransition
