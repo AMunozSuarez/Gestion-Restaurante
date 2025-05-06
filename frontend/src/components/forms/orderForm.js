@@ -21,6 +21,8 @@ const OrderForm = ({
     setEditingOrderId,
     isViewingCompletedOrder,
     resetForm,
+    comment, // Recibir el estado del comentario como prop
+    setComment, // Recibir la función para actualizar el comentario como prop
 }) => {
     const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Incluye setCart
     const { isSearchFocused, setIsSearchFocused } = useUIStore(); // Estados de UI desde Zustand
@@ -72,7 +74,9 @@ const OrderForm = ({
         }
     }, [editingOrderId]);
 
-    
+    useEffect(() => {
+        console.log('Estado comment en OrderForm:', comment);
+    }, [comment]);
 
     // Ocultar sugerencias al hacer clic fuera del campo de búsqueda
     useEffect(() => {
@@ -256,7 +260,20 @@ const OrderForm = ({
             </div>
 
             {/* Formulario principal */}
-            <form onSubmit={(e) => handleSubmit(e, resetForm)}>
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault();
+
+                    // Obtener el valor más reciente del campo contentEditable
+                    const commentElement = document.getElementById('orderComment');
+                    const latestComment = commentElement ? commentElement.innerHTML : '';
+
+                    console.log('Comentario obtenido al enviar:', latestComment);
+
+                    // Llamar a handleSubmit con el comentario más reciente
+                    handleSubmit(e, resetForm, 'Preparacion', 'mostrador', { comment: latestComment });
+                }}
+            >
                 {/* Nombre del cliente */}
                 <div className="form-group">
                     <label htmlFor="customerName">Nombre del Cliente:</label>
@@ -267,6 +284,25 @@ const OrderForm = ({
                         onChange={(e) => setCustomerName(e.target.value)}
                         disabled={isViewingCompletedOrder} // Deshabilitar si es un pedido completado/cancelado
                         className={isEditing ? 'editing-input' : ''}
+                    />
+                </div>
+
+                {/* Comentario del pedido */}
+                <div className="form-group">
+                    <label htmlFor="orderComment">Comentario:</label>
+                    <div
+                        id="orderComment"
+                        contentEditable="true"
+                        className="editable-comment"
+                        onBlur={(e) => {
+                            const newComment = e.target.innerHTML;
+                            console.log('Comentario actualizado en OrderForm:', newComment); // Depuración
+                            setComment(newComment); // Actualizar el estado del comentario
+                        }}
+                        suppressContentEditableWarning={true}
+                        dangerouslySetInnerHTML={{
+                            __html: (comment || '').replace(/\n/g, '<br>'),
+                        }}
                     />
                 </div>
 

@@ -18,6 +18,7 @@ const OrderDetails = () => {
     const [customerName, setCustomerName] = useState('');
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Efectivo');
     const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
+    const [comment, setComment] = useState(''); // Estado para comentarios opcionales
     const [selectedOrderId, setSelectedOrderId] = useState(null); // Nuevo estado
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -42,6 +43,7 @@ const OrderDetails = () => {
             // Verificar si buyer es null antes de acceder a sus propiedades
             setCustomerName(foundOrder.buyer ? foundOrder.buyer.name : foundOrder.name);
             setSelectedPaymentMethod(foundOrder.payment);
+            setComment(foundOrder.comment || ''); // Establecer el comentario si existe
 
             // Verificar si el pedido está completado o cancelado
             if (foundOrder.status === 'Completado' || foundOrder.status === 'Cancelado') {
@@ -70,6 +72,7 @@ const OrderDetails = () => {
 
         setIsViewingCompletedOrder(true);
         setSelectedOrderId(order._id); // Establecer el pedido seleccionado
+        setComment(order.comment || ''); // Establecer el comentario si existe
 
         // Navegar a la URL del pedido seleccionado
         navigate(`/mostrador/${order.orderNumber}`);
@@ -84,6 +87,7 @@ const OrderDetails = () => {
             ...editingOrder,
             buyer: customerName,
             payment: selectedPaymentMethod,
+            comment, // Agregar comentario al pedido
             foods: cart.map((item) => ({
                 food: item._id,
                 quantity: item.quantity,
@@ -149,6 +153,8 @@ const OrderDetails = () => {
                                 editingOrderId={editingOrder._id}
                                 setEditingOrderId={() => {}}
                                 isViewingCompletedOrder={isViewingCompletedOrder} // Pasar el estado
+                                comment={comment} // Pasa el estado del comentario
+                                setComment={setComment} // Pasa la función para actualizar el comentario
                             />
                         ) : (
                             <p>Selecciona un pedido para ver los detalles.</p>

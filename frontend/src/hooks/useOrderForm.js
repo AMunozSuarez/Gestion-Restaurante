@@ -45,7 +45,7 @@ export const useOrderForm = () => {
         if (e && e.preventDefault) e.preventDefault();
 
         const newOrder = {
-            orderNumber: extraData.orderNumber || null, // Número de pedido (opcional)
+            orderNumber: extraData.orderNumber || null,
             buyer: {
                 name: customerName,
                 phone: customerPhone,
@@ -66,7 +66,7 @@ export const useOrderForm = () => {
             payment: selectedPaymentMethod,
             section,
             status,
-            comment: comment || '', // Comentario opcional
+            comment: extraData.comment || comment || '', // Usar el comentario más reciente
             restaurant: extraData.restaurant || null, // ID del restaurante (opcional)
             total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0) + Number(deliveryCost), // Calcular el total
         };

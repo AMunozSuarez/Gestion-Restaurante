@@ -23,6 +23,7 @@ const Mostrador = () => {
     const { setCartContext, clearCart, setCart } = useCartStore();
     const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState(null); // Estado para el pedido completado seleccionado
+    const [comment, setComment] = useState(''); // Estado para el comentario
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -88,6 +89,7 @@ const Mostrador = () => {
             setSelectedPaymentMethod('Efectivo');
             clearCart();
             setEditingOrderId(null);
+            setComment(''); // Restablecer el comentario
         };
 
     return (
@@ -123,6 +125,8 @@ const Mostrador = () => {
                             markAsCompleted={markAsCompleted}
                             cancelOrder={cancelOrder} // Asegúrate de pasar esta función
                             resetForm={resetForm} // Asegúrate de pasar esta función
+                            comment={comment} // Pasa el estado del comentario
+                            setComment={setComment} // Pasa la función para actualizar el comentario
                         />
                     </div>
 
