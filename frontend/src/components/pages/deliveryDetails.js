@@ -34,6 +34,7 @@ const DeliveryDetails = () => {
             setEditingOrder(foundOrder);
             setCustomerName(foundOrder.buyer.name); // Leer el nombre del cliente desde el objeto buyer
             setCustomerPhone(foundOrder.buyer.phone); // Leer el teléfono del cliente desde el objeto buyer
+            setComment(foundOrder.comment || foundOrder.buyer.comment || ''); // Leer el comentario del cliente
             setSelectedPaymentMethod(foundOrder.payment);
             setDeliveryAddress(foundOrder.selectedAddress || ''); // Leer la dirección seleccionada
             setDeliveryCost(foundOrder.total - foundOrder.foods.reduce((sum, item) => sum + item.food.price * item.quantity, 0)); // Calcular el costo de envío

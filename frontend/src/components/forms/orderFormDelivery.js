@@ -94,6 +94,7 @@ const OrderFormDelivery = ({
         setDeliveryAddress('');
         setCustomerPhone('');
         setDeliveryCost(''); // Restablecer el costo de envío
+        setComment(''); // Restablecer el comentario
         setSelectedPaymentMethod('Efectivo');
         clearCart(); // Limpiar el carrito
         setEditingOrderId(null); // Restablecer el ID del pedido en edición
