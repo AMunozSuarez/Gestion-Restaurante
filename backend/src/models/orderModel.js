@@ -42,6 +42,13 @@ const orderSchema = new mongoose.Schema({
         enum: ['Preparacion', 'En camino', 'Enviado', 'Cancelado', 'Completado'],
         default: 'Preparacion',
     },
+    comment: {
+        type: String,
+        default: '',
+    },
+
+
+
     restaurant: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Restaurant',

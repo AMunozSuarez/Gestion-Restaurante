@@ -25,6 +25,7 @@ const DeliveryDetails = () => {
     const navigate = useNavigate();
     const containerRef = useRef(null);
     const queryClient = useQueryClient();
+    const [comment, setComment] = useState(''); // Estado para comentarios opcionales
 
     useEffect(() => {
         // Buscar el pedido por número de pedido
@@ -72,7 +73,7 @@ const DeliveryDetails = () => {
                         deliveryCost: Number(deliveryCost) || 0, // Costo de envío actualizado
                     },
                 ],
-                comment: orderData.comment || '', // Comentario del cliente (si existe)
+                comment: comment || '', // Comentario del cliente (si existe)
             },
             payment: selectedPaymentMethod, // Método de pago
             foods: cart.map((item) => ({
@@ -163,6 +164,8 @@ const DeliveryDetails = () => {
                                 increaseQuantity={increaseQuantity}
                                 decreaseQuantity={decreaseQuantity}
                                 removeProduct={removeProduct}
+                                comment={comment}
+                                setComment={setComment}
                             />
                         ) : (
                             <p>Selecciona un pedido para ver los detalles.</p>

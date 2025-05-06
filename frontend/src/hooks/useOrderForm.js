@@ -20,19 +20,20 @@ export const useOrderForm = () => {
         if (editingOrderId) {
             const orderToEdit = orders.find((order) => order._id === editingOrderId);
             if (orderToEdit) {
-                setCustomerName(orderToEdit.buyer.name);
-                setCustomerPhone(orderToEdit.buyer.phone);
-                setDeliveryAddress(orderToEdit.selectedAddress);
+                setCustomerName(orderToEdit.buyer?.name || '');
+                setCustomerPhone(orderToEdit.buyer?.phone || '');
+                setDeliveryAddress(orderToEdit.selectedAddress || '');
                 setDeliveryCost(orderToEdit.deliveryCost || 0);
-                setSelectedPaymentMethod(orderToEdit.payment);
-                setComment(orderToEdit.comment || '');
+                setSelectedPaymentMethod(orderToEdit.payment || 'Efectivo');
+                setComment(orderToEdit.comment || orderToEdit.buyer?.comment || ''); // Priorizar el comentario del pedido
+                console.log('Comentario cargado en useOrderForm:', orderToEdit.comment || orderToEdit.buyer?.comment); // Depuración
                 setCart(
                     orderToEdit.foods.map((item) => ({
-                        _id: item.food._id, // ID del producto
-                        title: item.food.title, // Título del producto
-                        quantity: item.quantity, // Cantidad
-                        price: item.food.price, // Precio del producto
-                        comment: item.comment || '', // Comentario del producto
+                        _id: item.food._id,
+                        title: item.food.title,
+                        quantity: item.quantity,
+                        price: item.food.price,
+                        comment: item.comment || '',
                     }))
                 );
             }
@@ -54,6 +55,7 @@ export const useOrderForm = () => {
                         deliveryCost: Number(deliveryCost) || 0,
                     },
                 ],
+                comment: comment || '', // Comentario opcional
             },
             selectedAddress: deliveryAddress,
             foods: cart.map((item) => ({

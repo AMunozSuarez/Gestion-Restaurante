@@ -28,6 +28,8 @@ const OrderFormDelivery = ({
     isViewingCompletedOrder,
     markAsCompleted,
     cancelOrder,
+    comment,
+    setComment,
 }) => {
     const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Manejo del carrito
     const { isSearchFocused, setIsSearchFocused } = useUIStore(); // Estados de UI
@@ -267,6 +269,7 @@ const OrderFormDelivery = ({
                                     deliveryCost: Number(deliveryCost) || 0, // Costo de envío
                                 },
                             ],
+                            comment: comment || '', // Comentario del cliente (si existe)
                         },
                         selectedAddress: deliveryAddress, // Dirección seleccionada
                         foods: cart.map((item) => ({
@@ -333,6 +336,24 @@ const OrderFormDelivery = ({
                         disabled={isViewingCompletedOrder}
                         className={isEditing ? 'editing-input' : ''}
                         required
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label htmlFor="orderComment">Comentario:</label>
+                    <div
+                        id="orderComment"
+                        contentEditable="true"
+                        className="editable-comment"
+                        onBlur={(e) => {
+                            const newComment = e.target.innerHTML;
+                            console.log('Comentario actualizado en OrderFormDelivery:', newComment); // Depuración
+                            setComment(newComment); // Actualizar el estado del comentario
+                        }}
+                        suppressContentEditableWarning={true} // Evitar advertencias de React
+                        dangerouslySetInnerHTML={{
+                            __html: (comment || '').replace(/\n/g, '<br>'), // Convierte \n a <br>
+                        }}
                     />
                 </div>
 

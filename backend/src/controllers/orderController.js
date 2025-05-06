@@ -6,31 +6,27 @@ const Customer = require('../models/customerModel'); // Importar el modelo de cl
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, buyer, section, status, selectedAddress } = req.body;
+        const { foods, payment, buyer, section, status, selectedAddress, comment } = req.body;
 
         let customer = null;
         let deliveryCost = 0;
 
         // Verificar si se proporciona el campo phone
         if (buyer && buyer.phone) {
-            // Buscar o crear el cliente
             customer = await Customer.findOne({ phone: buyer.phone });
 
             if (!customer) {
-                // Crear un nuevo cliente si no existe
                 customer = new Customer({
                     name: buyer.name,
                     phone: buyer.phone,
-                    addresses: buyer.addresses || [], // Direcciones proporcionadas
-                    comment: buyer.comment || '', // Comentario opcional
+                    addresses: buyer.addresses || [],
+                    comment: buyer.comment || '',
                 });
                 await customer.save();
             } else {
-                // Actualizar el cliente existente
-                customer.name = buyer.name; // Actualizar el nombre si es necesario
-                customer.comment = buyer.comment || customer.comment; // Actualizar el comentario si se proporciona
+                customer.name = buyer.name;
+                customer.comment = buyer.comment || customer.comment;
 
-                // Agregar nuevas direcciones si no existen
                 buyer.addresses.forEach((newAddress) => {
                     const existingAddress = customer.addresses.find(
                         (addr) => addr.address === newAddress.address
@@ -43,7 +39,6 @@ const createOrderController = async (req, res) => {
                 await customer.save();
             }
 
-            // Validar que la dirección seleccionada esté entre las direcciones del cliente
             const selectedAddressObj = customer.addresses.find((addr) => addr.address === selectedAddress);
             if (!selectedAddressObj) {
                 return res.status(400).json({
@@ -54,7 +49,6 @@ const createOrderController = async (req, res) => {
             deliveryCost = selectedAddressObj.deliveryCost;
         }
 
-        // Validar que los alimentos existan y pertenezcan al restaurante del usuario
         const foodIds = foods.map((item) => item.food);
         const existingFoods = await foodModel.find({ _id: { $in: foodIds }, restaurant: req.user.restaurant });
 
@@ -65,27 +59,25 @@ const createOrderController = async (req, res) => {
             });
         }
 
-        // Calcular el total
         const total = foods.reduce((sum, item) => {
             const foodDetails = existingFoods.find((food) => food._id.toString() === item.food);
             return sum + (foodDetails.price * item.quantity);
-        }, 0) + deliveryCost; // Sumar el costo de envío al total
+        }, 0) + deliveryCost;
 
-        // Obtener el último número de orden para este restaurante
         const lastOrder = await orderModel.findOne({ restaurant: req.user.restaurant }).sort({ orderNumber: -1 });
         const orderNumber = lastOrder && lastOrder.orderNumber ? lastOrder.orderNumber + 1 : 1;
 
-        // Crear la orden
         const order = new orderModel({
             orderNumber,
             foods,
             payment,
             total,
-            name: !customer ? buyer.name : null, // Usar el nombre temporal si no hay un cliente
-            buyer: customer ? customer._id : null, // Referencia al cliente si existe
-            selectedAddress: customer ? selectedAddress : null, // Guardar la dirección seleccionada si existe
+            name: !customer ? buyer.name : null,
+            buyer: customer ? customer._id : null,
+            selectedAddress: customer ? selectedAddress : null,
             section,
             status: status || 'Preparacion',
+            comment: comment || '', // Guardar el comentario
             restaurant: req.user.restaurant,
         });
 
@@ -196,36 +188,32 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, section, status, selectedAddress } = req.body;
+        const { buyer, foods, payment, section, status, selectedAddress, comment } = req.body;
 
         let customer = null;
         let deliveryCost = 0;
 
-        // Verificar si se proporciona el campo phone
         if (buyer && buyer.phone) {
-            // Buscar o crear el cliente
             customer = await Customer.findOne({ phone: buyer.phone });
 
             if (!customer) {
-                // Crear un nuevo cliente si no existe
                 customer = new Customer({
                     name: buyer.name,
                     phone: buyer.phone,
-                    addresses: buyer.addresses || [], // Direcciones proporcionadas
-                    comment: buyer.comment || '', // Comentario opcional
+                    addresses: buyer.addresses || [],
+                    comment: buyer.comment || '',
                 });
                 await customer.save();
             } else {
-                // Actualizar el cliente existente
-                customer.name = buyer.name; // Actualizar el nombre si es necesario
-                customer.comment = buyer.comment || customer.comment; // Actualizar el comentario si se proporciona
+                customer.name = buyer.name;
+                customer.comment = buyer.comment || customer.comment;
+
                 customer.addresses.forEach((addr) => {
                     if (addr.address === selectedAddress) {
                         addr.deliveryCost = buyer.addresses.find((newAddr) => newAddr.address === selectedAddress).deliveryCost;
                     }
                 });
 
-                // Agregar nuevas direcciones si no existen
                 buyer.addresses.forEach((newAddress) => {
                     const existingAddress = customer.addresses.find(
                         (addr) => addr.address === newAddress.address
@@ -238,7 +226,6 @@ const updateOrderController = async (req, res) => {
                 await customer.save();
             }
 
-            // Validar que la dirección seleccionada esté entre las direcciones del cliente
             const selectedAddressObj = customer.addresses.find((addr) => addr.address === selectedAddress);
             if (!selectedAddressObj) {
                 return res.status(400).json({
@@ -249,7 +236,6 @@ const updateOrderController = async (req, res) => {
             deliveryCost = selectedAddressObj.deliveryCost;
         }
 
-        // Validar que los alimentos existan y pertenezcan al restaurante del usuario
         const foodIds = foods.map((item) => item.food);
         const existingFoods = await foodModel.find({ _id: { $in: foodIds }, restaurant: req.user.restaurant });
 
@@ -260,24 +246,23 @@ const updateOrderController = async (req, res) => {
             });
         }
 
-        // Calcular el total basado en los precios y cantidades
         const total = foods.reduce((sum, item) => {
             const foodDetails = existingFoods.find((food) => food._id.toString() === item.food);
             return sum + (foodDetails.price * item.quantity);
-        }, 0) + deliveryCost; // Sumar el costo de envío al total
+        }, 0) + deliveryCost;
 
-        // Actualizar la orden
         const updatedOrder = await orderModel.findByIdAndUpdate(
             req.params.id,
             {
-                name: !customer ? buyer.name : null, // Usar el nombre temporal si no hay un cliente
-                buyer: customer ? customer._id : null, // Referencia al cliente si existe
+                name: !customer ? buyer.name : null,
+                buyer: customer ? customer._id : null,
                 foods,
                 payment,
                 section,
                 total,
                 status,
-                selectedAddress: customer ? selectedAddress : null, // Actualizar la dirección seleccionada si existe
+                selectedAddress: customer ? selectedAddress : null,
+                comment: comment || '', // Actualizar el comentario
             },
             { new: true, runValidators: true }
         );
