@@ -1,7 +1,6 @@
 /* General Container */
 .order-form {
     background-color: #ffffff; /* Fondo blanco */
-    padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     font-family: 'Poppins', Arial, sans-serif; /* Fuente consistente */
@@ -20,6 +19,7 @@
 
 /* Modo edición */
 .order-form.editing-mode {
+    padding: 20px;
     padding-top: 0;
     border: 2px solid #ffc107; /* Borde amarillo para indicar edición */
     background-color: #fffbea; /* Fondo amarillo claro */

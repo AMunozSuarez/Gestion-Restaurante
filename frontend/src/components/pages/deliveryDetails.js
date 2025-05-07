@@ -154,13 +154,6 @@ const DeliveryDetails = () => {
             nodeRef={containerRef}
         >
             <div ref={containerRef} className="delivery-container editing-mode">
-                {/* Botón para crear un nuevo pedido */}
-                <button
-                    className="create-order-button"
-                    onClick={() => navigate('/delivery')}
-                >
-                    Crear Pedido +
-                </button>
 
                 <div className="delivery-content">
                     <div className="delivery-orders-list">

@@ -39,6 +39,16 @@ export const useOrderForm = () => {
             }
         }
     }, [editingOrderId, orders, setCart]);
+    const resetForm = () => {
+        setCustomerName('');
+        setCustomerPhone('');
+        setDeliveryAddress('');
+        setSelectedPaymentMethod('Efectivo');
+        setEditingOrderId(null);
+        setDeliveryCost('');
+        setComment(''); // Reiniciar el comentario
+        setCart([]); // Limpiar el carrito
+    };
 
     // Función para manejar el envío del formulario
     const handleSubmit = (e, resetForm, status = 'Preparacion', section = 'mostrador', extraData = {}) => {
@@ -105,5 +115,6 @@ export const useOrderForm = () => {
         setDeliveryCost,
         comment,
         setComment,
+        resetForm,
     };
 };

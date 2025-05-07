@@ -5,13 +5,13 @@
 
 .editing-mode .delivery-edit-order {
     background-color: #ffffff;
-    padding: 15px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     width: 35%; /* Ajustar el ancho del formulario */
     min-height: 400px;
     overflow-y: auto; /* Scroll si el contenido excede la altura */
     animation: slideInFromRight 0.3s ease-in-out;
+    
 }
 
 .editing-mode .delivery-orders-list {

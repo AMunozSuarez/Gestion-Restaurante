@@ -80,14 +80,14 @@ header nav a.active {
     font-weight: 500;
     padding: 8px 15px; /* Espaciado interno */
     border-radius: 5px; /* Bordes redondeados */
-    transition: background-color 0.3s ease, color 0.3s ease; /* Transiciones suaves */
+    transition: background-color 0.1s ease, color 0.1s ease; /* Transiciones suaves */
     text-align: center;
 }
 
 /* Hover en el botón */
 .logout-button:hover {
-    background-color: #740404; /* Fondo marrón oscuro */
-    color: #ffd966; /* Texto amarillo */
+    background-color: #dc3545; /* Fondo marrón oscuro */
+    color: #e5e5e5; /* Texto amarillo */
 }
 
 /* Botón alineado con los enlaces */

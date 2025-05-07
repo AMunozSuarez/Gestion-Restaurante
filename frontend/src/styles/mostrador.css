@@ -29,7 +29,6 @@
 .creating-mode .mostrador-create-order {
     background-color: #ffffff;
     padding: 15px;
-    padding-bottom: 0;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     width: 30%;
@@ -37,6 +36,7 @@
     overflow-y: auto; /* Scroll si el contenido excede la altura */
     animation: slideInFromLeft 0.3s ease-in-out;
     border: 2px solid #4e8355; /* Borde ligero */
+    
 }
 
 .creating-mode .mostrador-orders-list {
@@ -52,7 +52,6 @@
 }
 
 .create-order-button-mostrador {
-    position: absolute; /* Posiciona el botón fuera del flujo normal */
     top: 20px; /* Ajusta la posición vertical */
     left: 20px; /* Ajusta la posición horizontal */
     background-color: #4e8355;

@@ -96,15 +96,6 @@ const Mostrador = () => {
             unmountOnExit
         >
             <div className="mostrador-container creating-mode">
-                {/* Botón para crear un nuevo pedido */}
-                <button
-                    className="create-order-button-mostrador"
-                    onClick={() => {
-                        resetForm(); // Restablecer el formulario al crear un nuevo pedido
-                        navigate('/mostrador');}}
-                >
-                    Crear Pedido +
-                </button>
 
                 <div className="mostrador-content">
                     {/* Formulario de creación/edición de pedidos */}

@@ -132,16 +132,7 @@ const Delivery = () => {
             unmountOnExit
         >
             <div className="delivery-container creating-mode">
-                {/* Botón para crear un nuevo pedido */}
-                <button
-                    className="create-order-button"
-                    onClick={() => {
-                        resetForm(); // Limpia el formulario
-                        navigate('/delivery'); // Navega a la página de creación de pedidos
-                    }}
-                >
-                    Crear Pedido +
-                </button>
+                
 
                 <div className="delivery-content">
                     <div className="delivery-create-order">
