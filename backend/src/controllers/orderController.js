@@ -189,6 +189,21 @@ const getOrderByNumberController = async (req, res) => {
 const updateOrderController = async (req, res) => {
     try {
         const { buyer, foods, payment, section, status, selectedAddress, comment } = req.body;
+        console.log('Datos recibidos en el backend:', req.body);
+        if (!req.body.foods || !Array.isArray(req.body.foods)) {
+            return res.status(400).json({
+                success: false,
+                message: 'La propiedad foods debe ser un array.',
+            });
+        }
+        
+        const invalidFood = req.body.foods.find((item) => !item.food || !item.quantity || item.comment === undefined);
+        if (invalidFood) {
+            return res.status(400).json({
+                success: false,
+                message: 'Todos los elementos de foods deben tener las propiedades food, quantity y comment.',
+            });
+        }
 
         let customer = null;
         let deliveryCost = 0;

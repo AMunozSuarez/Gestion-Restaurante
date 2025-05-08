@@ -101,3 +101,22 @@
     flex: 1; /* Mantener el ancho consistente */
     text-align: right; /* Alinear a la derecha */
 }
+
+.send-order-button {
+    background-color: #4caf50; /* Verde */
+    color: white; /* Color del ícono */
+    border: none; /* Sin bordes */
+    border-radius: 50%; /* Botón redondo */
+    width: 40px; /* Ancho del botón */
+    height: 40px; /* Altura del botón */
+    display: flex; /* Centrar contenido */
+    align-items: center;
+    justify-content: center;
+    font-size: 16px; /* Tamaño del ícono */
+    cursor: pointer; /* Cambiar cursor al pasar el mouse */
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Animaciones */
+}
+
+.send-order-button:hover {
+    background-color: #45a049; /* Verde más oscuro al pasar el mouse */
+}

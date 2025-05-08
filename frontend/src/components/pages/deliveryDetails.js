@@ -117,6 +117,7 @@ const DeliveryDetails = () => {
 
         try {
             const response = await axios.put(`/order/update/${editingOrder._id}`, updatedOrder);
+            console.log('/order/update/:', editingOrder._id, updatedOrder);
 
             if (response.status === 200) {
                 console.log('Pedido actualizado correctamente:', response.data.order);
@@ -132,15 +133,6 @@ const DeliveryDetails = () => {
             alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
         }
     };
-
-    const markAsSent = (orderId) => {
-        updateOrderStatus(orderId, 'Enviado');
-    };
-
-    const markAsDelivered = (orderId) => {
-        updateOrderStatus(orderId, 'Entregado');
-    };
-
 
     const preparationOrders = orders.filter((order) => order.section === 'delivery' && order.status === 'Preparacion');
     const completedOrders = orders.filter((order) => order.section === 'delivery' && (order.status === 'Enviado' || order.status === 'Entregado'));
