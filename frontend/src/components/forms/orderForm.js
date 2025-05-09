@@ -10,6 +10,7 @@ import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { closeOrder } from '../../api/cashApi'; // Importa la función para cerrar el pedido
 import { useCartManagement } from '../../hooks/useCartManagement'; // Cambiamos a useCartManagement
+import Cart from '../cart/Cart'; // Importamos el componente reutilizable del carrito
 
 const OrderForm = ({
     customerName,
@@ -35,7 +36,7 @@ const OrderForm = ({
         toggleEditComment,
         textAreaRefs,
     } = useCartManagement(); // Usar el hook para manejar el carrito
-    const { isSearchFocused, setIsSearchFocused } = useUIStore(); // Estados de UI desde Zustand
+    const { isSearchFocused, setIsSearchFocused, handleClickOutside } = useUIStore(); // Estados de UI desde Zustand
     const { products, isLoading: productsLoading } = useProducts(); // Productos desde TanStack Query
     const { categories, isLoading: categoriesLoading } = useCategories(); // Categorías desde TanStack Query
 
@@ -49,13 +50,6 @@ const OrderForm = ({
 
     const searchInputRef = useRef(null); // Referencia al campo de búsqueda
 
-    const handleAddComment = (productId, commentHtml) => {
-        addCommentToProduct(productId, commentHtml);
-    };
-
-    const handleToggleEditComment = (productId) => {
-        toggleEditComment(productId);
-    };
 
     // Filtrar productos por categoría o búsqueda
     useEffect(() => {
@@ -89,97 +83,21 @@ const OrderForm = ({
 
     // Ocultar sugerencias al hacer clic fuera del campo de búsqueda
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (searchInputRef.current && !searchInputRef.current.contains(event.target)) {
-                setIsSearchFocused(false);
-            }
-        };
-
-        document.addEventListener('click', handleClickOutside);
-        return () => {
-            document.removeEventListener('click', handleClickOutside);
-        };
-    }, []);
-
+        const cleanup = handleClickOutside(searchInputRef, () => setIsSearchFocused(false));
+        return cleanup;
+    }, [handleClickOutside, searchInputRef, setIsSearchFocused]);
 
     // Mostrar el carrito
-    const renderCart = () => {
-        if (!Array.isArray(cart) || cart.length === 0) {
-            return <p>El carrito está vacío.</p>;
-        }
-
-        return (
-            <ul className="cart-list">
-                {cart.map((item, index) => (
-                    <React.Fragment key={`${item._id}-${index}`}>
-                        <li className="cart-item">
-                            <div className="cart-row">
-                                <div className="cart-quantity">
-                                    {!isViewingCompletedOrder && (
-                                        <>
-                                            <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
-                                            <span>{item.quantity}</span>
-                                            <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
-                                        </>
-                                    )}
-                                    {isViewingCompletedOrder && <span>{item.quantity}</span>}
-                                </div>
-                                <div className="cart-product-container">
-                                    <span className="cart-product">{item.title}</span>
-                                    <button
-                                        type="button"
-                                        className="cart-comment"
-                                        onClick={() => handleToggleEditComment(item._id)}
-                                    >
-                                        <FontAwesomeIcon icon={faCommentDots} />
-                                    </button>
-                                </div>
-                                <span className="cart-price">${(item.price * item.quantity).toFixed(0)}</span>
-                                {!isViewingCompletedOrder && (
-                                    <button
-                                        type="button"
-                                        className="cart-remove"
-                                        onClick={() => removeProduct(item._id)}
-                                    >
-                                        X
-                                    </button>
-                                )}
-                            </div>
-                            {item.isEditing && (
-                                <div className="cart-comment-box">
-                                    <div
-                                        ref={(el) => (textAreaRefs.current[item._id] = el)} // Asigna la referencia
-                                        contentEditable="true"
-                                        className="editable-comment"
-                                        onBlur={(e) => handleAddComment(item._id, e.target.innerHTML)} // Usa innerHTML
-                                        suppressContentEditableWarning={true} // Evita advertencias de React
-                                        dangerouslySetInnerHTML={{
-                                            __html: (item.comment || '').replace(/\n/g, '<br>'), // Convierte \n a <br>
-                                        }}
-                                        onClick={(e) => e.stopPropagation()} // Evita que el clic sobrescriba el cursor
-                                    />
-                                </div>
-                            )}
-                            {item.comment && !item.isEditing && (
-                                <p
-                                    className="cart-comment-text"
-                                    onClick={() => handleToggleEditComment(item._id)}
-                                >
-                                    {item.comment.split('\n').map((line, i) => (
-                                        <React.Fragment key={i}>
-                                            {line}
-                                            <br />
-                                        </React.Fragment>
-                                    ))}
-                                </p>
-                            )}
-                        </li>
-                        <hr className="cart-divider" /> {/* Línea separadora */}
-                    </React.Fragment>
-                ))}
-            </ul>
-        );
-    };
+    const renderCart = () => (
+        <Cart
+            cart={cart}
+            isViewingCompletedOrder={isViewingCompletedOrder}
+            increaseQuantity={increaseQuantity}
+            decreaseQuantity={decreaseQuantity}
+            removeProduct={removeProduct}
+            textAreaRefs={textAreaRefs}
+        />
+    );
 
     // Función para cerrar el pedido
     const handleCloseOrder = async () => {
@@ -309,7 +227,18 @@ const OrderForm = ({
                                 {filteredProducts.map((product, index) => (
                                     <li
                                         key={`${product._id}-${index}`}
-                                        onClick={() => addToCart(product)}
+                                        onClick={() => {
+                                            addToCart(product); // Agregar el producto al carrito
+                                            setModalSearchQuery(''); // Limpiar el texto del campo de búsqueda
+
+                                            // Quitar y volver a activar el foco
+                                            if (searchInputRef.current) {
+                                                searchInputRef.current.blur(); // Quitar el foco
+                                                setTimeout(() => {
+                                                    searchInputRef.current.focus(); // Volver a activar el foco
+                                                }, 0); // Breve retraso para asegurar que el navegador registre el cambio
+                                            }
+                                        }}
                                         className="suggestion-item"
                                     >
                                         <span>{product.title}</span>

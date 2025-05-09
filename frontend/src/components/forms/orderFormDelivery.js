@@ -4,12 +4,13 @@ import useCartStore from '../../store/useCartStore'; // Store para manejar el ca
 import useUIStore from '../../store/useUiStore'; // Store para manejar estados de UI
 import { useProducts } from '../../hooks/useProducts'; // Hook para manejar productos
 import { useCategories } from '../../hooks/useCategories'; // Hook para manejar categorías
-import useCommentHandler from '../../hooks/useCommentHandler';
 import '../../styles/orderForm.css'; // Estilos específicos del formulario de pedido
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { closeOrder } from '../../api/cashApi'; // Importa la función para cerrar el pedido
+import Cart from '../cart/Cart'; // Importamos el componente reutilizable del carrito
+import { useCartManagement } from '../../hooks/useCartManagement'; // Importamos el hook centralizado para manejar el carrito
 
 const OrderFormDelivery = ({
     customerName,
@@ -18,8 +19,8 @@ const OrderFormDelivery = ({
     setCustomerPhone,
     deliveryAddress,
     setDeliveryAddress,
-    deliveryCost, // Nuevo estado para el costo de envío
-    setDeliveryCost, // Función para actualizar el costo de envío
+    deliveryCost,
+    setDeliveryCost,
     selectedPaymentMethod,
     setSelectedPaymentMethod,
     handleSubmit,
@@ -29,28 +30,29 @@ const OrderFormDelivery = ({
     comment,
     setComment,
 }) => {
-    const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Manejo del carrito
-    const { isSearchFocused, setIsSearchFocused } = useUIStore(); // Estados de UI
-    const { products, isLoading: productsLoading } = useProducts(); // Productos
-    const { categories, isLoading: categoriesLoading } = useCategories(); // Categorías
+    const {
+        cart,
+        cartTotal,
+        addToCart,
+        clearCart,
+        increaseQuantity,
+        decreaseQuantity,
+        removeProduct,
+        textAreaRefs,
+    } = useCartManagement(); // Usamos el hook para manejar el carrito
 
-    const [isModalOpen, setIsModalOpen] = useState(false); // Modal para productos
-    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); // Modal para cancelar pedido
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [categoryFilter, setCategoryFilter] = useState('');
     const [modalSearchQuery, setModalSearchQuery] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
-    const [cartTotal, setCartTotal] = useState(0);
     const [isEditing, setIsEditing] = useState(!!editingOrderId);
     const navigate = useNavigate();
 
     const searchInputRef = useRef(null);
-    const { textAreaRefs, handleAddComment, handleToggleEditComment } = useCommentHandler(setCart);
-
-    // Calcular el total del carrito cada vez que cambie
-    useEffect(() => {
-        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        setCartTotal(total);
-    }, [cart]);
+    const { products, isLoading: productsLoading } = useProducts(); // Productos
+    const { categories, isLoading: categoriesLoading } = useCategories(); // Categorías
+    const { isSearchFocused, setIsSearchFocused, handleClickOutside } = useUIStore(); // Estados de UI desde Zustand
 
     useEffect(() => {
         if (editingOrderId) {
@@ -60,69 +62,26 @@ const OrderFormDelivery = ({
         }
     }, [editingOrderId]);
 
-    // Filtrar productos por categoría o búsqueda
     useEffect(() => {
-        if (!products) return;
-        let filtered = products;
-
-        if (categoryFilter) {
-            filtered = filtered.filter((product) => product.category?._id === categoryFilter);
-        }
-
-        if (modalSearchQuery) {
-            filtered = filtered.filter((product) =>
-                product.title.toLowerCase().includes(modalSearchQuery.toLowerCase())
-            );
-        }
-
-        setFilteredProducts(filtered);
-    }, [categoryFilter, modalSearchQuery, products]);
-
-    useEffect(() => {
-        if (editingOrderId) {
-            setIsEditing(true);
-        } else {
-            setIsEditing(false);
-        }
-    }, [editingOrderId]);
-
-    // Función para volver al estado de "Crear Pedido"
-    const resetForm = () => {
-        setCustomerName('');
-        setDeliveryAddress('');
-        setCustomerPhone('');
-        setDeliveryCost(''); // Restablecer el costo de envío
-        setComment(''); // Restablecer el comentario
-        setSelectedPaymentMethod('Efectivo');
-        clearCart(); // Limpiar el carrito
-        setEditingOrderId(null); // Restablecer el ID del pedido en edición
-    };
-
-    // Función para añadir productos al carrito
-    const addToCart = (product) => {
-        setCart((prevCart) => {
-            const existingProduct = prevCart.find((item) => item._id === product._id);
-            if (existingProduct) {
-                return prevCart.map((item) =>
-                    item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
-                );
-            }
-            return [...prevCart, { ...product, quantity: 1 }];
+        const cleanup = handleClickOutside(searchInputRef, () => {
+            console.log('Clic fuera detectado en OrderFormDelivery'); // Depuración
+            setIsSearchFocused(false);
         });
-        // Limpiar el campo de búsqueda después de seleccionar un producto
-        setModalSearchQuery('');
+        return cleanup;
+    }, [handleClickOutside, searchInputRef, setIsSearchFocused]);
 
-        // Forzar re-renderizado de las sugerencias
-        setIsSearchFocused(false); // Desactiva el estado temporalmente
-        setTimeout(() => {
-            setIsSearchFocused(true); // Reactiva el estado después de un breve retraso
-        }, 0);
+    // Mostrar el carrito
+    const renderCart = () => (
+        <Cart
+            cart={cart}
+            isViewingCompletedOrder={isViewingCompletedOrder}
+            increaseQuantity={increaseQuantity}
+            decreaseQuantity={decreaseQuantity}
+            removeProduct={removeProduct}
+            textAreaRefs={textAreaRefs}
+        />
+    );
 
-        // Volver a enfocar el campo de búsqueda
-        if (searchInputRef.current) {
-            searchInputRef.current.focus();
-        }
-    };
     // Función para cerrar el pedido
     const handleCloseOrder = async () => {
         try {
@@ -130,115 +89,30 @@ const OrderFormDelivery = ({
                 alert('Por favor, selecciona un método de pago.');
                 return;
             }
-    
+
             const orderData = {
-                total: cartTotal + (Number(deliveryCost) || 0), // Asegurarse de que sea un número
+                total: cartTotal + (Number(deliveryCost) || 0),
                 paymentMethod: selectedPaymentMethod,
                 items: cart.map((item) => ({
                     productId: item._id,
                     quantity: item.quantity,
                     price: item.price,
                 })),
-                deliveryCost: Number(deliveryCost) || 0, // Convertir a número
+                deliveryCost: Number(deliveryCost) || 0,
             };
-    
+
             console.log('Enviando pedido:', orderData);
-    
-            // Enviar la solicitud al backend
+
             const response = await closeOrder(orderData);
             if (response.status === 201) {
-                alert('Pedido enviado correctamente.');
+                alert('Pedido cerrado y registrado en la caja activa.');
                 clearCart();
-                setCustomerName('');
-                setDeliveryAddress('');
-                setDeliveryCost(''); // Limpia el costo de envío
-                setSelectedPaymentMethod('');
-                setEditingOrderId(null);
-                handleSubmit(null, resetForm, 'Enviado', 'delivery');
+                resetForm();
             }
         } catch (error) {
             console.error('Error al cerrar el pedido:', error);
             alert('Hubo un error al cerrar el pedido. Inténtalo nuevamente.');
         }
-    };
-
-
-    // Mostrar el carrito
-    const renderCart = () => {
-        if (!Array.isArray(cart) || cart.length === 0) {
-            return <p>El carrito está vacío.</p>;
-        }
-
-        return (
-            <ul className="cart-list">
-                {cart.map((item, index) => (
-                    <React.Fragment key={`${item._id}-${index}`}>
-                        <li className="cart-item">
-                            <div className="cart-row">
-                                <div className="cart-quantity">
-                                    {!isViewingCompletedOrder && (
-                                        <>
-                                            <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
-                                            <span>{item.quantity}</span>
-                                            <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
-                                        </>
-                                    )}
-                                    {isViewingCompletedOrder && <span>{item.quantity}</span>}
-                                </div>
-                                <div className="cart-product-container">
-                                    <span className="cart-product">{item.title}</span>
-                                    <button
-                                        type="button"
-                                        className="cart-comment"
-                                        onClick={() => handleToggleEditComment(item._id)}
-                                    >
-                                        <FontAwesomeIcon icon={faCommentDots} />
-                                    </button>
-                                </div>
-                                <span className="cart-price">${(item.price * item.quantity).toFixed(0)}</span>
-                                {!isViewingCompletedOrder && (
-                                    <button
-                                        type="button"
-                                        className="cart-remove"
-                                        onClick={() => removeProduct(item._id)}
-                                    >
-                                        X
-                                    </button>
-                                )}
-                            </div>
-                            {item.isEditing && (
-                                <div className="cart-comment-box">
-                                    <div
-                                        ref={(el) => (textAreaRefs.current[item._id] = el)} // Asigna la referencia
-                                        contentEditable="true"
-                                        className="editable-comment"
-                                        onBlur={(e) => handleAddComment(item._id, e.target.innerHTML)} // Usa innerHTML
-                                        suppressContentEditableWarning={true} // Evita advertencias de React
-                                        dangerouslySetInnerHTML={{
-                                            __html: (item.comment || '').replace(/\n/g, '<br>'), // Convierte \n a <br>
-                                        }}
-                                    />
-                                </div>
-                            )}
-                            {item.comment && !item.isEditing && (
-                                <p
-                                    className="cart-comment-text"
-                                    onClick={() => handleToggleEditComment(item._id)}
-                                >
-                                    {item.comment.split('\n').map((line, i) => (
-                                        <React.Fragment key={i}>
-                                            {line}
-                                            <br />
-                                        </React.Fragment>
-                                    ))}
-                                </p>
-                            )}
-                        </li>
-                        <hr className="cart-divider" /> {/* Línea separadora */}
-                    </React.Fragment>
-                ))}
-            </ul>
-        );
     };
 
     if (productsLoading || categoriesLoading) return <p>Cargando datos...</p>;
@@ -257,36 +131,8 @@ const OrderFormDelivery = ({
 
             <form
                 onSubmit={(e) => {
-                    e.preventDefault(); // Prevenir la recarga de la página
-
-                    // Construir el objeto de datos del pedido
-                    const orderData = {
-                        buyer: {
-                            name: customerName, // Nombre del cliente
-                            phone: customerPhone, // Teléfono del cliente
-                            addresses: [
-                                {
-                                    address: deliveryAddress, // Dirección de entrega
-                                    deliveryCost: Number(deliveryCost) || 0, // Costo de envío
-                                },
-                            ],
-                            comment: comment || '', // Comentario del cliente (si existe)
-                        },
-                        selectedAddress: deliveryAddress, // Dirección seleccionada
-                        foods: cart.map((item) => ({
-                            food: item._id, // ID del producto
-                            quantity: item.quantity, // Cantidad
-                            comment: item.comment || '', // Comentario (si existe)
-                        })), // Productos en el carrito
-                        payment: selectedPaymentMethod, // Método de pago
-                        section: 'delivery', // Sección del pedido
-                        status: editingOrderId ? 'Preparacion' : 'Preparacion', // Estado inicial del pedido
-                    };
-
-                    console.log('Datos del pedido:', orderData);
-
-                    // Llamar a la función handleSubmit con los datos del pedido
-                    handleSubmit(e, resetForm, orderData.status, orderData.section, orderData.deliveryCost);
+                    e.preventDefault();
+                    handleSubmit(e);
                 }}
             >
                 <div className="form-group">
@@ -394,8 +240,8 @@ const OrderFormDelivery = ({
                     <h3>Carrito</h3>
                     {renderCart()}
                     <div className="cart-total">
-    <strong>Total: ${(cartTotal + (Number(deliveryCost) || 0)).toFixed(0)}</strong>
-</div>
+                        <strong>Total: ${(cartTotal + (Number(deliveryCost) || 0)).toFixed(0)}</strong>
+                    </div>
                 </div>
 
                 <div className="form-group payment-method">
