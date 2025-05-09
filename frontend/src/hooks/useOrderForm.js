@@ -118,53 +118,68 @@ export const useOrderForm = () => {
 
     // Función para cerrar el pedido
     const handleCloseOrder = async ({
-        cart = [],
-        cartTotal = 0,
+        cart,
+        cartTotal,
         deliveryCost = 0,
-        selectedPaymentMethod = '',
-        editingOrderId = null,
-    } = {}) => {
+        selectedPaymentMethod,
+        customerName,
+        customerPhone,
+        deliveryAddress,
+        comment,
+        editingOrderId,
+        resetForm,
+        navigate,
+    }) => {
         try {
             if (!selectedPaymentMethod) {
                 alert('Por favor, selecciona un método de pago.');
                 return;
             }
+
             if (cart.length === 0) {
                 alert('El carrito está vacío. Agrega productos antes de cerrar el pedido.');
                 return;
             }
 
             const orderData = {
-                total: cartTotal + Number(deliveryCost),
-                paymentMethod: selectedPaymentMethod,
-                items: cart.map((item) => ({
-                    productId: item.productId,
+                buyer: {
+                    name: customerName,
+                    phone: customerPhone,
+                    addresses: [
+                        {
+                            address: deliveryAddress,
+                            deliveryCost: Number(deliveryCost),
+                        },
+                    ],
+                    comment: comment || '',
+                },
+                foods: cart.map((item) => ({
+                    food: item._id,
                     quantity: item.quantity,
-                    price: item.price,
-                    comment: item.comment || '', // Agregar comentario si existe
+                    comment: item.comment || '',
                 })),
-                deliveryCost: Number(deliveryCost),
+                payment: selectedPaymentMethod,
+                total: cartTotal + Number(deliveryCost),
+                section: 'delivery',
+                status: 'Enviado',
             };
 
-            console.log('Datos enviados al backend:', orderData);
+            console.log('Enviando PUT para cerrar pedido con datos:', orderData);
 
+            // Si estamos editando un pedido existente
             if (editingOrderId) {
-                const response = await updateOrder(editingOrderId, orderData);
+                const response = await updateOrder(editingOrderId, orderData); // PUT al backend
                 if (response.status === 200) {
+                    alert('Pedido actualizado y enviado correctamente.');
+                    clearCart();
+                    resetForm();
+                    navigate('/delivery'); // Redirigir a la página de delivery
                 } else {
                     throw new Error('Error al actualizar el pedido.');
                 }
             } else {
-                const response = await createOrder(orderData);
-                if (response.status === 201) {
-                } else {
-                    throw new Error('Error al crear el pedido.');
-                }
+                alert('No se encontró un pedido para actualizar.');
             }
-
-            clearCart();
-            resetForm();
-            navigate('/delivery');
         } catch (error) {
             console.error('Error al cerrar el pedido:', error);
             alert('Hubo un error al cerrar el pedido. Inténtalo nuevamente.');
@@ -181,10 +196,6 @@ export const useOrderForm = () => {
         try {
             if (!selectedPaymentMethod) {
                 alert('Por favor, selecciona un método de pago.');
-                return;
-            }
-            if (cart.length === 0) {
-                alert('El carrito está vacío. Agrega productos antes de cerrar el pedido.');
                 return;
             }
 
@@ -219,6 +230,10 @@ export const useOrderForm = () => {
         try {
             if (!order || !order._id) {
                 alert('No se ha seleccionado un pedido para actualizar.');
+                return;
+            }
+            if (cart.length === 0) {
+                alert('El carrito está vacío. Agrega productos antes de cerrar el pedido.');
                 return;
             }
 

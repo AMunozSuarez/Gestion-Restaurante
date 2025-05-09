@@ -8,8 +8,8 @@ import '../../styles/orderForm.css'; // Estilos específicos del formulario de p
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
-import { closeOrder } from '../../api/cashApi'; // Importa la función para cerrar el pedido
 import { useCartManagement } from '../../hooks/useCartManagement'; // Cambiamos a useCartManagement
+import { useOrderForm } from '../../hooks/useOrderForm'; // Importar el hook completo
 import Cart from '../cart/Cart'; // Importamos el componente reutilizable del carrito
 
 const OrderForm = ({
@@ -32,8 +32,6 @@ const OrderForm = ({
         increaseQuantity,
         decreaseQuantity,
         removeProduct,
-        addCommentToProduct,
-        toggleEditComment,
         textAreaRefs,
     } = useCartManagement(); // Usar el hook para manejar el carrito
     const { isSearchFocused, setIsSearchFocused, handleClickOutside } = useUIStore(); // Estados de UI desde Zustand
@@ -49,6 +47,7 @@ const OrderForm = ({
     const navigate = useNavigate(); // Hook para navegar entre rutas
 
     const searchInputRef = useRef(null); // Referencia al campo de búsqueda
+    const { handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm();
 
 
     // Filtrar productos por categoría o búsqueda
@@ -98,52 +97,6 @@ const OrderForm = ({
             textAreaRefs={textAreaRefs}
         />
     );
-
-    // Función para cerrar el pedido
-    const handleCloseOrder = async () => {
-        try {
-            // Validar que haya productos en el carrito
-            if (cart.length === 0) {
-                alert('El carrito está vacío. Agrega productos antes de cerrar el pedido.');
-                return;
-            }
-
-            // Validar que se haya seleccionado un método de pago
-            if (!selectedPaymentMethod) {
-                alert('Por favor, selecciona un método de pago.');
-                return;
-            }
-
-            // Preparar los datos del pedido
-            const orderData = {
-                total: cartTotal, // Total del pedido
-                paymentMethod: selectedPaymentMethod, // Método de pago seleccionado
-                items: cart.map((item) => ({
-                    productId: item._id, // ID del producto
-                    quantity: item.quantity, // Cantidad
-                    price: item.price, // Precio del producto
-                })),
-            };
-
-            console.log('Cerrando pedido con datos:', orderData);
-
-            // Enviar la solicitud al backend
-            const response = await closeOrder(orderData);
-
-            if (response.status === 201) {
-                alert('Pedido cerrado y registrado en la caja activa.');
-                clearCart(); // Limpiar el carrito después de cerrar el pedido
-                setCustomerName(''); // Limpiar el nombre del cliente
-                setSelectedPaymentMethod(''); // Limpiar el método de pago
-
-                // Actualizar el frontend llamando a handleSubmit con el estado 'Completado'
-                handleSubmit(null, 'Completado');
-            }
-        } catch (error) {
-            console.error('Error al cerrar el pedido:', error);
-            alert('Hubo un error al cerrar el pedido. Inténtalo nuevamente.');
-        }
-    };
 
     if (productsLoading || categoriesLoading) return <p>Cargando datos...</p>;
 
@@ -287,15 +240,48 @@ const OrderForm = ({
                     </button>
                 )}
             </form>
-
-            
                 {/* Botones adicionales para cerrar o cancelar el pedido */}
                 {!isViewingCompletedOrder && editingOrderId && (
                     <div className="form-actions">
                         <button
                             type="button"
                             className="mark-completed-button"
-                            onClick={handleCloseOrder} // Llama a la función para cerrar el pedido
+                            onClick={async () => {
+                                try {
+                                    // Primero registrar en caja
+                                    await handleRegisterOrderInCashRegister({
+                                        cart,
+                                        cartTotal,
+                                        selectedPaymentMethod
+                                    });
+                                    
+                                    // Luego actualizar el estado del pedido a "Completado"
+                                    await handleUpdateOrderStatus({
+                                        _id: editingOrderId,
+                                        status: 'Completado',
+                                        // Incluir los datos del pedido necesarios para el backend
+                                        buyer: {
+                                            name: customerName,
+                                            comment: comment || '',
+                                        },
+                                        foods: cart.map((item) => ({
+                                            food: item._id,
+                                            quantity: item.quantity,
+                                            comment: item.comment || '',
+                                        })),
+                                        payment: selectedPaymentMethod,
+                                        total: cartTotal,
+                                        section: 'mostrador',
+                                    });
+                                    
+                                    // Limpiar y redireccionar después de ambas operaciones exitosas
+                                    clearCart();
+                                    
+                                } catch (error) {
+                                    console.error('Error al procesar el pedido:', error);
+                                    alert('Hubo un error al procesar el pedido. Inténtalo nuevamente.');
+                                }
+                            }}
                         >
                             Cerrar Pedido
                         </button>

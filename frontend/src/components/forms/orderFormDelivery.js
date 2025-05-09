@@ -8,9 +8,9 @@ import '../../styles/orderForm.css'; // Estilos específicos del formulario de p
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
-import { closeOrder } from '../../api/cashApi'; // Importa la función para cerrar el pedido
 import Cart from '../cart/Cart'; // Importamos el componente reutilizable del carrito
 import { useCartManagement } from '../../hooks/useCartManagement'; // Importamos el hook centralizado para manejar el carrito
+import { useOrderForm } from '../../hooks/useOrderForm'; // Importamos el hook para manejar formularios de pedidos
 
 const OrderFormDelivery = ({
     customerName,
@@ -29,7 +29,7 @@ const OrderFormDelivery = ({
     isViewingCompletedOrder,
     comment,
     setComment,
-    resetForm
+    resetForm,
 }) => {
     const {
         cart,
@@ -54,6 +54,7 @@ const OrderFormDelivery = ({
     const { products, isLoading: productsLoading } = useProducts(); // Productos
     const { categories, isLoading: categoriesLoading } = useCategories(); // Categorías
     const { isSearchFocused, setIsSearchFocused, handleClickOutside } = useUIStore(); // Estados de UI desde Zustand
+    const { handleCloseOrder, handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm(); // Funciones del hook useOrderForm
 
     useEffect(() => {
         if (editingOrderId) {
@@ -99,40 +100,7 @@ const OrderFormDelivery = ({
             removeProduct={removeProduct}
             textAreaRefs={textAreaRefs}
         />
-    );
-
-    // Función para cerrar el pedido
-    const handleCloseOrder = async () => {
-        try {
-            if (!selectedPaymentMethod) {
-                alert('Por favor, selecciona un método de pago.');
-                return;
-            }
-
-            const orderData = {
-                total: cartTotal + (Number(deliveryCost) || 0),
-                paymentMethod: selectedPaymentMethod,
-                items: cart.map((item) => ({
-                    productId: item._id,
-                    quantity: item.quantity,
-                    price: item.price,
-                })),
-                deliveryCost: Number(deliveryCost) || 0,
-            };
-
-            console.log('Enviando pedido:', orderData);
-
-            const response = await closeOrder(orderData);
-            if (response.status === 201) {
-                alert('Pedido cerrado y registrado en la caja activa.');
-                clearCart();
-                resetForm();
-            }
-        } catch (error) {
-            console.error('Error al cerrar el pedido:', error);
-            alert('Hubo un error al cerrar el pedido. Inténtalo nuevamente.');
-        }
-    };
+    );    // La función handleCloseOrder ahora viene del hook useOrderForm
 
     if (productsLoading || categoriesLoading) return <p>Cargando datos...</p>;
 
@@ -312,7 +280,51 @@ const OrderFormDelivery = ({
                     <button
                         type="button"
                         className="mark-completed-button"
-                        onClick={handleCloseOrder}
+                        onClick={async () => {
+                            try {
+                                // Primero registrar en caja
+                                await handleRegisterOrderInCashRegister({
+                                    cart,
+                                    cartTotal,
+                                    deliveryCost,
+                                    selectedPaymentMethod
+                                });
+                                
+                                // Luego actualizar el estado del pedido a "Enviado"
+                                await handleUpdateOrderStatus({
+                                    _id: editingOrderId,
+                                    status: 'Enviado',
+                                    // Incluir los datos del pedido necesarios para el backend
+                                    buyer: {
+                                        name: customerName,
+                                        phone: customerPhone,
+                                        addresses: [
+                                            {
+                                                address: deliveryAddress,
+                                                deliveryCost: Number(deliveryCost),
+                                            },
+                                        ],
+                                        comment: comment || '',
+                                    },
+                                    foods: cart.map((item) => ({
+                                        food: item._id,
+                                        quantity: item.quantity,
+                                        comment: item.comment || '',
+                                    })),
+                                    payment: selectedPaymentMethod,
+                                    total: cartTotal + Number(deliveryCost),
+                                    section: 'delivery',
+                                    selectedAddress: deliveryAddress,
+                                });
+                                
+                                // Limpiar y redireccionar después de ambas operaciones exitosas
+                                clearCart();
+                                
+                            } catch (error) {
+                                console.error('Error al procesar el pedido:', error);
+                                alert('Hubo un error al procesar el pedido. Inténtalo nuevamente.');
+                            }
+                        }}
                     >
                         Enviar Pedido
                     </button>
