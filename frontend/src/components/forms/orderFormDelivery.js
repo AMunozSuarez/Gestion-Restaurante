@@ -29,6 +29,7 @@ const OrderFormDelivery = ({
     isViewingCompletedOrder,
     comment,
     setComment,
+    resetForm
 }) => {
     const {
         cart,
@@ -61,6 +62,24 @@ const OrderFormDelivery = ({
             setIsEditing(false);
         }
     }, [editingOrderId]);
+
+    // Filtrar productos por categoría o búsqueda
+        useEffect(() => {
+            if (!products) return;
+            let filtered = products;
+    
+            if (categoryFilter) {
+                filtered = filtered.filter((product) => product.category?._id === categoryFilter);
+            }
+    
+            if (modalSearchQuery) {
+                filtered = filtered.filter((product) =>
+                    product.title.toLowerCase().includes(modalSearchQuery.toLowerCase())
+                );
+            }
+    
+            setFilteredProducts(filtered);
+        }, [categoryFilter, modalSearchQuery, products]);
 
     useEffect(() => {
         const cleanup = handleClickOutside(searchInputRef, () => {
@@ -132,7 +151,15 @@ const OrderFormDelivery = ({
             <form
                 onSubmit={(e) => {
                     e.preventDefault();
-                    handleSubmit(e);
+
+                    // Obtener el valor más reciente del campo contentEditable
+                    const commentElement = document.getElementById('orderComment');
+                    const latestComment = commentElement ? commentElement.innerHTML : '';
+
+                    console.log('Comentario obtenido al enviar:', latestComment);
+
+                    // Llamar a handleSubmit con el comentario más reciente
+                    handleSubmit(e, resetForm, 'Preparacion', 'delivery', { comment: latestComment });
                 }}
             >
                 <div className="form-group">
@@ -216,20 +243,32 @@ const OrderFormDelivery = ({
                             onFocus={() => setIsSearchFocused(true)}
                             className={isEditing ? 'editing-input' : ''}
                         />
-                        {modalSearchQuery && isSearchFocused && filteredProducts.length > 0 && (
-                            <ul className="suggestions-list">
-                                {filteredProducts.map((product, index) => (
-                                    <li
-                                        key={`${product._id}-${index}`}
-                                        onClick={() => addToCart(product)}
-                                        className="suggestion-item"
-                                    >
-                                        <span>{product.title}</span>
-                                        <span>${product.price}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
+                        {/* Mostrar sugerencias solo si hay texto y el campo está enfocado */}
+                                                {modalSearchQuery && isSearchFocused && filteredProducts.length > 0 && (
+                                                    <ul className="suggestions-list">
+                                                        {filteredProducts.map((product, index) => (
+                                                            <li
+                                                                key={`${product._id}-${index}`}
+                                                                onClick={() => {
+                                                                    addToCart(product); // Agregar el producto al carrito
+                                                                    setModalSearchQuery(''); // Limpiar el texto del campo de búsqueda
+                        
+                                                                    // Quitar y volver a activar el foco
+                                                                    if (searchInputRef.current) {
+                                                                        searchInputRef.current.blur(); // Quitar el foco
+                                                                        setTimeout(() => {
+                                                                            searchInputRef.current.focus(); // Volver a activar el foco
+                                                                        }, 0); // Breve retraso para asegurar que el navegador registre el cambio
+                                                                    }
+                                                                }}
+                                                                className="suggestion-item"
+                                                            >
+                                                                <span>{product.title}</span>
+                                                                <span>${product.price}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
                         <button type="button" onClick={() => setIsModalOpen(true)}>
                             Ver Productos +
                         </button>
