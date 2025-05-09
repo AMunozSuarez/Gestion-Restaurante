@@ -1,6 +1,8 @@
 import { useRef } from 'react';
+import { useCartManagement } from './useCartManagement'; // Importar el nuevo hook del carrito
 
-const useCommentHandler = (setCart) => {
+const useCommentHandler = () => {
+    const { cart, setCart } = useCartManagement(); // Acceder al estado del carrito y setCart desde el nuevo hook
     const textAreaRefs = useRef({}); // Referencias para las cajas de texto
 
     // Función para manejar la adición de comentarios

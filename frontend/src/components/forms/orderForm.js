@@ -4,12 +4,12 @@ import useCartStore from '../../store/useCartStore'; // Store para manejar el ca
 import useUIStore from '../../store/useUiStore'; // Store para manejar estados de UI
 import { useProducts } from '../../hooks/useProducts'; // Hook para manejar productos
 import { useCategories } from '../../hooks/useCategories'; // Hook para manejar categorías
-import useCommentHandler from '../../hooks/useCommentHandler'; // Hook para manejar comentarios
 import '../../styles/orderForm.css'; // Estilos específicos del formulario de pedido
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { closeOrder } from '../../api/cashApi'; // Importa la función para cerrar el pedido
+import { useCartManagement } from '../../hooks/useCartManagement'; // Cambiamos a useCartManagement
 
 const OrderForm = ({
     customerName,
@@ -18,13 +18,23 @@ const OrderForm = ({
     setSelectedPaymentMethod,
     handleSubmit,
     editingOrderId,
-    setEditingOrderId,
     isViewingCompletedOrder,
     resetForm,
     comment, // Recibir el estado del comentario como prop
     setComment, // Recibir la función para actualizar el comentario como prop
 }) => {
-    const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Incluye setCart
+    const {
+        cart,
+        cartTotal,
+        addToCart,
+        clearCart,
+        increaseQuantity,
+        decreaseQuantity,
+        removeProduct,
+        addCommentToProduct,
+        toggleEditComment,
+        textAreaRefs,
+    } = useCartManagement(); // Usar el hook para manejar el carrito
     const { isSearchFocused, setIsSearchFocused } = useUIStore(); // Estados de UI desde Zustand
     const { products, isLoading: productsLoading } = useProducts(); // Productos desde TanStack Query
     const { categories, isLoading: categoriesLoading } = useCategories(); // Categorías desde TanStack Query
@@ -33,20 +43,19 @@ const OrderForm = ({
     const [categoryFilter, setCategoryFilter] = useState('');
     const [modalSearchQuery, setModalSearchQuery] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
-    const [cartTotal, setCartTotal] = useState(0); // Estado para el total del carrito
     const [isEditing, setIsEditing] = React.useState(!!editingOrderId); // Determinar si estamos editando
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); // Estado para la modal de cancelación
     const navigate = useNavigate(); // Hook para navegar entre rutas
 
     const searchInputRef = useRef(null); // Referencia al campo de búsqueda
-    const { textAreaRefs, handleAddComment, handleToggleEditComment } = useCommentHandler(setCart);
 
+    const handleAddComment = (productId, commentHtml) => {
+        addCommentToProduct(productId, commentHtml);
+    };
 
-    // Calcular el total del carrito cada vez que cambie
-    useEffect(() => {
-        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        setCartTotal(total);
-    }, [cart]);
+    const handleToggleEditComment = (productId) => {
+        toggleEditComment(productId);
+    };
 
     // Filtrar productos por categoría o búsqueda
     useEffect(() => {
@@ -92,31 +101,6 @@ const OrderForm = ({
         };
     }, []);
 
-    const addToCart = (product) => {
-        setCart((prevCart) => {
-            const existingProduct = prevCart.find((item) => item._id === product._id);
-            if (existingProduct) {
-                return prevCart.map((item) =>
-                    item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
-                );
-            }
-            return [...prevCart, { ...product, quantity: 1 }];
-        });
-
-        // Limpiar el campo de búsqueda después de seleccionar un producto
-        setModalSearchQuery('');
-
-        // Forzar re-renderizado de las sugerencias
-        setIsSearchFocused(false); // Desactiva el estado temporalmente
-        setTimeout(() => {
-            setIsSearchFocused(true); // Reactiva el estado después de un breve retraso
-        }, 0);
-
-        // Volver a enfocar el campo de búsqueda
-        if (searchInputRef.current) {
-            searchInputRef.current.focus();
-        }
-    };
 
     // Mostrar el carrito
     const renderCart = () => {

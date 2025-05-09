@@ -26,8 +26,6 @@ const OrderFormDelivery = ({
     editingOrderId,
     setEditingOrderId,
     isViewingCompletedOrder,
-    markAsCompleted,
-    cancelOrder,
     comment,
     setComment,
 }) => {
