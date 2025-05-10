@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrders } from '../../hooks/useOrders';
 import { useOrderForm } from '../../hooks/useOrderForm';
-import OrderForm from '../forms/orderForm';
+import OrderFormMostrador from '../forms/orderFormMostrador'; // Formulario para crear/editar pedidos
 import OrderList from '../lists/orderList';
 import CompletedOrdersList from '../lists/completedOrdersList';
 import '../../styles/mostrador.css';
@@ -100,7 +100,7 @@ const Mostrador = () => {
                 <div className="mostrador-content">
                     {/* Formulario de creación/edición de pedidos */}
                     <div className="mostrador-create-order">
-                        <OrderForm
+                        <OrderFormMostrador
                             customerName={customerName}
                             setCustomerName={setCustomerName}
                             selectedPaymentMethod={selectedPaymentMethod}

@@ -1,16 +1,37 @@
-import { useEffect, useState, useRef } from 'react'; // Importamos useRef para manejar referencias
+import { useEffect, useState, useRef, useCallback } from 'react'; // Importamos useRef y useCallback para optimizar
 import useCartStore from '../store/useCartStore'; // Usamos el store existente para manejar el carrito
 
 export const useCartManagement = () => {
-    const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct } = useCartStore(); // Acceso al estado global del carrito
+    const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct, cartContext } = useCartStore(); // Acceso al estado global del carrito
     const [cartTotal, setCartTotal] = useState(0); // Estado local para el total del carrito
     const textAreaRefs = useRef({}); // Referencias para las cajas de texto
+    const prevCartRef = useRef(cart); // Referencia para el valor anterior del carrito
 
-    // Calcular el total del carrito cada vez que cambie
-    useEffect(() => {
-        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        setCartTotal(total);
+    // Función memoizada para calcular el total del carrito
+    const calculateTotal = useCallback(() => {
+        return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     }, [cart]);
+
+    // Calcular el total del carrito cada vez que cambie, pero evitando actualizaciones redundantes
+    useEffect(() => {
+        // Si estamos en el contexto 'edit' y no ha cambiado la estructura del carrito (solo referencias)
+        // solo actualizamos si la cantidad de productos o sus precios han cambiado
+        if (cartContext === 'edit' && 
+            prevCartRef.current.length === cart.length && 
+            prevCartRef.current.every((item, i) => item._id === cart[i]._id)) {
+            
+            const newTotal = calculateTotal();
+            if (Math.abs(newTotal - cartTotal) > 0.01) { // Solo actualizar si el cambio es significativo
+                setCartTotal(newTotal);
+            }
+        } else {
+            // Si hay cambio en la estructura o no estamos en 'edit', calculamos normalmente
+            setCartTotal(calculateTotal());
+        }
+        
+        // Actualizar la referencia al carrito actual
+        prevCartRef.current = cart;
+    }, [cart, calculateTotal, cartTotal, cartContext]);
 
     // Agregar un producto al carrito
     const addToCart = (product) => {
@@ -64,12 +85,16 @@ export const useCartManagement = () => {
                 sel.addRange(range);
             }
         }, 0);
-    };
+    };    // Método getter para obtener el total del carrito
+    const getCartTotal = useCallback(() => {
+        return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    }, [cart]);
 
     return {
         cart,
         setCart,
-        cartTotal,
+        cartTotal, // Mantenemos esta propiedad para compatibilidad con componentes existentes
+        getCartTotal, // Nuevo método para obtener el total calculado directamente
         addToCart,
         clearCart,
         increaseQuantity,

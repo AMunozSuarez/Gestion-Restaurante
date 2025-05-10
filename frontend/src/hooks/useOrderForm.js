@@ -116,76 +116,6 @@ export const useOrderForm = () => {
         }
     };
 
-    // Función para cerrar el pedido
-    const handleCloseOrder = async ({
-        cart,
-        cartTotal,
-        deliveryCost = 0,
-        selectedPaymentMethod,
-        customerName,
-        customerPhone,
-        deliveryAddress,
-        comment,
-        editingOrderId,
-        resetForm,
-        navigate,
-    }) => {
-        try {
-            if (!selectedPaymentMethod) {
-                alert('Por favor, selecciona un método de pago.');
-                return;
-            }
-
-            if (cart.length === 0) {
-                alert('El carrito está vacío. Agrega productos antes de cerrar el pedido.');
-                return;
-            }
-
-            const orderData = {
-                buyer: {
-                    name: customerName,
-                    phone: customerPhone,
-                    addresses: [
-                        {
-                            address: deliveryAddress,
-                            deliveryCost: Number(deliveryCost),
-                        },
-                    ],
-                    comment: comment || '',
-                },
-                foods: cart.map((item) => ({
-                    food: item._id,
-                    quantity: item.quantity,
-                    comment: item.comment || '',
-                })),
-                payment: selectedPaymentMethod,
-                total: cartTotal + Number(deliveryCost),
-                section: 'delivery',
-                status: 'Enviado',
-            };
-
-            console.log('Enviando PUT para cerrar pedido con datos:', orderData);
-
-            // Si estamos editando un pedido existente
-            if (editingOrderId) {
-                const response = await updateOrder(editingOrderId, orderData); // PUT al backend
-                if (response.status === 200) {
-                    alert('Pedido actualizado y enviado correctamente.');
-                    clearCart();
-                    resetForm();
-                    navigate('/delivery'); // Redirigir a la página de delivery
-                } else {
-                    throw new Error('Error al actualizar el pedido.');
-                }
-            } else {
-                alert('No se encontró un pedido para actualizar.');
-            }
-        } catch (error) {
-            console.error('Error al cerrar el pedido:', error);
-            alert('Hubo un error al cerrar el pedido. Inténtalo nuevamente.');
-        }
-    };
-
     // Función para registrar el pedido en la caja
     const handleRegisterOrderInCashRegister = async ({
         cart = [],
@@ -268,7 +198,6 @@ export const useOrderForm = () => {
         comment,
         setComment,
         resetForm,
-        handleCloseOrder, // Exportar la función
         handleRegisterOrderInCashRegister, // Exportar la nueva función
         handleUpdateOrderStatus, // Exportar la función para actualizar el estado del pedido
     };
