@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import axios from '../services/axiosConfig';
+import axios from '../../services/axiosConfig';
 
 export const useCategories = () => {
     const { data: categories, isLoading, error } = useQuery({

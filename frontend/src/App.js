@@ -1,11 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import Header from './components/header';
+import Header from './components/layout/Header';
 
 // Páginas principales
-import Login from './components/pages/login';
 import Mostrador from './components/pages/mostrador';
 import Delivery from './components/pages/delivery';
+import Login from './components/pages/login';
 
 // Páginas de detalles de pedidos
 import OrderDetails from './components/pages/orderDetails';

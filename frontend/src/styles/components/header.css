@@ -1,0 +1,116 @@
+/* Estilo general del header */
+header {
+    background-color: #4d2600; /* Marrón oscuro */
+    color: white;
+    padding: 10px 20px; /* Reducir el padding para un diseño más compacto */
+    font-family: 'Poppins', Arial, sans-serif; /* Fuente moderna */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Sombra para dar profundidad */
+    top: 0;
+    z-index: 1000; /* Asegurar que esté encima de otros elementos */
+}
+
+/* Título del header */
+header h1 {
+    margin: 0;
+    font-size: 1.8em; /* Tamaño de fuente más compacto */
+    font-weight: bold;
+    text-align: center;
+    color: #ffd966; /* Amarillo para resaltar */
+}
+
+/* Lista de navegación */
+header nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: space-between; /* Distribuye los elementos */
+    align-items: center; /* Alinea verticalmente los elementos */
+    gap: 20px; /* Espaciado uniforme entre los elementos */
+}
+
+/* Cada elemento de la lista */
+header nav ul li {
+    flex: 0 0 auto; /* No permite que los elementos se expandan demasiado */
+    position: relative; /* Para posicionar elementos hijos de forma absoluta si es necesario */
+}
+
+/* Enlaces en la navegación */
+header nav a {
+    color: white;
+    text-decoration: none;
+    font-size: 0.95em;
+    font-weight: 500;
+    text-transform: uppercase; /* Todo en mayúsculas para mejor visibilidad */
+    letter-spacing: 0.5px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    display: block;
+    white-space: nowrap; /* Evita que los textos se rompan */
+}
+
+/* Estilo para el enlace activo */
+header nav a.active {
+    background-color: #8b4513; /* Un poco más claro que el fondo para destacar */
+    color: #ffd966; /* Amarillo para indicar selección */
+    font-weight: 700;
+    transform: translateY(-2px); /* Ligero efecto de elevación */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Efecto al pasar el cursor */
+header nav a:hover:not(.active) {
+    background-color: rgba(255, 255, 255, 0.1); /* Fondo semi-transparente */
+    transform: translateY(-1px);
+}
+
+/* Botón de cerrar sesión */
+.logout-button {
+    background-color: #bf6516; /* Color distintivo para el botón de logout */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    outline: none;
+    display: block; /* Para que se comporte como un elemento de bloque */
+}
+
+/* Efecto al pasar el cursor sobre el botón de logout */
+.logout-button:hover {
+    background-color: #e74c3c; /* Rojo para indicar una acción de salida */
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Media query para pantallas pequeñas (móviles) */
+@media (max-width: 768px) {
+    header nav ul {
+        flex-direction: column; /* Cambia a una columna en pantallas pequeñas */
+        gap: 10px;
+    }
+    
+    header nav ul li {
+        width: 100%;
+        text-align: center;
+    }
+    
+    header nav a {
+        padding: 10px 15px; /* Área más grande para tocar en dispositivos móviles */
+    }
+    
+    .logout-button {
+        width: 100%; /* Botón de ancho completo en móvil */
+        padding: 12px; /* Más alto en móvil para tocar fácilmente */
+    }
+    
+    header h1 {
+        font-size: 1.5em; /* Título más pequeño en móvil */
+    }
+}

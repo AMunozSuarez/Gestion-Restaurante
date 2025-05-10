@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import axios from '../services/axiosConfig';
-import useCartStore from '../store/useCartStore';
-import { useOrders } from './useOrders';
+import axios from '../../services/axiosConfig';
+import useCartStore from '../../store/useCartStore';
+import { useOrders } from '../api/useOrders';
 
 export const useOrderDetailsLogic = ({
   orderNumber,
@@ -35,6 +35,7 @@ export const useOrderDetailsLogic = ({
       [fieldName]: value
     }));
   };
+
   // Cargar pedido inicial
   useEffect(() => {
     // Indicar que estamos en modo edición para optimizar actualizaciones
@@ -79,6 +80,7 @@ export const useOrderDetailsLogic = ({
       }
     }
   }, [orderNumber, orders, setCart, setCartContext, detailsConfig, editingOrder]);
+
   // Seleccionar un pedido completado para ver sus detalles
   const handleSelectCompletedOrder = (order) => {
     // Evitar actualización si el pedido ya está seleccionado

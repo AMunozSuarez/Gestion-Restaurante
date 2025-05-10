@@ -1,10 +1,10 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useOrderDetailsLogic } from '../../hooks/business/useOrderDetailsLogic';
-import OrderDetailsBase from '../layout/OrderDetailsBase';
-import OrderFormDelivery from '../forms/specialized/OrderFormDelivery';
-import OrderListDelivery from '../lists/orderListDelivery';
-import '../../styles/delivery.css';
+import OrderDetailsBase from '../../components/layout/OrderDetailsBase';
+import OrderFormDelivery from '../../components/forms/specialized/OrderFormDelivery';
+import OrderListDelivery from '../../components/lists/orderListDelivery';
+import '../../styles/modules/delivery.css';
 
 const DeliveryDetails = () => {
   const { orderNumber } = useParams();

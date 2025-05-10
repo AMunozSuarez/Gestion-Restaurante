@@ -1,16 +1,18 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCartManagement } from '../../hooks/useCartManagement';
-import { useOrderForm } from '../../hooks/useOrderForm';
-import BaseOrderForm from './BaseOrderForm';
+import { useCartManagement } from '../../../hooks/state/useCartManagement';
+import { useOrderForm } from '../../../hooks/forms/useOrderForm';
+import BaseOrderForm from '../base/BaseOrderForm';
 
-const OrderFormMostrador = (props) => {    const navigate = useNavigate();
+const OrderFormMostrador = (props) => {    
+    const navigate = useNavigate();
     const { cart, cartTotal, getCartTotal, clearCart } = useCartManagement();
     const { handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm();
 
     // Acción para completar el pedido (cerrar)
     const handleCompleteOrder = async () => {
-        try {            // Calcular el total más actualizado
+        try {            
+            // Calcular el total más actualizado
             const calculatedTotal = getCartTotal();
             
             // Registrar en caja

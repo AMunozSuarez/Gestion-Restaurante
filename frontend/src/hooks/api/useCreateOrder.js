@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from '../services/axiosConfig';
+import axios from '../../services/axiosConfig';
 
 export const useCreateOrder = () => {
     const queryClient = useQueryClient();

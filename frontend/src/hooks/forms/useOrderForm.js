@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useCreateOrder } from './useCreateOrder'; // Hook para crear pedidos
-import useCartStore from '../store/useCartStore'; // Store para manejar el carrito
-import { useOrders } from './useOrders'; // Hook para manejar pedidos
-import { useNavigate } from 'react-router-dom'; // Hook para navegación
-import { closeOrder } from '../api/cashApi'; // Ajusta la ruta según tu estructura de archivos
-import { updateOrder } from '../api/ordersApi';
+import { useCreateOrder } from '../api/useCreateOrder';
+import useCartStore from '../../store/useCartStore';
+import { useOrders } from '../api/useOrders';
+import { useNavigate } from 'react-router-dom';
+import { closeOrder } from '../../services/api/cashApi';
+import { updateOrder } from '../../services/api/ordersApi';
 
 export const useOrderForm = () => {
     const { createOrder } = useCreateOrder(); // Hook para manejar la creación de pedidos

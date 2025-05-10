@@ -1,7 +1,7 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
-import { useCartManagement } from '../../hooks/useCartManagement'; // Importamos el hook para manejar el carrito
+import { useCartManagement } from '../../hooks/state/useCartManagement'; // Importamos el hook para manejar el carrito
 
 const Cart = ({
     cart,

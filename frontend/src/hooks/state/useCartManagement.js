@@ -1,11 +1,11 @@
-import { useEffect, useState, useRef, useCallback } from 'react'; // Importamos useRef y useCallback para optimizar
-import useCartStore from '../store/useCartStore'; // Usamos el store existente para manejar el carrito
+import { useEffect, useState, useRef, useCallback } from 'react';
+import useCartStore from '../../store/useCartStore';
 
 export const useCartManagement = () => {
-    const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct, cartContext } = useCartStore(); // Acceso al estado global del carrito
-    const [cartTotal, setCartTotal] = useState(0); // Estado local para el total del carrito
-    const textAreaRefs = useRef({}); // Referencias para las cajas de texto
-    const prevCartRef = useRef(cart); // Referencia para el valor anterior del carrito
+    const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct, cartContext } = useCartStore();
+    const [cartTotal, setCartTotal] = useState(0);
+    const textAreaRefs = useRef({});
+    const prevCartRef = useRef(cart);
 
     // Función memoizada para calcular el total del carrito
     const calculateTotal = useCallback(() => {
@@ -35,6 +35,12 @@ export const useCartManagement = () => {
 
     // Agregar un producto al carrito
     const addToCart = (product) => {
+        // Si no hay producto válido, no hacemos nada
+        if (!product || !product._id) {
+            console.warn("Se intentó agregar un producto inválido al carrito:", product);
+            return;
+        }
+        
         setCart((prevCart) => {
             const existingProduct = prevCart.find((item) => item._id === product._id);
             if (existingProduct) {
@@ -85,7 +91,9 @@ export const useCartManagement = () => {
                 sel.addRange(range);
             }
         }, 0);
-    };    // Método getter para obtener el total del carrito
+    };
+    
+    // Método getter para obtener el total del carrito
     const getCartTotal = useCallback(() => {
         return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     }, [cart]);

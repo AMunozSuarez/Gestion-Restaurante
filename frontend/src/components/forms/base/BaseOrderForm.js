@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { useProducts } from '../../hooks/useProducts';
-import { useCategories } from '../../hooks/useCategories';
-import { useCartManagement } from '../../hooks/useCartManagement';
-import useUIStore from '../../store/useUiStore';
-import Cart from '../cart/Cart';
-import '../../styles/orderForm.css';
+import { useProducts } from '../../../hooks/api/useProducts';
+import { useCategories } from '../../../hooks/api/useCategories';
+import { useCartManagement } from '../../../hooks/state/useCartManagement';
+import useUIStore from '../../../store/useUiStore';
+import Cart from '../../cart/Cart';
+import '../../../styles/components/orderForm.css';
 
 const BaseOrderForm = ({
     // Props comunes

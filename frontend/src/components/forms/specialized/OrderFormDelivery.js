@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCartManagement } from '../../hooks/useCartManagement';
-import { useOrderForm } from '../../hooks/useOrderForm';
-import BaseOrderForm from './BaseOrderForm';
+import { useCartManagement } from '../../../hooks/state/useCartManagement';
+import { useOrderForm } from '../../../hooks/forms/useOrderForm';
+import BaseOrderForm from '../base/BaseOrderForm';
 
-const OrderFormDelivery = (props) => {    const navigate = useNavigate();
+const OrderFormDelivery = (props) => {    
+    const navigate = useNavigate();
     const { cart, cartTotal, getCartTotal, clearCart } = useCartManagement();
     const { handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm();
 
@@ -54,7 +55,8 @@ const OrderFormDelivery = (props) => {    const navigate = useNavigate();
 
     // Acción para enviar pedido
     const handleSendOrder = async () => {
-        try {            // Calcular el total más actualizado
+        try {            
+            // Calcular el total más actualizado
             const calculatedTotal = getCartTotal();
             
             // Primero registrar en caja
@@ -87,7 +89,7 @@ const OrderFormDelivery = (props) => {    const navigate = useNavigate();
                     comment: item.comment || '',
                 })),
                 payment: props.selectedPaymentMethod,
-                total: cartTotal + Number(props.deliveryCost),
+                total: calculatedTotal + Number(props.deliveryCost),
                 section: 'delivery',
                 selectedAddress: props.deliveryAddress,
             });

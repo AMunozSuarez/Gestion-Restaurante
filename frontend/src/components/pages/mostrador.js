@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useOrders } from '../../hooks/useOrders';
-import { useOrderForm } from '../../hooks/useOrderForm';
-import OrderFormMostrador from '../forms/orderFormMostrador'; // Formulario para crear/editar pedidos
+import { useOrders } from '../../hooks/api/useOrders'; // Hook para obtener las órdenes
+import { useOrderForm } from '../../hooks/forms/useOrderForm'; // Hook para manejar el formulario de pedidos
+import OrderFormMostrador from '../forms/specialized/OrderFormMostrador';
 import OrderList from '../lists/orderList';
 import CompletedOrdersList from '../lists/completedOrdersList';
 import '../../styles/mostrador.css';

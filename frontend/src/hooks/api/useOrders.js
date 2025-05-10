@@ -1,13 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from '../services/axiosConfig';
+import axios from '../../services/axiosConfig';
 
 // Función para obtener pedidos
 const fetchOrders = async () => {
     const response = await axios.get('/order/getAll');
     return response.data.orders || []; // Devuelve un array vacío si no hay pedidos
 };
-
-
 
 // Hook personalizado para manejar pedidos
 export const useOrders = () => {

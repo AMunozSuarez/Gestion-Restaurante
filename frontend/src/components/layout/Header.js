@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import '../styles/header.css';
-import useAuth from '../hooks/useAuth'; // Importa el hook de autenticación
+import '../../styles/components/header.css';
+import useAuth from '../../hooks/useAuth'; // Importa el hook de autenticación
 
 const Header = () => {
     const { isAuthenticated, logout } = useAuth(); // Obtén el estado de autenticación y la función logout
@@ -39,12 +39,12 @@ const Header = () => {
                                 </NavLink>
                             </li>
                             <li className="nav-item">
-                                <NavLink to="/admin/reportes" className={({ isActive }) => (isActive ? 'active' : '')}>
-                                    Reportes
+                                <NavLink to="/delivery" className={({ isActive }) => (isActive ? 'active' : '')}>
+                                    Delivery
                                 </NavLink>
                             </li>
-                            <li className="nav-item logout-item">
-                                <button className="logout-button" onClick={logout}>
+                            <li className="nav-item">
+                                <button onClick={logout} className="logout-button">
                                     Cerrar sesión
                                 </button>
                             </li>
