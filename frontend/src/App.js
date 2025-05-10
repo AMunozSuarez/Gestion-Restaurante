@@ -3,13 +3,13 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Header from './components/layout/Header';
 
 // Páginas principales
-import Mostrador from './components/pages/mostrador';
-import Delivery from './components/pages/delivery';
+import Mostrador from './components/pages/mostrador/mostrador';
+import Delivery from './components/pages/delivery/delivery';
 import Login from './components/pages/login';
 
 // Páginas de detalles de pedidos
-import OrderDetails from './components/pages/orderDetails';
-import DeliveryDetails from './components/pages/deliveryDetails';
+import OrderDetails from './components/pages/mostrador/orderDetails';
+import DeliveryDetails from './components/pages/delivery/deliveryDetails';
 
 // Componentes de administración
 import Productos from './components/admin/productos'; 
@@ -19,7 +19,7 @@ import Reports from './components/admin/reports';
 import SalesList from './components/admin/salesList';
 
 // Layouts
-import MostradorLayout from './components/pages/mostradorLayout';
+import MostradorLayout from './components/layout/mostradorLayout';
 
 function App() {
   return (

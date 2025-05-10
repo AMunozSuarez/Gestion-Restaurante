@@ -6,7 +6,7 @@ import BaseOrderForm from '../base/BaseOrderForm';
 
 const OrderFormMostrador = (props) => {    
     const navigate = useNavigate();
-    const { cart, cartTotal, getCartTotal, clearCart } = useCartManagement();
+    const { cart, getCartTotal, clearCart } = useCartManagement();
     const { handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm();
 
     // Acción para completar el pedido (cerrar)

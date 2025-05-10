@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import '../../styles/orderList.css'; // Estilos específicos de la lista de pedidos
+import '../../styles/Lists/orderList.css'; // Estilos específicos de la lista de pedidos
 import { useOrderForm } from '../../hooks/forms/useOrderForm'; // Hook para manejar el formulario de pedidos
 
 const OrderList = ({ orders }) => {

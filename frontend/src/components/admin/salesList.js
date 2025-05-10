@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import '../../styles/admin/salesList.css'; // Estilos específicos para la lista de ventas
-import AdminSubheader from './adminSubheader'; // Subheader para navegación
+import AdminSubheader from '../layout/adminSubheader'; // Subheader para navegación
 import { useOrders } from '../../hooks/api/useOrders'; // Hook para obtener las órdenes
 
 const SalesList = () => {

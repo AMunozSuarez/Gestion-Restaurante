@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useOrders } from '../../hooks/api/useOrders'; // Hook para obtener las órdenes
-import { useOrderForm } from '../../hooks/forms/useOrderForm'; // Hook para manejar el formulario de pedidos
-import OrderFormDelivery from '../forms/specialized/OrderFormDelivery';
-import CompletedOrdersList from '../lists/completedOrdersList';
-import '../../styles/delivery.css';
-import useCartStore from '../../store/useCartStore';
+import { useOrders } from '../../../hooks/api/useOrders'; // Hook para obtener los pedidos
+import { useOrderForm } from '../../../hooks/forms/useOrderForm'; // Hook para manejar el formulario de pedidos
+import OrderFormDelivery from '../../forms/specialized/OrderFormDelivery';
+import CompletedOrdersList from '../../lists/completedOrdersList';
+import '../../../styles/delivery.css';
+import useCartStore from '../../../store/useCartStore';
 import { CSSTransition } from 'react-transition-group';
-import OrderListDelivery from '../lists/orderListDelivery';
+import OrderListDelivery from '../../lists/orderListDelivery';
 
 const Delivery = () => {
     const { orders, isLoading, updateOrderStatus } = useOrders();
@@ -84,14 +84,6 @@ const Delivery = () => {
         setComment('');
         clearCart(); // Limpiar el carrito
         setEditingOrderId(null); // Restablecer el ID del pedido en edición
-    };
-
-    const markAsSent = (orderId) => {
-        updateOrderStatus(orderId, 'Enviado');
-    };
-
-    const markAsDelivered = (orderId) => {
-        updateOrderStatus(orderId, 'Entregado');
     };
 
     // Función para cancelar un pedido

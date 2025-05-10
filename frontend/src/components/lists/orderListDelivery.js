@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import '../../styles/orderListDelivery.css'; // Estilos específicos para la lista de pedidos de delivery
+import '../../styles/Lists/orderListDelivery.css'; // Estilos específicos para la lista de pedidos de delivery
 import { useOrderForm } from '../../hooks/forms/useOrderForm'; // Hook para manejar el formulario de pedidos
 import { useOrders } from '../../hooks/api/useOrders'; // Hook para obtener las órdenes
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams } from 'react-router-dom'; // Importar useParams para obtener el orderNumber de la URL
-import '../../styles/completedOrderList.css';
+import '../../styles/Lists/completedOrderList.css'; // Importar estilos específicos de la lista de pedidos completados
 
 const CompletedOrdersList = ({ orders, onSelectOrder, section }) => {
     const { orderNumber } = useParams(); // Obtener el número de pedido desde la URL

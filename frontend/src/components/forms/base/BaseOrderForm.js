@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../../../hooks/api/useProducts';
 import { useCategories } from '../../../hooks/api/useCategories';
 import { useCartManagement } from '../../../hooks/state/useCartManagement';
@@ -34,10 +33,8 @@ const BaseOrderForm = ({
     cancelOrderAction,
 }) => {    const {
         cart,
-        cartTotal,
         getCartTotal,
         addToCart,
-        clearCart,
         increaseQuantity,
         decreaseQuantity,
         removeProduct,
@@ -47,7 +44,6 @@ const BaseOrderForm = ({
     const { isSearchFocused, setIsSearchFocused, handleClickOutside } = useUIStore();
     const { products, isLoading: productsLoading } = useProducts();
     const { categories, isLoading: categoriesLoading } = useCategories();
-    const navigate = useNavigate();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
