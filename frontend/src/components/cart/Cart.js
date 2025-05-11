@@ -1,7 +1,7 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
-import { useCartManagement } from '../../hooks/state/useCartManagement'; // Importamos el hook para manejar el carrito
+import { useCartManagement } from '../../hooks/state/useCartManagement';
 
 const Cart = ({
     cart,
@@ -11,7 +11,7 @@ const Cart = ({
     removeProduct,
     textAreaRefs,
 }) => {
-    const { addCommentToProduct, toggleEditComment } = useCartManagement(); // Usamos las funciones directamente
+    const { addCommentToProduct, toggleEditComment } = useCartManagement();
 
     if (!Array.isArray(cart) || cart.length === 0) {
         return <p>El carrito está vacío.</p>;
@@ -54,13 +54,18 @@ const Cart = ({
                                 </button>
                             )}
                         </div>
-                        {item.isEditing && (
+                        
+                        {/* Mostrar la caja de comentarios si está en modo edición O si ya existe un comentario */}
+                        {(item.isEditing || item.comment) && (
                             <div className="cart-comment-box">
                                 <div
                                     ref={(el) => (textAreaRefs.current[item._id] = el)}
                                     contentEditable="true"
                                     className="editable-comment"
-                                    onBlur={(e) => addCommentToProduct(item._id, e.target.innerHTML)}
+                                    onBlur={(e) => {
+                                        const newComment = e.target.innerHTML;
+                                        addCommentToProduct(item._id, newComment);
+                                    }}
                                     suppressContentEditableWarning={true}
                                     dangerouslySetInnerHTML={{
                                         __html: (item.comment || '').replace(/\n/g, '<br>'),
@@ -68,19 +73,6 @@ const Cart = ({
                                     onClick={(e) => e.stopPropagation()}
                                 />
                             </div>
-                        )}
-                        {item.comment && !item.isEditing && (
-                            <p
-                                className="cart-comment-text"
-                                onClick={() => toggleEditComment(item._id)}
-                            >
-                                {item.comment.split('\n').map((line, i) => (
-                                    <React.Fragment key={i}>
-                                        {line}
-                                        <br />
-                                    </React.Fragment>
-                                ))}
-                            </p>
                         )}
                     </li>
                     <hr className="cart-divider" />

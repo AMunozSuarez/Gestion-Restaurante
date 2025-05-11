@@ -153,6 +153,29 @@ const BaseOrderForm = ({
                             console.log(`Comentario actualizado en ${formType}:`, newComment);
                             setComment(newComment);
                         }}
+                        onFocus={(e) => {
+                            // Mover el cursor al final del contenido cuando recibe el foco
+                            const element = e.target;
+                            // Crear rango al final del contenido
+                            const range = document.createRange();
+                            const selection = window.getSelection();
+                            
+                            // Asegurarse de que hay contenido antes de intentar posicionar el cursor
+                            if (element.childNodes.length > 0) {
+                                const lastNode = element.childNodes[element.childNodes.length - 1];
+                                const offset = lastNode.nodeType === 3 ? lastNode.length : 0;
+                                range.setStart(lastNode, offset);
+                                range.collapse(true);
+                                
+                                // Aplicar la selección
+                                selection.removeAllRanges();
+                                selection.addRange(range);
+                            }
+                        }}
+                        onClick={(e) => {
+                            // Detener la propagación para evitar que el clic se propague
+                            e.stopPropagation();
+                        }}
                         suppressContentEditableWarning={true}
                         dangerouslySetInnerHTML={{
                             __html: (comment || '').replace(/\n/g, '<br>'),

@@ -55,7 +55,12 @@ const OrderFormDelivery = (props) => {
 
     // Acción para enviar pedido
     const handleSendOrder = async () => {
-        try {            
+        try {    
+            // Validar campos requeridos
+            if (cart.length === 0) {
+                alert('El carrito está vacío. Agrega productos antes de enviar el pedido.');
+                return;
+            }       
             // Calcular el total más actualizado
             const calculatedTotal = getCartTotal();
             
@@ -99,7 +104,6 @@ const OrderFormDelivery = (props) => {
             props.resetForm();
             navigate('/delivery');
             
-            alert('Pedido registrado en caja y actualizado a estado Enviado.');
         } catch (error) {
             console.error('Error al procesar el pedido:', error);
             alert('Hubo un error al procesar el pedido. Inténtalo nuevamente.');

@@ -11,7 +11,12 @@ const OrderFormMostrador = (props) => {
 
     // Acción para completar el pedido (cerrar)
     const handleCompleteOrder = async () => {
-        try {            
+        try {      
+                // Validar campos requeridos
+            if (cart.length === 0) {
+                alert('El carrito está vacío. Agrega productos antes de enviar el pedido.');
+                return;
+            }       
             // Calcular el total más actualizado
             const calculatedTotal = getCartTotal();
             
@@ -45,7 +50,6 @@ const OrderFormMostrador = (props) => {
             props.resetForm();
             navigate('/mostrador');
             
-            alert('Pedido registrado en caja y marcado como completado.');
         } catch (error) {
             console.error('Error al procesar el pedido:', error);
             alert('Hubo un error al procesar el pedido. Inténtalo nuevamente.');

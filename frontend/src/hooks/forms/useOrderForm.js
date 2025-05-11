@@ -129,6 +129,11 @@ export const useOrderForm = () => {
                 return;
             }
 
+            if (cart.length === 0) {
+                alert('El carrito está vacío. Agrega productos antes de cerrar el pedido.');
+                return;
+            }
+
             const orderData = {
                 total: cartTotal + Number(deliveryCost),
                 paymentMethod: selectedPaymentMethod,
@@ -160,10 +165,6 @@ export const useOrderForm = () => {
         try {
             if (!order || !order._id) {
                 alert('No se ha seleccionado un pedido para actualizar.');
-                return;
-            }
-            if (cart.length === 0) {
-                alert('El carrito está vacío. Agrega productos antes de cerrar el pedido.');
                 return;
             }
 
