@@ -161,11 +161,10 @@ const BaseOrderForm = ({
 
                 {/* Comentario del pedido (común) */}
                 <div className="form-group">
-                    <label htmlFor="orderComment">Comentario:</label>
-                    <div
+                    <label htmlFor="orderComment">Comentario:</label>                    <div
                         id="orderComment"
-                        contentEditable="true"
-                        className="editable-comment"
+                        contentEditable={!isViewingCompletedOrder}
+                        className={`customer-editable-comment ${isViewingCompletedOrder ? 'viewing-mode' : ''} ${!comment && isViewingCompletedOrder ? 'empty' : ''}`}
                         onBlur={(e) => {
                             const newComment = e.target.innerHTML;
                             console.log(`Comentario actualizado en ${formType}:`, newComment);
@@ -198,6 +197,7 @@ const BaseOrderForm = ({
                         dangerouslySetInnerHTML={{
                             __html: (comment || '').replace(/\n/g, '<br>'),
                         }}
+                        
                     />
                 </div>
 

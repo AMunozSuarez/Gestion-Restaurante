@@ -84,7 +84,7 @@
 }
 
 .order-form .form-group input:disabled,
-.order-form .form-group select:disabled {
+.order-form .form-group select:disabled{
     background-color: #e9ecef; /* Fondo gris claro */
     color: #6c757d; /* Texto gris oscuro */
     cursor: not-allowed; /* Cursor de no permitido */
@@ -521,6 +521,13 @@
     color: #0056b3;
 }
 
+/* Estilo para el botón de comentario deshabilitado */
+.cart-comment.disabled {
+    color: #b3b3b3;
+    cursor: default;
+    pointer-events: none; /* Evita cualquier interacción */
+}
+
 
 .cart-remove:hover {
     background-color: #c82333;
@@ -530,7 +537,7 @@
     margin-top: 5px;
     width: 100%; /* Asegura que ocupe todo el ancho */
     background-color: #f0dbae;
-    padding: 5px;
+    padding: 0px;
     border-radius: 5px;
     font-size: 0.9em;
     color: #555555;
@@ -558,7 +565,59 @@
     outline: none; /* Elimina el borde azul al enfocar */
     cursor: text;
     transition: border-color 0.3s ease;
+    padding: 3px;
 }
+
+/* Estilo para comentarios de productos cuando se está viendo un pedido completado */
+.editable-comment.viewing-mode {
+    background-color: #e9ecef;
+    color: #6c757d;
+    cursor: default;
+    border: 1px solid #ced4da;
+    pointer-events: none; /* Evita cualquier interacción */
+    min-height: 30px;
+}
+
+/* Estilo para cuando el comentario del producto está vacío en modo visualización */
+.editable-comment.viewing-mode.empty::before {
+    content: '(Sin comentario)';
+    color: #adb5bd;
+    font-style: italic;
+    display: block;
+}
+
+.customer-editable-comment{
+    width: 100%;
+    background-color: #f0dbae;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    color: #333;
+    cursor: text;
+    transition: border-color 0.3s ease;
+    min-height: 50px;
+    padding: 10px;
+}
+
+/* Estilo para el comentario general del pedido cuando se está viendo un pedido completado */
+.customer-editable-comment.viewing-mode {
+    background-color: #e9ecef;
+    color: #6c757d;
+    border: 1px solid #ced4da;
+    cursor: default;
+    pointer-events: none; /* Evita cualquier interacción */
+}
+
+/* Estilo para cuando el comentario está vacío en modo visualización */
+.customer-editable-comment.viewing-mode.empty::before {
+    content: '(Sin comentario)';
+    color: #adb5bd;
+    font-style: italic;
+    display: block; /* Asegura que el contenido ocupe espacio */
+}
+
+
+
+
 
 
 .cart-divider {

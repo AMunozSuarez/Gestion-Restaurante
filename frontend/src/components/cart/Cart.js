@@ -37,11 +37,11 @@ const Cart = ({
                                 {isViewingCompletedOrder && <span>{item.quantity}</span>}
                             </div>
                             <div className="cart-product-container">
-                                <span className="cart-product">{item.title}</span>
-                                <button
+                                <span className="cart-product">{item.title}</span>                                <button
                                     type="button"
-                                    className="cart-comment"
-                                    onClick={() => toggleEditComment(item._id)}
+                                    className={`cart-comment ${isViewingCompletedOrder ? 'disabled' : ''}`}
+                                    onClick={() => !isViewingCompletedOrder && toggleEditComment(item._id)}
+                                    disabled={isViewingCompletedOrder}
                                 >                                <FontAwesomeIcon icon={faCommentDots} />
                                 </button>
                             </div>
@@ -60,19 +60,20 @@ const Cart = ({
                         {/* Mostrar la caja de comentarios si está en modo edición O si ya existe un comentario */}
                         {(item.isEditing || item.comment) && (
                             <div className="cart-comment-box">
-                                <div
-                                    ref={(el) => (textAreaRefs.current[item._id] = el)}
-                                    contentEditable="true"
-                                    className="editable-comment"
+                                <div                                    ref={(el) => (textAreaRefs.current[item._id] = el)}
+                                    contentEditable={!isViewingCompletedOrder}
+                                    className={`editable-comment ${isViewingCompletedOrder ? 'viewing-mode' : ''}`}
                                     onBlur={(e) => {
-                                        const newComment = e.target.innerHTML;
-                                        addCommentToProduct(item._id, newComment);
+                                        if (!isViewingCompletedOrder) {
+                                            const newComment = e.target.innerHTML;
+                                            addCommentToProduct(item._id, newComment);
+                                        }
                                     }}
                                     suppressContentEditableWarning={true}
                                     dangerouslySetInnerHTML={{
                                         __html: (item.comment || '').replace(/\n/g, '<br>'),
                                     }}
-                                    onClick={(e) => e.stopPropagation()}
+                                    onClick={(e) => !isViewingCompletedOrder && e.stopPropagation()}
                                 />
                             </div>
                         )}
