@@ -8,7 +8,7 @@ export const useCustomerSearch = () => {
   const [error, setError] = useState(null);
   const debounceTimerRef = useRef(null);
 
-  // Función para buscar clientes basados en un término de búsqueda
+  // Función para buscar clientes
   const searchCustomers = useCallback(async (query) => {
     if (!query || query.length < 3) {
       setSuggestions([]);
@@ -19,8 +19,10 @@ export const useCustomerSearch = () => {
     setError(null);
 
     try {
-      // Usar la URL exacta que has verificado que funciona
+      console.log(`Buscando clientes con la query: ${query}`);
       const response = await axios.get(`/customer/search?query=${encodeURIComponent(query)}`);
+      
+      console.log('Respuesta del servidor:', response.data);
       
       // Manejar diferentes formatos de respuesta
       const customers = Array.isArray(response.data) 
@@ -28,12 +30,49 @@ export const useCustomerSearch = () => {
         : (response.data?.customers || []);
         
       setSuggestions(customers);
+      console.log(`Se encontraron ${customers.length} clientes`);
     } catch (err) {
       console.error('Error al buscar clientes:', err);
-      setError('Error al buscar clientes. Intente nuevamente.');
+      
+      // Mostrar mensaje detallado
+      const errorMsg = err.response?.data?.message || 'Error al buscar clientes';
+      setError(`${errorMsg}. ${err.response?.status === 401 ? 'Verifica tu sesión.' : ''}`);
+      
       setSuggestions([]);
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  // Obtener un cliente por teléfono
+  const getCustomerByPhone = useCallback(async (phone) => {
+    if (!phone) return null;
+    
+    try {
+      setIsLoading(true);
+      const response = await axios.get(`/customer/getByPhone?phone=${encodeURIComponent(phone)}`);
+      setIsLoading(false);
+      
+      return response.data?.customer || null;
+    } catch (error) {
+      console.error('Error al obtener cliente por teléfono:', error);
+      setIsLoading(false);
+      return null;
+    }
+  }, []);
+
+  // Crear o actualizar un cliente
+  const createOrUpdateCustomer = useCallback(async (customerData) => {
+    try {
+      setIsLoading(true);
+      const response = await axios.post('/customer/create-or-update', customerData);
+      setIsLoading(false);
+      
+      return response.data?.customer || null;
+    } catch (error) {
+      console.error('Error al crear/actualizar cliente:', error);
+      setIsLoading(false);
+      throw error;
     }
   }, []);
 
@@ -67,6 +106,8 @@ export const useCustomerSearch = () => {
     suggestions,
     isLoading,
     error,
-    clearSuggestions: () => setSuggestions([])
+    clearSuggestions: () => setSuggestions([]),
+    getCustomerByPhone,
+    createOrUpdateCustomer
   };
 };

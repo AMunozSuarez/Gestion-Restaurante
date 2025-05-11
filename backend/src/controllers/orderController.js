@@ -11,42 +11,52 @@ const createOrderController = async (req, res) => {
         let customer = null;
         let deliveryCost = 0;
 
-        // Verificar si se proporciona el campo phone
-        if (buyer && buyer.phone) {
-            customer = await Customer.findOne({ phone: buyer.phone });
-
-            if (!customer) {
-                customer = new Customer({
-                    name: buyer.name,
+        // Verificar si se proporciona el campo buyer
+        if (buyer) {
+            // Caso 1: Si buyer es un ID (cliente existente)
+            if (typeof buyer === 'string') {
+                customer = await Customer.findOne({ 
+                    _id: buyer,
+                    restaurant: req.user.restaurant
+                });
+                
+                if (!customer) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Cliente no encontrado o no pertenece a este restaurante',
+                    });
+                }
+            } 
+            // Caso 2: Si buyer es un objeto (cliente nuevo o no guardado)
+            else if (typeof buyer === 'object' && buyer.phone) {
+                // Buscar si ya existe un cliente con este teléfono
+                customer = await Customer.findOne({ 
                     phone: buyer.phone,
-                    addresses: buyer.addresses || [],
-                    comment: buyer.comment || '',
-                });
-                await customer.save();
-            } else {
-                customer.name = buyer.name;
-                customer.comment = buyer.comment || customer.comment;
-
-                buyer.addresses.forEach((newAddress) => {
-                    const existingAddress = customer.addresses.find(
-                        (addr) => addr.address === newAddress.address
-                    );
-                    if (!existingAddress) {
-                        customer.addresses.push(newAddress);
-                    }
+                    restaurant: req.user.restaurant
                 });
 
-                await customer.save();
+                // Si no existe, crear nuevo cliente
+                if (!customer) {
+                    customer = new Customer({
+                        name: buyer.name || 'Cliente',
+                        phone: buyer.phone,
+                        addresses: buyer.addresses || [],
+                        comment: buyer.comment || '',
+                        restaurant: req.user.restaurant // Asignar el restaurante del usuario autenticado
+                    });
+                    await customer.save();
+                }
             }
 
-            const selectedAddressObj = customer.addresses.find((addr) => addr.address === selectedAddress);
-            if (!selectedAddressObj) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'La dirección seleccionada no está asociada al cliente',
-                });
+            // Si hay dirección seleccionada, calcular costo de envío
+            if (selectedAddress && customer) {
+                const addressWithCost = customer.addresses.find(
+                    addr => addr.address === selectedAddress
+                );
+                if (addressWithCost && typeof addressWithCost.deliveryCost === 'number') {
+                    deliveryCost = addressWithCost.deliveryCost;
+                }
             }
-            deliveryCost = selectedAddressObj.deliveryCost;
         }
 
         const foodIds = foods.map((item) => item.food);
@@ -72,13 +82,13 @@ const createOrderController = async (req, res) => {
             foods,
             payment,
             total,
-            name: !customer ? buyer.name : null,
+            name: !customer ? (buyer?.name || null) : null,
             buyer: customer ? customer._id : null,
             selectedAddress: customer ? selectedAddress : null,
             section,
             status: status || 'Preparacion',
-            comment: comment || '', // Guardar el comentario
-            restaurant: req.user.restaurant,
+            comment: comment || '',
+            restaurant: req.user.restaurant, // Siempre asignar el restaurante
         });
 
         await order.save();

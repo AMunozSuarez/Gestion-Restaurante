@@ -18,6 +18,11 @@ const customerSchema = new mongoose.Schema({
         type: String,
         default: '', // Comentario opcional
     },
+    restaurant: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Restaurant',
+        required: true, // Asegura que el cliente esté asociado a un restaurante
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Customer', customerSchema);
