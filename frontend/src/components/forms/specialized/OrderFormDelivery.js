@@ -8,11 +8,13 @@ const OrderFormDelivery = (props) => {
     const navigate = useNavigate();
     const { cart, cartTotal, getCartTotal, clearCart } = useCartManagement();
     const { handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm();
-
-    // Función para renderizar campos adicionales específicos de delivery
+      // Este componente ahora pasa el costo de envío directamente a BaseOrderForm    // Función para renderizar campos adicionales específicos de delivery
+    // Incluimos el teléfono antes del nombre, y el nombre del cliente lo incluimos aquí 
+    // para cambiar el orden, pero ocultamos el que se renderiza automáticamente en BaseOrderForm
     const renderAdditionalFields = () => {
         return (
             <>
+                {/* Teléfono del Cliente (primero) */}
                 <div className="form-group">
                     <label htmlFor="customerPhone">Teléfono del Cliente:</label>
                     <input
@@ -25,6 +27,22 @@ const OrderFormDelivery = (props) => {
                         required
                     />
                 </div>
+                
+                {/* Nombre del Cliente (ahora en segunda posición) */}
+                <div className="form-group">
+                    <label htmlFor="customerName">Nombre del Cliente:</label>
+                    <input
+                        type="text"
+                        id="customerNameDelivery"
+                        value={props.customerName}
+                        onChange={(e) => props.setCustomerName(e.target.value)}
+                        disabled={props.isViewingCompletedOrder}
+                        className={props.editingOrderId ? 'editing-input' : ''}
+                        required
+                    />
+                </div>
+                
+                {/* Dirección de Entrega */}
                 <div className="form-group">
                     <label htmlFor="deliveryAddress">Dirección de Entrega:</label>
                     <input
@@ -37,13 +55,18 @@ const OrderFormDelivery = (props) => {
                         required
                     />
                 </div>
+                
+                {/* Costo de Envío */}
                 <div className="form-group">
                     <label htmlFor="deliveryCost">Costo de Envío:</label>
                     <input
                         type="number"
                         id="deliveryCost"
                         value={props.deliveryCost}
-                        onChange={(e) => props.setDeliveryCost(Number(e.target.value))}
+                        onChange={(e) => {
+                            const costValue = Number(e.target.value);
+                            props.setDeliveryCost(costValue);
+                        }}
                         disabled={props.isViewingCompletedOrder}
                         className={props.editingOrderId ? 'editing-input' : ''}
                         required
@@ -113,18 +136,32 @@ const OrderFormDelivery = (props) => {
     // Acción para cancelar pedido
     const handleCancelOrder = () => {
         props.handleSubmit(null, props.resetForm, 'Cancelado', 'delivery');
-    };
+    };    // Creamos un estilo personalizado para ocultar el campo original de nombre del cliente
+    const customStyles = `
+        <style>
+            /* Ocultamos el primer campo de nombre de cliente que viene del BaseOrderForm */
+            .order-form[data-form-type="delivery"] > form > .form-group:first-of-type {
+                display: none;
+            }
+        </style>
+    `;
 
     return (
-        <BaseOrderForm
-            {...props}
-            formType="delivery"
-            renderAdditionalFields={renderAdditionalFields}
-            cartTotalWithExtras={cartTotal + (Number(props.deliveryCost) || 0)}
-            completeButtonLabel="Enviar Pedido"
-            completeButtonAction={handleSendOrder}
-            cancelOrderAction={handleCancelOrder}
-        />
+        <>
+            {/* Insertamos los estilos directamente en el DOM */}
+            <div dangerouslySetInnerHTML={{ __html: customStyles }} />
+            
+            <BaseOrderForm
+                {...props}
+                formType="delivery"
+                renderAdditionalFields={renderAdditionalFields}
+                cartTotalWithExtras={cartTotal + (Number(props.deliveryCost) || 0)}
+                deliveryCost={props.deliveryCost}
+                completeButtonLabel="Enviar Pedido"
+                completeButtonAction={handleSendOrder}
+                cancelOrderAction={handleCancelOrder}
+            />
+        </>
     );
 };
 

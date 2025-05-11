@@ -11,8 +11,10 @@ const Cart = ({
     decreaseQuantity,
     removeProduct,
     textAreaRefs,
+    formType,
+    deliveryCost,
 }) => {
-    const { addCommentToProduct, toggleEditComment } = useCartManagement();
+    const { addCommentToProduct, toggleEditComment, getCartSubtotal } = useCartManagement();
 
     if (!Array.isArray(cart) || cart.length === 0) {
         return <p>El carrito está vacío.</p>;
@@ -76,8 +78,33 @@ const Cart = ({
                         )}
                     </li>
                     <hr className="cart-divider" />
-                </React.Fragment>
-            ))}
+                </React.Fragment>            ))}
+            
+            {/* Mostrar subtotal y costo de envío si estamos en modo delivery */}
+            {formType === 'delivery' && deliveryCost > 0 && (
+                <>
+                    {/* Línea de subtotal */}
+                    <li className="cart-subtotal">
+                        <div className="cart-row">
+                            <div className="cart-product-container">                                <span className="cart-product subtotal-label">Subtotal:</span>
+                            </div>
+                            <span className="cart-price subtotal-amount">
+                                {formatChileanMoney(getCartSubtotal())}
+                            </span>
+                        </div>
+                    </li>
+                    
+                    {/* Línea de costo de envío */}
+                    <li className="cart-delivery-cost">
+                        <div className="cart-row">
+                            <div className="cart-product-container">
+                                <span className="cart-product delivery-label">Envío:</span>
+                            </div>
+                            <span className="cart-price delivery-cost">{formatChileanMoney(Number(deliveryCost) || 0)}</span>
+                        </div>
+                    </li>
+                </>
+            )}
         </ul>
     );
 };

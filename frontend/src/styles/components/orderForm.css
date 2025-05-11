@@ -386,6 +386,15 @@
     font-weight: bold;
     text-align: right;
     color: #4d2600; /* Marrón oscuro */
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+/* Destacar el total cuando es delivery */
+.order-form[data-form-type="delivery"] .cart-total {
+    background-color: #f8f4e8;
+    border: 1px solid #e8d8c0;
+    font-size: 17px;
 }
 
 
@@ -573,4 +582,43 @@
 
 .payment-method {
     margin-top: 15px;
+}
+
+/* Estilos para líneas de información adicional en el carrito (subtotal, envío, etc.) */
+.cart-subtotal,
+.cart-delivery-cost {
+    padding: 8px 10px;
+}
+
+/* Línea de subtotal */
+.cart-subtotal {
+    margin-top: 10px;
+    background-color: #f9f9f9;
+}
+
+.cart-subtotal .subtotal-label {
+    font-weight: 600;
+    color: #333;
+}
+
+.cart-subtotal .subtotal-amount {
+    font-weight: 600;
+    color: #4d2600;
+}
+
+/* Línea de costo de envío */
+.cart-delivery-cost {
+    border-top: 1px dashed #ccc;
+    margin-bottom: 5px;
+}
+
+.cart-delivery-cost .delivery-label {
+    font-weight: 600;
+    font-style: italic;
+    color: #555;
+}
+
+.cart-delivery-cost .delivery-cost {
+    font-weight: 600;
+    color: #4d2600;
 }

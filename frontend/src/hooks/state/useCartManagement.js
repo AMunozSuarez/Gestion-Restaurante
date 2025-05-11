@@ -92,17 +92,20 @@ export const useCartManagement = () => {
             }
         }, 0);
     };
-    
-    // Método getter para obtener el total del carrito
+      // Método getter para obtener el total del carrito
     const getCartTotal = useCallback(() => {
         return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     }, [cart]);
-
-    return {
+    
+    // Método para obtener explícitamente el subtotal (sin costo de envío)
+    const getCartSubtotal = useCallback(() => {
+        return getCartTotal();
+    }, [getCartTotal]);    return {
         cart,
         setCart,
         cartTotal, // Mantenemos esta propiedad para compatibilidad con componentes existentes
         getCartTotal, // Nuevo método para obtener el total calculado directamente
+        getCartSubtotal, // Método específico para obtener el subtotal (sin costo de envío)
         addToCart,
         clearCart,
         increaseQuantity,

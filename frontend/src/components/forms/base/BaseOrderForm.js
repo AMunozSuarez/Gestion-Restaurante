@@ -27,12 +27,13 @@ const BaseOrderForm = ({
     // Props específicos para este formulario
     renderAdditionalFields,
     cartTotalWithExtras,
+    deliveryCost, // Costo de envío para delivery
     
     // Botones y acciones
     completeButtonLabel,
     completeButtonAction,
     cancelOrderAction,
-}) => {    const {
+})=> {    const {
         cart,
         getCartTotal,
         addToCart,
@@ -81,7 +82,22 @@ const BaseOrderForm = ({
     useEffect(() => {
         const cleanup = handleClickOutside(searchInputRef, () => setIsSearchFocused(false));
         return cleanup;
-    }, [handleClickOutside, searchInputRef, setIsSearchFocused]);
+    }, [handleClickOutside, searchInputRef, setIsSearchFocused]);    // Obtener el costo de envío desde las props cuando estamos en delivery
+    const getDeliveryCost = () => {
+        if (formType !== 'delivery') return 0;
+        
+        // Usar el prop deliveryCost si está disponible
+        if (typeof deliveryCost === 'number' || typeof deliveryCost === 'string') {
+            return Number(deliveryCost) || 0;
+        }
+        
+        // Como respaldo, calcular la diferencia
+        if (typeof cartTotalWithExtras === 'number' && typeof getCartTotal() === 'number') {
+            return cartTotalWithExtras - getCartTotal();
+        }
+        
+        return 0;
+    };
 
     // Renderizar el carrito
     const renderCart = () => (
@@ -92,6 +108,8 @@ const BaseOrderForm = ({
             decreaseQuantity={decreaseQuantity}
             removeProduct={removeProduct}
             textAreaRefs={textAreaRefs}
+            formType={formType}
+            deliveryCost={getDeliveryCost()}
         />
     );
 
@@ -109,10 +127,9 @@ const BaseOrderForm = ({
 
         // Llamar a handleSubmit con los parámetros adecuados según el tipo
         handleSubmit(e, resetForm, 'Preparacion', formType, { comment: latestComment });
-    };
-
-    return (
-        <div className={`order-form ${isEditing ? 'editing-mode' : ''} ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`}>
+    };    return (
+        <div className={`order-form ${isEditing ? 'editing-mode' : ''} ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`} 
+             data-form-type={formType}>
             {/* Estado del pedido */}
             <div className="order-status">
                 {isViewingCompletedOrder ? (
@@ -226,11 +243,12 @@ const BaseOrderForm = ({
                     </div>
                 )}
 
-                {/* Carrito */}
-                <div className="cart-container">                    <h3>Carrito</h3>
+                {/* Carrito */}                <div className="cart-container">                    <h3>Carrito</h3>
                     {renderCart()}
                     <div className="cart-total">
-                        <strong>Total: {formatChileanMoney(cartTotalWithExtras !== undefined ? cartTotalWithExtras : getCartTotal())}</strong>
+                        <strong>{formType === 'delivery' && deliveryCost > 0 ? 'Total Final: ' : 'Total: '}
+                            {formatChileanMoney(cartTotalWithExtras !== undefined ? cartTotalWithExtras : getCartTotal())}
+                        </strong>
                     </div>
                 </div>
 
