@@ -2,6 +2,7 @@ import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 import { useCartManagement } from '../../hooks/state/useCartManagement';
+import { formatChileanMoney } from '../../services/utils/formatters';
 
 const Cart = ({
     cart,
@@ -39,11 +40,10 @@ const Cart = ({
                                     type="button"
                                     className="cart-comment"
                                     onClick={() => toggleEditComment(item._id)}
-                                >
-                                    <FontAwesomeIcon icon={faCommentDots} />
+                                >                                <FontAwesomeIcon icon={faCommentDots} />
                                 </button>
                             </div>
-                            <span className="cart-price">${(item.price * item.quantity).toFixed(0)}</span>
+                            <span className="cart-price">{formatChileanMoney(item.price * item.quantity)}</span>
                             {!isViewingCompletedOrder && (
                                 <button
                                     type="button"

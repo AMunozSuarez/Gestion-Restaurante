@@ -5,6 +5,7 @@ import { useCategories } from '../../../hooks/api/useCategories';
 import { useCartManagement } from '../../../hooks/state/useCartManagement';
 import useUIStore from '../../../store/useUiStore';
 import Cart from '../../cart/Cart';
+import { formatChileanMoney } from '../../../services/utils/formatters';
 import '../../../styles/components/orderForm.css';
 
 const BaseOrderForm = ({
@@ -198,8 +199,7 @@ const BaseOrderForm = ({
                         />
                         {/* Sugerencias de búsqueda */}
                         {modalSearchQuery && isSearchFocused && filteredProducts.length > 0 && (
-                            <ul className="suggestions-list">
-                                {filteredProducts.map((product, index) => (
+                            <ul className="suggestions-list">                                {filteredProducts.map((product, index) => (
                                     <li
                                         key={`${product._id}-${index}`}
                                         onClick={() => {
@@ -215,7 +215,7 @@ const BaseOrderForm = ({
                                         className="suggestion-item"
                                     >
                                         <span>{product.title}</span>
-                                        <span>${product.price}</span>
+                                        <span>{formatChileanMoney(product.price)}</span>
                                     </li>
                                 ))}
                             </ul>
@@ -227,11 +227,10 @@ const BaseOrderForm = ({
                 )}
 
                 {/* Carrito */}
-                <div className="cart-container">
-                    <h3>Carrito</h3>
+                <div className="cart-container">                    <h3>Carrito</h3>
                     {renderCart()}
                     <div className="cart-total">
-                        <strong>Total: ${cartTotalWithExtras ? cartTotalWithExtras.toFixed(0) : getCartTotal().toFixed(0)}</strong>
+                        <strong>Total: {formatChileanMoney(cartTotalWithExtras !== undefined ? cartTotalWithExtras : getCartTotal())}</strong>
                     </div>
                 </div>
 
@@ -342,12 +341,11 @@ const BaseOrderForm = ({
                                         {category.title}
                                     </button>
                                 ))}
-                            </div>
-                            <ul className="products-list">
+                            </div>                            <ul className="products-list">
                                 {filteredProducts.map((product, index) => (
                                     <li key={`${product._id}-${index}`} onClick={() => addToCart(product)}>
                                         <span>{product.title}</span>
-                                        <span>${product.price}</span>
+                                        <span>{formatChileanMoney(product.price)}</span>
                                     </li>
                                 ))}
                             </ul>

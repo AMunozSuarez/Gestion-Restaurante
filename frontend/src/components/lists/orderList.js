@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import '../../styles/Lists/orderList.css'; // Estilos específicos de la lista de pedidos
 import { useOrderForm } from '../../hooks/forms/useOrderForm'; // Hook para manejar el formulario de pedidos
+import { formatChileanMoney } from '../../services/utils/formatters';
 
 const OrderList = ({ orders }) => {
     const navigate = useNavigate();
@@ -37,12 +38,11 @@ const OrderList = ({ orders }) => {
                         key={order._id}
                         onClick={() => navigate(`/mostrador/${order.orderNumber}`)}
                         className={`order-item ${order.orderNumber === parseInt(orderNumber, 10) ? 'editing' : ''}`}
-                    >
-                        <p>{order.orderNumber}</p>
+                    >                        <p>{order.orderNumber}</p>
                         <p className="order-date">{new Date(order.createdAt).toLocaleString()}</p> {/* Mostrar fecha/hora */}
                         <p>{order.buyer ? order.buyer.name : order.name}</p> {/* Manejar casos donde buyer es null */}
                         <p>{order.status}</p>
-                        <p className="order-total">${order.total}</p>
+                        <p className="order-total">{formatChileanMoney(order.total)}</p>
                     </li>
                 ))}
             </ul>

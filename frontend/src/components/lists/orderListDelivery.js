@@ -5,6 +5,7 @@ import { useOrderForm } from '../../hooks/forms/useOrderForm'; // Hook para mane
 import { useOrders } from '../../hooks/api/useOrders'; // Hook para obtener las órdenes
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
+import { formatChileanMoney } from '../../services/utils/formatters';
 
 const OrderListDelivery = () => {
     const navigate = useNavigate();
@@ -49,14 +50,13 @@ const OrderListDelivery = () => {
                         className={`order-item-delivery ${
                             order.orderNumber === parseInt(orderNumber, 10) ? 'editing-delivery' : ''
                         }`}
-                    >
-                        <p>{order.orderNumber}</p>
+                    >                        <p>{order.orderNumber}</p>
                         <p className="order-date-delivery">
                             {new Date(order.createdAt).toLocaleString()}
                         </p>
                         <p>{order.buyer.name}</p>
                         <p>{order.status}</p>
-                        <p className="order-total-delivery">${order.total}</p>
+                        <p className="order-total-delivery">{formatChileanMoney(order.total)}</p>
                         {/* Botón para enviar el pedido */}
                         <button
                             className="send-order-button"
