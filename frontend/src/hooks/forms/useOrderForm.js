@@ -170,12 +170,67 @@ export const useOrderForm = () => {
 
             console.log('Actualizando pedido con datos limpios:', order);
 
-            const response = await updateOrder(order._id, order); // Enviar los datos limpios
+            // 1. Verificar si tenemos información de cliente en localStorage
+            let customerData = null;
+            if (order.buyer && order.buyer.phone) {
+                try {
+                    const cachedCustomer = localStorage.getItem(`customer_${order.buyer.phone}`);
+                    if (cachedCustomer) {
+                        customerData = JSON.parse(cachedCustomer);
+                    }
+                } catch (error) {
+                    console.error('Error al recuperar cliente de localStorage:', error);
+                }
+            }
+
+            // 2. Enriquecer el objeto de pedido con datos completos del cliente si están disponibles
+            if (customerData && order.buyer) {
+                order.buyer = {
+                    ...order.buyer,
+                    // Conservar datos específicos del cliente que no estén en el formulario
+                    _id: customerData._id,
+                    email: customerData.email,
+                    // Asegurarnos de mantener las direcciones actuales del pedido
+                    addresses: order.buyer.addresses || customerData.addresses
+                };
+            }
+
+            const response = await updateOrder(order._id, order);
             console.log('Respuesta del backend:', response);
 
-
-            // Actualizar el pedido en la lista de pedidos
-            updateOrderInList(response.order);       
+            // 3. Asegurarnos de que la respuesta contenga todos los datos del cliente
+            // AQUÍ ESTÁ EL ERROR: Necesitamos verificar la estructura de response antes de modificarla
+            if (response && response.order) {
+                // Primero verificar que response.order.buyer sea un objeto y no un string
+                if (response.order.buyer && typeof response.order.buyer === 'object' && customerData) {
+                    if (!response.order.buyer._id && customerData._id) {
+                        response.order.buyer._id = customerData._id;
+                    }
+                    if (!response.order.buyer.email && customerData.email) {
+                        response.order.buyer.email = customerData.email;
+                    }
+                } 
+                // Si buyer es un string (probablemente un ID), necesitamos convertirlo a un objeto
+                else if (typeof response.order.buyer === 'string' && customerData) {
+                    // Guardar el ID original
+                    const buyerId = response.order.buyer;
+                    
+                    // Reemplazar con un objeto que incluya el ID original y los datos del cliente
+                    response.order.buyer = {
+                        _id: buyerId, // ID original
+                        ...customerData // Datos adicionales del cliente
+                    };
+                }
+                
+                // 4. Actualizar el pedido en la lista de pedidos con datos enriquecidos
+                updateOrderInList(response.order);
+            } else {
+                console.error('La respuesta no tiene la estructura esperada:', response);
+                // Si la respuesta no tiene la estructura esperada, actualizar con el objeto original
+                updateOrderInList(order);
+            }
+            
+            return response;
         } catch (error) {
             console.error('Error al actualizar el pedido:', error);
             throw error; // Propagar el error para que sea capturado en el botón

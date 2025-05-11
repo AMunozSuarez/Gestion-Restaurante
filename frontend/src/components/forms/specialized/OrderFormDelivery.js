@@ -1,31 +1,70 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartManagement } from '../../../hooks/state/useCartManagement';
 import { useOrderForm } from '../../../hooks/forms/useOrderForm';
 import BaseOrderForm from '../base/BaseOrderForm';
+import CustomerAutocomplete from '../../common/CustomerAutocomplete';
+import '../../../styles/components/customerAutocomplete.css';
 
 const OrderFormDelivery = (props) => {    
     const navigate = useNavigate();
     const { cart, cartTotal, getCartTotal, clearCart } = useCartManagement();
     const { handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm();
-      // Este componente ahora pasa el costo de envío directamente a BaseOrderForm    // Función para renderizar campos adicionales específicos de delivery
-    // Incluimos el teléfono antes del nombre, y el nombre del cliente lo incluimos aquí 
-    // para cambiar el orden, pero ocultamos el que se renderiza automáticamente en BaseOrderForm
+
+    // Manejador para cuando se selecciona un cliente de la lista de sugerencias
+    const handleCustomerSelect = (customer) => {
+        // Siempre actualizar el teléfono, que viene en todas las llamadas
+        props.setCustomerPhone(customer.phone);
+        
+        // Si solo viene phone, es porque el usuario está escribiendo manualmente
+        // y no ha seleccionado un cliente existente
+        if (Object.keys(customer).length === 1 && customer.phone) {
+            // No hacemos nada más, dejamos que el usuario complete manualmente los demás campos
+            return;
+        }
+        
+        // Si llegamos aquí, es porque se seleccionó un cliente completo de la lista
+        console.log("Cliente seleccionado:", customer);
+        
+        // Actualizar el resto de campos con los datos del cliente
+        props.setCustomerName(customer.name);
+        props.setComment(customer.comment || '');
+        
+        // Si el cliente tiene direcciones guardadas, usar la primera
+        if (customer.addresses && customer.addresses.length > 0) {
+            props.setDeliveryAddress(customer.addresses[0].address);
+            
+            // Si la dirección tiene un costo de envío asociado, usarlo también
+            if (customer.addresses[0].deliveryCost) {
+                props.setDeliveryCost(customer.addresses[0].deliveryCost.toString());
+            }
+        }
+    };
+
+    // Función para renderizar campos adicionales específicos de delivery
     const renderAdditionalFields = () => {
         return (
             <>
-                {/* Teléfono del Cliente (primero) */}
+                {/* Teléfono del Cliente con autocompletado (primero) */}
                 <div className="form-group">
                     <label htmlFor="customerPhone">Teléfono del Cliente:</label>
-                    <input
-                        type="text"
-                        id="customerPhone"
-                        value={props.customerPhone}
-                        onChange={(e) => props.setCustomerPhone(e.target.value)}
-                        disabled={props.isViewingCompletedOrder}
-                        className={props.editingOrderId ? 'editing-input' : ''}
-                        required
-                    />
+                    {!props.isViewingCompletedOrder ? (
+                        // Dentro del método renderAdditionalFields
+                        <CustomerAutocomplete
+                            onSelect={handleCustomerSelect}
+                            disabled={props.isViewingCompletedOrder}
+                            initialValue={props.customerPhone} // Pasar el valor inicial
+                            editingOrderId={props.editingOrderId} // Pasar esta prop para mantener los estilos consistentes
+                        />
+                    ) : (
+                        <input
+                            type="text"
+                            id="customerPhone"
+                            value={props.customerPhone}
+                            disabled={true}
+                            className={props.editingOrderId ? 'editing-input' : ''}
+                        />
+                    )}
                 </div>
                 
                 {/* Nombre del Cliente (ahora en segunda posición) */}

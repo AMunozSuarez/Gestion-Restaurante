@@ -80,7 +80,7 @@ const Delivery = () => {
         setDeliveryAddress('');
         setSelectedPaymentMethod('Efectivo');
         setCustomerPhone('');
-        setDeliveryCost(0);
+        setDeliveryCost('');
         setComment('');
         clearCart(); // Limpiar el carrito
         setEditingOrderId(null); // Restablecer el ID del pedido en edición

@@ -412,17 +412,18 @@
 
 /* Lista de sugerencias */
 .suggestions-list {
+    width: 100%;
     list-style: none;
     margin: 0;
     padding: 0;
     background-color: #ffffff; /* Fondo blanco */
     border: 1px solid #ccc; /* Borde gris */
     border-radius: 5px;
-    max-height: 200px; /* Altura máxima */
+    max-height: 400px; /* Altura máxima */
     overflow-y: auto; /* Scroll si excede la altura */
     position: absolute; /* Posición absoluta para que se superponga */
     z-index: 10; /* Asegurar que esté encima de otros elementos */
-    width: 27.3%; /* Igualar el ancho del input */
+    width: 32.4%; /* Igualar el ancho del input */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Sombra ligera */
 }
 
@@ -433,11 +434,10 @@
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
-    transition: background-color 0.2s ease;
 }
 
 .suggestion-item:hover {
-    background-color: #f0f0f0; /* Fondo gris claro al pasar el cursor */
+    background-color: #e4e4e4; /* Fondo gris claro al pasar el cursor */
 }
 
 .form-actions{
@@ -595,7 +595,7 @@
     cursor: text;
     transition: border-color 0.3s ease;
     min-height: 50px;
-    padding: 10px;
+    padding: 5px;
 }
 
 /* Estilo para el comentario general del pedido cuando se está viendo un pedido completado */
