@@ -61,20 +61,6 @@ export const useCustomerSearch = () => {
     }
   }, []);
 
-  // Crear o actualizar un cliente
-  const createOrUpdateCustomer = useCallback(async (customerData) => {
-    try {
-      setIsLoading(true);
-      const response = await axios.post('/customer/create-or-update', customerData);
-      setIsLoading(false);
-      
-      return response.data?.customer || null;
-    } catch (error) {
-      console.error('Error al crear/actualizar cliente:', error);
-      setIsLoading(false);
-      throw error;
-    }
-  }, []);
 
   // Gestión de la búsqueda con debounce
   useEffect(() => {
@@ -108,6 +94,5 @@ export const useCustomerSearch = () => {
     error,
     clearSuggestions: () => setSuggestions([]),
     getCustomerByPhone,
-    createOrUpdateCustomer
   };
 };

@@ -5,6 +5,7 @@ import { useOrders } from '../api/useOrders';
 import { useNavigate } from 'react-router-dom';
 import { closeOrder } from '../../services/api/cashApi';
 import { updateOrder } from '../../services/api/ordersApi';
+import axios from '../../services/axiosConfig';
 
 export const useOrderForm = () => {
     const { createOrder } = useCreateOrder(); // Hook para manejar la creación de pedidos
@@ -55,14 +56,43 @@ export const useOrderForm = () => {
         setCart([]); // Limpiar el carrito
     };
 
+    // Nueva función para crear o actualizar un cliente
+    const createOrUpdateCustomerBeforeOrder = async (customerData) => {
+        if (!customerData || !customerData.phone) return null;
+
+        try {
+            console.log('Creando/actualizando cliente antes del pedido:', customerData);
+            const response = await axios.post('/customer/create-or-update', customerData);
+            
+            if (response.data && response.data.success && response.data.customer) {
+                console.log('Cliente creado/actualizado correctamente:', response.data.customer);
+                
+                // Guardar datos del cliente en localStorage para futuras referencias
+                localStorage.setItem(
+                    `customer_${response.data.customer.phone}`,
+                    JSON.stringify(response.data.customer)
+                );
+                
+                return response.data.customer;
+            } else {
+                console.warn('Respuesta inesperada al actualizar cliente:', response.data);
+                return null;
+            }
+        } catch (error) {
+            console.error('Error al crear/actualizar cliente:', error);
+            console.error('Detalles del error:', error.response?.data || error.message);
+            return null;
+        }
+    };
+
     // Función para manejar el envío del formulario
-    const handleSubmit = (e, resetForm, status = 'Preparacion', section = 'mostrador', extraData = {}) => {
-        console.log('Editing Order ID:', editingOrderId); // Depuración
+    const handleSubmit = async (e, resetForm, status = 'Preparacion', section = 'mostrador', extraData = {}) => {
+        console.log('Editing Order ID:', editingOrderId);
         if (e && e.preventDefault) e.preventDefault();
 
-        const newOrder = {
-            orderNumber: extraData.orderNumber || null,
-            buyer: {
+        try {
+            // Si tenemos información de cliente, intentar actualizarlo primero
+            let buyerData = {
                 name: customerName,
                 phone: customerPhone,
                 addresses: [
@@ -71,48 +101,72 @@ export const useOrderForm = () => {
                         deliveryCost: Number(deliveryCost) || 0,
                     },
                 ],
-                comment: comment || '', // Comentario opcional
-            },
-            selectedAddress: deliveryAddress,
-            foods: cart.map((item) => ({
-                food: item._id,
-                quantity: item.quantity,
-                comment: item.comment || '',
-            })),
-            payment: selectedPaymentMethod,
-            section,
-            status,
-            comment: extraData.comment || comment || '', // Usar el comentario más reciente
-            restaurant: extraData.restaurant || null, // ID del restaurante (opcional)
-            total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0) + Number(deliveryCost), // Calcular el total
-        };
+                comment: comment || '',
+            };
 
-        console.log('Datos preparados para enviar:', newOrder);
-        console.log('Editing Order ID:', editingOrderId);
+            // Si hay teléfono, intentar crear/actualizar cliente
+            if (customerPhone) {
+                try {
+                    console.log('Intentando actualizar cliente antes de crear pedido...');
+                    const updatedCustomer = await createOrUpdateCustomerBeforeOrder(buyerData);
+                    
+                    if (updatedCustomer && updatedCustomer._id) {
+                        console.log('Cliente actualizado exitosamente, usando ID para el pedido');
+                        buyerData = updatedCustomer._id; // Usar solo el ID del cliente actualizado
+                    } else {
+                        console.log('No se pudo actualizar cliente, usando datos completos');
+                        // Si falla la actualización, seguimos con los datos que tenemos
+                    }
+                } catch (error) {
+                    console.error('Error en actualización de cliente, continuando con datos originales:', error);
+                }
+            }
 
-        if (editingOrderId) {
-            console.log(`Editando pedido con ID: ${editingOrderId} y estado: ${status}`);
-            // Actualizar el pedido existente
-            updateOrder(editingOrderId, newOrder)
-                .then(() => {
-                    console.log('Pedido actualizado correctamente.');
-                    if (typeof resetForm === 'function') resetForm();
-                })
-                .catch((error) => {
-                    console.error('Error al actualizar el pedido:', error);
-                    alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
+            const newOrder = {
+                orderNumber: extraData.orderNumber || null,
+                buyer: buyerData,
+                selectedAddress: deliveryAddress,
+                foods: cart.map((item) => ({
+                    food: item._id,
+                    quantity: item.quantity,
+                    comment: item.comment || '',
+                })),
+                payment: selectedPaymentMethod,
+                section,
+                status,
+                comment: extraData.comment || comment || '',
+                restaurant: extraData.restaurant || null,
+                total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0) + Number(deliveryCost),
+            };
+
+            console.log('Datos preparados para enviar:', newOrder);
+
+            if (editingOrderId) {
+                console.log(`Editando pedido con ID: ${editingOrderId} y estado: ${status}`);
+                const result = await updateOrder(editingOrderId, newOrder);
+                console.log('Pedido actualizado correctamente:', result);
+                if (typeof resetForm === 'function') resetForm();
+            } else {
+                await new Promise((resolve, reject) => {
+                    createOrder(newOrder, {
+                        onSuccess: () => {
+                            if (typeof resetForm === 'function') resetForm();
+                            resolve();
+                        },
+                        onError: (error) => {
+                            console.error('Error al crear el pedido:', error);
+                            alert('Hubo un error al crear el pedido. Intente nuevamente.');
+                            reject(error);
+                        },
+                    });
                 });
-            if (typeof resetForm === 'function') resetForm();
-        } else {
-            createOrder(newOrder, {
-                onSuccess: () => {
-                    if (typeof resetForm === 'function') resetForm();
-                },
-                onError: (error) => {
-                    console.error('Error al crear el pedido:', error);
-                    alert('Hubo un error al crear el pedido. Intente nuevamente.');
-                },
-            });
+            }
+            
+            return true; // Indicar éxito
+        } catch (error) {
+            console.error('Error en handleSubmit:', error);
+            alert('Hubo un error al procesar el pedido. Intente nuevamente.');
+            return false; // Indicar error
         }
     };
 
@@ -254,7 +308,8 @@ export const useOrderForm = () => {
         comment,
         setComment,
         resetForm,
-        handleRegisterOrderInCashRegister, // Exportar la nueva función
-        handleUpdateOrderStatus, // Exportar la función para actualizar el estado del pedido
+        handleRegisterOrderInCashRegister,
+        handleUpdateOrderStatus,
+        createOrUpdateCustomerBeforeOrder, // Exponer la nueva función
     };
 };
