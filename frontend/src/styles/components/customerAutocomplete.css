@@ -1,5 +1,5 @@
 /* Contenedor principal - sin cambios en el input original */
-.customer-phone-autocomplete-wrapper {
+.customer-phone-autocomplete-wrapper{
     flex: 1 1;
     display: flex;
     align-items: center;
@@ -81,3 +81,159 @@
     border-radius: 0 0 4px 4px;
     z-index: 1000;
 }
+
+/* Styles for the input container with clear button */
+.customer-phone-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* Style for the locked input */
+.locked-input {
+  background-color: #f8f8f8;
+  border-color: #007bff;
+  color: #495057;
+}
+
+/* Style for the clear button */
+#clear-selection-btn {
+    margin-top: 0px !important;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.clear-selection-btn:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.clear-selection-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+}
+
+
+/* Search loading indicator */
+.customer-phone-search-indicator {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+}
+
+.customer-phone-search-indicator::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #3498db;
+  border-radius: 50%;
+  margin-right: 8px;
+  animation: search-spin 1s linear infinite;
+}
+
+@keyframes search-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Suggestions dropdown */
+.customer-phone-suggestions-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background-color: white;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  z-index: 1050;
+}
+
+.customer-phone-suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f1f1;
+}
+
+.customer-phone-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.customer-phone-suggestion-item:hover {
+  background-color: #d8dadb;
+}
+
+.customer-phone-suggestion-number {
+  font-weight: 600;
+  color: #007bff;
+}
+
+.customer-phone-suggestion-name {
+  color: #6c757d;
+}
+
+/* Address section styling */
+.new-address-container {
+    flex: 1 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    position: relative;
+}
+
+
+/* Style for the select dropdown showing addresses */
+select#deliveryAddressSelect {
+  font-size: 1rem;
+  padding: 0.375rem 0.75rem;
+  width: 100%;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+select#deliveryAddressSelect:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  outline: none;
+}
+
+
+/* Special styling for the "Add new address" option */
+select#deliveryAddressSelect option[value="new"] {
+  font-style: italic;
+  color: #0d6efd;
+  font-weight: 500;
+}
+
+
+
+

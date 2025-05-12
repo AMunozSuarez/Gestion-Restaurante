@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, use } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useCustomerSearch } from '../../hooks/useCustomerSearch';
 import '../../styles/components/customerAutocomplete.css';
 
@@ -7,8 +7,8 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
   const inputRef = useRef(null);
   const suggestionsRef = useRef(null);
   const [manualEdit, setManualEdit] = useState(false);
-
-
+  const [isLocked, setIsLocked] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
 
   // Manejar clic fuera del componente para cerrar sugerencias
   useEffect(() => {
@@ -30,13 +30,17 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
     if (initialValue !== undefined) {
       setSearchQuery(initialValue);
       setManualEdit(false);
+      // Si se pasa un valor inicial y no está en modo manual, no bloqueamos el input
+      if (!manualEdit) {
+        setIsLocked(false);
+      }
     }
   }, [initialValue, setSearchQuery]);
 
   const handleSelect = (customer) => {
     setSearchQuery(customer.phone);
-
-
+    setSelectedCustomer(customer);
+    setIsLocked(true);
 
     // Verificar qué datos se están pasando al padre
     console.log('Cliente seleccionado:', customer);
@@ -47,8 +51,10 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
     setManualEdit(true);
   };
 
-  // Manejar cambios en el input manualmente
+  // Manejar cambios en el input manualmente (solo permitido cuando no está bloqueado)
   const handleInputChange = (e) => {
+    if (isLocked) return;
+    
     const newValue = e.target.value;
     setSearchQuery(newValue);
     setManualEdit(true);
@@ -61,24 +67,55 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
     }
   };
 
+  // Función para limpiar la selección
+  const handleClearSelection = () => {
+    setSearchQuery('');
+    setSelectedCustomer(null);
+    setIsLocked(false);
+    setManualEdit(false);
+    
+    // Notificar al componente padre para limpiar todos los campos relacionados
+    if (onSelect) {
+      onSelect({ phone: '' });
+    }
+    
+    // Enfocar el input después de limpiar
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
   return (
     <div className="customer-phone-autocomplete-wrapper">
-      <input
-        ref={inputRef}
-        type="text"
-        id="customerPhone"
-        value={searchQuery}
-        onChange={handleInputChange}
-        disabled={disabled}
-        // Mantener las mismas clases que los demás campos
-        className={`form-control ${editingOrderId ? 'editing-input' : ''}`}
-        autoComplete="off"
-        required
-      />
+      <div className="customer-phone-input-container">
+        <input
+          ref={inputRef}
+          type="text"
+          id="customerPhone"
+          value={searchQuery}
+          onChange={handleInputChange}
+          disabled={disabled || isLocked}
+          className={`form-control ${editingOrderId ? 'editing-input' : ''} ${isLocked ? 'locked-input' : ''}`}
+          autoComplete="off"
+          required
+        />
+        
+        {isLocked && !disabled && (
+          <button 
+            type="button" 
+            className="clear-selection-btn"
+            id='clear-selection-btn'
+            onClick={handleClearSelection}
+            aria-label="Limpiar selección"
+          >
+            ×
+          </button>
+        )}
+      </div>
       
       {isLoading && <div className="customer-phone-search-indicator">Buscando...</div>}
       
-      {suggestions.length > 0 && (
+      {suggestions.length > 0 && !isLocked && (
         <ul ref={suggestionsRef} className="customer-phone-suggestions-list">
           {suggestions.map((customer) => (
             <li 

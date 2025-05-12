@@ -87,7 +87,6 @@
 .order-form .form-group select:disabled{
     background-color: #e9ecef; /* Fondo gris claro */
     color: #6c757d; /* Texto gris oscuro */
-    cursor: not-allowed; /* Cursor de no permitido */
 }
 
 /* Botón de Buscar Productos */
