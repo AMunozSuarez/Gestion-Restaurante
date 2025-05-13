@@ -95,14 +95,109 @@ export const useOrderForm = () => {
             let buyerData = {
                 name: customerName,
                 phone: customerPhone,
-                addresses: [
-                    {
-                        address: deliveryAddress,
-                        deliveryCost: Number(deliveryCost) || 0,
-                    },
-                ],
                 comment: comment || '',
             };
+
+            // Manejar las direcciones correctamente
+            if (deliveryAddress) {
+                console.log("DEBUG - Iniciando manejo de dirección:", deliveryAddress);
+                
+                const addressData = {
+                    address: deliveryAddress,
+                    deliveryCost: Number(deliveryCost) || 0,
+                };
+                
+                console.log("DEBUG - Datos de dirección preparados:", addressData);
+                
+                // Si hay un cliente seleccionado en localStorage con direcciones
+                const cachedCustomer = customerPhone ? 
+                    JSON.parse(localStorage.getItem(`customer_${customerPhone}`) || 'null') : null;
+                
+                console.log("DEBUG - Cliente en cache:", cachedCustomer);
+                    
+                if (cachedCustomer && cachedCustomer.addresses && Array.isArray(cachedCustomer.addresses)) {
+                    const existingAddresses = [...cachedCustomer.addresses];
+                    
+                    console.log("DEBUG - Direcciones existentes:", existingAddresses);
+                    
+                    // Primero intentar encontrar por la dirección exacta
+                    let existingIndex = existingAddresses.findIndex(
+                        a => a.address === deliveryAddress
+                    );
+                    
+                    console.log("DEBUG - Índice por dirección exacta:", existingIndex);
+                    
+                    // Verificar si hay un originalAddress en localStorage
+                    const originalAddressData = localStorage.getItem('editing_address_original');
+                    let originalAddress = null;
+                    
+                    if (originalAddressData) {
+                        try {
+                            originalAddress = JSON.parse(originalAddressData);
+                            console.log("DEBUG - Dirección original recuperada del localStorage:", originalAddress);
+                        } catch (e) {
+                            console.error("Error al parsear originalAddress del localStorage:", e);
+                        }
+                    }
+                    
+                    // Si tenemos la dirección original con ID, buscar por ID primero
+                    if (originalAddress && originalAddress._id) {
+                        const indexById = existingAddresses.findIndex(
+                            a => a._id === originalAddress._id
+                        );
+                        
+                        console.log("DEBUG - Búsqueda por ID original:", originalAddress._id, "Resultado:", indexById);
+                        
+                        if (indexById >= 0) {
+                            existingIndex = indexById;
+                            console.log("DEBUG - Usando índice por ID en lugar del índice por dirección");
+                        }
+                    }
+                    
+                    // Si no se encuentra pero estamos editando un pedido, buscar la dirección original
+                    if (existingIndex < 0 && editingOrderId) {
+                        console.log("DEBUG - No se encontró dirección, intentando búsqueda por pedido original");
+                        
+                        const orderToEdit = orders.find(order => order._id === editingOrderId);
+                        if (orderToEdit && orderToEdit.selectedAddress) {
+                            console.log("DEBUG - Pedido encontrado con dirección:", orderToEdit.selectedAddress);
+                            // Buscar la dirección original para actualizarla
+                            existingIndex = existingAddresses.findIndex(
+                                a => a.address === orderToEdit.selectedAddress
+                            );
+                            console.log("DEBUG - Índice por dirección del pedido original:", existingIndex);
+                        }
+                    }
+                    
+                    if (existingIndex >= 0) {
+                        // Actualizar manteniendo el ID original
+                        const originalId = existingAddresses[existingIndex]._id;
+                        console.log("DEBUG - Actualizando dirección existente en índice:", existingIndex, "con ID:", originalId);
+                        
+                        existingAddresses[existingIndex] = {
+                            ...existingAddresses[existingIndex],
+                            address: deliveryAddress,
+                            deliveryCost: Number(deliveryCost) || 0
+                        };
+                        
+                        // Asegurarnos de preservar el ID
+                        if (originalId) {
+                            existingAddresses[existingIndex]._id = originalId;
+                            console.log("DEBUG - ID preservado en la actualización");
+                        }
+                    } else {
+                        // Agregar nueva dirección
+                        console.log("DEBUG - No se encontró dirección existente, agregando nueva dirección");
+                        existingAddresses.push(addressData);
+                    }
+                    
+                    buyerData.addresses = existingAddresses;
+                    console.log("DEBUG - Direcciones finales:", buyerData.addresses);
+                } else {
+                    console.log("DEBUG - No hay cliente en cache o no tiene direcciones, usando dirección simple");
+                    buyerData.addresses = [addressData];
+                }
+            }
 
             // Si hay teléfono, intentar crear/actualizar cliente
             if (customerPhone) {

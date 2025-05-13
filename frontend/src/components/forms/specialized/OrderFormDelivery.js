@@ -12,7 +12,20 @@ const OrderFormDelivery = (props) => {
     const { handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm();
     const [customerAddresses, setCustomerAddresses] = useState([]);
     const [isAddingNewAddress, setIsAddingNewAddress] = useState(false);
+    const [isEditingAddress, setIsEditingAddress] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [originalAddress, setOriginalAddress] = useState('');
+
+    // Effect para reset address mode when customer is cleared
+    useEffect(() => {
+        // If the phone is cleared or no customer is selected
+        if (!props.customerPhone) {
+            setSelectedCustomer(null);
+            setCustomerAddresses([]);
+            setIsAddingNewAddress(false);
+            setIsEditingAddress(false); 
+        }
+    }, [props.customerPhone]);
 
     // Manejador para cuando se selecciona un cliente de la lista de sugerencias
     const handleCustomerSelect = (customer) => {
@@ -30,6 +43,7 @@ const OrderFormDelivery = (props) => {
                 setCustomerAddresses([]);
                 setSelectedCustomer(null);
                 setIsAddingNewAddress(false);
+                setIsEditingAddress(false);
             }
             return;
         }
@@ -54,13 +68,15 @@ const OrderFormDelivery = (props) => {
                 props.setDeliveryCost(customer.addresses[0].deliveryCost.toString());
             }
             
-            // Desactivar modo de nueva dirección
+            // Desactivar modos de edición
             setIsAddingNewAddress(false);
+            setIsEditingAddress(false);
         } else {
             setCustomerAddresses([]);
             props.setDeliveryAddress('');
             props.setDeliveryCost('');
             // Activar automáticamente el modo de nueva dirección si no hay direcciones
+            setIsAddingNewAddress(true);
         }
     };
 
@@ -71,17 +87,59 @@ const OrderFormDelivery = (props) => {
         if (selectedValue === 'new') {
             // Activar modo de nueva dirección
             setIsAddingNewAddress(true);
+            setIsEditingAddress(false);
             props.setDeliveryAddress('');
             props.setDeliveryCost('');
         } else {
             // Desactivar modo de nueva dirección
             setIsAddingNewAddress(false);
+            setIsEditingAddress(false);
             
             // Buscar la dirección seleccionada entre las opciones
             const selectedAddress = customerAddresses.find(addr => addr.address === selectedValue);
             if (selectedAddress) {
                 props.setDeliveryAddress(selectedAddress.address);
                 props.setDeliveryCost(selectedAddress.deliveryCost?.toString() || '0');
+            }
+        }
+    };
+    
+    // Iniciar edición de dirección actual
+    const handleStartEditAddress = () => {
+        setIsEditingAddress(true);
+        setIsAddingNewAddress(false);
+        
+        // Guardar el objeto completo de la dirección original
+        const currentAddressObj = customerAddresses.find(addr => addr.address === props.deliveryAddress);
+        if (currentAddressObj) {
+            console.log("Guardando dirección original para edición:", currentAddressObj);
+            setOriginalAddress(currentAddressObj); // Guardar el objeto completo con ID
+            
+            // También guardar en localStorage para que useOrderForm pueda acceder
+            localStorage.setItem('editing_address_original', JSON.stringify(currentAddressObj));
+        } else {
+            console.log("No se encontró objeto de dirección para:", props.deliveryAddress);
+            setOriginalAddress(props.deliveryAddress); // Fallback al texto
+            localStorage.removeItem('editing_address_original'); // Limpiar localStorage si no hay objeto
+        }
+    };
+    
+    // Cancelar edición de dirección
+    const handleCancelEditAddress = () => {
+        setIsEditingAddress(false);
+        
+        // Restaurar dirección original si existe
+        if (originalAddress) {
+            const originalAddressObj = customerAddresses.find(addr => addr.address === originalAddress);
+            if (originalAddressObj) {
+                props.setDeliveryAddress(originalAddressObj.address);
+                props.setDeliveryCost(originalAddressObj.deliveryCost?.toString() || '0');
+            }
+        } else {
+            // Si no hay dirección original (poco probable), seleccionar la primera
+            if (customerAddresses.length > 0) {
+                props.setDeliveryAddress(customerAddresses[0].address);
+                props.setDeliveryCost(customerAddresses[0].deliveryCost?.toString() || '0');
             }
         }
     };
@@ -129,25 +187,48 @@ const OrderFormDelivery = (props) => {
                 <div className="form-group">
                     <label htmlFor="deliveryAddress">Dirección de Entrega:</label>
                     
-                    {/* Si hay cliente seleccionado Y no estamos añadiendo una nueva dirección */}
-                    {selectedCustomer && customerAddresses.length > 0 && !isAddingNewAddress ? (
-                        <select
-                            id="deliveryAddressSelect"
-                            value={props.deliveryAddress}
-                            onChange={handleAddressChange}
-                            disabled={props.isViewingCompletedOrder}
-                            className={`form-control ${props.editingOrderId ? 'editing-input' : ''}`}
-                            required
-                        >
-                            {customerAddresses.map((addr, index) => (
-                                <option key={index} value={addr.address}>
-                                    {addr.address} {addr.deliveryCost ? `(Envío: $${addr.deliveryCost})` : ''}
-                                </option>
-                            ))}
-                            <option value="new">+ Añadir nueva dirección</option>
-                        </select>
+                    {/* Si hay cliente seleccionado Y no estamos añadiendo/editando dirección */}
+                    {selectedCustomer && customerAddresses.length > 0 && !isAddingNewAddress && !isEditingAddress ? (
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <select
+                                id="deliveryAddressSelect"
+                                value={props.deliveryAddress}
+                                onChange={handleAddressChange}
+                                disabled={props.isViewingCompletedOrder}
+                                className={`form-control ${props.editingOrderId ? 'editing-input' : ''}`}
+                                required
+                                style={{ flex: 1 }}
+                            >
+                                {customerAddresses.map((addr, index) => (
+                                    <option key={index} value={addr.address}>
+                                        {addr.address}
+                                    </option>
+                                ))}
+                                <option value="new">+ Añadir nueva dirección</option>
+                            </select>
+                            
+                            {/* Botón de editar con ID específico */}
+                            {!props.isViewingCompletedOrder && (
+                                <button 
+                                    type="button"
+                                    id="edit-address-button"
+                                    onClick={handleStartEditAddress}
+                                    style={{
+                                        border: '1px solid #ced4da',
+                                        borderRadius: '0.25rem',
+                                        padding: '0.375rem',
+                                        background: '#f8f9fa',
+                                        cursor: 'pointer',
+                                        minWidth: '38px'
+                                    }}
+                                    title="Editar dirección seleccionada"
+                                >
+                                    ✏️
+                                </button>
+                            )}
+                        </div>
                     ) : (
-                        /* Modo input para nueva dirección o sin cliente seleccionado */
+                        /* Modo input para nueva dirección o edición */
                         <div className="new-address-container">
                             <input
                                 type="text"
@@ -157,15 +238,24 @@ const OrderFormDelivery = (props) => {
                                 disabled={props.isViewingCompletedOrder}
                                 className={`form-control ${props.editingOrderId ? 'editing-input' : ''}`}
                                 required
-                                placeholder="Ingrese la dirección"
+                                placeholder={isEditingAddress ? "Editando dirección..." : "Ingrese la dirección"}
                             />
                             
-                            {/* Botón para cancelar nueva dirección si aplica */}
-                            {isAddingNewAddress && customerAddresses.length > 0 && (
+                            {/* Botón para cancelar si aplica */}
+                            {(isAddingNewAddress || isEditingAddress) && customerAddresses.length > 0 && !props.isViewingCompletedOrder && (
                                 <button 
                                     type="button" 
-                                    className="btn btn-sm btn-outline-secondary ml-2"
-                                    onClick={() => {
+                                    id="cancel-address-edit-button"
+                                    style={{
+                                        border: '1px solid #6c757d',
+                                        borderRadius: '0.25rem',
+                                        padding: '0.375rem 0.75rem',
+                                        background: 'white',
+                                        color: '#6c757d',
+                                        cursor: 'pointer',
+                                        marginLeft: '10px'
+                                    }}
+                                    onClick={isEditingAddress ? handleCancelEditAddress : () => {
                                         setIsAddingNewAddress(false);
                                         handleAddressChange({ target: { value: customerAddresses[0].address } });
                                     }}

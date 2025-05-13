@@ -230,7 +230,7 @@ const deleteCustomerController = async (req, res) => {
 // Create or update a customer
 const createOrUpdateCustomerController = async (req, res) => {
     try {
-        const { _id, name, phone, addresses, comment } = req.body;
+        const { _id, name, phone, addresses, comment, editAddressInfo } = req.body;
 
         if (!phone) {
             return res.status(400).json({
@@ -261,33 +261,77 @@ const createOrUpdateCustomerController = async (req, res) => {
 
             // Si se proporciona un arreglo de direcciones, actualizarlo
             if (addresses && Array.isArray(addresses)) {
-                // Generar un mapa para manejo eficiente de direcciones existentes
-                const existingAddresses = new Map();
-                customer.addresses.forEach(addr => {
-                    existingAddresses.set(addr.address, {
-                        address: addr.address,
-                        deliveryCost: addr.deliveryCost
+                // Manejar el caso especial de edición de dirección
+                if (editAddressInfo && editAddressInfo.isEditingAddress && 
+                    editAddressInfo.originalAddress && editAddressInfo.newAddress) {
+                    
+                    console.log(`Editando dirección: ${editAddressInfo.originalAddress} a ${editAddressInfo.newAddress}`);
+                    
+                    // Filtrar la dirección original
+                    customer.addresses = customer.addresses.filter(addr => 
+                        addr.address !== editAddressInfo.originalAddress
+                    );
+                    
+                    // Agregar la nueva dirección editada
+                    customer.addresses.push({
+                        address: editAddressInfo.newAddress,
+                        deliveryCost: editAddressInfo.deliveryCost || 0
                     });
-                });
-                
-                // Actualizar/agregar direcciones nuevas
-                addresses.forEach(newAddr => {
-                    if (existingAddresses.has(newAddr.address)) {
-                        // Si la dirección existe, actualizar el costo
-                        existingAddresses.get(newAddr.address).deliveryCost = 
-                            newAddr.deliveryCost !== undefined ? newAddr.deliveryCost : 
-                            existingAddresses.get(newAddr.address).deliveryCost;
-                    } else {
-                        // Si la dirección no existe, agregarla
-                        existingAddresses.set(newAddr.address, {
-                            address: newAddr.address,
-                            deliveryCost: newAddr.deliveryCost || 0
-                        });
+                } else {
+                    // MODIFICACIÓN: Mejorar manejo de direcciones para respetar IDs
+                    const updatedAddresses = [];
+                    const processedIds = new Set(); // Para rastrear IDs ya procesados
+                    
+                    // Procesar cada dirección entrante
+                    for (const newAddr of addresses) {
+                        // Si la dirección tiene ID, buscar por ID primero
+                        if (newAddr._id) {
+                            const existingAddrIndex = customer.addresses.findIndex(
+                                addr => addr._id && addr._id.toString() === newAddr._id.toString()
+                            );
+                            
+                            if (existingAddrIndex >= 0) {
+                                // Actualizar dirección existente por ID
+                                console.log(`Actualizando dirección con ID ${newAddr._id}`);
+                                const updatedAddr = {
+                                    _id: customer.addresses[existingAddrIndex]._id,
+                                    address: newAddr.address,
+                                    deliveryCost: newAddr.deliveryCost || 0
+                                };
+                                updatedAddresses.push(updatedAddr);
+                                processedIds.add(newAddr._id.toString());
+                                continue;
+                            }
+                        }
+                        
+                        // Si no tiene ID o no se encontró por ID, buscar por texto
+                        const existingAddr = customer.addresses.find(addr => 
+                            addr.address === newAddr.address && 
+                            !processedIds.has(addr._id?.toString())
+                        );
+                        
+                        if (existingAddr) {
+                            // Actualizar dirección existente por texto
+                            console.log(`Actualizando dirección por texto: ${newAddr.address}`);
+                            existingAddr.deliveryCost = newAddr.deliveryCost || 0;
+                            updatedAddresses.push(existingAddr);
+                            
+                            if (existingAddr._id) {
+                                processedIds.add(existingAddr._id.toString());
+                            }
+                        } else {
+                            // Agregar nueva dirección
+                            console.log(`Agregando nueva dirección: ${newAddr.address}`);
+                            updatedAddresses.push({
+                                address: newAddr.address,
+                                deliveryCost: newAddr.deliveryCost || 0
+                            });
+                        }
                     }
-                });
-                
-                // Convertir el mapa de vuelta a array
-                customer.addresses = Array.from(existingAddresses.values());
+                    
+                    // Actualizar direcciones del cliente
+                    customer.addresses = updatedAddresses;
+                }
             }
 
             await customer.save();
@@ -305,28 +349,77 @@ const createOrUpdateCustomerController = async (req, res) => {
                 
                 // Gestionar las direcciones como en el caso anterior
                 if (addresses && Array.isArray(addresses)) {
-                    const existingAddresses = new Map();
-                    customer.addresses.forEach(addr => {
-                        existingAddresses.set(addr.address, {
-                            address: addr.address,
-                            deliveryCost: addr.deliveryCost
+                    // Manejar el caso especial de edición de dirección
+                    if (editAddressInfo && editAddressInfo.isEditingAddress && 
+                        editAddressInfo.originalAddress && editAddressInfo.newAddress) {
+                        
+                        console.log(`Editando dirección: ${editAddressInfo.originalAddress} a ${editAddressInfo.newAddress}`);
+                        
+                        // Filtrar la dirección original
+                        customer.addresses = customer.addresses.filter(addr => 
+                            addr.address !== editAddressInfo.originalAddress
+                        );
+                        
+                        // Agregar la nueva dirección editada
+                        customer.addresses.push({
+                            address: editAddressInfo.newAddress,
+                            deliveryCost: editAddressInfo.deliveryCost || 0
                         });
-                    });
-                    
-                    addresses.forEach(newAddr => {
-                        if (existingAddresses.has(newAddr.address)) {
-                            existingAddresses.get(newAddr.address).deliveryCost = 
-                                newAddr.deliveryCost !== undefined ? newAddr.deliveryCost : 
-                                existingAddresses.get(newAddr.address).deliveryCost;
-                        } else {
-                            existingAddresses.set(newAddr.address, {
-                                address: newAddr.address,
-                                deliveryCost: newAddr.deliveryCost || 0
-                            });
+                    } else {
+                        // MODIFICACIÓN: Mismo código mejorado para este caso
+                        const updatedAddresses = [];
+                        const processedIds = new Set(); // Para rastrear IDs ya procesados
+                        
+                        // Procesar cada dirección entrante
+                        for (const newAddr of addresses) {
+                            // Si la dirección tiene ID, buscar por ID primero
+                            if (newAddr._id) {
+                                const existingAddrIndex = customer.addresses.findIndex(
+                                    addr => addr._id && addr._id.toString() === newAddr._id.toString()
+                                );
+                                
+                                if (existingAddrIndex >= 0) {
+                                    // Actualizar dirección existente por ID
+                                    console.log(`Actualizando dirección con ID ${newAddr._id}`);
+                                    const updatedAddr = {
+                                        _id: customer.addresses[existingAddrIndex]._id,
+                                        address: newAddr.address,
+                                        deliveryCost: newAddr.deliveryCost || 0
+                                    };
+                                    updatedAddresses.push(updatedAddr);
+                                    processedIds.add(newAddr._id.toString());
+                                    continue;
+                                }
+                            }
+                            
+                            // Si no tiene ID o no se encontró por ID, buscar por texto
+                            const existingAddr = customer.addresses.find(addr => 
+                                addr.address === newAddr.address && 
+                                !processedIds.has(addr._id?.toString())
+                            );
+                            
+                            if (existingAddr) {
+                                // Actualizar dirección existente por texto
+                                console.log(`Actualizando dirección por texto: ${newAddr.address}`);
+                                existingAddr.deliveryCost = newAddr.deliveryCost || 0;
+                                updatedAddresses.push(existingAddr);
+                                
+                                if (existingAddr._id) {
+                                    processedIds.add(existingAddr._id.toString());
+                                }
+                            } else {
+                                // Agregar nueva dirección
+                                console.log(`Agregando nueva dirección: ${newAddr.address}`);
+                                updatedAddresses.push({
+                                    address: newAddr.address,
+                                    deliveryCost: newAddr.deliveryCost || 0
+                                });
+                            }
                         }
-                    });
-                    
-                    customer.addresses = Array.from(existingAddresses.values());
+                        
+                        // Actualizar direcciones del cliente
+                        customer.addresses = updatedAddresses;
+                    }
                 }
                 
                 await customer.save();
