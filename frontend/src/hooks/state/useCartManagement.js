@@ -1,11 +1,18 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import useCartStore from '../../store/useCartStore';
 
+// Crear una referencia compartida a nivel de módulo (fuera del hook)
+// Esto asegura que todos los componentes que usan useCartManagement
+// compartan la misma instancia de textAreaRefs
+const sharedTextAreaRefs = {};
+
 export const useCartManagement = () => {
     const { cart, setCart, clearCart, increaseQuantity, decreaseQuantity, removeProduct, cartContext } = useCartStore();
     const [cartTotal, setCartTotal] = useState(0);
-    const textAreaRefs = useRef({});
+    // Usar la referencia compartida en lugar de crear una nueva
+    const textAreaRefs = useRef(sharedTextAreaRefs);
     const prevCartRef = useRef(cart);
+    const focusAppliedRef = useRef({});
 
     // Función memoizada para calcular el total del carrito
     const calculateTotal = useCallback(() => {
@@ -70,6 +77,13 @@ export const useCartManagement = () => {
 
     // Función para alternar el modo de edición de comentarios
     const toggleEditComment = (productId) => {
+        console.log('Activando edición para:', productId);
+        
+        // Verificar si estamos activando o desactivando el modo edición
+        const item = cart.find(i => i._id === productId);
+        const isEnteringEditMode = item ? !item.isEditing : true;
+        
+        // Actualizar el estado del carrito
         setCart((prevCart) =>
             prevCart.map((item) =>
                 item._id === productId
@@ -78,21 +92,31 @@ export const useCartManagement = () => {
             )
         );
 
-        setTimeout(() => {
-            if (textAreaRefs.current[productId]) {
-                const editableDiv = textAreaRefs.current[productId];
-                editableDiv.focus();
-
-                const range = document.createRange();
-                const sel = window.getSelection();
-                range.selectNodeContents(editableDiv);
-                range.collapse(false);
-                sel.removeAllRanges();
-                sel.addRange(range);
-            }
-        }, 0);
+        // Si estamos entrando en modo edición, intentar enfocar
+        if (isEnteringEditMode) {
+            // Reiniciar el estado del foco para este item
+            focusAppliedRef.current[productId] = false;
+            
+            // Un solo intento de enfoque, sin intervalos
+            setTimeout(() => {
+                const editableDiv = sharedTextAreaRefs[productId];
+                if (editableDiv && !focusAppliedRef.current[productId]) {
+                    try {
+                        editableDiv.focus();
+                        console.log('Foco aplicado con éxito desde toggleEditComment');
+                        focusAppliedRef.current[productId] = true;
+                    } catch (e) {
+                        console.error('Error al enfocar desde toggleEditComment:', e);
+                    }
+                }
+            }, 50);
+        } else {
+            // Si estamos saliendo del modo edición, limpiar el estado
+            delete focusAppliedRef.current[productId];
+        }
     };
-      // Método getter para obtener el total del carrito
+
+    // Método getter para obtener el total del carrito
     const getCartTotal = useCallback(() => {
         return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     }, [cart]);
@@ -100,7 +124,9 @@ export const useCartManagement = () => {
     // Método para obtener explícitamente el subtotal (sin costo de envío)
     const getCartSubtotal = useCallback(() => {
         return getCartTotal();
-    }, [getCartTotal]);    return {
+    }, [getCartTotal]);    
+
+    return {
         cart,
         setCart,
         cartTotal, // Mantenemos esta propiedad para compatibilidad con componentes existentes
@@ -113,6 +139,6 @@ export const useCartManagement = () => {
         removeProduct,
         addCommentToProduct,
         toggleEditComment,
-        textAreaRefs,
+        textAreaRefs: sharedTextAreaRefs, // Retornar directamente sharedTextAreaRefs
     };
 };
