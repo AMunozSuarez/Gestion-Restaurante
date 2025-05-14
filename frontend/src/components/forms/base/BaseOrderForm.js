@@ -7,6 +7,8 @@ import useUIStore from '../../../store/useUiStore';
 import Cart from '../../cart/Cart';
 import { formatChileanMoney } from '../../../services/utils/formatters';
 import '../../../styles/components/orderForm.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrashAlt } from '@fortawesome/free-solid-svg-icons'; // Añadir esta importación
 
 const BaseOrderForm = ({
     // Props comunes
@@ -301,10 +303,12 @@ const BaseOrderForm = ({
                     </button>
                     <button
                         type="button"
-                        className="cancel-order-button"
+                        className="cancel-order-button icon-button"
                         onClick={() => setIsCancelModalOpen(true)}
+                        title="Cancelar Pedido"
+                        aria-label="Cancelar Pedido"
                     >
-                        Cancelar Pedido
+                        <FontAwesomeIcon icon={faTrashAlt} />
                     </button>
                 </div>
             )}

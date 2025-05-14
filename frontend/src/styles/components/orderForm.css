@@ -462,6 +462,17 @@
     background-color: #c82333; /* Rojo más oscuro */
 }
 
+.cancel-order-button.icon-button {
+  border-color: #dc3545;
+}
+
+.cancel-order-button.icon-button:hover {
+  opacity: 0.8; /* Efecto de opacidad al pasar el cursor */
+}
+
+.cancel-order-button.icon-button i {
+  font-size: 1.2rem;  /* Tamaño de icono adecuado */
+}
 .modal-content.modal-actions {
     top: 250px;
     display: flex;
