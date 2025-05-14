@@ -128,10 +128,13 @@ const BaseOrderForm = ({
         // Limpiar localStorage de direcciones en edición para evitar estados inconsistentes
         localStorage.removeItem('editing_address_original');
 
+        // Si hay una función para resetear el estado de edición de dirección en extraData, llamarla
+        console.log('Extra data:', extraData);
+        if (extraData && extraData.resetAddressEditMode) {
+            extraData.resetAddressEditMode();
+        }
+
         // Llamar a handleSubmit con los parámetros adecuados según el tipo
-        // Incluir extraFormData si existe
-        console.log('Datos del formulario al enviar:', 
-            extraData);
         handleSubmit(e, resetForm, undefined, formType, {
             comment: latestComment,
             ...(extraData || {}) // Incluir todos los datos adicionales del formulario
@@ -173,7 +176,7 @@ const BaseOrderForm = ({
                     <label htmlFor="orderComment">Comentario:</label>                    <div
                         id="orderComment"
                         contentEditable={!isViewingCompletedOrder}
-                        className={`customer-editable-comment ${isViewingCompletedOrder ? 'viewing-mode' : ''} ${!comment && isViewingCompletedOrder ? 'empty' : ''}`}
+                        className={`customer-editable-comment ${isViewingCompletedOrder ? 'viewing-mode' : ''} `}
                         onBlur={(e) => {
                             const newComment = e.target.innerHTML;
                             console.log(`Comentario actualizado en ${formType}:`, newComment);

@@ -68,13 +68,7 @@ const Delivery = () => {
                 // si estamos editando un pedido
                 setIsViewingCompletedOrder(false);
                 
-                // Importante: Guardar el cliente en localStorage para que OrderFormDelivery lo encuentre
-                if (foundOrder.buyer && foundOrder.buyer.phone) {
-                    localStorage.setItem(
-                        `customer_${foundOrder.buyer.phone}`,
-                        JSON.stringify(foundOrder.buyer)
-                    );
-                }
+                
             }
         } else {
             setEditingOrderId(null);

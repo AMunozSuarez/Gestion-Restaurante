@@ -30,8 +30,14 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
     if (initialValue !== undefined) {
       setSearchQuery(initialValue);
       setManualEdit(false);
+
+      // Si estamos editando un pedido y hay un valor inicial, bloquear el input
+      if (editingOrderId && initialValue) {
+        setIsLocked(true);
+        setManualEdit(true);
+      } 
       // Si se pasa un valor inicial y no está en modo manual, no bloqueamos el input
-      if (!manualEdit) {
+      else if (!manualEdit) {
         setIsLocked(false);
       }
     }

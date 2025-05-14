@@ -33,6 +33,10 @@ const OrderFormDelivery = (props) => {
         // Solo ejecutar cuando estamos editando un pedido y tenemos un número de teléfono
         if (props.editingOrderId && props.customerPhone) {
             console.log("Cargando datos de cliente para edición, teléfono:", props.customerPhone);
+
+            // resetear estados de edición
+            setIsAddingNewAddress(false);
+            setIsEditingAddress(false);
             
             // Siempre buscar el cliente en el servidor
             fetchCustomerData(props.customerPhone);
@@ -213,6 +217,13 @@ const OrderFormDelivery = (props) => {
                 props.setDeliveryCost(customerAddresses[0].deliveryCost?.toString() || '0');
             }
         }
+    };
+
+    // Añadir esta función para resetear estados de edición
+    const resetAddressEditMode = () => {
+        console.log("Reseteando modo de edición de dirección");
+        setIsEditingAddress(false);
+        setIsAddingNewAddress(false);
     };
 
     // Función para renderizar campos adicionales específicos de delivery
@@ -485,7 +496,8 @@ const OrderFormDelivery = (props) => {
                 extraData={{  
                     isAddingNewAddress,
                     isEditingAddress,
-                    originalAddress  // Pasar el objeto original para saber qué dirección actualizar
+                    originalAddress,
+                    resetAddressEditMode  // Pasar la función de reset
                 }}
             />
         </>
