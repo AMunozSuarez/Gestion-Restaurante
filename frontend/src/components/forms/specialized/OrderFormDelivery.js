@@ -5,6 +5,7 @@ import { useOrderForm } from '../../../hooks/forms/useOrderForm';
 import BaseOrderForm from '../base/BaseOrderForm';
 import CustomerAutocomplete from '../../common/CustomerAutocomplete';
 import '../../../styles/components/customerAutocomplete.css';
+import axios from '../../../services/axiosConfig';
 
 const OrderFormDelivery = (props) => {    
     const navigate = useNavigate();
@@ -27,15 +28,92 @@ const OrderFormDelivery = (props) => {
         }
     }, [props.customerPhone]);
 
-    // Manejador para cuando se selecciona un cliente de la lista de sugerencias
-    const handleCustomerSelect = (customer) => {
-        // Siempre actualizar el teléfono, que viene en todas las llamadas
-        props.setCustomerPhone(customer.phone || '');
+    // Reemplazar el useEffect que carga datos de cliente en edición
+    useEffect(() => {
+        // Solo ejecutar cuando estamos editando un pedido y tenemos un número de teléfono
+        if (props.editingOrderId && props.customerPhone) {
+            console.log("Cargando datos de cliente para edición, teléfono:", props.customerPhone);
+            
+            // Siempre buscar el cliente en el servidor
+            fetchCustomerData(props.customerPhone);
+        }
+    }, [props.editingOrderId, props.customerPhone]);
+
+    // Función para buscar cliente en el servidor
+    const fetchCustomerData = async (phone) => {
+        try {
+            console.log("Buscando cliente en el servidor:", phone);
+            // Usar el endpoint de búsqueda que ya existe
+            const response = await axios.get(`/customer/search?query=${phone}`);
+            
+            if (response.data && response.data.success && response.data.customers && response.data.customers.length > 0) {
+                // Encontrar el cliente exacto con el mismo teléfono
+                const exactCustomer = response.data.customers.find(c => c.phone === phone);
+                
+                if (exactCustomer) {
+                    console.log("Cliente encontrado en el servidor:", exactCustomer);
+                    setSelectedCustomer(exactCustomer);
+                    
+                    // Cargar las direcciones del cliente
+                    if (exactCustomer.addresses && exactCustomer.addresses.length > 0) {
+                        setCustomerAddresses(exactCustomer.addresses);
+                        
+                        // Si hay una dirección seleccionada en el pedido, asegurarnos de que esté en las opciones
+                        const addressExists = exactCustomer.addresses.some(
+                            addr => addr.address === props.deliveryAddress
+                        );
+                        
+                        if (!addressExists && props.deliveryAddress) {
+                            // Si la dirección del pedido no está en las direcciones del cliente, agregarla temporalmente
+                            // pero NO la guardamos en el cliente hasta que se envíe el formulario
+                            const newAddresses = [...exactCustomer.addresses, {
+                                address: props.deliveryAddress,
+                                deliveryCost: Number(props.deliveryCost) || 0,
+                                _isTemporary: true // Marcar como temporal para identificarla
+                            }];
+                            setCustomerAddresses(newAddresses);
+                        }
+                    }
+                } else {
+                    // Si no hay cliente exacto, usar los datos del pedido
+                    createTemporaryCustomer();
+                }
+            } else {
+                // Si no hay resultados, usar los datos del pedido
+                createTemporaryCustomer();
+            }
+        } catch (error) {
+            console.error("Error al buscar cliente:", error);
+            // En caso de error, usar los datos del pedido
+            createTemporaryCustomer();
+        }
+    };
+
+    // Función para crear un cliente temporal con los datos del pedido
+    const createTemporaryCustomer = () => {
+        const tempCustomer = {
+            name: props.customerName,
+            phone: props.customerPhone,
+            addresses: props.deliveryAddress ? [{
+                address: props.deliveryAddress,
+                deliveryCost: Number(props.deliveryCost) || 0
+            }] : [],
+            _isTemporary: true
+        };
         
-        // Si se limpió la selección (phone está vacío) o solo viene phone
-        if (!customer.phone || (Object.keys(customer).length === 1 && customer.phone)) {
-            // Si el phone está vacío, limpiar todos los campos relacionados con el cliente
-            if (!customer.phone) {
+        console.log("Creando cliente temporal:", tempCustomer);
+        setSelectedCustomer(tempCustomer);
+        setCustomerAddresses(tempCustomer.addresses);
+    };
+
+    // Modificar handleCustomerSelect para consultar al servidor
+    const handleCustomerSelect = async (customerData) => {
+        // Siempre actualizar el teléfono, que viene en todas las llamadas
+        props.setCustomerPhone(customerData.phone || '');
+        
+        // Si se limpió la selección o solo viene phone
+        if (!customerData.phone || (Object.keys(customerData).length === 1 && customerData.phone)) {
+            if (!customerData.phone) {
                 props.setCustomerName('');
                 props.setComment('');
                 props.setDeliveryAddress('');
@@ -44,38 +122,32 @@ const OrderFormDelivery = (props) => {
                 setSelectedCustomer(null);
                 setIsAddingNewAddress(false);
                 setIsEditingAddress(false);
+            } else {
+                // Si solo tenemos el teléfono, consultar al servidor
+                fetchCustomerData(customerData.phone);
             }
             return;
         }
         
-        // Si llegamos aquí, es porque se seleccionó un cliente completo de la lista
-        console.log("Cliente seleccionado:", customer);
-        setSelectedCustomer(customer);
+        // Si ya tenemos los datos completos (desde el autocomplete)
+        console.log("Cliente seleccionado:", customerData);
+        setSelectedCustomer(customerData);
         
-        // Actualizar el resto de campos con los datos del cliente
-        props.setCustomerName(customer.name || '');
-        props.setComment(customer.comment || '');
+        // Actualizar el resto de campos
+        props.setCustomerName(customerData.name || '');
+        props.setComment(customerData.comment || '');
         
-        // Actualizar la lista de direcciones disponibles
-        if (customer.addresses && customer.addresses.length > 0) {
-            setCustomerAddresses(customer.addresses);
-            
-            // Seleccionar la primera dirección por defecto
-            props.setDeliveryAddress(customer.addresses[0].address);
-            
-            // Si la dirección tiene un costo de envío asociado, usarlo también
-            if (customer.addresses[0].deliveryCost !== undefined) {
-                props.setDeliveryCost(customer.addresses[0].deliveryCost.toString());
-            }
-            
-            // Desactivar modos de edición
+        // Manejar direcciones
+        if (customerData.addresses && customerData.addresses.length > 0) {
+            setCustomerAddresses(customerData.addresses);
+            props.setDeliveryAddress(customerData.addresses[0].address);
+            props.setDeliveryCost(customerData.addresses[0].deliveryCost?.toString() || '0');
             setIsAddingNewAddress(false);
             setIsEditingAddress(false);
         } else {
             setCustomerAddresses([]);
             props.setDeliveryAddress('');
             props.setDeliveryCost('');
-            // Activar automáticamente el modo de nueva dirección si no hay direcciones
             setIsAddingNewAddress(true);
         }
     };
@@ -104,7 +176,7 @@ const OrderFormDelivery = (props) => {
         }
     };
     
-    // Iniciar edición de dirección actual
+    // Modificar handleStartEditAddress para guardar correctamente el objeto de dirección original
     const handleStartEditAddress = () => {
         setIsEditingAddress(true);
         setIsAddingNewAddress(false);
@@ -112,31 +184,30 @@ const OrderFormDelivery = (props) => {
         // Guardar el objeto completo de la dirección original
         const currentAddressObj = customerAddresses.find(addr => addr.address === props.deliveryAddress);
         if (currentAddressObj) {
-            console.log("Guardando dirección original para edición:", currentAddressObj);
-            setOriginalAddress(currentAddressObj); // Guardar el objeto completo con ID
-            
-            // También guardar en localStorage para que useOrderForm pueda acceder
-            localStorage.setItem('editing_address_original', JSON.stringify(currentAddressObj));
+            console.log("[DEBUG] Guardando dirección original para edición:", currentAddressObj);
+            setOriginalAddress(currentAddressObj); // Guardar todo el objeto con ID
         } else {
-            console.log("No se encontró objeto de dirección para:", props.deliveryAddress);
-            setOriginalAddress(props.deliveryAddress); // Fallback al texto
-            localStorage.removeItem('editing_address_original'); // Limpiar localStorage si no hay objeto
+            console.log("[DEBUG] No se encontró objeto de dirección para:", props.deliveryAddress);
+            setOriginalAddress({address: props.deliveryAddress}); // Fallback al texto como objeto
         }
     };
     
-    // Cancelar edición de dirección
     const handleCancelEditAddress = () => {
         setIsEditingAddress(false);
         
         // Restaurar dirección original si existe
         if (originalAddress) {
-            const originalAddressObj = customerAddresses.find(addr => addr.address === originalAddress);
-            if (originalAddressObj) {
-                props.setDeliveryAddress(originalAddressObj.address);
-                props.setDeliveryCost(originalAddressObj.deliveryCost?.toString() || '0');
+            if (typeof originalAddress === 'object' && originalAddress.address) {
+                props.setDeliveryAddress(originalAddress.address);
+                props.setDeliveryCost(originalAddress.deliveryCost?.toString() || '0');
+            } else {
+                const originalAddressObj = customerAddresses.find(addr => addr.address === originalAddress);
+                if (originalAddressObj) {
+                    props.setDeliveryAddress(originalAddressObj.address);
+                    props.setDeliveryCost(originalAddressObj.deliveryCost?.toString() || '0');
+                }
             }
         } else {
-            // Si no hay dirección original (poco probable), seleccionar la primera
             if (customerAddresses.length > 0) {
                 props.setDeliveryAddress(customerAddresses[0].address);
                 props.setDeliveryCost(customerAddresses[0].deliveryCost?.toString() || '0');
@@ -148,8 +219,7 @@ const OrderFormDelivery = (props) => {
     const renderAdditionalFields = () => {
         return (
             <>
-                {/* Teléfono del Cliente con autocompletado */}
-                <div className="form-group">
+                {/* Teléfono del Cliente con autocompletado */}                <div className="form-group">
                     <label htmlFor="customerPhone">Teléfono del Cliente:</label>
                     {!props.isViewingCompletedOrder ? (
                         <CustomerAutocomplete
@@ -157,6 +227,7 @@ const OrderFormDelivery = (props) => {
                             disabled={props.isViewingCompletedOrder}
                             initialValue={props.customerPhone}
                             editingOrderId={props.editingOrderId}
+                            selectedCustomerData={selectedCustomer}
                         />
                     ) : (
                         <input
@@ -238,7 +309,6 @@ const OrderFormDelivery = (props) => {
                                 disabled={props.isViewingCompletedOrder}
                                 className={`form-control ${props.editingOrderId ? 'editing-input' : ''}`}
                                 required
-                                placeholder={isEditingAddress ? "Editando dirección..." : "Ingrese la dirección"}
                             />
                             
                             {/* Botón para cancelar si aplica */}
@@ -412,6 +482,11 @@ const OrderFormDelivery = (props) => {
                 completeButtonLabel="Enviar Pedido"
                 completeButtonAction={handleSendOrder}
                 cancelOrderAction={handleCancelOrder}
+                extraData={{  
+                    isAddingNewAddress,
+                    isEditingAddress,
+                    originalAddress  // Pasar el objeto original para saber qué dirección actualizar
+                }}
             />
         </>
     );

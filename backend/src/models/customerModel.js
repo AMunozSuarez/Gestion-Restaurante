@@ -6,7 +6,7 @@ const customerSchema = new mongoose.Schema({
     },
     phone: {
         type: String,
-        unique: true, // Asegura que no haya duplicados
+        // Eliminamos el "unique: true" de aquí
     },
     addresses: [
         {
@@ -24,5 +24,9 @@ const customerSchema = new mongoose.Schema({
         required: true, // Asegura que el cliente esté asociado a un restaurante
     },
 }, { timestamps: true });
+
+// Creamos un índice compuesto que hace que la combinación de phone + restaurant sea única
+// Esto permite el mismo teléfono en diferentes restaurantes, pero único dentro de cada uno
+customerSchema.index({ phone: 1, restaurant: 1 }, { unique: true });
 
 module.exports = mongoose.model('Customer', customerSchema);

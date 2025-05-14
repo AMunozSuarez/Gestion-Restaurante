@@ -56,23 +56,53 @@ export const useOrderForm = () => {
         setCart([]); // Limpiar el carrito
     };
 
-    // Nueva función para crear o actualizar un cliente
+    // Modificar createOrUpdateCustomerBeforeOrder para no usar localStorage
     const createOrUpdateCustomerBeforeOrder = async (customerData) => {
         if (!customerData || !customerData.phone) return null;
 
         try {
             console.log('Creando/actualizando cliente antes del pedido:', customerData);
+            
+            // Si hay información de edición de dirección, añadirla a la solicitud
+            let editAddressInfo = null;
+            const originalAddressObj = { address: '', deliveryCost: 0 };
+            
+            // Si hay direcciones, verificar duplicados antes de enviar
+            if (customerData.addresses && Array.isArray(customerData.addresses)) {
+                // Filtrar direcciones temporales
+                customerData.addresses = customerData.addresses.filter(addr => !addr._isTemporary);
+                
+                // Crear un mapa para detectar duplicados por texto
+                const addressTexts = new Map();
+                
+                // Filtrar direcciones duplicadas
+                customerData.addresses = customerData.addresses.filter(addr => {
+                    const key = addr.address;
+                    if (addressTexts.has(key)) {
+                        // Ya existe esta dirección
+                        const existing = addressTexts.get(key);
+                        if (!existing._id && addr._id) {
+                            // La nueva tiene ID y la existente no
+                            addressTexts.set(key, addr);
+                            return false; // No incluir esta entrada aún
+                        }
+                        return false; // Es un duplicado
+                    } else {
+                        // No existe, agregar al mapa
+                        addressTexts.set(key, addr);
+                        return true; // Incluir en el resultado
+                    }
+                });
+                
+                // Asegurar que se incluyan todas las direcciones del mapa
+                customerData.addresses = Array.from(addressTexts.values());
+            }
+            
+            // Enviar solicitud al servidor
             const response = await axios.post('/customer/create-or-update', customerData);
             
             if (response.data && response.data.success && response.data.customer) {
                 console.log('Cliente creado/actualizado correctamente:', response.data.customer);
-                
-                // Guardar datos del cliente en localStorage para futuras referencias
-                localStorage.setItem(
-                    `customer_${response.data.customer.phone}`,
-                    JSON.stringify(response.data.customer)
-                );
-                
                 return response.data.customer;
             } else {
                 console.warn('Respuesta inesperada al actualizar cliente:', response.data);
@@ -91,118 +121,156 @@ export const useOrderForm = () => {
         if (e && e.preventDefault) e.preventDefault();
 
         try {
-            // Si tenemos información de cliente, intentar actualizarlo primero
+            // Limpiar localStorage para evitar dependencias
+            if (localStorage.getItem('editing_address_original')) {
+                localStorage.removeItem('editing_address_original');
+            }
+
+            // Construir objeto de cliente con la información actual
             let buyerData = {
                 name: customerName,
                 phone: customerPhone,
                 comment: comment || '',
             };
 
-            // Manejar las direcciones correctamente
+            // Manejar las direcciones utilizando solo los datos del formulario
             if (deliveryAddress) {
-                console.log("DEBUG - Iniciando manejo de dirección:", deliveryAddress);
+                console.log("[DEBUG] Preparando dirección para cliente:", deliveryAddress);
                 
+                // Preparar dirección actual
                 const addressData = {
                     address: deliveryAddress,
                     deliveryCost: Number(deliveryCost) || 0,
                 };
                 
-                console.log("DEBUG - Datos de dirección preparados:", addressData);
+                // Obtener información sobre si estamos añadiendo o editando una dirección
+                const isAddingNewAddress = extraData.isAddingNewAddress;
+                const isEditingAddress = extraData.isEditingAddress;
+                const originalAddress = extraData.originalAddress;
                 
-                // Si hay un cliente seleccionado en localStorage con direcciones
-                const cachedCustomer = customerPhone ? 
-                    JSON.parse(localStorage.getItem(`customer_${customerPhone}`) || 'null') : null;
+                console.log("[DEBUG] Estado de edición:", { 
+                    isAddingNewAddress, 
+                    isEditingAddress, 
+                    originalAddress 
+                });
                 
-                console.log("DEBUG - Cliente en cache:", cachedCustomer);
-                    
-                if (cachedCustomer && cachedCustomer.addresses && Array.isArray(cachedCustomer.addresses)) {
-                    const existingAddresses = [...cachedCustomer.addresses];
-                    
-                    console.log("DEBUG - Direcciones existentes:", existingAddresses);
-                    
-                    // Primero intentar encontrar por la dirección exacta
-                    let existingIndex = existingAddresses.findIndex(
-                        a => a.address === deliveryAddress
-                    );
-                    
-                    console.log("DEBUG - Índice por dirección exacta:", existingIndex);
-                    
-                    // Verificar si hay un originalAddress en localStorage
-                    const originalAddressData = localStorage.getItem('editing_address_original');
-                    let originalAddress = null;
-                    
-                    if (originalAddressData) {
-                        try {
-                            originalAddress = JSON.parse(originalAddressData);
-                            console.log("DEBUG - Dirección original recuperada del localStorage:", originalAddress);
-                        } catch (e) {
-                            console.error("Error al parsear originalAddress del localStorage:", e);
+                // Por defecto, asumimos que solo estamos usando la dirección actual
+                buyerData.addresses = [addressData];
+                
+                // Buscar el cliente para ver si ya tiene direcciones
+                if (customerPhone) {
+                    try {
+                        console.log("[DEBUG] Buscando datos de cliente en servidor para manejar dirección");
+                        // Buscar cliente por teléfono en el servidor
+                        const response = await axios.get(`/customer/search?query=${customerPhone}`);
+                        
+                        if (response.data && response.data.success && response.data.customers && response.data.customers.length > 0) {
+                            // Encontrar cliente exacto
+                            const exactCustomer = response.data.customers.find(c => c.phone === customerPhone);
+                            
+                            if (exactCustomer && exactCustomer.addresses && exactCustomer.addresses.length > 0) {
+                                console.log("[DEBUG] Cliente encontrado con direcciones:", exactCustomer.addresses);
+                                
+                                // 1. Caso de edición de dirección existente
+                                if (isEditingAddress && originalAddress) {
+                                    console.log("[DEBUG] Editando dirección existente:", originalAddress);
+                                    
+                                    // Buscar la dirección original por ID si está disponible, o por texto
+                                    const originalId = originalAddress._id;
+                                    let existingIndex = -1;
+                                    
+                                    if (originalId) {
+                                        console.log("[DEBUG] Buscando dirección por ID:", originalId);
+                                        existingIndex = exactCustomer.addresses.findIndex(
+                                            addr => addr._id && addr._id.toString() === originalId.toString()
+                                        );
+                                    }
+                                    
+                                    // Si no se encontró por ID, buscar por texto de dirección original
+                                    if (existingIndex < 0 && originalAddress.address) {
+                                        console.log("[DEBUG] Buscando dirección por texto:", originalAddress.address);
+                                        existingIndex = exactCustomer.addresses.findIndex(
+                                            addr => addr.address === originalAddress.address
+                                        );
+                                    }
+                                    
+                                    if (existingIndex >= 0) {
+                                        // Actualizar dirección existente manteniendo su ID
+                                        const originalId = exactCustomer.addresses[existingIndex]._id;
+                                        console.log("[DEBUG] Actualizando dirección existente en índice:", existingIndex, "con ID:", originalId);
+                                        
+                                        // Mantener todas las direcciones pero actualizar la que corresponde
+                                        buyerData.addresses = exactCustomer.addresses.map((addr, idx) => {
+                                            if (idx === existingIndex) {
+                                                return {
+                                                    _id: originalId,
+                                                    address: deliveryAddress,
+                                                    deliveryCost: Number(deliveryCost) || 0
+                                                };
+                                            }
+                                            return addr;
+                                        });
+                                    } else {
+                                        console.log("[DEBUG] ERROR: No se encontró la dirección original para editar!");
+                                        // Si no se encuentra la dirección original (caso extraño), agregar como nueva
+                                        buyerData.addresses = [...exactCustomer.addresses, addressData];
+                                    }
+                                }
+                                // 2. Caso de nueva dirección
+                                else if (isAddingNewAddress) {
+                                    console.log("[DEBUG] Añadiendo nueva dirección a las existentes:", addressData);
+                                    buyerData.addresses = [...exactCustomer.addresses, addressData];
+                                } 
+                                // 3. Caso de selección normal de dirección existente
+                                else {
+                                    console.log("[DEBUG] Verificando si la dirección ya existe");
+                                    // Búsqueda de dirección por texto exacto
+                                    let existingIndex = exactCustomer.addresses.findIndex(
+                                        addr => addr.address === deliveryAddress
+                                    );
+                                    
+                                    if (existingIndex >= 0) {
+                                        console.log("[DEBUG] La dirección ya existe, actualizando costo si es necesario");
+                                        // La dirección ya existe, actualizar solo el costo si ha cambiado
+                                        const originalCost = exactCustomer.addresses[existingIndex].deliveryCost || 0;
+                                        const newCost = Number(deliveryCost) || 0;
+                                        
+                                        if (originalCost !== newCost) {
+                                            console.log("[DEBUG] El costo ha cambiado, actualizando");
+                                            const originalId = exactCustomer.addresses[existingIndex]._id;
+                                            
+                                            buyerData.addresses = exactCustomer.addresses.map((addr, idx) => {
+                                                if (idx === existingIndex) {
+                                                    return {
+                                                        _id: originalId,
+                                                        address: deliveryAddress,
+                                                        deliveryCost: newCost
+                                                    };
+                                                }
+                                                return addr;
+                                            });
+                                        } else {
+                                            console.log("[DEBUG] Usando todas las direcciones existentes sin cambios");
+                                            buyerData.addresses = exactCustomer.addresses;
+                                        }
+                                    } else {
+                                        console.log("[DEBUG] La dirección no existe, agregando como nueva");
+                                        buyerData.addresses = [...exactCustomer.addresses, addressData];
+                                    }
+                                }
+                            }
                         }
+                    } catch (error) {
+                        console.error("[DEBUG] Error al buscar cliente para manejar dirección:", error);
+                        // Continuar con la dirección simple si hay un error
                     }
-                    
-                    // Si tenemos la dirección original con ID, buscar por ID primero
-                    if (originalAddress && originalAddress._id) {
-                        const indexById = existingAddresses.findIndex(
-                            a => a._id === originalAddress._id
-                        );
-                        
-                        console.log("DEBUG - Búsqueda por ID original:", originalAddress._id, "Resultado:", indexById);
-                        
-                        if (indexById >= 0) {
-                            existingIndex = indexById;
-                            console.log("DEBUG - Usando índice por ID en lugar del índice por dirección");
-                        }
-                    }
-                    
-                    // Si no se encuentra pero estamos editando un pedido, buscar la dirección original
-                    if (existingIndex < 0 && editingOrderId) {
-                        console.log("DEBUG - No se encontró dirección, intentando búsqueda por pedido original");
-                        
-                        const orderToEdit = orders.find(order => order._id === editingOrderId);
-                        if (orderToEdit && orderToEdit.selectedAddress) {
-                            console.log("DEBUG - Pedido encontrado con dirección:", orderToEdit.selectedAddress);
-                            // Buscar la dirección original para actualizarla
-                            existingIndex = existingAddresses.findIndex(
-                                a => a.address === orderToEdit.selectedAddress
-                            );
-                            console.log("DEBUG - Índice por dirección del pedido original:", existingIndex);
-                        }
-                    }
-                    
-                    if (existingIndex >= 0) {
-                        // Actualizar manteniendo el ID original
-                        const originalId = existingAddresses[existingIndex]._id;
-                        console.log("DEBUG - Actualizando dirección existente en índice:", existingIndex, "con ID:", originalId);
-                        
-                        existingAddresses[existingIndex] = {
-                            ...existingAddresses[existingIndex],
-                            address: deliveryAddress,
-                            deliveryCost: Number(deliveryCost) || 0
-                        };
-                        
-                        // Asegurarnos de preservar el ID
-                        if (originalId) {
-                            existingAddresses[existingIndex]._id = originalId;
-                            console.log("DEBUG - ID preservado en la actualización");
-                        }
-                    } else {
-                        // Agregar nueva dirección
-                        console.log("DEBUG - No se encontró dirección existente, agregando nueva dirección");
-                        existingAddresses.push(addressData);
-                    }
-                    
-                    buyerData.addresses = existingAddresses;
-                    console.log("DEBUG - Direcciones finales:", buyerData.addresses);
-                } else {
-                    console.log("DEBUG - No hay cliente en cache o no tiene direcciones, usando dirección simple");
-                    buyerData.addresses = [addressData];
                 }
             }
 
-            // Si hay teléfono, intentar crear/actualizar cliente
+            // Si hay teléfono, crear/actualizar cliente usando la API
             if (customerPhone) {
                 try {
-                    console.log('Intentando actualizar cliente antes de crear pedido...');
+                    console.log('Creando/actualizando cliente antes de crear pedido...');
                     const updatedCustomer = await createOrUpdateCustomerBeforeOrder(buyerData);
                     
                     if (updatedCustomer && updatedCustomer._id) {
@@ -217,6 +285,7 @@ export const useOrderForm = () => {
                 }
             }
 
+            // El resto del código sigue igual
             const newOrder = {
                 orderNumber: extraData.orderNumber || null,
                 buyer: buyerData,

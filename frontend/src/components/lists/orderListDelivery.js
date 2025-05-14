@@ -20,7 +20,6 @@ const OrderListDelivery = () => {
     const deliveryOrders = orders.filter(
         (order) => order.section === 'delivery' && order.status === 'Preparacion'
     );
-    console.log('Datos para handleCloseOrder:', deliveryOrders);
 
     return (
         <div className="order-list-delivery">

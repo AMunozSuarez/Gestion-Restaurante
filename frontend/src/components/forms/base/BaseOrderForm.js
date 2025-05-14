@@ -33,6 +33,7 @@ const BaseOrderForm = ({
     completeButtonLabel,
     completeButtonAction,
     cancelOrderAction,
+    extraData, // Datos adicionales del formulario
 })=> {    const {
         cart,
         getCartTotal,
@@ -122,11 +123,19 @@ const BaseOrderForm = ({
         // Obtener el valor más reciente del campo contentEditable
         const commentElement = document.getElementById('orderComment');
         const latestComment = commentElement ? commentElement.innerHTML : '';
-
         console.log('Comentario obtenido al enviar:', latestComment);
+        
+        // Limpiar localStorage de direcciones en edición para evitar estados inconsistentes
+        localStorage.removeItem('editing_address_original');
 
         // Llamar a handleSubmit con los parámetros adecuados según el tipo
-        handleSubmit(e, resetForm, 'Preparacion', formType, { comment: latestComment });
+        // Incluir extraFormData si existe
+        console.log('Datos del formulario al enviar:', 
+            extraData);
+        handleSubmit(e, resetForm, undefined, formType, {
+            comment: latestComment,
+            ...(extraData || {}) // Incluir todos los datos adicionales del formulario
+        });
     };    return (
         <div className={`order-form ${isEditing ? 'editing-mode' : ''} ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`} 
              data-form-type={formType}>

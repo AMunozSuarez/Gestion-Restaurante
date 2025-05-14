@@ -243,6 +243,7 @@ const createOrUpdateCustomerController = async (req, res) => {
 
         // Si se proporciona un ID, intentar actualizar el cliente existente
         if (_id) {
+            // Buscar el cliente asegurando que pertenece al restaurante actual
             customer = await Customer.findOne({
                 _id,
                 restaurant: req.user.restaurant
@@ -336,7 +337,7 @@ const createOrUpdateCustomerController = async (req, res) => {
 
             await customer.save();
         } else {
-            // Buscar si ya existe un cliente con ese teléfono en este restaurante
+            // Buscar si ya existe un cliente con ese teléfono EN ESTE RESTAURANTE ESPECÍFICO
             customer = await Customer.findOne({
                 phone,
                 restaurant: req.user.restaurant
@@ -424,11 +425,12 @@ const createOrUpdateCustomerController = async (req, res) => {
                 
                 await customer.save();
             } else {
-                // Crear un nuevo cliente
+                // Crear un nuevo cliente para este restaurante
+                // IMPORTANTE: NO buscar clientes con el mismo teléfono en otros restaurantes
                 customer = new Customer({
                     name,
                     phone,
-                    addresses: addresses || [],
+                    addresses: addresses || [], // Siempre iniciar con las direcciones proporcionadas o un array vacío
                     comment: comment || '',
                     restaurant: req.user.restaurant
                 });

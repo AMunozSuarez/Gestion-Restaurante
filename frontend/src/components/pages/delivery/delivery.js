@@ -49,7 +49,9 @@ const Delivery = () => {
                 setCustomerName(foundOrder.buyer.name);
                 setCustomerPhone(foundOrder.buyer.phone);
                 setDeliveryAddress(foundOrder.selectedAddress || '');
-                setDeliveryCost(foundOrder.buyer.deliveryAddress.deliveryCost || 0);
+                
+                // Corregir esto: usar la propiedad deliveryCost directa del pedido
+                setDeliveryCost(foundOrder.deliveryCost || 0);
                 setSelectedPaymentMethod(foundOrder.payment);
                 setComment(foundOrder.comment || '');
 
@@ -60,8 +62,19 @@ const Delivery = () => {
                     price: item.food.price,
                     comment: item.comment || '',
                 }));
-                setCart(cartItems); // Actualizar el carrito solo si cambia el pedido
+                setCart(cartItems);
+                
+                // Importante: asegurarnos de que no estamos en modo de solo visualización
+                // si estamos editando un pedido
                 setIsViewingCompletedOrder(false);
+                
+                // Importante: Guardar el cliente en localStorage para que OrderFormDelivery lo encuentre
+                if (foundOrder.buyer && foundOrder.buyer.phone) {
+                    localStorage.setItem(
+                        `customer_${foundOrder.buyer.phone}`,
+                        JSON.stringify(foundOrder.buyer)
+                    );
+                }
             }
         } else {
             setEditingOrderId(null);
