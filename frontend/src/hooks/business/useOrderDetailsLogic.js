@@ -52,8 +52,7 @@ export const useOrderDetailsLogic = ({
     setEditingOrder(foundOrder || null);
 
     if (foundOrder) {
-      // Transformar pedido a formato de carrito (una sola vez)
-      console.log('Transformando pedido a formato de carrito:', foundOrder);
+      // Transformar pedido a formato de carrito (una sola vez)\
       const cartItems = foundOrder.foods.map((item) => ({
         _id: item.food._id,
         title: item.food.title,
@@ -87,9 +86,9 @@ export const useOrderDetailsLogic = ({
     console.log('Pedido seleccionado:', order);
     console.log('selectedOrderId:', selectedOrderId);
     // Evitar actualización si el pedido ya está seleccionado
-    if (selectedOrderId === order._id) {
-      return;
-    }
+    // if (selectedOrderId === order._id) {
+    //   return;
+    // }
     
     // Establecer que estamos en modo edición antes de actualizar el carrito
     setCartContext('edit');

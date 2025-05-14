@@ -19,7 +19,7 @@ export const useCustomerSearch = () => {
     setError(null);
 
     try {
-      console.log(`Buscando clientes con la query: ${query}`);
+      console.log('Buscando clientes en usecustomerSearch.js');
       const response = await axios.get(`/customer/search?query=${encodeURIComponent(query)}`);
       
       console.log('Respuesta del servidor:', response.data);

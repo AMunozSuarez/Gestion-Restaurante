@@ -32,7 +32,6 @@ const OrderFormDelivery = (props) => {
     useEffect(() => {
         // Solo ejecutar cuando estamos editando un pedido y tenemos un número de teléfono
         if (props.editingOrderId && props.customerPhone) {
-            console.log("Cargando datos de cliente para edición, teléfono:", props.customerPhone);
 
             // resetear estados de edición
             setIsAddingNewAddress(false);
@@ -46,8 +45,8 @@ const OrderFormDelivery = (props) => {
     // Función para buscar cliente en el servidor
     const fetchCustomerData = async (phone) => {
         try {
-            console.log("Buscando cliente en el servidor:", phone);
             // Usar el endpoint de búsqueda que ya existe
+            console.log("Llamando a la API de búsqueda de clientes en orderformDelivery");
             const response = await axios.get(`/customer/search?query=${phone}`);
             
             if (response.data && response.data.success && response.data.customers && response.data.customers.length > 0) {
@@ -55,7 +54,6 @@ const OrderFormDelivery = (props) => {
                 const exactCustomer = response.data.customers.find(c => c.phone === phone);
                 
                 if (exactCustomer) {
-                    console.log("Cliente encontrado en el servidor:", exactCustomer);
                     setSelectedCustomer(exactCustomer);
                     
                     // Cargar las direcciones del cliente
