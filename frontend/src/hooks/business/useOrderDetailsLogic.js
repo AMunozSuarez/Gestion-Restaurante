@@ -53,6 +53,7 @@ export const useOrderDetailsLogic = ({
 
     if (foundOrder) {
       // Transformar pedido a formato de carrito (una sola vez)
+      console.log('Transformando pedido a formato de carrito:', foundOrder);
       const cartItems = foundOrder.foods.map((item) => ({
         _id: item.food._id,
         title: item.food.title,
@@ -67,7 +68,7 @@ export const useOrderDetailsLogic = ({
       // Cargar datos básicos comunes
       setCustomerName(foundOrder.buyer?.name || foundOrder.name || '');
       setSelectedPaymentMethod(foundOrder.payment || 'Efectivo');
-      setComment(foundOrder.comment || '');
+      setComment(foundOrder.comment || foundOrder.buyer?.comment || 'sin comentarioooos');
       
       // Determinar si es un pedido completado/enviado
       const isCompleted = detailsConfig.checkCompletedStatus(foundOrder);
@@ -83,6 +84,8 @@ export const useOrderDetailsLogic = ({
 
   // Seleccionar un pedido completado para ver sus detalles
   const handleSelectCompletedOrder = (order) => {
+    console.log('Pedido seleccionado:', order);
+    console.log('selectedOrderId:', selectedOrderId);
     // Evitar actualización si el pedido ya está seleccionado
     if (selectedOrderId === order._id) {
       return;
@@ -97,7 +100,7 @@ export const useOrderDetailsLogic = ({
     // Cargar datos básicos
     setCustomerName(order.buyer?.name || order.name || '');
     setSelectedPaymentMethod(order.payment || 'Efectivo');
-    setComment(order.comment || order.buyer?.comment || '');
+    setComment(order.comment || order.buyer?.comment || 'sin comentarioooox');
     
     // Transformar pedido a formato de carrito (preparar datos antes de actualizar state)
     const cartItems = order.foods.map((item) => ({

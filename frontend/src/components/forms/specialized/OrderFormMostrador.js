@@ -35,6 +35,7 @@ const OrderFormMostrador = (props) => {
                     name: props.customerName,
                     comment: props.comment || '',
                 },
+                comment: props.comment || '',
                 foods: cart.map((item) => ({
                     food: item._id,
                     quantity: item.quantity,
