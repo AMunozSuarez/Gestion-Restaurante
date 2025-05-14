@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { closeOrder } from '../../services/api/cashApi';
 import { updateOrder } from '../../services/api/ordersApi';
 import axios from '../../services/axiosConfig';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const useOrderForm = () => {
     const { createOrder } = useCreateOrder(); // Hook para manejar la creación de pedidos
@@ -19,6 +20,7 @@ export const useOrderForm = () => {
     const [deliveryCost, setDeliveryCost] = useState(''); // Estado para el costo de envío
     const [comment, setComment] = useState(''); // Estado para comentarios opcionales
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
     // Cargar los datos del pedido seleccionado para editar
     useEffect(() => {
@@ -414,6 +416,7 @@ export const useOrderForm = () => {
             }
 
             const response = await updateOrder(order._id, order);
+            queryClient.invalidateQueries(['orders']);
             console.log('Respuesta del backend:', response);
 
             // 3. Asegurarnos de que la respuesta contenga todos los datos del cliente

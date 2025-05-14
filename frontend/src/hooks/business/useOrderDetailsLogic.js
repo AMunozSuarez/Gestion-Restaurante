@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import axios from '../../services/axiosConfig';
 import useCartStore from '../../store/useCartStore';
 import { useOrders } from '../api/useOrders';
+import { parse } from '@fortawesome/fontawesome-svg-core';
 
 export const useOrderDetailsLogic = ({
   orderNumber,
@@ -28,6 +29,10 @@ export const useOrderDetailsLogic = ({
     detailsConfig.initialFields || {}
   );
 
+  // Referencias para evitar ciclos de carga
+  const isInitialLoad = useRef(true);
+  const processingOrderRef = useRef(null);
+
   // Funciones para manejar campos específicos
   const updateField = (fieldName, value) => {
     setSpecificFields(prev => ({
@@ -38,8 +43,21 @@ export const useOrderDetailsLogic = ({
 
   // Cargar pedido inicial
   useEffect(() => {
+    // Si estamos procesando específicamente este orden, salir
+    // if (processingOrderRef.current === orderNumber) {
+    //   console.log("Evitando ciclo de carga para:", orderNumber);
+    //   return;
+    // }
+    
+    // Marcar que estamos procesando este orden
+    processingOrderRef.current = orderNumber;
+
     // Indicar que estamos en modo edición para optimizar actualizaciones
     setCartContext('edit');
+    if (editingOrder && editingOrder.orderNumber === parseInt(orderNumber, 10)) {
+    console.log('Pedido ya cargado, evitando recarga innecesaria:', editingOrder.orderNumber);
+    return;
+  }
 
     // Buscar pedido por número
     const foundOrder = orders.find((o) => o.orderNumber === parseInt(orderNumber, 10));
@@ -68,7 +86,7 @@ export const useOrderDetailsLogic = ({
       // Cargar datos básicos comunes
       setCustomerName(foundOrder.buyer?.name || foundOrder.name || '');
       setSelectedPaymentMethod(foundOrder.payment || 'Efectivo');
-      setComment(foundOrder.comment || foundOrder.buyer?.comment || 'sin comentarioooos');
+      setComment(foundOrder.comment || foundOrder.buyer?.comment || '');
       
       // Determinar si es un pedido completado/enviado
       const isCompleted = detailsConfig.checkCompletedStatus(foundOrder);
@@ -80,16 +98,23 @@ export const useOrderDetailsLogic = ({
         setSpecificFields(specificData);
       }
     }
-  }, [orderNumber, orders, setCart, setCartContext, detailsConfig, editingOrder]);
+
+    // Limpiar referencia al finalizar
+    return () => {
+      if (processingOrderRef.current === orderNumber) {
+        processingOrderRef.current = null;
+      }
+    };
+  }, [orderNumber, orders, setCart, setCartContext, detailsConfig]);
 
   // Seleccionar un pedido completado para ver sus detalles
   const handleSelectCompletedOrder = (order) => {
-    console.log('Pedido seleccionado:', order);
+    console.log('Pedido completo seleccionado en logic:', order);
     console.log('selectedOrderId:', selectedOrderId);
     // Evitar actualización si el pedido ya está seleccionado
-    if (selectedOrderId === order._id) {
-      return;
-    }
+    // if (selectedOrderId === order._id) {
+    //   return;
+    // }
     
     // Establecer que estamos en modo edición antes de actualizar el carrito
     setCartContext('edit');

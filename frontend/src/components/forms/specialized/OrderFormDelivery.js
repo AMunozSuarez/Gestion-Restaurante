@@ -1,24 +1,58 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartManagement } from '../../../hooks/state/useCartManagement';
 import { useOrderForm } from '../../../hooks/forms/useOrderForm';
+import { useCustomerSearch } from '../../../hooks/useCustomerSearch';
 import BaseOrderForm from '../base/BaseOrderForm';
 import CustomerAutocomplete from '../../common/CustomerAutocomplete';
 import '../../../styles/components/customerAutocomplete.css';
-import axios from '../../../services/axiosConfig';
 
 const OrderFormDelivery = (props) => {    
+    // Contador de renderizado para depuración
+    const renderCount = useRef(0);
+    // Referencias para rastrear valores previos
+    const prevProps = useRef({});
+    
+    // Incrementa el contador en cada renderizado
+    renderCount.current = renderCount.current + 1;
+    
+    console.log(`[DEBUG] OrderFormDelivery - Renderizado #${renderCount.current}`);
     const navigate = useNavigate();
     const { cart, cartTotal, getCartTotal, clearCart } = useCartManagement();
     const { handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm();
+    // Usar el hook centralizado para búsqueda de clientes
+    const { 
+        fetchCustomerData: fetchCustomerCentralized, 
+        isLoading: isLoadingCustomer 
+    } = useCustomerSearch();
     const [customerAddresses, setCustomerAddresses] = useState([]);
     const [isAddingNewAddress, setIsAddingNewAddress] = useState(false);
     const [isEditingAddress, setIsEditingAddress] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [originalAddress, setOriginalAddress] = useState('');
+    // Ref para rastrear si hay una búsqueda en curso
+    const isFetchingRef = useRef(false);
 
-    // Effect para reset address mode when customer is cleared
+    // Efecto para identificar qué props cambiaron y causaron un re-renderizado
     useEffect(() => {
+        const changedProps = Object.keys(props).filter(key => {
+            if (typeof props[key] === 'function') return false; // Ignorar funciones
+            return JSON.stringify(props[key]) !== JSON.stringify(prevProps.current[key]);
+        });
+        
+        if (changedProps.length > 0) {
+            console.log('[DEBUG] OrderFormDelivery - Props cambiados:', changedProps);
+        }
+        
+        // Actualizar referencia de props anteriores
+        prevProps.current = { ...props };
+    });
+      // Effect para reset address mode when customer is cleared
+    useEffect(() => {
+        console.log('[DEBUG] Effect #1 ejecutado - Reset address mode:', { 
+            customerPhone: props.customerPhone 
+        });
+        
         // If the phone is cleared or no customer is selected
         if (!props.customerPhone) {
             setSelectedCustomer(null);
@@ -26,70 +60,60 @@ const OrderFormDelivery = (props) => {
             setIsAddingNewAddress(false);
             setIsEditingAddress(false); 
         }
-    }, [props.customerPhone]);
-
-    // Reemplazar el useEffect que carga datos de cliente en edición
+    }, [props.customerPhone]);    // Reemplazar el useEffect que carga datos de cliente en edición
     useEffect(() => {
+        console.log('[DEBUG] Effect #2 ejecutado - Datos de cliente para edición:', { 
+            editingOrderId: props.editingOrderId, 
+            customerPhone: props.customerPhone,
+            whenCalled: new Date().toISOString(),
+            isFetching: isFetchingRef.current
+        });
+        
         // Solo ejecutar cuando estamos editando un pedido y tenemos un número de teléfono
-        if (props.editingOrderId && props.customerPhone) {
-            console.log("Cargando datos de cliente para edición, teléfono:", props.customerPhone);
+        // y evitar búsquedas duplicadas usando la ref
+        if (props.editingOrderId && props.customerPhone && !isFetchingRef.current) {
+            console.log("[DEBUG] Cargando datos de cliente para edición, teléfono:", props.customerPhone);
+            
+            // Marcar que estamos buscando
+            isFetchingRef.current = true;
 
             // resetear estados de edición
             setIsAddingNewAddress(false);
             setIsEditingAddress(false);
             
-            // Siempre buscar el cliente en el servidor
+            // Usar la función centralizada de búsqueda
             fetchCustomerData(props.customerPhone);
         }
     }, [props.editingOrderId, props.customerPhone]);
 
-    // Función para buscar cliente en el servidor
+    // Nueva función que utiliza el hook centralizado
     const fetchCustomerData = async (phone) => {
         try {
-            console.log("Buscando cliente en el servidor:", phone);
-            // Usar el endpoint de búsqueda que ya existe
-            const response = await axios.get(`/customer/search?query=${phone}`);
+            console.log("[DEBUG] fetchCustomerData - Buscando cliente centralizado:", phone);
             
-            if (response.data && response.data.success && response.data.customers && response.data.customers.length > 0) {
-                // Encontrar el cliente exacto con el mismo teléfono
-                const exactCustomer = response.data.customers.find(c => c.phone === phone);
+            // Usar la función centralizada desde el hook
+            const customer = await fetchCustomerCentralized(phone, props.deliveryAddress, props.deliveryCost);
+            
+            if (customer) {
+                console.log("[DEBUG] fetchCustomerData - Cliente encontrado por hook centralizado:", customer);
                 
-                if (exactCustomer) {
-                    console.log("Cliente encontrado en el servidor:", exactCustomer);
-                    setSelectedCustomer(exactCustomer);
-                    
-                    // Cargar las direcciones del cliente
-                    if (exactCustomer.addresses && exactCustomer.addresses.length > 0) {
-                        setCustomerAddresses(exactCustomer.addresses);
-                        
-                        // Si hay una dirección seleccionada en el pedido, asegurarnos de que esté en las opciones
-                        const addressExists = exactCustomer.addresses.some(
-                            addr => addr.address === props.deliveryAddress
-                        );
-                        
-                        if (!addressExists && props.deliveryAddress) {
-                            // Si la dirección del pedido no está en las direcciones del cliente, agregarla temporalmente
-                            // pero NO la guardamos en el cliente hasta que se envíe el formulario
-                            const newAddresses = [...exactCustomer.addresses, {
-                                address: props.deliveryAddress,
-                                deliveryCost: Number(props.deliveryCost) || 0,
-                                _isTemporary: true // Marcar como temporal para identificarla
-                            }];
-                            setCustomerAddresses(newAddresses);
-                        }
-                    }
-                } else {
-                    // Si no hay cliente exacto, usar los datos del pedido
-                    createTemporaryCustomer();
+                // Actualizar selección de cliente
+                setSelectedCustomer(customer);
+                
+                // Actualizar direcciones
+                if (customer.addresses && customer.addresses.length > 0) {
+                    setCustomerAddresses(customer.addresses);
                 }
             } else {
                 // Si no hay resultados, usar los datos del pedido
                 createTemporaryCustomer();
             }
         } catch (error) {
-            console.error("Error al buscar cliente:", error);
-            // En caso de error, usar los datos del pedido
+            console.error("[DEBUG] fetchCustomerData - Error al buscar cliente:", error);
             createTemporaryCustomer();
+        } finally {
+            // Resetear el estado de búsqueda
+            isFetchingRef.current = false;
         }
     };
 
@@ -108,10 +132,10 @@ const OrderFormDelivery = (props) => {
         console.log("Creando cliente temporal:", tempCustomer);
         setSelectedCustomer(tempCustomer);
         setCustomerAddresses(tempCustomer.addresses);
-    };
-
-    // Modificar handleCustomerSelect para consultar al servidor
+    };    // Modificar handleCustomerSelect para consultar al servidor centralizado
     const handleCustomerSelect = async (customerData) => {
+        console.log("[DEBUG] handleCustomerSelect - Datos recibidos:", customerData);
+        
         // Siempre actualizar el teléfono, que viene en todas las llamadas
         props.setCustomerPhone(customerData.phone || '');
         
@@ -127,14 +151,19 @@ const OrderFormDelivery = (props) => {
                 setIsAddingNewAddress(false);
                 setIsEditingAddress(false);
             } else {
-                // Si solo tenemos el teléfono, consultar al servidor
-                fetchCustomerData(customerData.phone);
+                // Si solo tenemos el teléfono y no estamos ya buscando, consultar al servidor centralizado
+                if (!isFetchingRef.current) {
+                    console.log("[DEBUG] handleCustomerSelect - Buscando cliente por teléfono:", customerData.phone);
+                    fetchCustomerData(customerData.phone);
+                } else {
+                    console.log("[DEBUG] handleCustomerSelect - Ya hay una búsqueda en curso, omitiendo");
+                }
             }
             return;
         }
         
         // Si ya tenemos los datos completos (desde el autocomplete)
-        console.log("Cliente seleccionado:", customerData);
+        console.log("[DEBUG] handleCustomerSelect - Cliente seleccionado con datos completos:", customerData);
         setSelectedCustomer(customerData);
         
         // Actualizar el resto de campos
@@ -154,11 +183,10 @@ const OrderFormDelivery = (props) => {
             props.setDeliveryCost('');
             setIsAddingNewAddress(true);
         }
-    };
-
-    // Manejar el cambio de dirección seleccionada
+    };// Manejar el cambio de dirección seleccionada
     const handleAddressChange = (e) => {
         const selectedValue = e.target.value;
+        console.log('[DEBUG] handleAddressChange - Valor seleccionado:', selectedValue);
         
         if (selectedValue === 'new') {
             // Activar modo de nueva dirección
@@ -179,9 +207,10 @@ const OrderFormDelivery = (props) => {
             }
         }
     };
-    
-    // Modificar handleStartEditAddress para guardar correctamente el objeto de dirección original
+      // Modificar handleStartEditAddress para guardar correctamente el objeto de dirección original
     const handleStartEditAddress = () => {
+        console.log('[DEBUG] handleStartEditAddress - Iniciando edición de dirección');
+        
         setIsEditingAddress(true);
         setIsAddingNewAddress(false);
         
@@ -195,8 +224,8 @@ const OrderFormDelivery = (props) => {
             setOriginalAddress({address: props.deliveryAddress}); // Fallback al texto como objeto
         }
     };
-    
-    const handleCancelEditAddress = () => {
+      const handleCancelEditAddress = () => {
+        console.log('[DEBUG] handleCancelEditAddress - Cancelando edición de dirección');
         setIsEditingAddress(false);
         
         // Restaurar dirección original si existe
@@ -365,11 +394,11 @@ const OrderFormDelivery = (props) => {
                 </div>
             </>
         );
-    };
-
-    // Acción para enviar pedido
+    };    // Acción para enviar pedido
     const handleSendOrder = async () => {
         try {    
+            console.log('[DEBUG] handleSendOrder - Iniciando envío de pedido');
+            
             // Validar campos requeridos
             if (cart.length === 0) {
                 alert('El carrito está vacío. Agrega productos antes de enviar el pedido.');
@@ -478,8 +507,8 @@ const OrderFormDelivery = (props) => {
                 margin-left: 10px;
             }
         </style>
-    `;
-
+    `; 
+    
     return (
         <>
             <div dangerouslySetInnerHTML={{ __html: customStyles }} />
@@ -497,11 +526,27 @@ const OrderFormDelivery = (props) => {
                     isAddingNewAddress,
                     isEditingAddress,
                     originalAddress,
-                    resetAddressEditMode  // Pasar la función de reset
+                    resetAddressEditMode,  // Pasar la función de reset
+                    _debug_renderCount: renderCount.current // Enviar el contador de renderizado para depuración
                 }}
             />
         </>
     );
 };
 
-export default OrderFormDelivery;
+// Envolver el componente en React.memo para evitar renderizados innecesarios
+export default React.memo(OrderFormDelivery, (prevProps, nextProps) => {
+    // Solo renderizar si cambian estas props críticas
+    if (
+        prevProps.editingOrderId !== nextProps.editingOrderId ||
+        prevProps.customerPhone !== nextProps.customerPhone ||
+        prevProps.customerName !== nextProps.customerName ||
+        prevProps.deliveryAddress !== nextProps.deliveryAddress ||
+        prevProps.deliveryCost !== nextProps.deliveryCost ||
+        prevProps.isViewingCompletedOrder !== nextProps.isViewingCompletedOrder ||
+        prevProps.comment !== nextProps.comment
+    ) {
+        return false; // Las props son diferentes, permite el render
+    }
+    return true; // Las props son iguales, evita el render
+});
