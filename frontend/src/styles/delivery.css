@@ -15,9 +15,10 @@
 /* Contenido Principal */
 .delivery-content {
     display: flex;
+    flex: 1;
+    overflow: auto;
     gap: 20px;
     position: relative;
-    overflow: hidden;
     align-items: flex-start;
 }
 
@@ -33,23 +34,40 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     width: 30%; /* Ajustar el ancho para que sea similar a mostrador */
     min-height: 400px;
-    max-height: 85vh;
+    max-height: 83vh;
     overflow-y: auto;
     animation: slideInFromLeft 0.3s ease-in-out;
     border: 2px solid #007399; /* Borde azul */
 }
 
-.creating-mode .delivery-orders-list {
+.delivery-left-column {
+    width: 30%; /* Ajustar según necesites */
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.delivery-right-column {
+    width: 70%; /* Ajustar según necesites */
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.delivery-orders-list {
     flex: 1;
+    border-bottom: 1px solid #ddd;
     background-color: #ffffff;
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     height: auto; /* Ajustar la altura */
+    margin-bottom: 20px;
 }
 
-/* Lista de pedidos enviados/entregados */
 .delivery-completed-orders {
+    flex: 1;
     background-color: #ffffff;
     padding: 20px;
     border-radius: 8px;

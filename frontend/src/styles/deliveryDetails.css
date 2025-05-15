@@ -1,29 +1,70 @@
-/* Modo edición */
+/* General Container para el modo de edición */
+.editing-mode .delivery-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background-color: #e6f7ff; /* Mantener el fondo azul claro */
+    padding: 10px;
+    font-family: 'Poppins', Arial, sans-serif;
+    font-size: 14px;
+    color: #004d66; /* Texto azul oscuro */
+    position: relative;
+}
+
+/* Diseño del contenido en modo edición */
 .editing-mode .delivery-content {
+    display: flex;
+    flex: 1;
+    overflow: auto;
+    gap: 20px;
+    position: relative;
+    align-items: flex-start;
     transform: translateX(0);
 }
 
-.editing-mode .delivery-edit-order {
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    width: 35%; /* Ajustar el ancho del formulario */
-    min-height: 400px;
-    overflow-y: auto; /* Scroll si el contenido excede la altura */
-    animation: slideInFromRight 0.3s ease-in-out;
-    
+/* Columna izquierda - Formulario */
+.editing-mode .delivery-left-column {
+    width: 35%; /* Mismo ancho que en delivery.css */
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
+.editing-mode .delivery-edit-order {
+    padding-top: 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    min-height: 400px;
+    animation: slideInFromRight 0.3s ease-in-out;
+}
+
+/* Columna derecha - Listas */
+.editing-mode .delivery-right-column {
+    width: 70%; /* Mismo ancho que en delivery.css */
+    display: flex;
+    flex-direction: column;
+}
+
+.order-form.editing-mode {
+    max-height: 83vh;
+    overflow-y: auto;
+}
+
+/* Lista de pedidos en preparación */
 .editing-mode .delivery-orders-list {
     flex: 1; /* Lista ocupa más espacio */
     background-color: #ffffff;
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    height: auto;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
 }
 
 /* Lista de pedidos completados */
-.delivery-completed-orders {
+.editing-mode .delivery-completed-orders {
+    flex: 1;
     background-color: #ffffff;
     padding: 20px;
     border-radius: 8px;
@@ -31,10 +72,54 @@
     height: auto; /* Ajustar la altura */
 }
 
+/* Botones de acción para pedidos en edición */
+.order-action-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+}
 
+.edit-mode-button,
+.cancel-edit-button {
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
 
+.edit-mode-button {
+    background-color: #007399;
+    color: white;
+    border: none;
+}
+
+.edit-mode-button:hover {
+    background-color: #005f73;
+}
+
+.cancel-edit-button {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.cancel-edit-button:hover {
+    background-color: #f1b0b7;
+}
 
 /* Animaciones */
+@keyframes slideInFromLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
 @keyframes slideInFromRight {
     from {
         transform: translateX(100%);
@@ -44,4 +129,44 @@
         transform: translateX(0);
         opacity: 1;
     }
+}
+
+/* Estilos para pedidos completados */
+.completed-order {
+    background-color: #e8f4f8;
+    border-left: 4px solid #007399;
+}
+
+.canceled-order {
+    background-color: #f8d7da;
+    border-left: 4px solid #dc3545;
+}
+
+/* Estilos específicos para el modo de visualización */
+.viewing-completed-order .order-form {
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+.viewing-completed-order .order-form input,
+.viewing-completed-order .order-form select,
+.viewing-completed-order .order-form textarea {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+/* Añadir estilo específico para el botón de volver */
+.back-button {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 15px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.back-button:hover {
+    background-color: #5a6268;
 }

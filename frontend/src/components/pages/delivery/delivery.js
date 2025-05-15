@@ -131,10 +131,9 @@ const Delivery = () => {
             unmountOnExit
         >
             <div className="delivery-container creating-mode">
-                
-
                 <div className="delivery-content">
-                    <div className="delivery-create-order">
+                    {/* Columna izquierda - OrderForm ocupa todo el alto */}
+                    <div className="delivery-left-column delivery-create-order">
                         <OrderFormDelivery
                             customerName={customerName}
                             setCustomerName={setCustomerName}
@@ -142,8 +141,8 @@ const Delivery = () => {
                             setCustomerPhone={setCustomerPhone}
                             deliveryAddress={deliveryAddress}
                             setDeliveryAddress={setDeliveryAddress}
-                            deliveryCost={deliveryCost} // Pasa el estado del costo de envío
-                            setDeliveryCost={setDeliveryCost} // Pasa la función para actualizar el costo de envío
+                            deliveryCost={deliveryCost}
+                            setDeliveryCost={setDeliveryCost}
                             selectedPaymentMethod={selectedPaymentMethod}
                             setSelectedPaymentMethod={setSelectedPaymentMethod}
                             handleSubmit={handleSubmit}
@@ -153,26 +152,29 @@ const Delivery = () => {
                             resetForm={resetForm}
                             comment={comment}
                             setComment={setComment}
-                            cancelOrder={cancelOrder} // Asegúrate de pasar esta función
+                            cancelOrder={cancelOrder}
                         />
                     </div>
 
-                    <div className="delivery-orders-list">
-                        <OrderListDelivery
-                            orders={preparationOrders}
-                            setEditingOrderId={setEditingOrderId}
-                        />
+                    {/* Columna derecha - Listas apiladas verticalmente */}
+                    <div className="delivery-right-column">
+                        <div className="delivery-orders-list">
+                            <OrderListDelivery
+                                orders={preparationOrders}
+                                setEditingOrderId={setEditingOrderId}
+                            />
+                        </div>
+                        
+                        <div className="delivery-completed-orders">
+                            <CompletedOrdersList
+                                orders={completedOrders}
+                                onSelectOrder={handleSelectCompletedOrder}
+                                selectedOrderId={selectedOrderId}
+                                section="delivery"
+                            />
+                        </div>
                     </div>
                 </div>
-                    <div className="delivery-completed-orders">
-                        <CompletedOrdersList
-                            orders={completedOrders}
-                            onSelectOrder={handleSelectCompletedOrder}
-                            selectedOrderId={selectedOrderId}
-                            section="delivery" // Pasar la sección para el título dinámico
-                        />
-                    </div>
-                
             </div>
         </CSSTransition>
     );

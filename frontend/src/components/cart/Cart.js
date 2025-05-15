@@ -134,12 +134,6 @@ const Cart = ({
                                             addCommentToProduct(item._id, newComment);
                                         }
                                     }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            e.target.blur();
-                                        }
-                                    }}
                                     suppressContentEditableWarning={true}
                                     dangerouslySetInnerHTML={{
                                         __html: (item.comment || '').replace(/\n/g, '<br>'),

@@ -67,7 +67,7 @@ export const useOrderDetailsLogic = ({
       // Cargar datos básicos comunes
       setCustomerName(foundOrder.buyer?.name || foundOrder.name || '');
       setSelectedPaymentMethod(foundOrder.payment || 'Efectivo');
-      setComment(foundOrder.comment || foundOrder.buyer?.comment || 'sin comentarioooos');
+      setComment(foundOrder.comment || foundOrder.buyer?.comment || '');
       
       // Determinar si es un pedido completado/enviado
       const isCompleted = detailsConfig.checkCompletedStatus(foundOrder);
@@ -109,6 +109,8 @@ export const useOrderDetailsLogic = ({
       price: item.food.price,
       comment: item.comment || '',
     }));
+    // Actualizar el carrito como última operación para reducir renders
+    setCart(cartItems);
     
     // Establecer estado de visualización antes de actualizar el carrito
     setIsViewingCompletedOrder(true);
@@ -119,8 +121,7 @@ export const useOrderDetailsLogic = ({
       setSpecificFields(specificData);
     }
     
-    // Actualizar el carrito como última operación para reducir renders
-    setCart(cartItems);
+    
     
     // Navegar a la URL del pedido seleccionado
     navigate(`/${section}/${order.orderNumber}`);

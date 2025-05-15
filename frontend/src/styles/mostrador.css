@@ -3,11 +3,11 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
-    background-color: #fdf5e6;
+    background-color: #fdf5e6; /* Mantengo el color de fondo original */
     padding: 10px !important;
     font-family: 'Poppins', Arial, sans-serif;
     font-size: 14px;
-    color: #4d2600;
+    color: #4d2600; /* Mantengo el color de texto original */
     transition: all 0.3s ease-in-out;
     position: relative;
 }
@@ -16,12 +16,13 @@
 /* Contenido Principal */
 .mostrador-content {
     display: flex;
+    flex: 1;
+    overflow: auto;
+    gap: 20px;
     position: relative;
-    overflow: hidden;
     align-items: flex-start;
 }
 
-/* Modo creación */
 .creating-mode .mostrador-content {
     transform: translateX(0);
 }
@@ -29,31 +30,56 @@
 .creating-mode .mostrador-create-order {
     background-color: #ffffff;
     padding: 15px;
+    padding-top: 0;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    width: 30%;
+    width: 30%; /* Ajustar el ancho para que sea similar a delivery */
     min-height: 400px;
-    overflow-y: auto; /* Scroll si el contenido excede la altura */
+    max-height: 83vh;
+    overflow-y: auto;
     animation: slideInFromLeft 0.3s ease-in-out;
-    border: 2px solid #4e8355; /* Borde ligero */
-    
+    border: 2px solid #4e8355; /* Mantengo el borde verde */
 }
 
-.creating-mode .mostrador-orders-list {
-    flex: 1; /* Lista ocupa más espacio */
+.mostrador-left-column {
+    width: 30%; /* Igual que en delivery */
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.mostrador-right-column {
+    width: 70%; /* Igual que en delivery */
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.mostrador-orders-list {
+    flex: 1;
+    border-bottom: 1px solid #ddd;
     background-color: #ffffff;
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    height: auto; /* Ajustar la altura */
+    margin-bottom: 20px;
 }
 
-.create-order-button-mostrador:hover{
-    background-color: #3e6844;
+.mostrador-completed-orders {
+    flex: 1;
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    height: auto; /* Ajustar la altura */
 }
 
+/* Mantengo el botón original con sus colores específicos */
 .create-order-button-mostrador {
-    top: 20px; /* Ajusta la posición vertical */
-    left: 20px; /* Ajusta la posición horizontal */
+    top: 20px;
+    left: 20px;
     background-color: #4e8355;
     color: #ffffff;
     border: none;
@@ -63,10 +89,12 @@
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     transition: background-color 0.3s ease;
-    z-index: 10; /* Asegura que el botón esté por encima de otros elementos */
+    z-index: 10;
 }
 
-
+.create-order-button-mostrador:hover {
+    background-color: #3e6844;
+}
 
 /* Animaciones */
 @keyframes slideInFromLeft {
