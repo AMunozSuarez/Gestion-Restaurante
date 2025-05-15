@@ -162,8 +162,8 @@ export const useOrderForm = () => {
                 // Buscar el cliente para ver si ya tiene direcciones
                 if (customerPhone) {
                     try {
-                        console.log("[DEBUG] Buscando datos de cliente en servidor para manejar dirección");
                         // Buscar cliente por teléfono en el servidor
+                        console.log('buscando cliente en useorderform')
                         const response = await axios.get(`/customer/search?query=${customerPhone}`);
                         
                         if (response.data && response.data.success && response.data.customers && response.data.customers.length > 0) {

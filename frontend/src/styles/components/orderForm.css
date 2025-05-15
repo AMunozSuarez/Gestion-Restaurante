@@ -422,7 +422,7 @@
     overflow-y: auto; /* Scroll si excede la altura */
     position: absolute; /* Posición absoluta para que se superponga */
     z-index: 10; /* Asegurar que esté encima de otros elementos */
-    width: 32.4%; /* Igualar el ancho del input */
+    width: 29%; /* Igualar el ancho del input */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Sombra ligera */
 }
 

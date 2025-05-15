@@ -96,10 +96,9 @@ const Mostrador = () => {
             unmountOnExit
         >
             <div className="mostrador-container creating-mode">
-
                 <div className="mostrador-content">
-                    {/* Formulario de creación/edición de pedidos */}
-                    <div className="mostrador-create-order">
+                    {/* Columna izquierda - OrderForm ocupa todo el alto */}
+                    <div className="mostrador-left-column mostrador-create-order">
                         <OrderFormMostrador
                             customerName={customerName}
                             setCustomerName={setCustomerName}
@@ -110,28 +109,29 @@ const Mostrador = () => {
                             setEditingOrderId={setEditingOrderId}
                             isViewingCompletedOrder={isViewingCompletedOrder}
                             markAsCompleted={markAsCompleted}
-                            resetForm={resetForm} // Asegúrate de pasar esta función
-                            comment={comment} // Pasa el estado del comentario
-                            setComment={setComment} // Pasa la función para actualizar el comentario
+                            resetForm={resetForm}
+                            comment={comment}
+                            setComment={setComment}
                         />
                     </div>
 
-                    {/* Lista de pedidos en preparación */}
-                    <div className="mostrador-orders-list">
-                        <OrderList
-                            orders={preparationOrders}
-                            setEditingOrderId={handleSelectEditingOrder}
-                        />
+                    {/* Columna derecha - Listas apiladas verticalmente */}
+                    <div className="mostrador-right-column">
+                        <div className="mostrador-orders-list">
+                            <OrderList
+                                orders={preparationOrders}
+                                setEditingOrderId={handleSelectEditingOrder}
+                            />
+                        </div>
+                        
+                        <div className="mostrador-completed-orders">
+                            <CompletedOrdersList
+                                orders={completedOrders}
+                                onSelectOrder={handleSelectCompletedOrder}
+                                selectedOrderId={selectedOrderId}
+                            />
+                        </div>
                     </div>
-                </div>
-
-                {/* Lista de pedidos completados/cancelados */}
-                <div className="mostrador-completed-orders">
-                    <CompletedOrdersList
-                        orders={completedOrders}
-                        onSelectOrder={handleSelectCompletedOrder}
-                        selectedOrderId={selectedOrderId} // Pasar el pedido completado seleccionado
-                    />
                 </div>
             </div>
         </CSSTransition>

@@ -24,37 +24,41 @@ const OrderDetailsBase = ({
 
   return (
     <CSSTransition
-      in={!!editingOrder}
+      in={true}
       timeout={300}
       classNames="fade"
       unmountOnExit
-      nodeRef={containerRef}
     >
       <div ref={containerRef} className={`${containerClass}-container editing-mode`}>
         <div className={`${containerClass}-content`}>
-          <div className={`${containerClass}-orders-list`}>
-            {OrderListComponent && (
-              <OrderListComponent 
-                orders={preparationOrders} 
-                {...listProps} 
+
+          {/* Columna derecha - Listas apiladas verticalmente */}
+          <div className={`${containerClass}-right-column`}>
+            <div className={`${containerClass}-orders-list`}>
+              {OrderListComponent && (
+                <OrderListComponent 
+                  orders={preparationOrders} 
+                  {...listProps} 
+                />
+              )}
+            </div>
+            
+            <div className={`${containerClass}-completed-orders`}>
+              <CompletedOrdersList
+                orders={completedOrders}
+                {...completedListProps}
               />
-            )}
+            </div>
           </div>
-          <div className={`${containerClass}-edit-order`}>
-            {editingOrder ? (
-              <OrderFormComponent
-                {...formProps}
-              />
-            ) : (
-              <p>Selecciona un pedido para ver los detalles.</p>
-            )}
+          
+          {/* Columna izquierda - Formulario */}
+          <div className={`${containerClass}-left-column ${containerClass}-edit-order`}>
+            <OrderFormComponent
+              {...formProps}
+            />
           </div>
-        </div>
-        <div className={`${containerClass}-completed-orders`}>
-          <CompletedOrdersList
-            orders={completedOrders}
-            {...completedListProps}
-          />
+
+          
         </div>
       </div>
     </CSSTransition>

@@ -70,8 +70,7 @@ export const useOrderDetailsLogic = ({
     setEditingOrder(foundOrder || null);
 
     if (foundOrder) {
-      // Transformar pedido a formato de carrito (una sola vez)
-      console.log('Transformando pedido a formato de carrito:', foundOrder);
+      // Transformar pedido a formato de carrito (una sola vez)\
       const cartItems = foundOrder.foods.map((item) => ({
         _id: item.food._id,
         title: item.food.title,
@@ -135,6 +134,8 @@ export const useOrderDetailsLogic = ({
       price: item.food.price,
       comment: item.comment || '',
     }));
+    // Actualizar el carrito como última operación para reducir renders
+    setCart(cartItems);
     
     // Establecer estado de visualización antes de actualizar el carrito
     setIsViewingCompletedOrder(true);
@@ -145,8 +146,7 @@ export const useOrderDetailsLogic = ({
       setSpecificFields(specificData);
     }
     
-    // Actualizar el carrito como última operación para reducir renders
-    setCart(cartItems);
+    
     
     // Navegar a la URL del pedido seleccionado
     navigate(`/${section}/${order.orderNumber}`);

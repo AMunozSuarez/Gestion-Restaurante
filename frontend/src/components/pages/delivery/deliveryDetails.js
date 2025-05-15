@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOrderDetailsLogic } from '../../../hooks/business/useOrderDetailsLogic';
 import OrderDetailsBase from '../../layout/OrderDetailsBase';
@@ -6,8 +6,12 @@ import OrderFormDelivery from '../../forms/specialized/OrderFormDelivery';
 import OrderListDelivery from '../../lists/orderListDelivery';
 import '../../../styles/delivery.css';
 
-const DeliveryDetails = () => {
-  const { orderNumber } = useParams();
+const DeliveryDetails = () => {  const { orderNumber } = useParams();
+  
+  // Limpiar estado de edición de dirección al cargar/cambiar componente
+  useEffect(() => {
+    localStorage.removeItem('editing_address_original');
+  }, [orderNumber]); // Se ejecuta cuando cambia el número de orden
   
   // Configuración específica para pedidos de delivery
   const deliveryConfig = {

@@ -70,12 +70,7 @@ const OrderFormDelivery = (props) => {
         });
         
         // Solo ejecutar cuando estamos editando un pedido y tenemos un número de teléfono
-        // y evitar búsquedas duplicadas usando la ref
-        if (props.editingOrderId && props.customerPhone && !isFetchingRef.current) {
-            console.log("[DEBUG] Cargando datos de cliente para edición, teléfono:", props.customerPhone);
-            
-            // Marcar que estamos buscando
-            isFetchingRef.current = true;
+        if (props.editingOrderId && props.customerPhone) {
 
             // resetear estados de edición
             setIsAddingNewAddress(false);
@@ -89,20 +84,40 @@ const OrderFormDelivery = (props) => {
     // Nueva función que utiliza el hook centralizado
     const fetchCustomerData = async (phone) => {
         try {
-            console.log("[DEBUG] fetchCustomerData - Buscando cliente centralizado:", phone);
+            // Usar el endpoint de búsqueda que ya existe
+            console.log("Llamando a la API de búsqueda de clientes en orderformDelivery");
+            const response = await axios.get(`/customer/search?query=${phone}`);
             
-            // Usar la función centralizada desde el hook
-            const customer = await fetchCustomerCentralized(phone, props.deliveryAddress, props.deliveryCost);
-            
-            if (customer) {
-                console.log("[DEBUG] fetchCustomerData - Cliente encontrado por hook centralizado:", customer);
+            if (response.data && response.data.success && response.data.customers && response.data.customers.length > 0) {
+                // Encontrar el cliente exacto con el mismo teléfono
+                const exactCustomer = response.data.customers.find(c => c.phone === phone);
                 
-                // Actualizar selección de cliente
-                setSelectedCustomer(customer);
-                
-                // Actualizar direcciones
-                if (customer.addresses && customer.addresses.length > 0) {
-                    setCustomerAddresses(customer.addresses);
+                if (exactCustomer) {
+                    setSelectedCustomer(exactCustomer);
+                    
+                    // Cargar las direcciones del cliente
+                    if (exactCustomer.addresses && exactCustomer.addresses.length > 0) {
+                        setCustomerAddresses(exactCustomer.addresses);
+                        
+                        // Si hay una dirección seleccionada en el pedido, asegurarnos de que esté en las opciones
+                        const addressExists = exactCustomer.addresses.some(
+                            addr => addr.address === props.deliveryAddress
+                        );
+                        
+                        if (!addressExists && props.deliveryAddress) {
+                            // Si la dirección del pedido no está en las direcciones del cliente, agregarla temporalmente
+                            // pero NO la guardamos en el cliente hasta que se envíe el formulario
+                            const newAddresses = [...exactCustomer.addresses, {
+                                address: props.deliveryAddress,
+                                deliveryCost: Number(props.deliveryCost) || 0,
+                                _isTemporary: true // Marcar como temporal para identificarla
+                            }];
+                            setCustomerAddresses(newAddresses);
+                        }
+                    }
+                } else {
+                    // Si no hay cliente exacto, usar los datos del pedido
+                    createTemporaryCustomer();
                 }
             } else {
                 // Si no hay resultados, usar los datos del pedido
