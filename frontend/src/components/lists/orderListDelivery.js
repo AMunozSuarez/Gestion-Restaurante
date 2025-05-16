@@ -1,17 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import '../../styles/Lists/orderListDelivery.css'; // Estilos específicos para la lista de pedidos de delivery
-import { useOrderForm } from '../../hooks/forms/useOrderForm'; // Hook para manejar el formulario de pedidos
-import { useOrders } from '../../hooks/api/useOrders'; // Hook para obtener las órdenes
+import '../../styles/Lists/orderListDelivery.css';
+import { useOrderForm } from '../../hooks/forms/useOrderForm';
+import { useOrders } from '../../hooks/api/useOrders';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
+import { faPaperPlane, faClock } from '@fortawesome/free-solid-svg-icons';
 import { formatChileanMoney } from '../../services/utils/formatters';
 
 const OrderListDelivery = () => {
     const navigate = useNavigate();
-    const { orderNumber } = useParams(); // Obtener el número de pedido desde la URL
-    const { handleUpdateOrderStatus, handleRegisterOrderInCashRegister } = useOrderForm(); // Hook para manejar el formulario de pedidos
-    const { orders, isLoading, error } = useOrders(); // Obtener pedidos desde React Query
+    const { orderNumber } = useParams();
+    const { handleUpdateOrderStatus, handleRegisterOrderInCashRegister } = useOrderForm();
+    const { orders, isLoading, error } = useOrders();
+    
+    // Estado para almacenar los tiempos transcurridos
+    const [elapsedTimes, setElapsedTimes] = useState({});
+    
+    // Función para calcular el tiempo transcurrido en minutos
+    const calculateElapsedMinutes = (createdAt) => {
+        const created = new Date(createdAt);
+        const now = new Date();
+        const diff = (now - created) / (1000 * 60); // Diferencia en minutos
+        return Math.floor(diff);
+    };
+    
+    // Actualizar los tiempos cada 60 segundos
+    useEffect(() => {
+        const updateTimes = () => {
+            const times = {};
+            if (orders && orders.length > 0) {
+                orders.forEach(order => {
+                    if (order.section === 'delivery' && order.status === 'Preparacion') {
+                        times[order._id] = calculateElapsedMinutes(order.createdAt);
+                    }
+                });
+            }
+            setElapsedTimes(times);
+        };
+        
+        // Actualizar tiempos inmediatamente
+        updateTimes();
+        
+        // Configurar intervalo para actualizar los tiempos
+        const interval = setInterval(updateTimes, 60000); // Actualizar cada minuto
+        
+        return () => clearInterval(interval);
+    }, [orders]);
 
     if (isLoading) return <p>Cargando pedidos...</p>;
     if (error) return <p>Error al cargar los pedidos: {error.message}</p>;
@@ -27,7 +61,7 @@ const OrderListDelivery = () => {
             <button
                 className="create-order-button"
                 onClick={() => {
-                    navigate('/delivery'); // Navega a la página de creación de pedidos
+                    navigate('/delivery');
                 }}
             >
                 Crear Pedido +
@@ -36,6 +70,9 @@ const OrderListDelivery = () => {
             <div className="order-list-header-delivery">
                 <p>#</p>
                 <p>Fecha/Hora</p>
+                <p className="time-elapsed-header">
+                    <FontAwesomeIcon icon={faClock} /> Tiempo
+                </p>
                 <p>Cliente</p>
                 <p>Estado</p>
                 <p className="order-total-header-delivery">Total</p>
@@ -48,10 +85,14 @@ const OrderListDelivery = () => {
                         onClick={() => navigate(`/delivery/${order.orderNumber}`)}
                         className={`order-item-delivery ${
                             order.orderNumber === parseInt(orderNumber, 10) ? 'editing-delivery' : ''
-                        }`}
-                    >                        <p>{order.orderNumber}</p>
+                        } ${elapsedTimes[order._id] > 30 ? 'delayed-order' : ''}`}
+                    >
+                        <p>{order.orderNumber}</p>
                         <p className="order-date-delivery">
                             {new Date(order.createdAt).toLocaleString()}
+                        </p>
+                        <p className="time-elapsed-cell">
+                            {elapsedTimes[order._id] || 0} min
                         </p>
                         <p>{order.buyer.name}</p>
                         <p>{order.status}</p>

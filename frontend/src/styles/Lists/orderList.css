@@ -98,10 +98,48 @@
 /* Ajustar la alineación de la columna "Total" */
 .order-total-header,
 .order-total {
-    flex: 1; /* Mantener el ancho consistente */
-    text-align: right; /* Alinear a la derecha */
+    flex: 1.2;
+    text-align: right;
+    padding-right: 15px;
 }
 
+/* Estilos para la columna de tiempo transcurrido */
+.time-elapsed-header,
+.time-elapsed-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    flex: 0.8; /* Un poco más estrecho que las otras columnas */
+}
+
+/* Ajustar el tamaño de las otras columnas para mantener el equilibrio */
+.order-list-header p,
+.order-item p {
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 5px;
+}
+
+/* Destacar pedidos demorados (más de 30 minutos) */
+.delayed-order .time-elapsed-cell {
+    color: #d32f2f;
+    font-weight: bold;
+}
+
+/* Pedidos con más de 15 minutos */
+.order-item:not(.delayed-order) .time-elapsed-cell {
+    color: #ff9800; /* Color naranja para advertencia */
+}
+
+/* Pedidos recientes (menos de 15 minutos) */
+.order-item .time-elapsed-cell[data-minutes="15"],
+.order-item .time-elapsed-cell[data-minutes="0"] {
+    color: #4caf50; /* Verde para pedidos recientes */
+}
 
 /* Botón para marcar como completado */
 .mark-completed-button {
@@ -124,4 +162,41 @@
     color: #888; /* Color tenue */
     margin-top: 5px; /* Espaciado superior */
     display: block; /* Asegura que esté en una nueva línea */
+}
+
+/* Mejorar la visualización en pantallas pequeñas */
+@media (max-width: 768px) {
+    .time-elapsed-header,
+    .time-elapsed-cell {
+        flex: 0.6;
+    }
+    
+    .order-date {
+        font-size: 12px;
+    }
+    
+    .order-list-header p,
+    .order-item p {
+        padding: 0 3px;
+        font-size: 13px;
+    }
+}
+
+/* Ajuste para el botón de crear pedido */
+.create-order-button-mostrador {
+    margin-bottom: 15px;
+    padding: 8px 15px;
+    background-color: #4e8355;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s;
+    width: auto;
+    display: block;
+}
+
+.create-order-button-mostrador:hover {
+    background-color: #3e6844;
 }

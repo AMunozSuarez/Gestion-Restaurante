@@ -84,39 +84,113 @@
     color: #004d66; /* Azul oscuro */
 }
 
-/* Resaltar la columna de Total */
-.order-total-header-delivery {
-    text-align: right; /* Alinear a la derecha */
+/* Estilos para la columna de tiempo transcurrido */
+.time-elapsed-header,
+.time-elapsed-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    flex: 0.8; /* Un poco más estrecho que las otras columnas */
 }
 
-.order-total-delivery {
-    font-weight: bold; /* Resaltar el texto */
-    color: #007399; /* Azul oscuro */
-    text-align: right; /* Alinear a la derecha */
+/* Ajustar el tamaño de las otras columnas para mantener el equilibrio */
+.order-list-header-delivery p,
+.order-item-delivery p {
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 5px;
 }
 
-/* Ajustar la alineación de la columna "Total" */
+/* Columna de fecha */
+.order-date-delivery {
+    font-size: 14px;
+}
+
+/* Destacar pedidos demorados (más de 30 minutos) */
+.delayed-order .time-elapsed-cell {
+    color: #d32f2f;
+    font-weight: bold;
+}
+
+/* Pedidos con más de 15 minutos */
+.order-item-delivery:not(.delayed-order) .time-elapsed-cell {
+    color: #ff9800; /* Color naranja para advertencia */
+}
+
+/* Pedidos recientes (menos de 15 minutos) */
+.order-item-delivery .time-elapsed-cell:has(time:not([data-minutes="15"]):not([data-minutes="30"])) {
+    color: #4caf50; /* Verde para pedidos recientes */
+}
+
+/* Columna de total */
 .order-total-header-delivery,
 .order-total-delivery {
-    flex: 1; /* Mantener el ancho consistente */
-    text-align: right; /* Alinear a la derecha */
+    flex: 1.2;
+    text-align: right;
+    padding-right: 15px;
 }
 
 .send-order-button {
     background-color: #4caf50; /* Verde */
-    color: white; /* Color del ícono */
-    border: none; /* Sin bordes */
-    border-radius: 50%; /* Botón redondo */
-    width: 40px; /* Ancho del botón */
-    height: 40px; /* Altura del botón */
-    display: flex; /* Centrar contenido */
-    align-items: center;
-    justify-content: center;
-    font-size: 16px; /* Tamaño del ícono */
-    cursor: pointer; /* Cambiar cursor al pasar el mouse */
-    transition: background-color 0.3s ease, transform 0.2s ease; /* Animaciones */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s, transform 0.3s, ease;
+    padding: 8px 15px;
 }
 
 .send-order-button:hover {
-    background-color: #45a049; /* Verde más oscuro al pasar el mouse */
+    background-color: #388e3c; /* Verde más oscuro */
+    transform: scale(1.05); /* Aumentar ligeramente el tamaño */
+}
+
+/* Columna de envío */
+.order-list-header-delivery p:last-child,
+.order-item-delivery p:last-child,
+.order-item-delivery button {
+    flex: 0.6; /* Hacer la columna de botón más pequeña */
+    min-width: 50px;
+}
+
+/* Asegurar que el botón de crear pedido no se descuadre */
+.create-order-button {
+    margin-bottom: 15px;
+    padding: 8px 15px;
+    background-color: #007399;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s;
+    width: auto;
+    display: block;
+}
+
+.create-order-button:hover {
+    background-color: #005a7a;
+}
+
+/* Mejorar la visualización en pantallas pequeñas */
+@media (max-width: 768px) {
+    .time-elapsed-header,
+    .time-elapsed-cell {
+        flex: 0.6;
+    }
+    
+    .order-date-delivery {
+        font-size: 12px;
+    }
+    
+    .order-list-header-delivery p,
+    .order-item-delivery p {
+        padding: 0 3px;
+        font-size: 13px;
+    }
 }
