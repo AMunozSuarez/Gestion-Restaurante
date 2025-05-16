@@ -1,22 +1,39 @@
+/* Añadir variables CSS consistentes al inicio */
+:root {
+  /* Usar las mismas variables que en los otros archivos para consistencia */
+  --header-height: 56px;
+  --subheader-height: 36px;
+  --container-padding: 20px;
+}
+
 /* General Container */
 .mostrador-container {
+    /* Aplicar misma altura calculada para consistencia */
+    height: calc(100vh - var(--header-height) - var(--subheader-height) - 13px);
     display: flex;
     flex-direction: column;
     gap: 20px;
-    background-color: #fdf5e6;
-    padding: 20px;
+    background-color: #fdf5e6; /* Mantener el color marrón claro */
+    padding: 10px;
+    padding-bottom: 0px;
     font-family: 'Poppins', Arial, sans-serif;
     font-size: 14px;
-    color: #4d2600;
+    color: #4d2600; /* Mantener el color de texto marrón */
     transition: all 0.3s ease-in-out;
+    position: relative;
+    overflow-y: auto; /* Para casos donde el contenido es más alto que el contenedor */
 }
 
 /* Contenido Principal */
 .mostrador-content {
     display: flex;
+    flex: 1;
     gap: 20px;
     position: relative;
-    overflow: hidden;
+    align-items: flex-start;
+    /* Aplicar la misma altura máxima */
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 10px);
+    overflow-y: hidden; /* El scroll será en las columnas */
 }
 
 /* Modo edición */
@@ -24,16 +41,46 @@
     transform: translateX(0);
 }
 
+/* Columna izquierda - Formulario en modo edición */
+.editing-mode .mostrador-left-column {
+    width: 35%;
+    display: flex;
+    flex-direction: column;
+    /* Sin max-height aquí, similar a delivery */
+}
+
 .editing-mode .mostrador-edit-order {
     background-color: #ffffff;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    width: 35%;
     min-height: 400px;
-    overflow-y: auto; /* Scroll si el contenido excede la altura */
+    /* Aplicar el mismo límite de altura */
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 20px);
+    overflow-y: auto;
     animation: slideInFromRight 0.3s ease-in-out;
 }
 
+/* Columna derecha - Listas */
+.editing-mode .mostrador-right-column {
+    width: 70%;
+    display: flex;
+    flex-direction: column;
+    /* Aplicar el mismo límite de altura */
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 30px);
+    overflow-y: auto;
+}
+
+/* Order Form en modo edición */
+.order-form.editing-mode {
+    /* Actualizar para usar las mismas variables */
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 30px);
+    overflow-y: auto;
+    padding: 15px;
+    background-color: #ffffff;
+    border-radius: 8px;
+}
+
+/* Lista de pedidos en preparación */
 .editing-mode .mostrador-orders-list {
     flex: 1; /* Lista ocupa más espacio */
     background-color: #ffffff;
@@ -42,7 +89,107 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Lista de pedidos completados */
+.editing-mode .mostrador-completed-orders {
+    flex: 1;
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Media queries para ajustes responsivos */
+@media (max-width: 1200px) {
+  .editing-mode .mostrador-content {
+    flex-direction: column;
+  }
+  
+  .editing-mode .mostrador-left-column, 
+  .editing-mode .mostrador-right-column,
+  .editing-mode .mostrador-edit-order {
+    width: 100%;
+    max-height: none;
+    height: auto;
+  }
+  
+  .editing-mode .mostrador-container {
+    height: auto;
+    min-height: calc(100vh - var(--header-height) - var(--subheader-height));
+  }
+  
+  .order-form.editing-mode {
+    max-height: none;
+  }
+}
+
+/* Para pantallas muy grandes, limitar la altura máxima de ciertos elementos */
+@media (min-height: 1080px) {
+  .editing-mode .mostrador-orders-list,
+  .editing-mode .mostrador-completed-orders {
+    max-height: 500px;
+  }
+}
+
+/* Para pantallas pequeñas en altura */
+@media (max-height: 768px) {
+  .editing-mode .mostrador-orders-list,
+  .editing-mode .mostrador-completed-orders {
+    max-height: 300px;
+  }
+  
+  .order-form.editing-mode {
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 40px);
+  }
+}
+
+/* Botones de acción para pedidos en edición */
+.order-action-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+}
+
+.edit-mode-button,
+.cancel-edit-button {
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+.edit-mode-button {
+    background-color: #4e8355; /* Verde para mostrador */
+    color: white;
+    border: none;
+}
+
+.edit-mode-button:hover {
+    background-color: #3e6844;
+}
+
+.cancel-edit-button {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.cancel-edit-button:hover {
+    background-color: #f1b0b7;
+}
+
 /* Animaciones */
+@keyframes slideInFromLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
 @keyframes slideInFromRight {
     from {
         transform: translateX(100%);
@@ -52,4 +199,44 @@
         transform: translateX(0);
         opacity: 1;
     }
+}
+
+/* Estilos para pedidos completados */
+.completed-order {
+    background-color: #f0f7ed; /* Verde muy claro para mostrador */
+    border-left: 4px solid #4e8355;
+}
+
+.canceled-order {
+    background-color: #f8d7da;
+    border-left: 4px solid #dc3545;
+}
+
+/* Estilos específicos para el modo de visualización */
+.viewing-completed-order .order-form {
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+.viewing-completed-order .order-form input,
+.viewing-completed-order .order-form select,
+.viewing-completed-order .order-form textarea {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+/* Añadir estilo específico para el botón de volver */
+.back-button {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 15px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.back-button:hover {
+    background-color: #5a6268;
 }

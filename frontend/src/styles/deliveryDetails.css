@@ -1,5 +1,15 @@
+/* Añadir variables CSS consistentes al inicio */
+:root {
+  /* Usar las mismas variables que en delivery.css para consistencia */
+  --header-height: 56px;
+  --subheader-height: 36px;
+  --container-padding: 20px;
+}
+
 /* General Container para el modo de edición */
 .editing-mode .delivery-container {
+    /* Aplicar misma altura calculada que en delivery.css */
+    height: calc(100vh - var(--header-height) - var(--subheader-height) - 13px);
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -9,25 +19,28 @@
     font-size: 14px;
     color: #004d66; /* Texto azul oscuro */
     position: relative;
+    overflow-y: auto; /* Para casos donde el contenido es más alto que el contenedor */
 }
 
 /* Diseño del contenido en modo edición */
 .editing-mode .delivery-content {
     display: flex;
     flex: 1;
-    overflow: auto;
     gap: 20px;
     position: relative;
     align-items: flex-start;
+    /* Aplicar misma altura máxima que en modo normal */
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 10px);
+    overflow-y: hidden; /* El scroll será en las columnas */
     transform: translateX(0);
 }
 
 /* Columna izquierda - Formulario */
 .editing-mode .delivery-left-column {
     width: 35%; /* Mismo ancho que en delivery.css */
-    overflow-y: auto;
     display: flex;
     flex-direction: column;
+    /* Sin max-height aquí al igual que en delivery.css */
 }
 
 .editing-mode .delivery-edit-order {
@@ -35,6 +48,9 @@
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     min-height: 400px;
+    /* Aplicar el mismo límite de altura que en el modo normal */
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 20px);
+    overflow-y: auto;
     animation: slideInFromRight 0.3s ease-in-out;
 }
 
@@ -43,11 +59,19 @@
     width: 70%; /* Mismo ancho que en delivery.css */
     display: flex;
     flex-direction: column;
+    /* Aplicar el mismo límite de altura que en el modo normal */
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 30px);
+    overflow-y: auto;
 }
 
+/* Order Form en modo edición */
 .order-form.editing-mode {
-    max-height: 83vh;
+    /* Actualizar para usar las mismas variables */
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 30px);
     overflow-y: auto;
+    padding: 15px;
+    background-color: #ffffff;
+    border-radius: 8px;
 }
 
 /* Lista de pedidos en preparación */
@@ -69,9 +93,54 @@
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    height: auto; /* Ajustar la altura */
+    height: auto;
 }
 
+/* Media queries para ajustes responsivos */
+@media (max-width: 1200px) {
+  .editing-mode .delivery-content {
+    flex-direction: column;
+  }
+  
+  .editing-mode .delivery-left-column, 
+  .editing-mode .delivery-right-column,
+  .editing-mode .delivery-edit-order {
+    width: 100%;
+    max-height: none;
+    height: auto;
+  }
+  
+  .editing-mode .delivery-container {
+    height: auto;
+    min-height: calc(100vh - var(--header-height) - var(--subheader-height));
+  }
+  
+  .order-form.editing-mode {
+    max-height: none;
+  }
+}
+
+/* Para pantallas muy grandes, limitar la altura máxima de ciertos elementos */
+@media (min-height: 1080px) {
+  .editing-mode .delivery-orders-list,
+  .editing-mode .delivery-completed-orders {
+    max-height: 500px;
+  }
+}
+
+/* Para pantallas pequeñas en altura */
+@media (max-height: 768px) {
+  .editing-mode .delivery-orders-list,
+  .editing-mode .delivery-completed-orders {
+    max-height: 300px;
+  }
+  
+  .order-form.editing-mode {
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 40px);
+  }
+}
+
+/* Resto del CSS sin cambios */
 /* Botones de acción para pedidos en edición */
 .order-action-buttons {
     display: flex;

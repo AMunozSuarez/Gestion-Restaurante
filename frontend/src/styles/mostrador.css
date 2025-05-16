@@ -1,26 +1,36 @@
+:root {
+  --header-height: 56px; /* Altura aproximada del header (10px padding arriba + 10px padding abajo + texto) */
+  --subheader-height: 36px; /* Altura aproximada del subheader (5px padding arriba + 5px padding abajo + texto + margen) */
+  --container-padding: 20px; /* Suma del padding vertical del container */
+}
+
 /* General Container */
 .mostrador-container {
+    /* Reemplazar min-height por altura calculada: */
+    height: calc(100vh - var(--header-height) - var(--subheader-height) - 12px);
     display: flex;
     flex-direction: column;
     gap: 20px;
     background-color: #fdf5e6; /* Mantengo el color de fondo original */
     padding: 10px !important;
+    padding-bottom: 0px !important;
     font-family: 'Poppins', Arial, sans-serif;
     font-size: 14px;
     color: #4d2600; /* Mantengo el color de texto original */
     transition: all 0.3s ease-in-out;
     position: relative;
+    overflow-y: auto; /* Para casos donde el contenido es más alto que el contenedor */
 }
-
 
 /* Contenido Principal */
 .mostrador-content {
     display: flex;
     flex: 1;
-    overflow: auto;
     gap: 20px;
     position: relative;
     align-items: flex-start;
+    /* max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 0px); */
+    overflow-y: hidden; /* El scroll será en las columnas */
 }
 
 .creating-mode .mostrador-content {
@@ -35,27 +45,29 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     width: 30%; /* Ajustar el ancho para que sea similar a delivery */
     min-height: 400px;
-    max-height: 83vh;
+    /* Ajuste importante para altura */
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 40px);
     overflow-y: auto;
     animation: slideInFromLeft 0.3s ease-in-out;
     border: 2px solid #4e8355; /* Mantengo el borde verde */
 }
 
+/* Columnas laterales con altura ajustada */
 .mostrador-left-column {
     width: 30%; /* Igual que en delivery */
-    overflow-y: auto;
     display: flex;
     flex-direction: column;
 }
 
 .mostrador-right-column {
     width: 70%; /* Igual que en delivery */
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 30px);
     display: flex;
     flex-direction: column;
-    max-height: 85vh;
     overflow-y: auto;
 }
 
+/* Modificación para listas de pedidos */
 .mostrador-orders-list {
     flex: 1;
     border-bottom: 1px solid #ddd;
@@ -74,6 +86,47 @@
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     height: auto; /* Ajustar la altura */
+}
+
+/* Media queries para ajustes responsivos */
+@media (max-width: 1200px) {
+  .mostrador-content {
+    flex-direction: column;
+  }
+  
+  .mostrador-left-column, 
+  .mostrador-right-column,
+  .creating-mode .mostrador-create-order {
+    width: 100%;
+    max-height: none;
+    height: auto;
+  }
+  
+  .mostrador-container {
+    height: auto;
+    min-height: calc(100vh - var(--header-height) - var(--subheader-height));
+  }
+}
+
+/* Para pantallas muy grandes, limitar la altura máxima de ciertos elementos */
+@media (min-height: 1080px) {
+  .mostrador-orders-list,
+  .mostrador-completed-orders {
+    max-height: 500px;
+  }
+}
+
+/* Para pantallas pequeñas en altura */
+@media (max-height: 768px) {
+  .mostrador-orders-list,
+  .mostrador-completed-orders {
+    max-height: 300px;
+  }
+  
+  :root {
+    --header-height: 50px; /* Reducir en pantallas pequeñas */
+    --subheader-height: 30px;
+  }
 }
 
 /* Mantengo el botón original con sus colores específicos */
