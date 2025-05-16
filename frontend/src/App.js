@@ -1,6 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Header from './components/layout/Header';
+// Importar ToastContainer y los estilos CSS
+import { ToastContainer, Flip } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Páginas principales
 import Mostrador from './components/pages/mostrador/mostrador';
@@ -25,6 +28,21 @@ function App() {
   return (
     <Router>
       <div>
+        {/* Configuración del ToastContainer con las opciones especificadas */}
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="dark"
+          transition={Flip}
+        />
+        
         <Header />
         <Routes>
           <Route path="/login" element={<Login />} />

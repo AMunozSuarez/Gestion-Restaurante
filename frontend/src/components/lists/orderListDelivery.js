@@ -7,6 +7,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane, faClock } from '@fortawesome/free-solid-svg-icons';
 import { formatChileanMoney } from '../../services/utils/formatters';
 
+
 const OrderListDelivery = () => {
     const navigate = useNavigate();
     const { orderNumber } = useParams();
