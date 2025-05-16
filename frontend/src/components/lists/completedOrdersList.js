@@ -8,6 +8,11 @@ const CompletedOrdersList = ({ orders, onSelectOrder, section }) => {
 
     // Determinar el título dinámicamente según la sección
     const title = section === 'delivery' ? 'Pedidos Enviados' : 'Pedidos Completados/Cancelados';
+    
+    // Determinar el mensaje cuando no hay pedidos según la sección
+    const noOrdersMessage = section === 'delivery' 
+        ? 'No hay pedidos enviados'
+        : 'No hay pedidos completados o cancelados';
 
     return (
         <div className="completed-orders-list">
@@ -20,20 +25,29 @@ const CompletedOrdersList = ({ orders, onSelectOrder, section }) => {
                 <p>Estado</p>
                 <p>Total</p>
             </div>
-            <ul>
-                {orders.map((order) => (
-                    <li
-                        key={order._id}
-                        className={`order-item ${order.status} ${order.orderNumber === parseInt(orderNumber, 10) ? 'selected' : ''}`}
-                        onClick={() => onSelectOrder(order)}
-                    >                        <p>#{order.orderNumber}</p>
-                        <p className="order-date">{new Date(order.createdAt).toLocaleString()}</p> {/* Mostrar fecha/hora */}
-                        <p>{order.buyer ? order.buyer.name : order.name}</p>
-                        <p>{order.status}</p>
-                        <p className="order-total">Total: {formatChileanMoney(order.total)}</p>
-                    </li>
-                ))}
-            </ul>
+            
+            {/* Verificar si hay pedidos para mostrar */}
+            {orders && orders.length > 0 ? (
+                <ul>
+                    {orders.map((order) => (
+                        <li
+                            key={order._id}
+                            className={`order-item ${order.status} ${order.orderNumber === parseInt(orderNumber, 10) ? 'selected' : ''}`}
+                            onClick={() => onSelectOrder(order)}
+                        >
+                            <p>#{order.orderNumber}</p>
+                            <p className="order-date">{new Date(order.createdAt).toLocaleString()}</p> {/* Mostrar fecha/hora */}
+                            <p>{order.buyer ? order.buyer.name : order.name}</p>
+                            <p>{order.status}</p>
+                            <p className="order-total">Total: {formatChileanMoney(order.total)}</p>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <div className="no-orders-message">
+                    <p>{noOrdersMessage}</p>
+                </div>
+            )}
         </div>
     );
 };

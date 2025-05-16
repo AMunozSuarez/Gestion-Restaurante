@@ -45,8 +45,10 @@ const OrderList = ({ orders }) => {
         return () => clearInterval(interval);
     }, [orders]);
 
-    // Filtrar solo los pedidos con sección "mostrador"
-    const mostradorOrders = orders.filter((order) => order.section === 'mostrador');
+    // Filtrar solo los pedidos con sección "mostrador" y estado "Preparacion"
+    const mostradorOrders = orders.filter(
+        (order) => order.section === 'mostrador' && order.status === 'Preparacion'
+    );
 
     return (
         <div className="order-list">
@@ -71,26 +73,34 @@ const OrderList = ({ orders }) => {
                 <p>Estado</p>
                 <p className="order-total-header">Total</p>
             </div>
-            <ul>
-                {mostradorOrders.map((order) => (
-                    <li
-                        key={order._id}
-                        onClick={() => navigate(`/mostrador/${order.orderNumber}`)}
-                        className={`order-item ${
-                            order.orderNumber === parseInt(orderNumber, 10) ? 'editing' : ''
-                        } ${elapsedTimes[order._id] > 30 ? 'delayed-order' : ''}`}
-                    >
-                        <p>{order.orderNumber}</p>
-                        <p className="order-date">{new Date(order.createdAt).toLocaleString()}</p>
-                        <p className="time-elapsed-cell">
-                            {elapsedTimes[order._id] || 0} min
-                        </p>
-                        <p>{order.buyer ? order.buyer.name : order.name}</p>
-                        <p>{order.status}</p>
-                        <p className="order-total">{formatChileanMoney(order.total)}</p>
-                    </li>
-                ))}
-            </ul>
+            
+            {/* Verificar si hay pedidos para mostrar */}
+            {mostradorOrders.length > 0 ? (
+                <ul>
+                    {mostradorOrders.map((order) => (
+                        <li
+                            key={order._id}
+                            onClick={() => navigate(`/mostrador/${order.orderNumber}`)}
+                            className={`order-item ${
+                                order.orderNumber === parseInt(orderNumber, 10) ? 'editing' : ''
+                            } ${elapsedTimes[order._id] > 30 ? 'delayed-order' : ''}`}
+                        >
+                            <p>{order.orderNumber}</p>
+                            <p className="order-date">{new Date(order.createdAt).toLocaleString()}</p>
+                            <p className="time-elapsed-cell">
+                                {elapsedTimes[order._id] || 0} min
+                            </p>
+                            <p>{order.buyer ? order.buyer.name : order.name}</p>
+                            <p>{order.status}</p>
+                            <p className="order-total">{formatChileanMoney(order.total)}</p>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <div className="no-orders-message">
+                    <p>No hay pedidos en preparación</p>
+                </div>
+            )}
         </div>
     );
 };

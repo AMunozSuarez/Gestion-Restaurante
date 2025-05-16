@@ -56,6 +56,7 @@ const OrderListDelivery = () => {
         (order) => order.section === 'delivery' && order.status === 'Preparacion'
     );
 
+    // Modificar la sección del return donde se muestra la lista de pedidos
     return (
         <div className="order-list-delivery">
             {/* Botón para crear un nuevo pedido */}
@@ -79,75 +80,83 @@ const OrderListDelivery = () => {
                 <p className="order-total-header-delivery">Total</p>
                 <p>Enviar</p>
             </div>
-            <ul>
-                {deliveryOrders.map((order) => (
-                    <li
-                        key={order._id}
-                        onClick={() => navigate(`/delivery/${order.orderNumber}`)}
-                        className={`order-item-delivery ${
-                            order.orderNumber === parseInt(orderNumber, 10) ? 'editing-delivery' : ''
-                        } ${elapsedTimes[order._id] > 30 ? 'delayed-order' : ''}`}
-                    >
-                        <p>{order.orderNumber}</p>
-                        <p className="order-date-delivery">
-                            {new Date(order.createdAt).toLocaleString()}
-                        </p>
-                        <p className="time-elapsed-cell">
-                            {elapsedTimes[order._id] || 0} min
-                        </p>
-                        <p>{order.buyer.name}</p>
-                        <p>{order.status}</p>
-                        <p className="order-total-delivery">{formatChileanMoney(order.total)}</p>
-                        {/* Botón para enviar el pedido */}
-                        <button
-                            className="send-order-button"
-                            onClick={async (e) => {
-                                e.stopPropagation(); // Evitar que el evento de clic se propague al contenedor padre
-                                try {
-                                    if (order.foods.length === 0) {
-                                        alert('No hay productos en el carrito.');
-                                        return;
-                                    }
-
-                                    const cleanOrder = {
-                                        ...order,
-                                        foods: order.foods.map((item) => ({
-                                            food: item.food._id,
-                                            quantity: item.quantity,
-                                            comment: item.comment || '',
-                                        })),
-                                        status: 'Enviado',
-                                    };
-
-                                    console.log('Datos enviados a handleUpdateOrderStatus:', cleanOrder);
-
-                                    // Actualizar el estado del pedido
-                                    await handleUpdateOrderStatus(cleanOrder);
-                                    console.log(`Pedido #${order.orderNumber} actualizado correctamente.`);
-
-                                    // Registrar el pedido en la caja
-                                    await handleRegisterOrderInCashRegister({
-                                        cart: order.foods.map((item) => ({
-                                            productId: item.food._id,
-                                            quantity: item.quantity,
-                                        })),
-                                        cartTotal: order.total,
-                                        deliveryCost: order.deliveryCost || 0,
-                                        selectedPaymentMethod: order.payment,
-                                    });
-                                    console.log(`Pedido #${order.orderNumber} registrado correctamente en la caja.`);
-                                } catch (error) {
-                                    console.error('Error al procesar el pedido:', error);
-                                    alert('Hubo un error al procesar el pedido. Inténtalo nuevamente.');
-                                }
-                            }}
-                            title={`Enviar Pedido #${order.orderNumber}`}
+            
+            {/* Verificar si hay pedidos para mostrar */}
+            {deliveryOrders.length > 0 ? (
+                <ul>
+                    {deliveryOrders.map((order) => (
+                        <li
+                            key={order._id}
+                            onClick={() => navigate(`/delivery/${order.orderNumber}`)}
+                            className={`order-item-delivery ${
+                                order.orderNumber === parseInt(orderNumber, 10) ? 'editing-delivery' : ''
+                            } ${elapsedTimes[order._id] > 30 ? 'delayed-order' : ''}`}
                         >
-                            <FontAwesomeIcon icon={faPaperPlane} />
-                        </button>
-                    </li>
-                ))}
-            </ul>
+                            <p>{order.orderNumber}</p>
+                            <p className="order-date-delivery">
+                                {new Date(order.createdAt).toLocaleString()}
+                            </p>
+                            <p className="time-elapsed-cell">
+                                {elapsedTimes[order._id] || 0} min
+                            </p>
+                            <p>{order.buyer.name}</p>
+                            <p>{order.status}</p>
+                            <p className="order-total-delivery">{formatChileanMoney(order.total)}</p>
+                            {/* Botón para enviar el pedido */}
+                            <button
+                                className="send-order-button"
+                                onClick={async (e) => {
+                                    e.stopPropagation(); // Evitar que el evento de clic se propague al contenedor padre
+                                    try {
+                                        if (order.foods.length === 0) {
+                                            alert('No hay productos en el carrito.');
+                                            return;
+                                        }
+
+                                        const cleanOrder = {
+                                            ...order,
+                                            foods: order.foods.map((item) => ({
+                                                food: item.food._id,
+                                                quantity: item.quantity,
+                                                comment: item.comment || '',
+                                            })),
+                                            status: 'Enviado',
+                                        };
+
+                                        console.log('Datos enviados a handleUpdateOrderStatus:', cleanOrder);
+
+                                        // Actualizar el estado del pedido
+                                        await handleUpdateOrderStatus(cleanOrder);
+                                        console.log(`Pedido #${order.orderNumber} actualizado correctamente.`);
+
+                                        // Registrar el pedido en la caja
+                                        await handleRegisterOrderInCashRegister({
+                                            cart: order.foods.map((item) => ({
+                                                productId: item.food._id,
+                                                quantity: item.quantity,
+                                            })),
+                                            cartTotal: order.total,
+                                            deliveryCost: order.deliveryCost || 0,
+                                            selectedPaymentMethod: order.payment,
+                                        });
+                                        console.log(`Pedido #${order.orderNumber} registrado correctamente en la caja.`);
+                                    } catch (error) {
+                                        console.error('Error al procesar el pedido:', error);
+                                        alert('Hubo un error al procesar el pedido. Inténtalo nuevamente.');
+                                    }
+                                }}
+                                title={`Enviar Pedido #${order.orderNumber}`}
+                            >
+                                <FontAwesomeIcon icon={faPaperPlane} />
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <div className="no-orders-message">
+                    <p>No hay pedidos en preparación</p>
+                </div>
+            )}
         </div>
     );
 };
