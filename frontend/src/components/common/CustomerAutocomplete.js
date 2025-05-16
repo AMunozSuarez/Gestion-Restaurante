@@ -19,6 +19,8 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
   
   // Rastrear si ya se ha enviado al componente padre para evitar ciclos
   const hasNotifiedParentRef = useRef(false);
+  // Rastrear la fuente del cambio para distinguir entre actualizaciones
+  const changeSourceRef = useRef(null);
 
   // Manejar clic fuera del componente para cerrar sugerencias
   useEffect(() => {
@@ -38,43 +40,43 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
 
   // Sincronizar con el valor inicial o cuando está en modo edición
   useEffect(() => {
-    if (initialValue !== undefined) {
+    // Solo actualizar si el valor viene del exterior (no por edición manual)
+    if (initialValue !== undefined && changeSourceRef.current !== 'input') {
       console.log('[DEBUG] CustomerAutocomplete - Actualizando con initialValue:', initialValue);
       setSearchQuery(initialValue);
-      setManualEdit(false);
-
-      // Si estamos editando un pedido y hay un valor inicial, bloquear el input
-      if (editingOrderId && initialValue) {
+      
+      // IMPORTANTE: Solo bloquear cuando estamos editando un pedido existente Y tenemos datos completos
+      if (editingOrderId && selectedCustomerData && selectedCustomerData.name && initialValue) {
+        console.log('[DEBUG] Bloqueando input porque tenemos cliente completo en modo edición');
         setIsLocked(true);
-        setManualEdit(true);
-      } 
-      // Si se pasa un valor inicial y no está en modo manual, no bloqueamos el input
-      else if (!manualEdit) {
+      } else {
+        // No bloquear mientras el usuario está escribiendo
         setIsLocked(false);
       }
     }
-  }, [initialValue, setSearchQuery, editingOrderId]);
+  }, [initialValue, setSearchQuery, editingOrderId, selectedCustomerData]);
 
   // Sincronizar con datos de cliente seleccionado desde componente padre
   useEffect(() => {
-    if (selectedCustomerData) {
-      console.log('[DEBUG] CustomerAutocomplete - Recibiendo datos de cliente del padre:', selectedCustomerData);
+    if (selectedCustomerData && selectedCustomerData._id) {
+      console.log('[DEBUG] CustomerAutocomplete - Recibiendo datos de cliente completo del padre:', selectedCustomerData);
       setSelectedCustomer(selectedCustomerData);
       
       if (selectedCustomerData.phone) {
+        // Solo bloquear si tenemos un cliente completo con ID
         setIsLocked(true);
-        // Actualizar el campo de búsqueda solo si no está siendo editado manualmente
-        if (!manualEdit || searchQuery !== selectedCustomerData.phone) {
-          setSearchQuery(selectedCustomerData.phone);
-        }
+        // Actualizar el campo de búsqueda
+        setSearchQuery(selectedCustomerData.phone);
       }
     }
   }, [selectedCustomerData, setSearchQuery]);
 
   const handleSelect = (customer) => {
-    console.log('[DEBUG] CustomerAutocomplete - Cliente seleccionado:', customer);
+    console.log('[DEBUG] CustomerAutocomplete - Cliente seleccionado explícitamente:', customer);
+    changeSourceRef.current = 'selection';
     setSearchQuery(customer.phone);
     setSelectedCustomer(customer);
+    // IMPORTANTE: Solo bloquear cuando seleccionamos explícitamente
     setIsLocked(true);
     setManualEdit(true);
     
@@ -88,6 +90,7 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
     // Resetear después de un breve tiempo para permitir nueva notificación
     setTimeout(() => {
       hasNotifiedParentRef.current = false;
+      changeSourceRef.current = null;
     }, 100);
   };
 
@@ -96,12 +99,20 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
     if (isLocked) return;
     
     const newValue = e.target.value;
+    changeSourceRef.current = 'input';
     setSearchQuery(newValue);
     setManualEdit(true);
     
+    // IMPORTANTE: Al escribir manualmente, NO bloqueamos el input
+    
+    // Si borramos todo, limpiar la selección
+    if (!newValue) {
+        setSelectedCustomer(null);
+    }
+    
     // Pasar el valor actualizado al componente padre solo si no estamos en un ciclo
     if (onSelect && !hasNotifiedParentRef.current) {
-      console.log('[DEBUG] CustomerAutocomplete - Notificando cambio de teléfono:', newValue);
+      console.log('[DEBUG] CustomerAutocomplete - Notificando cambio de teléfono mientras escribe:', newValue);
       
       // Marcar que estamos notificando al padre
       hasNotifiedParentRef.current = true;
@@ -111,7 +122,8 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
       
       // Resetear después de un breve tiempo
       setTimeout(() => {
-        hasNotifiedParentRef.current = false;
+          hasNotifiedParentRef.current = false;
+          changeSourceRef.current = null;
       }, 100);
     }
   };
@@ -119,6 +131,7 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
   // Función para limpiar la selección
   const handleClearSelection = () => {
     console.log('[DEBUG] CustomerAutocomplete - Limpiando selección');
+    changeSourceRef.current = 'clear';
     setSearchQuery('');
     setSelectedCustomer(null);
     setIsLocked(false);
@@ -130,6 +143,7 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
       onSelect({ phone: '' });
       setTimeout(() => {
         hasNotifiedParentRef.current = false;
+        changeSourceRef.current = null;
       }, 100);
     }
     
@@ -154,7 +168,7 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
           required
         />
         
-        {isLocked && !disabled && (
+        {searchQuery && !disabled && (
           <button 
             type="button" 
             className="clear-selection-btn"
@@ -173,7 +187,7 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
         <ul ref={suggestionsRef} className="customer-phone-suggestions-list">
           {suggestions.map((customer) => (
             <li 
-              key={customer._id} 
+              key={customer._id || customer.phone} 
               onClick={() => handleSelect(customer)}
               className="customer-phone-suggestion-item"
             >
@@ -187,13 +201,4 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
   );
 };
 
-// Usar React.memo para prevenir renderizados innecesarios
-export default React.memo(CustomerAutocomplete, (prevProps, nextProps) => {
-  // Solo renderizar si cambian estas props críticas
-  return (
-    prevProps.initialValue === nextProps.initialValue &&
-    prevProps.disabled === nextProps.disabled &&
-    prevProps.editingOrderId === nextProps.editingOrderId &&
-    JSON.stringify(prevProps.selectedCustomerData) === JSON.stringify(nextProps.selectedCustomerData)
-  );
-});
+export default React.memo(CustomerAutocomplete);
