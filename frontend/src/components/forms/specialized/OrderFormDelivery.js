@@ -17,7 +17,6 @@ const OrderFormDelivery = (props) => {
     // Incrementa el contador en cada renderizado
     renderCount.current = renderCount.current + 1;
     
-    console.log(`[DEBUG] OrderFormDelivery - Renderizado #${renderCount.current}`);
     const navigate = useNavigate();
     const { cart, cartTotal, getCartTotal, clearCart } = useCartManagement();
     const { handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm();
@@ -34,6 +33,12 @@ const OrderFormDelivery = (props) => {
     // Ref para rastrear si hay una búsqueda en curso
     const isFetchingRef = useRef(false);
 
+
+    useEffect(() => {
+    console.log('[CART DEBUG] Estado actual del carrito en OrderFormDelivery:', cart);
+    console.log('[CART DEBUG] Cantidad de productos en carrito:', cart.length);
+    console.log('[CART DEBUG] Total calculado del carrito:', getCartTotal());
+}, [cart, getCartTotal]);
     // Efecto para identificar qué props cambiaron y causaron un re-renderizado
     useEffect(() => {
         const changedProps = Object.keys(props).filter(key => {
@@ -41,18 +46,12 @@ const OrderFormDelivery = (props) => {
             return JSON.stringify(props[key]) !== JSON.stringify(prevProps.current[key]);
         });
         
-        if (changedProps.length > 0) {
-            console.log('[DEBUG] OrderFormDelivery - Props cambiados:', changedProps);
-        }
         
         // Actualizar referencia de props anteriores
         prevProps.current = { ...props };
     });
       // Effect para reset address mode when customer is cleared
     useEffect(() => {
-        console.log('[DEBUG] Effect #1 ejecutado - Reset address mode:', { 
-            customerPhone: props.customerPhone 
-        });
         
         // If the phone is cleared or no customer is selected
         if (!props.customerPhone) {
@@ -63,12 +62,6 @@ const OrderFormDelivery = (props) => {
         }
     }, [props.customerPhone]);    // Reemplazar el useEffect que carga datos de cliente en edición
     useEffect(() => {
-        console.log('[DEBUG] Effect #2 ejecutado - Datos de cliente para edición:', { 
-            editingOrderId: props.editingOrderId, 
-            customerPhone: props.customerPhone,
-            whenCalled: new Date().toISOString(),
-            isFetching: isFetchingRef.current
-        });
         
         // Solo ejecutar cuando estamos editando un pedido y tenemos un número de teléfono
         if (props.editingOrderId && props.customerPhone) {
@@ -86,7 +79,6 @@ const OrderFormDelivery = (props) => {
     const fetchCustomerData = async (phone) => {
         try {
             // Usar el endpoint de búsqueda que ya existe
-            console.log("Llamando a la API de búsqueda de clientes en orderformDelivery");
             const response = await axios.get(`/customer/search?query=${phone}`);
             
             if (response.data && response.data.success && response.data.customers && response.data.customers.length > 0) {
@@ -145,12 +137,11 @@ const OrderFormDelivery = (props) => {
             _isTemporary: true
         };
         
-        console.log("Creando cliente temporal:", tempCustomer);
+        // console.log("Creando cliente temporal:", tempCustomer);
         setSelectedCustomer(tempCustomer);
         setCustomerAddresses(tempCustomer.addresses);
     };    // Modificar handleCustomerSelect para consultar al servidor centralizado
     const handleCustomerSelect = async (customerData) => {
-        console.log("[DEBUG] handleCustomerSelect - Datos recibidos:", customerData);
         
         // Siempre actualizar el teléfono, que viene en todas las llamadas
         props.setCustomerPhone(customerData.phone || '');
@@ -266,7 +257,6 @@ const OrderFormDelivery = (props) => {
 
     // Añadir esta función para resetear estados de edición
     const resetAddressEditMode = () => {
-        console.log("Reseteando modo de edición de dirección");
         setIsEditingAddress(false);
         setIsAddingNewAddress(false);
     };
@@ -488,7 +478,7 @@ const OrderFormDelivery = (props) => {
             // Limpiar y redireccionar después de ambas operaciones exitosas
             clearCart();
             props.resetForm();
-            navigate('/delivery');
+            // navigate('/delivery');
             
         } catch (error) {
             console.error('Error al procesar el pedido:', error);
@@ -550,19 +540,4 @@ const OrderFormDelivery = (props) => {
     );
 };
 
-// Envolver el componente en React.memo para evitar renderizados innecesarios
-export default React.memo(OrderFormDelivery, (prevProps, nextProps) => {
-    // Solo renderizar si cambian estas props críticas
-    if (
-        prevProps.editingOrderId !== nextProps.editingOrderId ||
-        prevProps.customerPhone !== nextProps.customerPhone ||
-        prevProps.customerName !== nextProps.customerName ||
-        prevProps.deliveryAddress !== nextProps.deliveryAddress ||
-        prevProps.deliveryCost !== nextProps.deliveryCost ||
-        prevProps.isViewingCompletedOrder !== nextProps.isViewingCompletedOrder ||
-        prevProps.comment !== nextProps.comment
-    ) {
-        return false; // Las props son diferentes, permite el render
-    }
-    return true; // Las props son iguales, evita el render
-});
+export default OrderFormDelivery;

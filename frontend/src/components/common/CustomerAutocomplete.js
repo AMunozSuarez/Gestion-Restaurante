@@ -42,12 +42,10 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
   useEffect(() => {
     // Solo actualizar si el valor viene del exterior (no por edición manual)
     if (initialValue !== undefined && changeSourceRef.current !== 'input') {
-      console.log('[DEBUG] CustomerAutocomplete - Actualizando con initialValue:', initialValue);
       setSearchQuery(initialValue);
       
       // IMPORTANTE: Solo bloquear cuando estamos editando un pedido existente Y tenemos datos completos
       if (editingOrderId && selectedCustomerData && selectedCustomerData.name && initialValue) {
-        console.log('[DEBUG] Bloqueando input porque tenemos cliente completo en modo edición');
         setIsLocked(true);
       } else {
         // No bloquear mientras el usuario está escribiendo
@@ -59,7 +57,6 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
   // Sincronizar con datos de cliente seleccionado desde componente padre
   useEffect(() => {
     if (selectedCustomerData && selectedCustomerData._id) {
-      console.log('[DEBUG] CustomerAutocomplete - Recibiendo datos de cliente completo del padre:', selectedCustomerData);
       setSelectedCustomer(selectedCustomerData);
       
       if (selectedCustomerData.phone) {
@@ -72,7 +69,6 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
   }, [selectedCustomerData, setSearchQuery]);
 
   const handleSelect = (customer) => {
-    console.log('[DEBUG] CustomerAutocomplete - Cliente seleccionado explícitamente:', customer);
     changeSourceRef.current = 'selection';
     setSearchQuery(customer.phone);
     setSelectedCustomer(customer);
@@ -112,7 +108,6 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
     
     // Pasar el valor actualizado al componente padre solo si no estamos en un ciclo
     if (onSelect && !hasNotifiedParentRef.current) {
-      console.log('[DEBUG] CustomerAutocomplete - Notificando cambio de teléfono mientras escribe:', newValue);
       
       // Marcar que estamos notificando al padre
       hasNotifiedParentRef.current = true;
@@ -130,7 +125,6 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
 
   // Función para limpiar la selección
   const handleClearSelection = () => {
-    console.log('[DEBUG] CustomerAutocomplete - Limpiando selección');
     changeSourceRef.current = 'clear';
     setSearchQuery('');
     setSelectedCustomer(null);
@@ -201,4 +195,4 @@ const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOr
   );
 };
 
-export default React.memo(CustomerAutocomplete);
+export default CustomerAutocomplete;
