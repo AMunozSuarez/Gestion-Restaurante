@@ -30,7 +30,7 @@ function App() {
       <div>
         {/* Configuración del ToastContainer con las opciones especificadas */}
         <ToastContainer
-          position="top-right"
+          position="bottom-right"
           autoClose={5000}
           hideProgressBar={false}
           newestOnTop={false}
@@ -39,7 +39,7 @@ function App() {
           pauseOnFocusLoss
           draggable
           pauseOnHover
-          theme="dark"
+          theme="light"
           transition={Flip}
         />
         
