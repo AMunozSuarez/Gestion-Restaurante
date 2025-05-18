@@ -218,6 +218,8 @@ const OrderFormDelivery = (props) => {
         
         // Guardar el objeto completo de la dirección original
         const currentAddressObj = customerAddresses.find(addr => addr.address === props.deliveryAddress);
+        console.log('comprobando ambas addresses:', customerAddresses, props.deliveryAddress);
+        console.log('comprobando currentAddressObj:', currentAddressObj);
         if (currentAddressObj) {
             console.log("[DEBUG] Guardando dirección original para edición:", currentAddressObj);
             setOriginalAddress(currentAddressObj); // Guardar todo el objeto con ID

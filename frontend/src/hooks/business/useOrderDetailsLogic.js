@@ -5,7 +5,8 @@ import axios from '../../services/axiosConfig';
 import useCartStore from '../../store/useCartStore';
 import { useOrders } from '../api/useOrders';
 import { useOrderLoader } from './useOrderLoader';
-import { useCompletedOrderSelector } from './useCompletedOrderSelector'; // Importar nuevo hook
+import { useCompletedOrderSelector } from './useCompletedOrderSelector';
+import { useCustomerManagement } from '../useCustomerManagment'; // Importar hook de gestión de clientes
 
 export const useOrderDetailsLogic = ({
   orderNumber,
@@ -16,6 +17,13 @@ export const useOrderDetailsLogic = ({
   const queryClient = useQueryClient();
   const { orders, updateOrderInList } = useOrders();
   const { cart, setCart, setCartContext } = useCartStore();
+  
+  // Añadir el hook de gestión de clientes
+  const { 
+    findCustomerByPhone, 
+    createOrUpdateCustomer, 
+    manageCustomerAddresses 
+  } = useCustomerManagement();
   
   // Usar el nuevo hook para cargar el pedido
   const {
@@ -62,7 +70,7 @@ export const useOrderDetailsLogic = ({
     });
   };
 
-    // Filtrar pedidos según su estado
+  // Filtrar pedidos según su estado
   const preparationOrders = orders.filter(
     (order) => order.section === section && order.status === 'Preparacion'
   );
@@ -75,9 +83,8 @@ export const useOrderDetailsLogic = ({
   const completedOrders = orders.filter(completedOrdersFilter);
 
   // Enviar actualización de pedido
-  const handleOrderUpdate = async (e, resetForm, status = 'Preparacion', sectionName = section) => {
-    
-    console.log('useOrderDetailsLogic.js: handleSubmit');
+  const handleOrderUpdate = async (e, resetForm, status = 'Preparacion', sectionName = section, extraData = {}) => {
+    console.log('useOrderDetailsLogic.js: handleOrderUpdate');
     if (e && e.preventDefault) e.preventDefault();
     if (isViewingCompletedOrder) return;
     if (!editingOrder) return;
@@ -86,36 +93,94 @@ export const useOrderDetailsLogic = ({
     const commentElement = document.getElementById('orderComment');
     const latestComment = commentElement ? commentElement.innerHTML : comment;
 
-    // Construir objeto base para actualizar
-    let updatedOrder = {
-      _id: editingOrder._id,
-      name: null, // Se usa buyer en su lugar
-      buyer: {
+    try {
+      // Limpiar localStorage para evitar dependencias
+      if (localStorage.getItem('editing_address_original')) {
+        localStorage.removeItem('editing_address_original');
+      }
+
+      // Construir objeto de cliente con la información actual
+      let buyerData = {
         name: customerName,
         comment: latestComment,
-      },
-      foods: cart.map((item) => ({
-        food: item._id,
-        quantity: item.quantity,
-        comment: item.comment || '',
-      })),
-      payment: selectedPaymentMethod,
-      section: sectionName,
-      status,
-      comment: latestComment,
-    };
-    
-    // Permitir personalización del objeto según tipo
-    if (detailsConfig.prepareOrderData) {
-      updatedOrder = detailsConfig.prepareOrderData(updatedOrder, {
-        specificFields,
-        cart,
-        comment: latestComment,
-      });
-    }
+      };
 
-    try {
-      console.log('updateOrder en useOrderDetailsLogic.js:');
+      // Si el formulario tiene campos específicos para manejo de clientes/direcciones
+      if (specificFields) {
+        // Para delivery: manejar teléfono del cliente
+        if (specificFields.customerPhone) {
+          buyerData.phone = specificFields.customerPhone;
+          
+          // Si hay dirección de entrega, gestionar direcciones
+          if (specificFields.deliveryAddress) {
+            const addressData = {
+              address: specificFields.deliveryAddress,
+              deliveryCost: Number(specificFields.deliveryCost) || 0,
+            };
+            
+            // Usar el hook especializado para gestionar direcciones
+            const addressOptions = {
+              isEditingAddress: extraData?.isEditingAddress,
+              originalAddress: extraData?.originalAddress,
+              isAddingNewAddress: extraData?.isAddingNewAddress
+            };
+            
+            console.log('Gestionando direcciones para actualización:', addressOptions);
+            buyerData.addresses = await manageCustomerAddresses(
+              specificFields.customerPhone, 
+              addressData, 
+              addressOptions
+            );
+          }
+          
+          // Crear/actualizar cliente
+          console.log('Actualizando cliente con datos:', buyerData);
+          const updatedCustomer = await createOrUpdateCustomer(buyerData);
+          
+          if (updatedCustomer && updatedCustomer._id) {
+            // Guardar referencia al ID pero mantener los datos completos para el pedido
+            const customerId = updatedCustomer._id;
+            buyerData = {
+              ...updatedCustomer,
+              _id: customerId
+            };
+          }
+        }
+      }
+
+      // Construir objeto base para actualizar
+      let updatedOrder = {
+        _id: editingOrder._id,
+        name: null, // Se usa buyer en su lugar
+        buyer: buyerData,
+        foods: cart.map((item) => ({
+          food: item._id,
+          quantity: item.quantity,
+          comment: item.comment || '',
+        })),
+        payment: selectedPaymentMethod,
+        section: sectionName,
+        status,
+        comment: latestComment,
+      };
+      
+      // Si tenemos direcciones y dirección seleccionada
+      if (specificFields && specificFields.deliveryAddress && buyerData.addresses) {
+        updatedOrder.selectedAddress = specificFields.deliveryAddress;
+        updatedOrder.deliveryCost = Number(specificFields.deliveryCost) || 0;
+      }
+      
+      // Permitir personalización adicional del objeto según tipo
+      if (detailsConfig.prepareOrderData) {
+        updatedOrder = detailsConfig.prepareOrderData(updatedOrder, {
+          specificFields,
+          cart,
+          comment: latestComment,
+          extraData
+        });
+      }
+
+      console.log('Enviando actualización del pedido:', updatedOrder);
       const response = await axios.put(`/order/update/${editingOrder._id}`, updatedOrder);
 
       if (response.status === 200) {
@@ -131,16 +196,18 @@ export const useOrderDetailsLogic = ({
         if (status !== 'Preparacion') {
           navigate(`/${sectionName}`);
         }
+        
+        return true;
       } else {
         alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
+        return false;
       }
     } catch (error) {
       console.error('Error al actualizar pedido:', error);
       alert('Hubo un error al actualizar el pedido. Intente nuevamente.');
+      return false;
     }
   };
-
-
 
   return {
     // Estados base
@@ -161,7 +228,7 @@ export const useOrderDetailsLogic = ({
     // Métodos
     handleSelectCompletedOrder,
     handleOrderUpdate,
-    handleSubmit: handleOrderUpdate,
+    handleSubmit: handleOrderUpdate, // Mantener compatibilidad
     
     // Listas filtradas
     preparationOrders,
