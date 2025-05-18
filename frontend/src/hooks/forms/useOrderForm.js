@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useCreateOrder } from '../api/useCreateOrder';
 import useCartStore from '../../store/useCartStore';
 import { useOrders } from '../api/useOrders';
-import { useNavigate } from 'react-router-dom';
 import { closeOrder } from '../../services/api/cashApi';
 import { updateOrder } from '../../services/api/ordersApi';
 import axios from '../../services/axiosConfig';
@@ -20,35 +19,9 @@ export const useOrderForm = () => {
     const [editingOrderId, setEditingOrderId] = useState(null); // ID del pedido que se está editando
     const [deliveryCost, setDeliveryCost] = useState(''); // Estado para el costo de envío
     const [comment, setComment] = useState(''); // Estado para comentarios opcionales
-    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const toast = useToast();
 
-    // Cargar los datos del pedido seleccionado para editar
-    // useEffect(() => {
-    //     if (editingOrderId) {
-    //         console.log('Cargando datos del pedido para editar:', editingOrderId); // Depuración
-    //         const orderToEdit = orders.find((order) => order._id === editingOrderId);
-    //         if (orderToEdit) {
-    //             setCustomerName(orderToEdit.buyer?.name || '');
-    //             setCustomerPhone(orderToEdit.buyer?.phone || '');
-    //             setDeliveryAddress(orderToEdit.selectedAddress || '');
-    //             setDeliveryCost(orderToEdit.deliveryCost || 0);
-    //             setSelectedPaymentMethod(orderToEdit.payment || 'Efectivo');
-    //             setComment(orderToEdit.comment || orderToEdit.buyer?.comment || ''); // Priorizar el comentario del pedido
-    //             console.log('Comentario cargado en useOrderForm:', orderToEdit.comment || orderToEdit.buyer?.comment); // Depuración
-    //             setCart(
-    //                 orderToEdit.foods.map((item) => ({
-    //                     _id: item.food._id,
-    //                     title: item.food.title,
-    //                     quantity: item.quantity,
-    //                     price: item.food.price,
-    //                     comment: item.comment || '',
-    //                 }))
-    //             );
-    //         }
-    //     }
-    // }, [editingOrderId, orders, setCart]);
     const resetForm = () => {
         setCustomerName('');
         setCustomerPhone('');
@@ -307,15 +280,7 @@ export const useOrderForm = () => {
                 total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0) + Number(deliveryCost),
             };
 
-            console.log('Datos preparados para enviar:', newOrder);
 
-            if (editingOrderId) {
-                console.log(`Editando pedido con ID: ${editingOrderId} y estado: ${status}`);
-                console.log('funcion llama a updateOrder en la funciona handleSubmit de useOrderForm');
-                const result = await updateOrder(editingOrderId, newOrder);
-                console.log('Pedido actualizado correctamente:', result);
-                if (typeof resetForm === 'function') resetForm();
-            } else {
                 await new Promise((resolve, reject) => {
                     console.log('funcion create order en la funciona handleSubmit de useOrderForm');
                     createOrder(newOrder, {
@@ -330,7 +295,7 @@ export const useOrderForm = () => {
                         },
                     });
                 });
-            }
+            // }
             
             return true; // Indicar éxito
         } catch (error) {
@@ -422,10 +387,8 @@ export const useOrderForm = () => {
             const response = await updateOrder(order._id, order);
             queryClient.invalidateQueries(['orders']);
             toast.success('Pedido actualizado correctamente');
-            console.log('Respuesta del backend:', response);
 
             // 3. Asegurarnos de que la respuesta contenga todos los datos del cliente
-            // AQUÍ ESTÁ EL ERROR: Necesitamos verificar la estructura de response antes de modificarla
             if (response && response.order) {
                 // Primero verificar que response.order.buyer sea un objeto y no un string
                 if (response.order.buyer && typeof response.order.buyer === 'object' && customerData) {

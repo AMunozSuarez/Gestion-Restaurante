@@ -17,6 +17,7 @@ const BaseOrderForm = ({
     selectedPaymentMethod,
     setSelectedPaymentMethod,
     handleSubmit,
+    handleOrderUpdate,
     editingOrderId,
     isViewingCompletedOrder,
     comment,
@@ -125,21 +126,31 @@ const BaseOrderForm = ({
         // Obtener el valor más reciente del campo contentEditable
         const commentElement = document.getElementById('orderComment');
         const latestComment = commentElement ? commentElement.innerHTML : '';
-        console.log('Comentario obtenido al enviar:', latestComment);
         
         // Limpiar localStorage de direcciones en edición para evitar estados inconsistentes
+        console.log('Limpiando localStorage de direcciones en edición', localStorage.getItem('editing_address_original'));
         localStorage.removeItem('editing_address_original');
+        console.log('Dirección en edición eliminada de localStorage', localStorage.getItem('editing_address_original'));
 
         // Si hay una función para resetear el estado de edición de dirección en extraData, llamarla
-        console.log('Extra data:', extraData);
         if (extraData && extraData.resetAddressEditMode) {
             extraData.resetAddressEditMode();
         }
 
-        handleSubmit(e, resetForm, undefined, formType, {
-            comment: latestComment,
-            ...(extraData || {}) // Incluir todos los datos adicionales del formulario
-        });
+        // Decidir qué función usar según si estamos editando o creando
+        if (editingOrderId && handleOrderUpdate) {
+            // Estamos editando un pedido existente
+            handleOrderUpdate(e, resetForm, undefined, formType, {
+                comment: latestComment,
+                ...(extraData || {}) // Incluir todos los datos adicionales del formulario
+            });
+        } else {
+            // Estamos creando un pedido nuevo
+            handleSubmit(e, resetForm, undefined, formType, {
+                comment: latestComment,
+                ...(extraData || {}) // Incluir todos los datos adicionales del formulario
+            });
+        }
     };    return (
         <div className={`order-form ${isEditing ? 'editing-mode' : ''} ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`} 
              data-form-type={formType}>
