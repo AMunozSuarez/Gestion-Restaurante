@@ -61,38 +61,6 @@ const Delivery = () => {
         clearCart(); // Limpiar el carrito solo al montar
     }, []);
 
-    useEffect(() => {
-        console.log('useEffect en delivery.js que se ejecuta al cargar el componente');
-        if (orderNumber) {
-            const foundOrder = orders.find((order) => order.orderNumber === parseInt(orderNumber, 10));
-            if (foundOrder) {
-                setEditingOrderId(foundOrder._id);
-                setSelectedOrderId(foundOrder._id);
-                setCustomerName(foundOrder.buyer.name);
-                setCustomerPhone(foundOrder.buyer.phone);
-                setDeliveryAddress(foundOrder.selectedAddress || '');
-                setDeliveryCost(foundOrder.deliveryCost || 0);
-                setSelectedPaymentMethod(foundOrder.payment);
-                setComment(foundOrder.comment || '');
-
-                const cartItems = foundOrder.foods.map((item) => ({
-                    _id: item.food._id,
-                    title: item.food.title,
-                    quantity: item.quantity,
-                    price: item.food.price,
-                    comment: item.comment || '',
-                }));
-                setCart(cartItems);
-                
-                setIsViewingCompletedOrder(false);
-            }
-        } else {
-            setEditingOrderId(null);
-            setSelectedOrderId(null);
-            setIsViewingCompletedOrder(false);
-        }
-    }, [orderNumber, orders]);
-
     if (isLoading) return <p>Cargando pedidos...</p>;
 
     const preparationOrders = orders.filter((order) => order.section === 'delivery' && order.status === 'Preparacion');
@@ -167,7 +135,6 @@ const Delivery = () => {
                         <div className="delivery-orders-list">
                             <OrderListDelivery
                                 orders={preparationOrders}
-                                setEditingOrderId={setEditingOrderId}
                             />
                         </div>
                         

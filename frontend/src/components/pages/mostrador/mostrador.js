@@ -79,14 +79,6 @@ const Mostrador = () => {
         updateOrderStatus(orderId, 'Completado'); // Llama a la API o actualiza el estado local
     };
 
-    // Manejar la selección de un pedido en edición
-    const handleSelectEditingOrder = (orderId) => {
-        setSelectedOrderId(null); // Desmarcar cualquier pedido completado seleccionado
-        setEditingOrderId(orderId); // Marcar el pedido en edición
-        setIsViewingCompletedOrder(false); // Desactivar modo de solo visualización
-        navigate(`/mostrador/${orderId}`); // Navegar al pedido en edición
-    };
-
     // Función para volver al estado de "Crear Pedido"
     const resetForm = () => {
         setCustomerName('');
@@ -128,7 +120,6 @@ const Mostrador = () => {
                         <div className="mostrador-orders-list">
                             <OrderList
                                 orders={preparationOrders}
-                                setEditingOrderId={handleSelectEditingOrder}
                             />
                         </div>
                         
