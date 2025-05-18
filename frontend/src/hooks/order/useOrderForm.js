@@ -8,6 +8,7 @@ import axios from '../../services/axiosConfig';
 import { useQueryClient } from '@tanstack/react-query';
 import useToast from '../useToast'
 import { useCustomerManagement } from '../customer/useCustomerManagment';
+import { useOrderOperations } from './useOrderOperations'; // Importar el hook refactorizado
 
 export const useOrderForm = () => {
     const { createOrder } = useCreateOrder(); // Hook para manejar la creación de pedidos
@@ -134,126 +135,12 @@ export const useOrderForm = () => {
         }
     };
 
-    // Función para registrar el pedido en la caja
-    const handleRegisterOrderInCashRegister = async ({
-        cart = [],
-        cartTotal = 0,
-        deliveryCost = 0,
-        selectedPaymentMethod = '',
-    } = {}) => {
-        try {
-            if (!selectedPaymentMethod) {
-                alert('Por favor, selecciona un método de pago.');
-                return;
-            }
-
-            if (cart.length === 0) {
-                alert('El carrito está vacío. Agrega productos antes de cerrar el pedido.');
-                return;
-            }
-
-            const orderData = {
-                total: cartTotal + Number(deliveryCost),
-                paymentMethod: selectedPaymentMethod,
-                items: cart.map((item) => ({
-                    productId: item.productId,
-                    quantity: item.quantity,
-                    comment: item.comment || '', // Agregar comentario si existe
-                })),
-                deliveryCost: Number(deliveryCost),
-            };
-
-            console.log('Registrando pedido en la caja:', orderData);
-
-            const response = await closeOrder(orderData); // Registrar en la caja
-            if (response.status === 201) {
-                console.log('Pedido registrado correctamente en la caja.');
-            } else {
-                console.error('Error inesperado al registrar el pedido en la caja:', response);
-                throw new Error('Error al registrar el pedido en la caja.');
-            }
-        } catch (error) {
-            console.error('Error al registrar el pedido en la caja:', error);
-            throw error; // Propagar el error para que sea capturado en el botón
-        }
-    };
-
-    // Función para actualizar el estado del pedido
-    const handleUpdateOrderStatus = async (order) => {
-        try {
-            if (!order || !order._id) {
-                alert('No se ha seleccionado un pedido para actualizar.');
-                return;
-            }
-
-            console.log('Actualizando pedido con datos limpios:', order);
-
-            // 1. Verificar si tenemos información de cliente en localStorage
-            let customerData = null;
-            if (order.buyer && order.buyer.phone) {
-                try {
-                    const cachedCustomer = localStorage.getItem(`customer_${order.buyer.phone}`);
-                    if (cachedCustomer) {
-                        customerData = JSON.parse(cachedCustomer);
-                    }
-                } catch (error) {
-                    console.error('Error al recuperar cliente de localStorage:', error);
-                }
-            }
-
-            // 2. Enriquecer el objeto de pedido con datos completos del cliente si están disponibles
-            if (customerData && order.buyer) {
-                order.buyer = {
-                    ...order.buyer,
-                    // Conservar datos específicos del cliente que no estén en el formulario
-                    _id: customerData._id,
-                    email: customerData.email,
-                    // Asegurarnos de mantener las direcciones actuales del pedido
-                    addresses: order.buyer.addresses || customerData.addresses
-                };
-            }
-            console.log('Funcion llama a updateOrder en la funciona handleUpdateOrderStatus de useOrderForm');
-            const response = await updateOrder(order._id, order);
-            queryClient.invalidateQueries(['orders']);
-            toast.success('Pedido actualizado correctamente');
-
-            // 3. Asegurarnos de que la respuesta contenga todos los datos del cliente
-            if (response && response.order) {
-                // Primero verificar que response.order.buyer sea un objeto y no un string
-                if (response.order.buyer && typeof response.order.buyer === 'object' && customerData) {
-                    if (!response.order.buyer._id && customerData._id) {
-                        response.order.buyer._id = customerData._id;
-                    }
-                    if (!response.order.buyer.email && customerData.email) {
-                        response.order.buyer.email = customerData.email;
-                    }
-                } 
-                // Si buyer es un string (probablemente un ID), necesitamos convertirlo a un objeto
-                else if (typeof response.order.buyer === 'string' && customerData) {
-                    // Guardar el ID original
-                    const buyerId = response.order.buyer;
-                    
-                    // Reemplazar con un objeto que incluya el ID original y los datos del cliente
-                    response.order.buyer = {
-                        _id: buyerId, // ID original
-                        ...customerData // Datos adicionales del cliente
-                    };
-                }
-                
-                // 4. Actualizar el pedido en la lista de pedidos con datos enriquecidos
-                updateOrderInList(response.order);
-            } else {
-                console.error('La respuesta no tiene la estructura esperada:', response);
-                // Si la respuesta no tiene la estructura esperada, actualizar con el objeto original
-                updateOrderInList(order);
-            }
-            
-            return response;
-        } catch (error) {
-            console.error('Error al actualizar el pedido:', error);
-            throw error; // Propagar el error para que sea capturado en el botón
-        }
-    };
+    // Usar el hook refactorizado
+    const { 
+      handleUpdateOrderStatus, 
+      handleRegisterOrderInCash,
+      completeOrder 
+    } = useOrderOperations();
 
     return {
         editingOrderId,
@@ -272,7 +159,9 @@ export const useOrderForm = () => {
         comment,
         setComment,
         resetForm,
-        handleRegisterOrderInCashRegister,
+        // Exportar tanto las funciones individuales como la combinada
+        handleRegisterOrderInCash,
         handleUpdateOrderStatus,
+        completeOrder, // Nueva función combinada
     };
 };

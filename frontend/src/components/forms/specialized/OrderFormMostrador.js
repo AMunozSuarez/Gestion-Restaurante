@@ -7,28 +7,22 @@ import BaseOrderForm from '../base/BaseOrderForm';
 const OrderFormMostrador = (props) => {    
     const navigate = useNavigate();
     const { cart, getCartTotal, clearCart } = useCartManagement();
-    const { handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm();
+    const { completeOrder } = useOrderForm();
 
-    // Acción para completar el pedido (cerrar)
+    // Acción para completar el pedido (cerrar) - Versión refactorizada
     const handleCompleteOrder = async () => {
         try {      
-                // Validar campos requeridos
+            // Validar campos requeridos
             if (cart.length === 0) {
                 alert('El carrito está vacío. Agrega productos antes de enviar el pedido.');
                 return;
             }       
+            
             // Calcular el total más actualizado
             const calculatedTotal = getCartTotal();
             
-            // Registrar en caja
-            await handleRegisterOrderInCashRegister({
-                cart,
-                cartTotal: calculatedTotal,
-                selectedPaymentMethod: props.selectedPaymentMethod
-            });
-            
-            // Actualizar estado a "Completado"
-            await handleUpdateOrderStatus({
+            // Crear el objeto de pedido
+            const orderData = {
                 _id: props.editingOrderId,
                 status: 'Completado',
                 buyer: {
@@ -44,13 +38,24 @@ const OrderFormMostrador = (props) => {
                 payment: props.selectedPaymentMethod,
                 total: calculatedTotal,
                 section: 'mostrador',
-            });
+            };
             
-            // Limpiar y redireccionar
-            clearCart();
-            props.resetForm();
-            navigate('/mostrador');
+            // Datos del carrito para la caja
+            const cartData = {
+                cart,
+                cartTotal: calculatedTotal,
+                selectedPaymentMethod: props.selectedPaymentMethod
+            };
             
+            // Usar la función combinada que maneja ambas operaciones
+            const result = await completeOrder(orderData, cartData);
+            
+            if (result) {
+                // Limpiar y redireccionar después de operaciones exitosas
+                clearCart();
+                props.resetForm();
+                navigate('/mostrador');
+            }
         } catch (error) {
             console.error('Error al procesar el pedido:', error);
             alert('Hubo un error al procesar el pedido. Inténtalo nuevamente.');

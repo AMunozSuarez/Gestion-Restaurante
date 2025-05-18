@@ -19,7 +19,7 @@ const OrderFormDelivery = (props) => {
     
     const navigate = useNavigate();
     const { cart, cartTotal, getCartTotal, clearCart } = useCartManagement();
-    const { handleRegisterOrderInCashRegister, handleUpdateOrderStatus } = useOrderForm();
+    const { completeOrder } = useOrderForm();
     // Usar el hook centralizado para búsqueda de clientes
     const { 
         fetchCustomerData: fetchCustomerCentralized, 
@@ -398,6 +398,7 @@ const OrderFormDelivery = (props) => {
             </>
         );
     };    // Acción para enviar pedido
+    // Acción para enviar pedido - Versión refactorizada
     const handleSendOrder = async () => {
         try {    
             console.log('[DEBUG] handleSendOrder - Iniciando envío de pedido');
@@ -448,16 +449,8 @@ const OrderFormDelivery = (props) => {
             // Calcular el total más actualizado
             const calculatedTotal = getCartTotal();
             
-            // Primero registrar en caja
-            await handleRegisterOrderInCashRegister({
-                cart,
-                cartTotal: calculatedTotal,
-                deliveryCost: props.deliveryCost,
-                selectedPaymentMethod: props.selectedPaymentMethod
-            });
-            
-            // Luego actualizar el estado del pedido a "Enviado"
-            await handleUpdateOrderStatus({
+            // Crear el objeto de pedido
+            const orderData = {
                 _id: props.editingOrderId,
                 status: 'Enviado',
                 buyer: customerData,
@@ -470,13 +463,26 @@ const OrderFormDelivery = (props) => {
                 total: calculatedTotal + Number(props.deliveryCost),
                 section: 'delivery',
                 selectedAddress: props.deliveryAddress,
-            });
+                deliveryCost: Number(props.deliveryCost) || 0
+            };
             
-            // Limpiar y redireccionar después de ambas operaciones exitosas
-            clearCart();
-            props.resetForm();
-            // navigate('/delivery');
+            // Datos del carrito para la caja
+            const cartData = {
+                cart,
+                cartTotal: calculatedTotal,
+                deliveryCost: props.deliveryCost,
+                selectedPaymentMethod: props.selectedPaymentMethod
+            };
             
+            // Usar la función combinada que maneja ambas operaciones
+            const result = await completeOrder(orderData, cartData);
+            
+            if (result) {
+                // Limpiar y redireccionar después de operaciones exitosas
+                clearCart();
+                props.resetForm();
+                // navigate('/delivery');
+            }
         } catch (error) {
             console.error('Error al procesar el pedido:', error);
             alert('Hubo un error al procesar el pedido. Inténtalo nuevamente.');
