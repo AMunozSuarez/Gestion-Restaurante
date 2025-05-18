@@ -16,7 +16,7 @@ const BaseOrderForm = ({
     setCustomerName,
     selectedPaymentMethod,
     setSelectedPaymentMethod,
-    handleSubmit,
+    handleOrderUpdate,
     editingOrderId,
     isViewingCompletedOrder,
     comment,
@@ -136,8 +136,7 @@ const BaseOrderForm = ({
             extraData.resetAddressEditMode();
         }
 
-        // Llamar a handleSubmit con los parámetros adecuados según el tipo
-        handleSubmit(e, resetForm, undefined, formType, {
+        handleOrderUpdate(e, resetForm, undefined, formType, {
             comment: latestComment,
             ...(extraData || {}) // Incluir todos los datos adicionales del formulario
         });

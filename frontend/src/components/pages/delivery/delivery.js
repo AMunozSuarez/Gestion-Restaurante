@@ -62,6 +62,7 @@ const Delivery = () => {
     }, []);
 
     useEffect(() => {
+        console.log('useEffect en delivery.js que se ejecuta al cargar el componente');
         if (orderNumber) {
             const foundOrder = orders.find((order) => order.orderNumber === parseInt(orderNumber, 10));
             if (foundOrder) {

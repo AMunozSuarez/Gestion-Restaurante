@@ -161,6 +161,7 @@ export const useOrderDetailsLogic = ({
     // Métodos
     handleSelectCompletedOrder,
     handleOrderUpdate,
+    handleSubmit: handleOrderUpdate,
     
     // Listas filtradas
     preparationOrders,
