@@ -6,8 +6,8 @@ import { closeOrder } from '../../services/api/cashApi';
 import { updateOrder } from '../../services/api/ordersApi';
 import axios from '../../services/axiosConfig';
 import { useQueryClient } from '@tanstack/react-query';
-import useToast from '../../hooks/useToast'
-import { useCustomerManagement } from '../useCustomerManagment';
+import useToast from '../useToast'
+import { useCustomerManagement } from '../customer/useCustomerManagment';
 
 export const useOrderForm = () => {
     const { createOrder } = useCreateOrder(); // Hook para manejar la creación de pedidos

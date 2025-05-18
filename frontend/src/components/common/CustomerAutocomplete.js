@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useCustomerSearch } from '../../hooks/useCustomerSearch';
+import { useCustomerSearch } from '../../hooks/customer/useCustomerSearch';
 import '../../styles/components/customerAutocomplete.css';
 
 const CustomerAutocomplete = ({ onSelect, disabled, initialValue = '', editingOrderId, selectedCustomerData }) => {

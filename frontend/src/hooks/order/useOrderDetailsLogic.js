@@ -5,8 +5,8 @@ import axios from '../../services/axiosConfig';
 import useCartStore from '../../store/useCartStore';
 import { useOrders } from '../api/useOrders';
 import { useOrderLoader } from './useOrderLoader';
-import { useCompletedOrderSelector } from './useCompletedOrderSelector';
-import { useCustomerManagement } from '../useCustomerManagment'; // Importar hook de gestión de clientes
+import { useCompletedOrderSelector } from '../business/useCompletedOrderSelector';
+import { useCustomerManagement } from '../customer/useCustomerManagment'; // Importar hook de gestión de clientes
 
 export const useOrderDetailsLogic = ({
   orderNumber,

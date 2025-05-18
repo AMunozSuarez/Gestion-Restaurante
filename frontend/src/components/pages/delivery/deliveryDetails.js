@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useOrderDetailsLogic } from '../../../hooks/business/useOrderDetailsLogic';
+import { useOrderDetailsLogic } from '../../../hooks/order/useOrderDetailsLogic';
 import OrderDetailsBase from '../../layout/OrderDetailsBase';
 import OrderFormDelivery from '../../forms/specialized/OrderFormDelivery';
 import OrderListDelivery from '../../lists/orderListDelivery';

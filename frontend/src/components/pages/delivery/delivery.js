@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useOrders } from '../../../hooks/api/useOrders';
-import { useOrderForm } from '../../../hooks/forms/useOrderForm';
+import { useOrderForm } from '../../../hooks/order/useOrderForm';
 import OrderFormDelivery from '../../forms/specialized/OrderFormDelivery';
 import CompletedOrdersList from '../../lists/completedOrdersList';
 import '../../../styles/delivery.css';
 import useCartStore from '../../../store/useCartStore';
 import { CSSTransition } from 'react-transition-group';
 import OrderListDelivery from '../../lists/orderListDelivery';
-import { useOrderDetailsLogic } from '../../../hooks/business/useOrderDetailsLogic';
+import { useOrderDetailsLogic } from '../../../hooks/order/useOrderDetailsLogic';
 
 // Definir la configuración específica para pedidos de delivery
 const deliveryConfig = {

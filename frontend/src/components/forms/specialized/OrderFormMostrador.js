@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCartManagement } from '../../../hooks/state/useCartManagement';
-import { useOrderForm } from '../../../hooks/forms/useOrderForm';
+import { useCartManagement } from '../../../hooks/cart/useCartManagement';
+import { useOrderForm } from '../../../hooks/order/useOrderForm';
 import BaseOrderForm from '../base/BaseOrderForm';
 
 const OrderFormMostrador = (props) => {    
@@ -59,7 +59,7 @@ const OrderFormMostrador = (props) => {
 
     // Acción para cancelar el pedido
     const handleCancelOrder = () => {
-        props.handleSubmit(null, props.resetForm, 'Cancelado', 'mostrador');
+        props.handleOrderUpdate(null, props.resetForm, 'Cancelado', 'mostrador');
     };
 
     return (

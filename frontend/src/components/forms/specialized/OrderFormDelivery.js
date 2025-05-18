@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCartManagement } from '../../../hooks/state/useCartManagement';
-import { useOrderForm } from '../../../hooks/forms/useOrderForm';
-import { useCustomerSearch } from '../../../hooks/useCustomerSearch';
+import { useCartManagement } from '../../../hooks/cart/useCartManagement';
+import { useOrderForm } from '../../../hooks/order/useOrderForm';
+import { useCustomerSearch } from '../../../hooks/customer/useCustomerSearch';
 import BaseOrderForm from '../base/BaseOrderForm';
 import CustomerAutocomplete from '../../common/CustomerAutocomplete';
 import axios from '../../../services/axiosConfig';
@@ -485,7 +485,7 @@ const OrderFormDelivery = (props) => {
 
     // Acción para cancelar pedido
     const handleCancelOrder = () => {
-        props.handleSubmit(null, props.resetForm, 'Cancelado', 'delivery');
+        props.handleOrderUpdate(null, props.resetForm, 'Cancelado', 'delivery');
     };
     
     // Estilos personalizados

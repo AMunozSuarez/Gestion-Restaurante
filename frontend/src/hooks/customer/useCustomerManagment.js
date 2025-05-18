@@ -1,6 +1,6 @@
 // hooks/api/useCustomerManagement.js
 import { useState } from 'react';
-import axios from '../services/axiosConfig';
+import axios from '../../services/axiosConfig';
 
 export const useCustomerManagement = () => {
   const [customerLoading, setCustomerLoading] = useState(false);

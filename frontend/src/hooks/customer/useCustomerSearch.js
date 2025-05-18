@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from '../services/axiosConfig';
+import axios from '../../services/axiosConfig';
 
 export const useCustomerSearch = () => {
   const [searchQuery, setSearchQuery] = useState('');

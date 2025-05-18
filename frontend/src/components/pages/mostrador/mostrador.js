@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrders } from '../../../hooks/api/useOrders'; // Hook para obtener las órdenes
-import { useOrderForm } from '../../../hooks/forms/useOrderForm'; // Hook para manejar el formulario de pedidos
+import { useOrderForm } from '../../../hooks/order/useOrderForm'; // Hook para manejar el formulario de pedidos
 import OrderFormMostrador from '../../forms/specialized/OrderFormMostrador';
 import OrderList from '../../lists/orderList';
 import CompletedOrdersList from '../../lists/completedOrdersList';
 import '../../../styles/mostrador.css';
 import useCartStore from '../../../store/useCartStore';
 import { CSSTransition } from 'react-transition-group';
-import { useOrderDetailsLogic } from '../../../hooks/business/useOrderDetailsLogic'; // Importar hook
+import { useOrderDetailsLogic } from '../../../hooks/order/useOrderDetailsLogic'; // Importar hook
 
 // Configuración específica para pedidos de mostrador
 const mostradorConfig = {

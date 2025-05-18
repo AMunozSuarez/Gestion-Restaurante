@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useProducts } from '../../../hooks/api/useProducts';
 import { useCategories } from '../../../hooks/api/useCategories';
-import { useCartManagement } from '../../../hooks/state/useCartManagement';
+import { useCartManagement } from '../../../hooks/cart/useCartManagement';
 import useUIStore from '../../../store/useUiStore';
 import Cart from '../../cart/Cart';
 import { formatChileanMoney } from '../../../services/utils/formatters';
