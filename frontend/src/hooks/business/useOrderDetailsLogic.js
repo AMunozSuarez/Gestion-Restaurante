@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import axios from '../../services/axiosConfig';
 import useCartStore from '../../store/useCartStore';
 import { useOrders } from '../api/useOrders';
 import { useOrderLoader } from './useOrderLoader';
+import { useCompletedOrderSelector } from './useCompletedOrderSelector'; // Importar nuevo hook
 
 export const useOrderDetailsLogic = ({
   orderNumber,
@@ -38,49 +39,43 @@ export const useOrderDetailsLogic = ({
     }
   });
   
+  // Usar el hook especializado para selección de pedidos completados
+  const { selectCompletedOrder } = useCompletedOrderSelector();
+  
   // Estados adicionales específicos de esta vista
   const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   // Seleccionar un pedido completado para ver sus detalles
   const handleSelectCompletedOrder = (order) => {
-    console.log('Pedido completo seleccionado en logic:', order);
-    
-    // Establecer que estamos en modo edición antes de actualizar el carrito
-    setCartContext('edit');
+    console.log('Pedido completado seleccionado en logic:', order);
     
     setSelectedOrderId(order._id);
     
-    // Cargar datos básicos
-    setCustomerName(order.buyer?.name || order.name || '');
-    setSelectedPaymentMethod(order.payment || 'Efectivo');
-    setComment(order.comment || order.buyer?.comment || 'sin comentarioooox');
-    
-    // Transformar pedido a formato de carrito
-    const cartItems = order.foods.map((item) => ({
-      _id: item.food._id,
-      title: item.food.title,
-      quantity: item.quantity,
-      price: item.food.price,
-      comment: item.comment || '',
-    }));
-    
-    // Actualizar el carrito como última operación para reducir renders
-    setCart(cartItems);
-    
-    // Cargar campos específicos para este tipo
-    if (detailsConfig.loadSpecificFields) {
-      const specificData = detailsConfig.loadSpecificFields(order);
-      updateField('customerPhone', specificData.customerPhone);
-      updateField('deliveryAddress', specificData.deliveryAddress);
-      // Aplicar otros campos específicos
-    }
-    
-    // Navegar a la URL del pedido seleccionado
-    navigate(`/${section}/${order.orderNumber}`);
+    // Usar el hook especializado
+    selectCompletedOrder(order, {
+      section,
+      setCustomerName,
+      setSelectedPaymentMethod,
+      setComment,
+      updateField,
+      loadSpecificFields: detailsConfig.loadSpecificFields
+    });
   };
 
+    // Filtrar pedidos según su estado
+  const preparationOrders = orders.filter(
+    (order) => order.section === section && order.status === 'Preparacion'
+  );
+  
+  // Personalizar el filtro para completados según tipo
+  const completedOrdersFilter = detailsConfig.completedOrdersFilter || 
+    ((order) => order.section === section && 
+               (order.status === 'Completado' || order.status === 'Cancelado'));
+               
+  const completedOrders = orders.filter(completedOrdersFilter);
+
   // Enviar actualización de pedido
-  const handleSubmit = async (e, resetForm, status = 'Preparacion', sectionName = section) => {
+  const handleOrderUpdate = async (e, resetForm, status = 'Preparacion', sectionName = section) => {
     
     console.log('useOrderDetailsLogic.js: handleSubmit');
     if (e && e.preventDefault) e.preventDefault();
@@ -145,17 +140,7 @@ export const useOrderDetailsLogic = ({
     }
   };
 
-  // Filtrar pedidos según su estado
-  const preparationOrders = orders.filter(
-    (order) => order.section === section && order.status === 'Preparacion'
-  );
-  
-  // Personalizar el filtro para completados según tipo
-  const completedOrdersFilter = detailsConfig.completedOrdersFilter || 
-    ((order) => order.section === section && 
-               (order.status === 'Completado' || order.status === 'Cancelado'));
-               
-  const completedOrders = orders.filter(completedOrdersFilter);
+
 
   return {
     // Estados base
@@ -175,7 +160,7 @@ export const useOrderDetailsLogic = ({
     
     // Métodos
     handleSelectCompletedOrder,
-    handleSubmit,
+    handleOrderUpdate,
     
     // Listas filtradas
     preparationOrders,

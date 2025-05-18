@@ -78,7 +78,7 @@ const DeliveryDetails = () => {  const { orderNumber } = useParams();
     specificFields,
     updateField,
     handleSelectCompletedOrder,
-    handleSubmit,
+    handleOrderUpdate,
     preparationOrders,
     completedOrders,
   } = useOrderDetailsLogic({
@@ -99,7 +99,7 @@ const DeliveryDetails = () => {  const { orderNumber } = useParams();
     setDeliveryCost: (value) => updateField('deliveryCost', value),
     selectedPaymentMethod,
     setSelectedPaymentMethod,
-    handleSubmit,
+    handleOrderUpdate,
     editingOrderId: editingOrder?._id,
     setEditingOrderId: () => {},
     isViewingCompletedOrder,

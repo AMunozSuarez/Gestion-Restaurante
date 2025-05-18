@@ -100,7 +100,7 @@ const Delivery = () => {
     };
 
     const handleSelectCompletedOrder = (order) => {
-        console.log('Pedido completo seleccionado en delivery');
+        console.log('Pedido completado seleccionado en delivery');
         setEditingOrderId(null); // Desmarcar cualquier pedido en edición
         setEditingOrderId(order._id); // Activar modo de edición
         setSelectedOrderId(order._id);

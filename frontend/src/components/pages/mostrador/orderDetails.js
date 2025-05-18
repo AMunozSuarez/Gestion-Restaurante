@@ -39,7 +39,7 @@ const OrderDetails = () => {
     setComment,
     selectedOrderId,
     handleSelectCompletedOrder,
-    handleSubmit,
+    handleOrderUpdate,
     preparationOrders,
     completedOrders,
   } = useOrderDetailsLogic({
@@ -54,7 +54,7 @@ const OrderDetails = () => {
     setCustomerName,
     selectedPaymentMethod,
     setSelectedPaymentMethod,
-    handleSubmit,
+    handleOrderUpdate,
     editingOrderId: editingOrder?._id,
     setEditingOrderId: () => {},
     isViewingCompletedOrder,

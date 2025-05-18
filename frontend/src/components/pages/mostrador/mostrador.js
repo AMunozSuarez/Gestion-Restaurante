@@ -39,6 +39,7 @@ const Mostrador = () => {
 
     // Manejar la selección de un pedido completado/cancelado
     const handleSelectCompletedOrder = (order) => {
+        console.log('Pedido completado/cancelado seleccionado en mostrador:');
         setEditingOrderId(null); // Desmarcar cualquier pedido en edición
         setSelectedOrderId(order._id); // Marcar el pedido completado seleccionado
         setCustomerName(order.buyer?.name || '');

@@ -41,6 +41,11 @@ export const useOrderLoader = ({
 
   // Efecto para cargar el pedido cuando cambia el orderNumber
   useEffect(() => {
+    
+    // Configurar contexto del carrito
+    // setCartContext('edit');
+
+
     // Si ya estamos procesando este pedido, evitar ciclo
     if (processingOrderRef.current === orderNumber) {
       return;
@@ -49,8 +54,6 @@ export const useOrderLoader = ({
     // Marcar procesamiento
     processingOrderRef.current = orderNumber;
     
-    // Configurar contexto del carrito
-    setCartContext('edit');
     
     // Buscar pedido por número
     const foundOrder = orders.find((o) => o.orderNumber === parseInt(orderNumber, 10));
@@ -102,7 +105,7 @@ export const useOrderLoader = ({
         processingOrderRef.current = null;
       }
     };
-  }, [orderNumber, orders, setCart, setCartContext, config]);
+  }, [orderNumber, orders, setCart, config]);
 
   return {
     // Estados
