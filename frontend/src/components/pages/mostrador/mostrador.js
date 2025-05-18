@@ -8,6 +8,20 @@ import CompletedOrdersList from '../../lists/completedOrdersList';
 import '../../../styles/mostrador.css';
 import useCartStore from '../../../store/useCartStore';
 import { CSSTransition } from 'react-transition-group';
+import { useOrderDetailsLogic } from '../../../hooks/business/useOrderDetailsLogic'; // Importar hook
+
+// Configuración específica para pedidos de mostrador
+const mostradorConfig = {
+  checkCompletedStatus: (order) => 
+    order.status === 'Completado' || order.status === 'Cancelado',
+  
+  // Mostrador no tiene campos específicos adicionales como delivery
+  loadSpecificFields: () => ({}),
+  
+  completedOrdersFilter: (order) => 
+    order.section === 'mostrador' && 
+    (order.status === 'Completado' || order.status === 'Cancelado')
+};
 
 const Mostrador = () => {
     const { orders, isLoading, updateOrderStatus } = useOrders();
@@ -25,6 +39,12 @@ const Mostrador = () => {
     const [selectedOrderId, setSelectedOrderId] = useState(null); // Estado para el pedido completado seleccionado
     const [comment, setComment] = useState(''); // Estado para el comentario
     const navigate = useNavigate();
+    
+    // Usar SOLO handleSelectCompletedOrder del hook useOrderDetailsLogic
+    const { handleSelectCompletedOrder: selectOrderFromHook } = useOrderDetailsLogic({
+      section: 'mostrador',
+      detailsConfig: mostradorConfig
+    });
 
     useEffect(() => {
         setCartContext('create');
@@ -37,29 +57,20 @@ const Mostrador = () => {
     const preparationOrders = orders.filter((order) => order.status === 'Preparacion');
     const completedOrders = orders.filter((order) => order.section === 'mostrador' && (order.status === 'Completado' || order.status === 'Cancelado'));
 
-    // Manejar la selección de un pedido completado/cancelado
+    // Refactorizado para usar el hook especializado
     const handleSelectCompletedOrder = (order) => {
         console.log('Pedido completado/cancelado seleccionado en mostrador:');
+        
+        // Mantener estados locales específicos de Mostrador
         setEditingOrderId(null); // Desmarcar cualquier pedido en edición
         setSelectedOrderId(order._id); // Marcar el pedido completado seleccionado
-        setCustomerName(order.buyer?.name || '');
-        setSelectedPaymentMethod(order.payment);
-        setComment(order.comment || ''); // Establecer el comentario si existe
-        
-
-        const cartItems = order.foods.map((item) => ({
-            _id: item.food._id,
-            title: item.food.title,
-            quantity: item.quantity,
-            price: item.food.price,
-        }));
-        setCart(cartItems);
-
         setIsViewingCompletedOrder(true); // Activar modo de solo visualización
+        
+        // Usar la función del hook para la lógica común
+        selectOrderFromHook(order);
+        
+        // Cualquier lógica adicional específica de Mostrador puede ir aquí
         console.log('Pedido seleccionado:', order);
-
-        // Redirigir a la URL del pedido completado/cancelado
-        navigate(`/mostrador/${order.orderNumber}`);
     };
 
     // Función para marcar un pedido como completado
@@ -67,10 +78,6 @@ const Mostrador = () => {
         console.log(`Marcando el pedido ${orderId} como completado.`);
         updateOrderStatus(orderId, 'Completado'); // Llama a la API o actualiza el estado local
     };
-
-    
-
-
 
     // Manejar la selección de un pedido en edición
     const handleSelectEditingOrder = (orderId) => {
@@ -81,13 +88,13 @@ const Mostrador = () => {
     };
 
     // Función para volver al estado de "Crear Pedido"
-        const resetForm = () => {
-            setCustomerName('');
-            setSelectedPaymentMethod('Efectivo');
-            clearCart();
-            setEditingOrderId(null);
-            setComment(''); // Restablecer el comentario
-        };
+    const resetForm = () => {
+        setCustomerName('');
+        setSelectedPaymentMethod('Efectivo');
+        clearCart();
+        setEditingOrderId(null);
+        setComment(''); // Restablecer el comentario
+    };
 
     return (
         <CSSTransition
@@ -130,6 +137,7 @@ const Mostrador = () => {
                                 orders={completedOrders}
                                 onSelectOrder={handleSelectCompletedOrder}
                                 selectedOrderId={selectedOrderId}
+                                section="mostrador"
                             />
                         </div>
                     </div>

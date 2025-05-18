@@ -1,13 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useOrders } from '../../../hooks/api/useOrders'; // Hook para obtener los pedidos
-import { useOrderForm } from '../../../hooks/forms/useOrderForm'; // Hook para manejar el formulario de pedidos
+import { useOrders } from '../../../hooks/api/useOrders';
+import { useOrderForm } from '../../../hooks/forms/useOrderForm';
 import OrderFormDelivery from '../../forms/specialized/OrderFormDelivery';
 import CompletedOrdersList from '../../lists/completedOrdersList';
 import '../../../styles/delivery.css';
 import useCartStore from '../../../store/useCartStore';
 import { CSSTransition } from 'react-transition-group';
 import OrderListDelivery from '../../lists/orderListDelivery';
+import { useOrderDetailsLogic } from '../../../hooks/business/useOrderDetailsLogic';
+
+// Definir la configuración específica para pedidos de delivery
+const deliveryConfig = {
+  // Configuración de cómo se detectan pedidos completados en delivery
+  checkCompletedStatus: (order) => 
+    order.status === 'Enviado' || order.status === 'Cancelado',
+  
+  // Función para cargar campos específicos de delivery
+  loadSpecificFields: (order) => ({
+    customerPhone: order.buyer?.phone || '',
+    deliveryAddress: order.selectedAddress || '',
+    deliveryCost: order.deliveryCost || 0
+  })
+};
 
 const Delivery = () => {
     const { orders, isLoading, updateOrderStatus } = useOrders();
@@ -27,18 +42,24 @@ const Delivery = () => {
         setEditingOrderId,
         comment,
         setComment,
-    } = useOrderForm(); // Usar el hook actualizado
+    } = useOrderForm();
     const { setCartContext, clearCart, setCart } = useCartStore();
     const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState(null);
     const navigate = useNavigate();
     const { orderNumber } = useParams();
+    
+    // Usar SOLO handleSelectCompletedOrder del hook useOrderDetailsLogic
+    const { handleSelectCompletedOrder: selectOrderFromHook } = useOrderDetailsLogic({
+      section: 'delivery',
+      detailsConfig: deliveryConfig
+    });
 
     useEffect(() => {
         // Establecer el contexto del carrito solo una vez al montar el componente
         setCartContext('delivery');
         clearCart(); // Limpiar el carrito solo al montar
-    }, []); // Elimina dependencias innecesarias como setCartContext y clearCart
+    }, []);
 
     useEffect(() => {
         if (orderNumber) {
@@ -49,8 +70,6 @@ const Delivery = () => {
                 setCustomerName(foundOrder.buyer.name);
                 setCustomerPhone(foundOrder.buyer.phone);
                 setDeliveryAddress(foundOrder.selectedAddress || '');
-                
-                // Corregir esto: usar la propiedad deliveryCost directa del pedido
                 setDeliveryCost(foundOrder.deliveryCost || 0);
                 setSelectedPaymentMethod(foundOrder.payment);
                 setComment(foundOrder.comment || '');
@@ -64,18 +83,14 @@ const Delivery = () => {
                 }));
                 setCart(cartItems);
                 
-                // Importante: asegurarnos de que no estamos en modo de solo visualización
-                // si estamos editando un pedido
                 setIsViewingCompletedOrder(false);
-                
-                
             }
         } else {
             setEditingOrderId(null);
             setSelectedOrderId(null);
             setIsViewingCompletedOrder(false);
         }
-    }, [orderNumber, orders, setCart]); // Elimina dependencias innecesarias como setCart
+    }, [orderNumber, orders]);
 
     if (isLoading) return <p>Cargando pedidos...</p>;
 
@@ -89,39 +104,28 @@ const Delivery = () => {
         setCustomerPhone('');
         setDeliveryCost('');
         setComment('');
-        clearCart(); // Limpiar el carrito
-        setEditingOrderId(null); // Restablecer el ID del pedido en edición
+        clearCart();
+        setEditingOrderId(null);
     };
 
     // Función para cancelar un pedido
     const cancelOrder = (orderId) => {
         console.log(`Cancelando el pedido ${orderId}.`);
-        updateOrderStatus(orderId, 'Cancelado'); // Llama a la API o actualiza el estado local
+        updateOrderStatus(orderId, 'Cancelado');
     };
 
+    // Envoltorio para handleSelectCompletedOrder que mantiene la lógica específica de Delivery
     const handleSelectCompletedOrder = (order) => {
-        console.log('Pedido completado seleccionado en delivery');
-        setEditingOrderId(null); // Desmarcar cualquier pedido en edición
-        setEditingOrderId(order._id); // Activar modo de edición
+        
+        // Mantener estados locales específicos de Delivery
+        setEditingOrderId(order._id);
         setSelectedOrderId(order._id);
-        setCustomerName(order.buyer.name);
-        setCustomerPhone(order.buyer.phone);
-        setDeliveryAddress(order.selectedAddress || ''); // Cargar la dirección de entrega
-        setDeliveryCost(order.deliveryCost || 0); // Cargar el costo de envío
-        setSelectedPaymentMethod(order.payment);
-        setComment(order.comment || '');
-
-        const cartItems = order.foods.map((item) => ({
-            _id: item.food._id,
-            title: item.food.title,
-            quantity: item.quantity,
-            price: item.food.price,
-            comment: item.comment || '',
-        }));
-        setCart(cartItems);
-
-        setIsViewingCompletedOrder(true); // Asegurarse de que no esté en modo de solo visualización
-        navigate(`/delivery/${order.orderNumber}`); // Navegar a la URL del pedido
+        setIsViewingCompletedOrder(true);
+        
+        // Usar la función del hook
+        selectOrderFromHook(order);
+        
+        // Si hay alguna lógica adicional específica de Delivery, puede ir aquí
     };
 
     return (
