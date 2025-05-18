@@ -9,6 +9,7 @@ const fetchOrders = async () => {
 
 // Hook personalizado para manejar pedidos
 export const useOrders = () => {
+    console.log('useOrders en src/hooks/api/useOrders.js');
     const queryClient = useQueryClient();
 
     // Obtener pedidos

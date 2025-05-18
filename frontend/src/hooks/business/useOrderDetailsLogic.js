@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import axios from '../../services/axiosConfig';
 import useCartStore from '../../store/useCartStore';
 import { useOrders } from '../api/useOrders';
-import { parse } from '@fortawesome/fontawesome-svg-core';
+import { useOrderLoader } from './useOrderLoader';
 
 export const useOrderDetailsLogic = ({
   orderNumber,
@@ -16,109 +16,38 @@ export const useOrderDetailsLogic = ({
   const { orders, updateOrderInList } = useOrders();
   const { cart, setCart, setCartContext } = useCartStore();
   
-  // Estados comunes
-  const [editingOrder, setEditingOrder] = useState(null);
-  const [customerName, setCustomerName] = useState('');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Efectivo');
-  const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
-  const [comment, setComment] = useState('');
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  // Usar el nuevo hook para cargar el pedido
+  const {
+    loadedOrder: editingOrder,
+    customerName,
+    setCustomerName,
+    selectedPaymentMethod,
+    setSelectedPaymentMethod,
+    comment,
+    setComment,
+    isCompletedOrder: isViewingCompletedOrder,
+    specificFields,
+    updateField,
+    reloadOrder
+  } = useOrderLoader({
+    orderNumber,
+    config: {
+      checkCompletedStatus: detailsConfig.checkCompletedStatus,
+      loadSpecificFields: detailsConfig.loadSpecificFields,
+      initialFields: detailsConfig.initialFields
+    }
+  });
   
-  // Estados específicos para delivery (o cualquier tipo futuro)
-  const [specificFields, setSpecificFields] = useState(
-    detailsConfig.initialFields || {}
-  );
-
-  // Referencias para evitar ciclos de carga
-  const isInitialLoad = useRef(true);
-  const processingOrderRef = useRef(null);
-
-  // Funciones para manejar campos específicos
-  const updateField = (fieldName, value) => {
-    setSpecificFields(prev => ({
-      ...prev,
-      [fieldName]: value
-    }));
-  };
-
-  // Cargar pedido inicial
-  useEffect(() => {
-    // Si estamos procesando específicamente este orden, salir
-    // if (processingOrderRef.current === orderNumber) {
-    //   console.log("Evitando ciclo de carga para:", orderNumber);
-    //   return;
-    // }
-    
-    // Marcar que estamos procesando este orden
-    processingOrderRef.current = orderNumber;
-
-    // Indicar que estamos en modo edición para optimizar actualizaciones
-    setCartContext('edit');
-    if (editingOrder && editingOrder.orderNumber === parseInt(orderNumber, 10)) {
-    console.log('Pedido ya cargado, evitando recarga innecesaria:', editingOrder.orderNumber);
-    return;
-  }
-
-    // Buscar pedido por número
-    const foundOrder = orders.find((o) => o.orderNumber === parseInt(orderNumber, 10));
-    
-    // Evitar actualización si el pedido ya está cargado con el mismo ID
-    if (editingOrder?._id === foundOrder?._id) {
-      return;
-    }
-    
-    setEditingOrder(foundOrder || null);
-
-    if (foundOrder) {
-      // Transformar pedido a formato de carrito (una sola vez)\
-      const cartItems = foundOrder.foods.map((item) => ({
-        _id: item.food._id,
-        title: item.food.title,
-        quantity: item.quantity,
-        price: item.food.price,
-        comment: item.comment || '',
-      }));
-      
-      // Actualizar el carrito de una vez, sin provocar actualizaciones parciales
-      setCart(cartItems);
-
-      // Cargar datos básicos comunes
-      setCustomerName(foundOrder.buyer?.name || foundOrder.name || '');
-      setSelectedPaymentMethod(foundOrder.payment || 'Efectivo');
-      setComment(foundOrder.comment || foundOrder.buyer?.comment || '');
-      
-      // Determinar si es un pedido completado/enviado
-      const isCompleted = detailsConfig.checkCompletedStatus(foundOrder);
-      setIsViewingCompletedOrder(isCompleted);
-      
-      // Cargar campos específicos para este tipo de pedido
-      if (detailsConfig.loadSpecificFields) {
-        const specificData = detailsConfig.loadSpecificFields(foundOrder);
-        setSpecificFields(specificData);
-      }
-    }
-
-    // Limpiar referencia al finalizar
-    return () => {
-      if (processingOrderRef.current === orderNumber) {
-        processingOrderRef.current = null;
-      }
-    };
-  }, [orderNumber, orders, setCart, setCartContext, detailsConfig]);
+  // Estados adicionales específicos de esta vista
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   // Seleccionar un pedido completado para ver sus detalles
   const handleSelectCompletedOrder = (order) => {
     console.log('Pedido completo seleccionado en logic:', order);
-    console.log('selectedOrderId:', selectedOrderId);
-    // Evitar actualización si el pedido ya está seleccionado
-    // if (selectedOrderId === order._id) {
-    //   return;
-    // }
     
     // Establecer que estamos en modo edición antes de actualizar el carrito
     setCartContext('edit');
     
-    setEditingOrder(order);
     setSelectedOrderId(order._id);
     
     // Cargar datos básicos
@@ -126,7 +55,7 @@ export const useOrderDetailsLogic = ({
     setSelectedPaymentMethod(order.payment || 'Efectivo');
     setComment(order.comment || order.buyer?.comment || 'sin comentarioooox');
     
-    // Transformar pedido a formato de carrito (preparar datos antes de actualizar state)
+    // Transformar pedido a formato de carrito
     const cartItems = order.foods.map((item) => ({
       _id: item.food._id,
       title: item.food.title,
@@ -134,19 +63,17 @@ export const useOrderDetailsLogic = ({
       price: item.food.price,
       comment: item.comment || '',
     }));
+    
     // Actualizar el carrito como última operación para reducir renders
     setCart(cartItems);
-    
-    // Establecer estado de visualización antes de actualizar el carrito
-    setIsViewingCompletedOrder(true);
     
     // Cargar campos específicos para este tipo
     if (detailsConfig.loadSpecificFields) {
       const specificData = detailsConfig.loadSpecificFields(order);
-      setSpecificFields(specificData);
+      updateField('customerPhone', specificData.customerPhone);
+      updateField('deliveryAddress', specificData.deliveryAddress);
+      // Aplicar otros campos específicos
     }
-    
-    
     
     // Navegar a la URL del pedido seleccionado
     navigate(`/${section}/${order.orderNumber}`);
@@ -154,8 +81,11 @@ export const useOrderDetailsLogic = ({
 
   // Enviar actualización de pedido
   const handleSubmit = async (e, resetForm, status = 'Preparacion', sectionName = section) => {
+    
+    console.log('useOrderDetailsLogic.js: handleSubmit');
     if (e && e.preventDefault) e.preventDefault();
     if (isViewingCompletedOrder) return;
+    if (!editingOrder) return;
 
     // Obtener el valor más reciente del comentario desde el DOM
     const commentElement = document.getElementById('orderComment');
@@ -190,6 +120,7 @@ export const useOrderDetailsLogic = ({
     }
 
     try {
+      console.log('updateOrder en useOrderDetailsLogic.js:');
       const response = await axios.put(`/order/update/${editingOrder._id}`, updatedOrder);
 
       if (response.status === 200) {
@@ -229,7 +160,6 @@ export const useOrderDetailsLogic = ({
   return {
     // Estados base
     editingOrder,
-    setEditingOrder,
     customerName,
     setCustomerName,
     selectedPaymentMethod,

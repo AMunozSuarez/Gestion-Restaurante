@@ -25,30 +25,30 @@ export const useOrderForm = () => {
     const toast = useToast();
 
     // Cargar los datos del pedido seleccionado para editar
-    useEffect(() => {
-        if (editingOrderId) {
-            console.log('Cargando datos del pedido para editar:', editingOrderId); // Depuración
-            const orderToEdit = orders.find((order) => order._id === editingOrderId);
-            if (orderToEdit) {
-                setCustomerName(orderToEdit.buyer?.name || '');
-                setCustomerPhone(orderToEdit.buyer?.phone || '');
-                setDeliveryAddress(orderToEdit.selectedAddress || '');
-                setDeliveryCost(orderToEdit.deliveryCost || 0);
-                setSelectedPaymentMethod(orderToEdit.payment || 'Efectivo');
-                setComment(orderToEdit.comment || orderToEdit.buyer?.comment || ''); // Priorizar el comentario del pedido
-                console.log('Comentario cargado en useOrderForm:', orderToEdit.comment || orderToEdit.buyer?.comment); // Depuración
-                setCart(
-                    orderToEdit.foods.map((item) => ({
-                        _id: item.food._id,
-                        title: item.food.title,
-                        quantity: item.quantity,
-                        price: item.food.price,
-                        comment: item.comment || '',
-                    }))
-                );
-            }
-        }
-    }, [editingOrderId, orders, setCart]);
+    // useEffect(() => {
+    //     if (editingOrderId) {
+    //         console.log('Cargando datos del pedido para editar:', editingOrderId); // Depuración
+    //         const orderToEdit = orders.find((order) => order._id === editingOrderId);
+    //         if (orderToEdit) {
+    //             setCustomerName(orderToEdit.buyer?.name || '');
+    //             setCustomerPhone(orderToEdit.buyer?.phone || '');
+    //             setDeliveryAddress(orderToEdit.selectedAddress || '');
+    //             setDeliveryCost(orderToEdit.deliveryCost || 0);
+    //             setSelectedPaymentMethod(orderToEdit.payment || 'Efectivo');
+    //             setComment(orderToEdit.comment || orderToEdit.buyer?.comment || ''); // Priorizar el comentario del pedido
+    //             console.log('Comentario cargado en useOrderForm:', orderToEdit.comment || orderToEdit.buyer?.comment); // Depuración
+    //             setCart(
+    //                 orderToEdit.foods.map((item) => ({
+    //                     _id: item.food._id,
+    //                     title: item.food.title,
+    //                     quantity: item.quantity,
+    //                     price: item.food.price,
+    //                     comment: item.comment || '',
+    //                 }))
+    //             );
+    //         }
+    //     }
+    // }, [editingOrderId, orders, setCart]);
     const resetForm = () => {
         setCustomerName('');
         setCustomerPhone('');
@@ -274,7 +274,7 @@ export const useOrderForm = () => {
             // Si hay teléfono, crear/actualizar cliente usando la API
             if (customerPhone) {
                 try {
-                    console.log('Creando/actualizando cliente antes de crear pedido...');
+                    console.log('funcion llama a createOrUpdateCustomerBeforeOrder en la funciona handleSubmit de useOrderForm');
                     const updatedCustomer = await createOrUpdateCustomerBeforeOrder(buyerData);
                     
                     if (updatedCustomer && updatedCustomer._id) {
@@ -311,11 +311,13 @@ export const useOrderForm = () => {
 
             if (editingOrderId) {
                 console.log(`Editando pedido con ID: ${editingOrderId} y estado: ${status}`);
+                console.log('funcion llama a updateOrder en la funciona handleSubmit de useOrderForm');
                 const result = await updateOrder(editingOrderId, newOrder);
                 console.log('Pedido actualizado correctamente:', result);
                 if (typeof resetForm === 'function') resetForm();
             } else {
                 await new Promise((resolve, reject) => {
+                    console.log('funcion create order en la funciona handleSubmit de useOrderForm');
                     createOrder(newOrder, {
                         onSuccess: () => {
                             if (typeof resetForm === 'function') resetForm();
@@ -416,7 +418,7 @@ export const useOrderForm = () => {
                     addresses: order.buyer.addresses || customerData.addresses
                 };
             }
-
+            console.log('Funcion llama a updateOrder en la funciona handleUpdateOrderStatus de useOrderForm');
             const response = await updateOrder(order._id, order);
             queryClient.invalidateQueries(['orders']);
             toast.success('Pedido actualizado correctamente');

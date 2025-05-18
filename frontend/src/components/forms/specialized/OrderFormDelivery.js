@@ -34,11 +34,6 @@ const OrderFormDelivery = (props) => {
     const isFetchingRef = useRef(false);
 
 
-    useEffect(() => {
-    console.log('[CART DEBUG] Estado actual del carrito en OrderFormDelivery:', cart);
-    console.log('[CART DEBUG] Cantidad de productos en carrito:', cart.length);
-    console.log('[CART DEBUG] Total calculado del carrito:', getCartTotal());
-}, [cart, getCartTotal]);
     // Efecto para identificar qué props cambiaron y causaron un re-renderizado
     useEffect(() => {
         const changedProps = Object.keys(props).filter(key => {
