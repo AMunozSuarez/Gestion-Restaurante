@@ -5,6 +5,7 @@ import { useOrderForm } from '../../hooks/order/useOrderForm';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClock } from '@fortawesome/free-solid-svg-icons';
 import { formatChileanMoney } from '../../services/utils/formatters';
+import { focusOnElement } from '../common/focus';
 
 const OrderList = ({ orders }) => {
     const navigate = useNavigate();
@@ -58,6 +59,7 @@ const OrderList = ({ orders }) => {
                 onClick={() => {
                     resetForm();
                     navigate('/mostrador');
+                    focusOnElement("customerName");
                 }}
             >
                 Crear Pedido +

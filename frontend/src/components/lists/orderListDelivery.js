@@ -6,6 +6,7 @@ import { useOrders } from '../../hooks/api/useOrders';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane, faClock } from '@fortawesome/free-solid-svg-icons';
 import { formatChileanMoney } from '../../services/utils/formatters';
+import { focusOnElement } from '../common/focus';
 
 
 const OrderListDelivery = () => {
@@ -64,6 +65,7 @@ const OrderListDelivery = () => {
                 className="create-order-button"
                 onClick={() => {
                     navigate('/delivery');
+                    focusOnElement("customerPhone");
                 }}
             >
                 Crear Pedido +

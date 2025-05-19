@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // Añadir useRef a los imports
 import { createCashRegister, getAllCashRegisters, getCashRegisterById, closeCashRegister } from '../../api/cashApi';
-import '../../styles/admin/cashRegister.css'; // Estilos específicos para la página de caja
-import AdminSubheader from '../layout/adminSubheader'; // Subheader para navegación
+import '../../styles/admin/cashRegister.css';
+import AdminSubheader from '../layout/adminSubheader';
+import { formatChileanMoney } from '../../services/utils/formatters';
 
 const CashRegister = () => {
     const [allCashRegisters, setAllCashRegisters] = useState([]);
     const [selectedCashRegister, setSelectedCashRegister] = useState(null);
     const [initialBalance, setInitialBalance] = useState('');
-    const [isModalOpen, setIsModalOpen] = useState(false); // Estado para controlar la ventana modal
-    const [officialIncome, setOfficialIncome] = useState({}); // Estado para los ingresos oficiales por método de pago
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [officialIncome, setOfficialIncome] = useState({});
+    
+    // Crear una referencia para el input de saldo inicial
+    const initialBalanceInputRef = useRef(null);
 
     // Obtener todas las cajas
     const fetchAllCashRegisters = async () => {
@@ -31,9 +35,9 @@ const CashRegister = () => {
                 return;
             }
             await createCashRegister({ initialBalance });
-            setInitialBalance(''); // Limpiar el campo de saldo inicial
-            setIsModalOpen(false); // Cerrar la ventana modal
-            fetchAllCashRegisters(); // Actualizar la lista de cajas
+            setInitialBalance('');
+            setIsModalOpen(false);
+            fetchAllCashRegisters();
         } catch (error) {
             console.error('Error al crear la caja:', error);
         }
@@ -50,7 +54,7 @@ const CashRegister = () => {
                 const initialIncome = {};
                 response.data.cashRegister.orders.forEach((order) => {
                     if (!initialIncome[order.paymentMethod]) {
-                        initialIncome[order.paymentMethod] = 0;
+                        initialIncome[order.paymentMethod] = '';
                     }
                 });
                 setOfficialIncome(initialIncome);
@@ -63,11 +67,11 @@ const CashRegister = () => {
     // Cerrar una caja abierta
     const handleCloseCashRegister = async () => {
         try {
-            const totalReal = calculateOfficialTotal(); // Calcular el total real
-            await closeCashRegister({ officialIncome }); // Enviar los ingresos oficiales al backend
+            const totalReal = calculateOfficialTotal();
+            await closeCashRegister({ officialIncome });
             alert('Caja cerrada exitosamente.');
-            setSelectedCashRegister(null); // Limpiar el detalle de la caja seleccionada
-            fetchAllCashRegisters(); // Actualizar la lista de cajas
+            setSelectedCashRegister(null);
+            fetchAllCashRegisters();
         } catch (error) {
             console.error('Error al cerrar la caja:', error);
         }
@@ -78,9 +82,20 @@ const CashRegister = () => {
         return Object.values(officialIncome).reduce((sum, value) => sum + parseFloat(value || 0), 0);
     };
 
+    // Cargar las cajas al iniciar el componente
     useEffect(() => {
         fetchAllCashRegisters();
     }, []);
+    
+    // Efecto para poner el foco en el input cuando se abre el modal
+    useEffect(() => {
+        if (isModalOpen && initialBalanceInputRef.current) {
+            // Pequeño timeout para asegurar que el modal esté completamente renderizado
+            setTimeout(() => {
+                initialBalanceInputRef.current.focus();
+            }, 50);
+        }
+    }, [isModalOpen]);
 
     // Calcular el total dividido por métodos de pago
     const calculatePaymentMethods = (orders) => {
@@ -94,7 +109,7 @@ const CashRegister = () => {
     return (
         <div className="cash-register">
             
-            <AdminSubheader /> {/* Subheader para cambiar entre páginas */}
+            <AdminSubheader />
             <button className="open-modal-button" onClick={() => setIsModalOpen(true)}>Crear Nueva Caja</button>
 
             <div className="cash-register-container">
@@ -118,8 +133,8 @@ const CashRegister = () => {
                                 <p>{new Date(register.dateOpened).toLocaleString()}</p>
                                 <p>{register.dateClosed ? new Date(register.dateClosed).toLocaleString() : ''}</p>
                                 <p>{register.status}</p>
-                                <p>${register.initialBalance}</p>
-                                <p>${register.amountSystem}</p>
+                                <p>{formatChileanMoney(register.initialBalance)}</p>
+                                <p>{formatChileanMoney(register.amountSystem)}</p>
                             </li>
                         ))}
                     </ul>
@@ -149,7 +164,7 @@ const CashRegister = () => {
                             </div>
                             <div className="detail-row">
                                 <p><strong>Saldo Inicial:</strong></p>
-                                <p>${selectedCashRegister.initialBalance}</p>
+                                <p>{formatChileanMoney(selectedCashRegister.initialBalance)}</p>
                             </div>
                         </section>
 
@@ -157,26 +172,31 @@ const CashRegister = () => {
                         <section className="detail-section">
                             <h4>Ingresos</h4>
                             <div className="detail-row">
-                                <p><strong>Ingresos Totales:</strong></p>
-                                <p>${Object.values(calculatePaymentMethods(selectedCashRegister.orders)).reduce((sum, total) => sum + total, 0).toFixed(0)}</p>
-                            </div>
-                            <div className="detail-row">
                                 <p><strong>Ingresos por Método de Pago:</strong></p>
-                                <ul>
-                                    {Object.entries(calculatePaymentMethods(selectedCashRegister.orders)).map(([method, total]) => (
-                                        <li key={method}>
-                                            <strong>{method}:</strong> ${total.toFixed(0)}
-                                        </li>
-                                    ))}
-                                </ul>
+                            </div>
+                            <ul className="method-list">
+                                {Object.entries(calculatePaymentMethods(selectedCashRegister.orders)).map(([method, total]) => (
+                                    <li key={method}>
+                                        <span className="method-name">{method}:</span>
+                                        <span className="method-value">{formatChileanMoney(total)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <div className="total-row">
+                                <span>Total:</span>
+                                <span className="total-value">{formatChileanMoney(
+                                    Object.values(calculatePaymentMethods(selectedCashRegister.orders))
+                                        .reduce((sum, total) => sum + total, 0)
+                                )}</span>
                             </div>
                         </section>
 
                         {/* Saldo Final */}
                         <section className="detail-section">
+                            <h4>Saldo Final</h4>
                             <div className="detail-row">
-                                <p><h4><strong>Saldo Final:</strong></h4></p>
-                                <p>${selectedCashRegister.amountSystem}</p>
+                                <p><strong>Ingreso Total:</strong></p>
+                                <p>{formatChileanMoney(selectedCashRegister.amountSystem)}</p>
                             </div>
                         </section>
 
@@ -201,7 +221,10 @@ const CashRegister = () => {
                                         </div>
                                     ))}
                                 </form>
-                                <p><strong>Total Real:</strong> ${calculateOfficialTotal().toFixed(0)}</p>
+                                <div className="total-row">
+                                    <span>Total Real:</span>
+                                    <span className="total-value">{formatChileanMoney(calculateOfficialTotal())}</span>
+                                </div>
                             </section>
                         )}
 
@@ -209,14 +232,18 @@ const CashRegister = () => {
                         {selectedCashRegister.status === 'Cerrada' && (
                             <section className="detail-section">
                                 <h4>Ingresos Oficiales Registrados</h4>
-                                <ul>
+                                <ul className="method-list">
                                     {Object.entries(selectedCashRegister.officialIncome || {}).map(([method, total]) => (
                                         <li key={method}>
-                                            <strong>{method}:</strong> ${total.toFixed(0)}
+                                            <span className="method-name">{method}:</span>
+                                            <span className="method-value">{formatChileanMoney(total)}</span>
                                         </li>
                                     ))}
                                 </ul>
-                                <p><strong>Total Real Registrado:</strong> ${selectedCashRegister.amountSystem.toFixed(0)}</p>
+                                <div className="total-row">
+                                    <span>Total Real Registrado:</span>
+                                    <span className="total-value">{formatChileanMoney(selectedCashRegister.amountSystem)}</span>
+                                </div>
                             </section>
                         )}
 
@@ -242,6 +269,7 @@ const CashRegister = () => {
                                 value={initialBalance}
                                 onChange={(e) => setInitialBalance(e.target.value)}
                                 required
+                                ref={initialBalanceInputRef} // Asignar la referencia al input
                             />
                             <button type="submit">Crear</button>
                             <button type="button" onClick={() => setIsModalOpen(false)}>Cancelar</button>
