@@ -48,6 +48,8 @@ const Delivery = () => {
     const [selectedOrderId, setSelectedOrderId] = useState(null);
     const navigate = useNavigate();
     const { orderNumber } = useParams();
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+
     
     // Usar SOLO handleSelectCompletedOrder del hook useOrderDetailsLogic
     const { handleSelectCompletedOrder: selectOrderFromHook } = useOrderDetailsLogic({
@@ -67,6 +69,7 @@ const Delivery = () => {
     const completedOrders = orders.filter((order) => order.section === 'delivery' && (order.status === 'Enviado' || order.status === 'Cancelado'));
 
     const resetForm = () => {
+        console.log('resetForm de Delivery.js');
         setCustomerName('');
         setDeliveryAddress('');
         setSelectedPaymentMethod('Efectivo');
@@ -76,6 +79,7 @@ const Delivery = () => {
         clearCart();
         setEditingOrderId(null);
     };
+    
 
     // Función para cancelar un pedido
     const cancelOrder = (orderId) => {

@@ -1,272 +1,176 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartManagement } from '../../../hooks/cart/useCartManagement';
 import { useOrderForm } from '../../../hooks/order/useOrderForm';
 import { useCustomerSearch } from '../../../hooks/customer/useCustomerSearch';
 import BaseOrderForm from '../base/BaseOrderForm';
 import CustomerAutocomplete from '../../common/CustomerAutocomplete';
-import axios from '../../../services/axiosConfig';
 import '../../../styles/components/customerAutocomplete.css';
 
 const OrderFormDelivery = (props) => {    
     // Contador de renderizado para depuración
     const renderCount = useRef(0);
-    // Referencias para rastrear valores previos
-    const prevProps = useRef({});
-    
-    // Incrementa el contador en cada renderizado
     renderCount.current = renderCount.current + 1;
     
     const navigate = useNavigate();
     const { cart, cartTotal, getCartTotal, clearCart } = useCartManagement();
     const { completeOrder } = useOrderForm();
-    // Usar el hook centralizado para búsqueda de clientes
+    
+    // Usar el hook centralizado con todas las funcionalidades
     const { 
-        fetchCustomerData: fetchCustomerCentralized, 
-        isLoading: isLoadingCustomer 
+        selectedCustomer,
+        customerAddresses,
+        isAddingNewAddress,
+        isEditingAddress,
+        originalAddress,
+        fetchCustomerData,
+        handleCustomerSelect,
+        handleAddressChange,
+        startEditingAddress,
+        cancelAddressAction,
+        prepareCustomerDataForOrder,
+        resetAddressStates,
+        resetAll  // Incluir la nueva función
     } = useCustomerSearch();
-    const [customerAddresses, setCustomerAddresses] = useState([]);
-    const [isAddingNewAddress, setIsAddingNewAddress] = useState(false);
-    const [isEditingAddress, setIsEditingAddress] = useState(false);
-    const [selectedCustomer, setSelectedCustomer] = useState(null);
-    const [originalAddress, setOriginalAddress] = useState('');
-    // Ref para rastrear si hay una búsqueda en curso
-    const isFetchingRef = useRef(false);
 
-
-    // Efecto para identificar qué props cambiaron y causaron un re-renderizado
+    // Cargar cliente cuando se edita un pedido
     useEffect(() => {
-        const changedProps = Object.keys(props).filter(key => {
-            if (typeof props[key] === 'function') return false; // Ignorar funciones
-            return JSON.stringify(props[key]) !== JSON.stringify(prevProps.current[key]);
-        });
-        
-        
-        // Actualizar referencia de props anteriores
-        prevProps.current = { ...props };
-    });
-      // Effect para reset address mode when customer is cleared
-    useEffect(() => {
-        
-        // If the phone is cleared or no customer is selected
-        if (!props.customerPhone) {
-            setSelectedCustomer(null);
-            setCustomerAddresses([]);
-            setIsAddingNewAddress(false);
-            setIsEditingAddress(false); 
-        }
-    }, [props.customerPhone]);    // Reemplazar el useEffect que carga datos de cliente en edición
-    useEffect(() => {
-        
-        // Solo ejecutar cuando estamos editando un pedido y tenemos un número de teléfono
         if (props.editingOrderId && props.customerPhone) {
-
-            // resetear estados de edición
-            setIsAddingNewAddress(false);
-            setIsEditingAddress(false);
-            
-            // Usar la función centralizada de búsqueda
-            fetchCustomerData(props.customerPhone);
+            fetchCustomerData(
+                props.customerPhone,
+                props.deliveryAddress,
+                props.deliveryCost,
+                props.customerName
+            );
         }
-    }, [props.editingOrderId, props.customerPhone]);
+    }, [props.editingOrderId, props.customerPhone, props.deliveryAddress, props.deliveryCost, props.customerName, fetchCustomerData]);
 
-    // Nueva función que utiliza el hook centralizado
-    const fetchCustomerData = async (phone) => {
-        try {
-            // Usar el endpoint de búsqueda que ya existe
-            const response = await axios.get(`/customer/search?query=${phone}`);
+    // Resetear estados cuando se limpia el teléfono
+    useEffect(() => {
+        if (!props.customerPhone) {
+            console.log('[OrderFormDelivery] Teléfono limpiado, reseteando todos los estados');
+            resetAll(); // Limpiar todos los estados, no solo los de dirección
+        }
+    }, [props.customerPhone, resetAll]);
+
+    // Agregar un efecto adicional para detectar reseteo completo del formulario
+    // Este es crucial para atrapar cuando el formulario se resetea desde afuera
+    useEffect(() => {
+        // Si los campos principales están vacíos todos a la vez, probablemente se llamó resetForm
+        if (!props.customerPhone && !props.customerName && !props.deliveryAddress) {
+            console.log('[OrderFormDelivery] Detectado resetForm, limpiando estados internos');
+            resetAll();
+        }
+    }, [props.customerPhone, props.customerName, props.deliveryAddress, resetAll]);
+
+    // Adaptador para la selección de cliente
+    const onCustomerSelectHandler = (customerData) => {
+        handleCustomerSelect(customerData, {
+            setCustomerName: props.setCustomerName,
+            setCustomerPhone: props.setCustomerPhone,
+            setDeliveryAddress: props.setDeliveryAddress,
+            setDeliveryCost: props.setDeliveryCost,
+            setComment: props.setComment
+        });
+    };
+
+    // Adaptador para cambio de dirección
+    const onAddressChangeHandler = (e) => {
+        handleAddressChange(e.target.value, {
+            setDeliveryAddress: props.setDeliveryAddress,
+            setDeliveryCost: props.setDeliveryCost
+        });
+    };
+
+    // Adaptador para iniciar edición de dirección
+    const onStartEditAddressHandler = () => {
+        startEditingAddress(props.deliveryAddress, props.deliveryCost);
+    };
+    
+    // Adaptador para cancelar edición
+    const onCancelEditAddressHandler = () => {
+        cancelAddressAction({
+            setDeliveryAddress: props.setDeliveryAddress,
+            setDeliveryCost: props.setDeliveryCost
+        });
+    };
+
+    // Acción para enviar pedido
+    const handleSendOrder = async () => {
+        try {    
+            // Validar campos requeridos
+            if (cart.length === 0) {
+                alert('El carrito está vacío. Agrega productos antes de enviar el pedido.');
+                return;
+            }       
             
-            if (response.data && response.data.success && response.data.customers && response.data.customers.length > 0) {
-                // Encontrar el cliente exacto con el mismo teléfono
-                const exactCustomer = response.data.customers.find(c => c.phone === phone);
-                
-                if (exactCustomer) {
-                    setSelectedCustomer(exactCustomer);
-                    
-                    // Cargar las direcciones del cliente
-                    if (exactCustomer.addresses && exactCustomer.addresses.length > 0) {
-                        setCustomerAddresses(exactCustomer.addresses);
-                        
-                        // Si hay una dirección seleccionada en el pedido, asegurarnos de que esté en las opciones
-                        const addressExists = exactCustomer.addresses.some(
-                            addr => addr.address === props.deliveryAddress
-                        );
-                        
-                        if (!addressExists && props.deliveryAddress) {
-                            // Si la dirección del pedido no está en las direcciones del cliente, agregarla temporalmente
-                            // pero NO la guardamos en el cliente hasta que se envíe el formulario
-                            const newAddresses = [...exactCustomer.addresses, {
-                                address: props.deliveryAddress,
-                                deliveryCost: Number(props.deliveryCost) || 0,
-                                _isTemporary: true // Marcar como temporal para identificarla
-                            }];
-                            setCustomerAddresses(newAddresses);
-                        }
-                    }
-                } else {
-                    // Si no hay cliente exacto, usar los datos del pedido
-                    createTemporaryCustomer();
-                }
-            } else {
-                // Si no hay resultados, usar los datos del pedido
-                createTemporaryCustomer();
+            // Preparar los datos del cliente usando la función centralizada
+            const customerData = prepareCustomerDataForOrder({
+                customerName: props.customerName,
+                customerPhone: props.customerPhone,
+                deliveryAddress: props.deliveryAddress,
+                deliveryCost: props.deliveryCost,
+                comment: props.comment
+            });
+            
+            // Calcular el total más actualizado
+            const calculatedTotal = getCartTotal();
+            
+            // Crear el objeto de pedido
+            const orderData = {
+                _id: props.editingOrderId,
+                status: 'Enviado',
+                buyer: customerData,
+                foods: cart.map((item) => ({
+                    food: item._id,
+                    quantity: item.quantity,
+                    comment: item.comment || '',
+                })),
+                payment: props.selectedPaymentMethod,
+                total: calculatedTotal + Number(props.deliveryCost),
+                section: 'delivery',
+                selectedAddress: props.deliveryAddress,
+                deliveryCost: Number(props.deliveryCost) || 0
+            };
+            
+            // Datos del carrito para la caja
+            const cartData = {
+                cart,
+                cartTotal: calculatedTotal,
+                deliveryCost: props.deliveryCost,
+                selectedPaymentMethod: props.selectedPaymentMethod
+            };
+            
+            // Usar la función combinada que maneja ambas operaciones
+            const result = await completeOrder(orderData, cartData);
+            
+            if (result) {
+                // Limpiar y redireccionar después de operaciones exitosas
+                clearCart();
+                props.resetForm();
+                navigate('/delivery');
             }
         } catch (error) {
-            console.error("[DEBUG] fetchCustomerData - Error al buscar cliente:", error);
-            createTemporaryCustomer();
-        } finally {
-            // Resetear el estado de búsqueda
-            isFetchingRef.current = false;
+            console.error('Error al procesar el pedido:', error);
+            alert('Hubo un error al procesar el pedido. Inténtalo nuevamente.');
         }
     };
 
-    // Función para crear un cliente temporal con los datos del pedido
-    const createTemporaryCustomer = () => {
-        const tempCustomer = {
-            name: props.customerName,
-            phone: props.customerPhone,
-            addresses: props.deliveryAddress ? [{
-                address: props.deliveryAddress,
-                deliveryCost: Number(props.deliveryCost) || 0
-            }] : [],
-            _isTemporary: true
-        };
-        
-        // console.log("Creando cliente temporal:", tempCustomer);
-        setSelectedCustomer(tempCustomer);
-        setCustomerAddresses(tempCustomer.addresses);
-    };    // Modificar handleCustomerSelect para consultar al servidor centralizado
-    const handleCustomerSelect = async (customerData) => {
-        
-        // Siempre actualizar el teléfono, que viene en todas las llamadas
-        props.setCustomerPhone(customerData.phone || '');
-        
-        // Si se limpió la selección o solo viene phone
-        if (!customerData.phone || (Object.keys(customerData).length === 1 && customerData.phone)) {
-            if (!customerData.phone) {
-                props.setCustomerName('');
-                props.setComment('');
-                props.setDeliveryAddress('');
-                props.setDeliveryCost('');
-                setCustomerAddresses([]);
-                setSelectedCustomer(null);
-                setIsAddingNewAddress(false);
-                setIsEditingAddress(false);
-            } else {
-                // Si solo tenemos el teléfono y no estamos ya buscando, consultar al servidor centralizado
-                if (!isFetchingRef.current) {
-                    console.log("[DEBUG] handleCustomerSelect - Buscando cliente por teléfono:", customerData.phone);
-                    fetchCustomerData(customerData.phone);
-                } else {
-                    console.log("[DEBUG] handleCustomerSelect - Ya hay una búsqueda en curso, omitiendo");
-                }
-            }
-            return;
-        }
-        
-        // Si ya tenemos los datos completos (desde el autocomplete)
-        console.log("[DEBUG] handleCustomerSelect - Cliente seleccionado con datos completos:", customerData);
-        setSelectedCustomer(customerData);
-        
-        // Actualizar el resto de campos
-        props.setCustomerName(customerData.name || '');
-        props.setComment(customerData.comment || '');
-        
-        // Manejar direcciones
-        if (customerData.addresses && customerData.addresses.length > 0) {
-            setCustomerAddresses(customerData.addresses);
-            props.setDeliveryAddress(customerData.addresses[0].address);
-            props.setDeliveryCost(customerData.addresses[0].deliveryCost?.toString() || '0');
-            setIsAddingNewAddress(false);
-            setIsEditingAddress(false);
-        } else {
-            setCustomerAddresses([]);
-            props.setDeliveryAddress('');
-            props.setDeliveryCost('');
-            setIsAddingNewAddress(true);
-        }
-    };// Manejar el cambio de dirección seleccionada
-    const handleAddressChange = (e) => {
-        const selectedValue = e.target.value;
-        console.log('[DEBUG] handleAddressChange - Valor seleccionado:', selectedValue);
-        
-        if (selectedValue === 'new') {
-            // Activar modo de nueva dirección
-            setIsAddingNewAddress(true);
-            setIsEditingAddress(false);
-            props.setDeliveryAddress('');
-            props.setDeliveryCost('');
-        } else {
-            // Desactivar modo de nueva dirección
-            setIsAddingNewAddress(false);
-            setIsEditingAddress(false);
-            
-            // Buscar la dirección seleccionada entre las opciones
-            const selectedAddress = customerAddresses.find(addr => addr.address === selectedValue);
-            if (selectedAddress) {
-                props.setDeliveryAddress(selectedAddress.address);
-                props.setDeliveryCost(selectedAddress.deliveryCost?.toString() || '0');
-            }
-        }
+    // Acción para cancelar pedido
+    const handleCancelOrder = () => {
+        props.handleOrderUpdate(null, props.resetForm, 'Cancelado', 'delivery');
     };
-      // Modificar handleStartEditAddress para guardar correctamente el objeto de dirección original
-    const handleStartEditAddress = () => {
-        console.log('[DEBUG] handleStartEditAddress - Iniciando edición de dirección');
-        
-        setIsEditingAddress(true);
-        setIsAddingNewAddress(false);
-        
-        // Guardar el objeto completo de la dirección original
-        const currentAddressObj = customerAddresses.find(addr => addr.address === props.deliveryAddress);
-        console.log('comprobando ambas addresses:', customerAddresses, props.deliveryAddress);
-        console.log('comprobando currentAddressObj:', currentAddressObj);
-        if (currentAddressObj) {
-            console.log("[DEBUG] Guardando dirección original para edición:", currentAddressObj);
-            setOriginalAddress(currentAddressObj); // Guardar todo el objeto con ID
-        } else {
-            console.log("[DEBUG] No se encontró objeto de dirección para:", props.deliveryAddress);
-            setOriginalAddress({address: props.deliveryAddress}); // Fallback al texto como objeto
-        }
-    };
-      const handleCancelEditAddress = () => {
-        console.log('[DEBUG] handleCancelEditAddress - Cancelando edición de dirección');
-        setIsEditingAddress(false);
-        
-        // Restaurar dirección original si existe
-        if (originalAddress) {
-            if (typeof originalAddress === 'object' && originalAddress.address) {
-                props.setDeliveryAddress(originalAddress.address);
-                props.setDeliveryCost(originalAddress.deliveryCost?.toString() || '0');
-            } else {
-                const originalAddressObj = customerAddresses.find(addr => addr.address === originalAddress);
-                if (originalAddressObj) {
-                    props.setDeliveryAddress(originalAddressObj.address);
-                    props.setDeliveryCost(originalAddressObj.deliveryCost?.toString() || '0');
-                }
-            }
-        } else {
-            if (customerAddresses.length > 0) {
-                props.setDeliveryAddress(customerAddresses[0].address);
-                props.setDeliveryCost(customerAddresses[0].deliveryCost?.toString() || '0');
-            }
-        }
-    };
-
-    // Añadir esta función para resetear estados de edición
-    const resetAddressEditMode = () => {
-        setIsEditingAddress(false);
-        setIsAddingNewAddress(false);
-    };
-
+    
     // Función para renderizar campos adicionales específicos de delivery
     const renderAdditionalFields = () => {
         return (
             <>
-                {/* Teléfono del Cliente con autocompletado */}                <div className="form-group">
+                {/* Teléfono del Cliente con autocompletado */}                
+                <div className="form-group">
                     <label htmlFor="customerPhone">Teléfono del Cliente:</label>
                     {!props.isViewingCompletedOrder ? (
                         <CustomerAutocomplete
-                            onSelect={handleCustomerSelect}
+                            onSelect={onCustomerSelectHandler}
                             disabled={props.isViewingCompletedOrder}
                             initialValue={props.customerPhone}
                             editingOrderId={props.editingOrderId}
@@ -307,7 +211,7 @@ const OrderFormDelivery = (props) => {
                             <select
                                 id="deliveryAddressSelect"
                                 value={props.deliveryAddress}
-                                onChange={handleAddressChange}
+                                onChange={onAddressChangeHandler}
                                 disabled={props.isViewingCompletedOrder}
                                 className={`form-control ${props.editingOrderId ? 'editing-input' : ''}`}
                                 required
@@ -321,12 +225,12 @@ const OrderFormDelivery = (props) => {
                                 <option value="new">+ Añadir nueva dirección</option>
                             </select>
                             
-                            {/* Botón de editar con ID específico */}
+                            {/* Botón de editar */}
                             {!props.isViewingCompletedOrder && (
                                 <button 
                                     type="button"
                                     id="edit-address-button"
-                                    onClick={handleStartEditAddress}
+                                    onClick={onStartEditAddressHandler}
                                     style={{
                                         border: '1px solid #ced4da',
                                         borderRadius: '0.25rem',
@@ -368,9 +272,11 @@ const OrderFormDelivery = (props) => {
                                         cursor: 'pointer',
                                         marginLeft: '10px'
                                     }}
-                                    onClick={isEditingAddress ? handleCancelEditAddress : () => {
-                                        setIsAddingNewAddress(false);
-                                        handleAddressChange({ target: { value: customerAddresses[0].address } });
+                                    onClick={isEditingAddress ? onCancelEditAddressHandler : () => {
+                                        handleAddressChange(customerAddresses[0].address, {
+                                            setDeliveryAddress: props.setDeliveryAddress,
+                                            setDeliveryCost: props.setDeliveryCost
+                                        });
                                     }}
                                 >
                                     Cancelar
@@ -387,9 +293,7 @@ const OrderFormDelivery = (props) => {
                         type="number"
                         id="deliveryCost"
                         value={props.deliveryCost}
-                        onChange={(e) => {
-                            props.setDeliveryCost(e.target.value);
-                        }}
+                        onChange={(e) => props.setDeliveryCost(e.target.value)}
                         disabled={props.isViewingCompletedOrder}
                         className={`form-control ${props.editingOrderId ? 'editing-input' : ''}`}
                         required
@@ -397,101 +301,6 @@ const OrderFormDelivery = (props) => {
                 </div>
             </>
         );
-    };    // Acción para enviar pedido
-    // Acción para enviar pedido - Versión refactorizada
-    const handleSendOrder = async () => {
-        try {    
-            console.log('[DEBUG] handleSendOrder - Iniciando envío de pedido');
-            
-            // Validar campos requeridos
-            if (cart.length === 0) {
-                alert('El carrito está vacío. Agrega productos antes de enviar el pedido.');
-                return;
-            }       
-            
-            // Preparar los datos de dirección para guardar
-            let customerData = {
-                name: props.customerName,
-                phone: props.customerPhone,
-                comment: props.comment || '',
-            };
-            
-            // Si hay dirección, añadirla a las direcciones del cliente
-            if (props.deliveryAddress) {
-                const addressData = {
-                    address: props.deliveryAddress,
-                    deliveryCost: Number(props.deliveryCost) || 0,
-                };
-                
-                // Si el cliente tiene direcciones anteriores y esta es una nueva, agregarlas todas
-                if (selectedCustomer && selectedCustomer.addresses) {
-                    const existingAddresses = [...selectedCustomer.addresses];
-                    
-                    // Verificar si ya existe esta dirección
-                    const existingIndex = existingAddresses.findIndex(
-                        a => a.address === props.deliveryAddress
-                    );
-                    
-                    if (existingIndex >= 0) {
-                        // Actualizar el costo si cambió
-                        existingAddresses[existingIndex].deliveryCost = Number(props.deliveryCost) || 0;
-                    } else {
-                        // Agregar nueva dirección
-                        existingAddresses.push(addressData);
-                    }
-                    
-                    customerData.addresses = existingAddresses;
-                } else {
-                    customerData.addresses = [addressData];
-                }
-            }
-            
-            // Calcular el total más actualizado
-            const calculatedTotal = getCartTotal();
-            
-            // Crear el objeto de pedido
-            const orderData = {
-                _id: props.editingOrderId,
-                status: 'Enviado',
-                buyer: customerData,
-                foods: cart.map((item) => ({
-                    food: item._id,
-                    quantity: item.quantity,
-                    comment: item.comment || '',
-                })),
-                payment: props.selectedPaymentMethod,
-                total: calculatedTotal + Number(props.deliveryCost),
-                section: 'delivery',
-                selectedAddress: props.deliveryAddress,
-                deliveryCost: Number(props.deliveryCost) || 0
-            };
-            
-            // Datos del carrito para la caja
-            const cartData = {
-                cart,
-                cartTotal: calculatedTotal,
-                deliveryCost: props.deliveryCost,
-                selectedPaymentMethod: props.selectedPaymentMethod
-            };
-            
-            // Usar la función combinada que maneja ambas operaciones
-            const result = await completeOrder(orderData, cartData);
-            
-            if (result) {
-                // Limpiar y redireccionar después de operaciones exitosas
-                clearCart();
-                props.resetForm();
-                // navigate('/delivery');
-            }
-        } catch (error) {
-            console.error('Error al procesar el pedido:', error);
-            alert('Hubo un error al procesar el pedido. Inténtalo nuevamente.');
-        }
-    };
-
-    // Acción para cancelar pedido
-    const handleCancelOrder = () => {
-        props.handleOrderUpdate(null, props.resetForm, 'Cancelado', 'delivery');
     };
     
     // Estilos personalizados
@@ -535,8 +344,8 @@ const OrderFormDelivery = (props) => {
                     isAddingNewAddress,
                     isEditingAddress,
                     originalAddress,
-                    resetAddressEditMode,  // Pasar la función de reset
-                    _debug_renderCount: renderCount.current // Enviar el contador de renderizado para depuración
+                    resetAddressEditMode: resetAddressStates,
+                    _debug_renderCount: renderCount.current
                 }}
             />
         </>

@@ -20,7 +20,6 @@ export const useOrderDetailsLogic = ({
   
   // Añadir el hook de gestión de clientes
   const { 
-    findCustomerByPhone, 
     createOrUpdateCustomer, 
     manageCustomerAddresses 
   } = useCustomerManagement();

@@ -14,6 +14,7 @@ export const useCustomerManagement = () => {
     setCustomerError(null);
     
     try {
+      console.log('ejecutando findCustomerByPhone en useCustomerManagement.js');
       const response = await axios.get(`/customer/search?query=${phone}`);
       
       if (response.data?.success && response.data?.customers?.length > 0) {

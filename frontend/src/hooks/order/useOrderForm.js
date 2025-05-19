@@ -23,8 +23,7 @@ export const useOrderForm = () => {
     const [comment, setComment] = useState(''); // Estado para comentarios opcionales
     const queryClient = useQueryClient();
     const toast = useToast();
-    const { 
-        findCustomerByPhone, 
+    const {
         createOrUpdateCustomer, 
         manageCustomerAddresses 
     } = useCustomerManagement();
