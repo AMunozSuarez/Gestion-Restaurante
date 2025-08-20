@@ -2,6 +2,7 @@ import axios from '../axiosConfig';
 
 export const updateOrder = async (orderId, updatedOrder) => {
     try {
+        console.log('updateOrder en src/services/api/ordersApi.js');
         const response = await axios.put(`/order/update/${orderId}`, updatedOrder);
         return response.data;
     } catch (error) {

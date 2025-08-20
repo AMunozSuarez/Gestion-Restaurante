@@ -443,6 +443,35 @@
     margin-top: 40px;
     justify-content: space-between;
     display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Botón de impresión de comanda */
+.print-comanda-button {
+    background-color: #28a745 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 5px !important;
+    cursor: pointer !important;
+    transition: background-color 0.3s ease !important;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.print-comanda-button:hover {
+    background-color: #218838 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+}
+
+.print-comanda-button:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
 }
 
 

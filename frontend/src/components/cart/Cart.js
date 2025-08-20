@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
-import { useCartManagement } from '../../hooks/state/useCartManagement';
+import { useCartManagement } from '../../hooks/cart/useCartManagement';
 import { formatChileanMoney } from '../../services/utils/formatters';
 
 const Cart = ({

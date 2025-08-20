@@ -2,26 +2,43 @@
 /* Estilos generales */
 .cash-register{
     font-family: Arial, sans-serif;
-    background-color: #f0f0f0;
+    background-color: #f5f5f5;
     padding: 0px;
     border-radius: 5px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    min-height: 80vh;
+    display: flex;
+    flex-direction: column;
 }
 
-/* Contenedor principal */
+/* Contenedor principal - OPTIMIZADO PARA ESPACIO */
 .cash-register-container {
     display: flex;
-    gap: 20px;
-    padding: 20px;
+    gap: 15px;
+    padding: 10px 15px;
+    max-width: 98%;
+    height: calc(100vh - 180px); /* Altura ajustada para evitar scroll página */
+    overflow: hidden; /* Evita scroll del contenedor principal */
 }
 
-/* Lista de cajas */
+/* Lista de cajas - OPTIMIZADO CON SCROLL INDEPENDIENTE */
 .cash-registers {
-    flex: 1;
-    background-color: #f9f9f9;
-    padding: 10px;
-    border-radius: 5px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    flex: 0 0 55%; /* Fijo al 55% del ancho disponible */
+    background-color: white;
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; /* Contiene el scroll solo en la lista */
+    overflow-x: hidden; /* Evita scroll horizontal */
+}
+
+.cash-registers h3 {
+    color: #b45a00;
+    margin: 0 0 15px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
 }
 
 .cash-registers-header {
@@ -29,112 +46,254 @@
     justify-content: space-between;
     background-color: #b45a00;
     color: white;
-    padding: 10px;
+    padding: 12px;
     border-radius: 5px;
     font-weight: bold;
-    margin-bottom: 5px;
+    margin-bottom: 10px;
 }
 
 .cash-registers-header p {
     flex: 1;
     text-align: center;
+    font-size: 0.9rem;
 }
 
 .cash-registers-list {
     list-style: none;
     padding: 0;
     margin: 0;
+    overflow-y: auto; /* Solo scroll vertical */
+    flex-grow: 1;
+    max-height: calc(100% - 100px); /* Altura ajustada según el encabezado */
 }
 
 .cash-register-item {
-    justify-content: space-between;
-    align-items: center;
-    background-color: #fff8dc;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background-color: #fff8dc;
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 5px;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 6px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.2s ease;
+    border-left: 3px solid transparent;
 }
 
 .cash-register-item:hover {
     background-color: #ffeeba;
-    transform: scale(1.02);
+    transform: scale(1.01); /* Reducido para no romper el layout */
+    border-left: 3px solid #b45a00;
 }
 
 .cash-register-item p {
     flex: 1;
     text-align: center;
     margin: 0;
+    padding: 0 3px; /* Reducido para aprovechar espacio */
+    font-size: 0.9rem; /* Tamaño ajustado para mejor espacio */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .cash-register-item.active {
     background-color: #fcbf81;
     color: rgb(0, 0, 0);
     font-weight: bold;
-    border-color: #2b1806;
-    transform: scale(1.02);
+    border-left: 3px solid #b45a00;
 }
 
-/* Detalle de caja */
+/* Detalle de caja - OPTIMIZADO CON SCROLL INDEPENDIENTE */
 .cash-register-detail {
+    flex: 0 0 41%; /* Fijo al 45% del ancho disponible */
     display: flex;
-    flex-direction: column; /* Asegura que las secciones se apilen verticalmente */
-    padding: 20px;
-    width: 35vw;
-    height: 78vh; /* Ocupa una altura fija dentro de la pantalla */
-    overflow-y: auto; /* Permite desplazamiento si el contenido excede la altura */
-    background-color: #f9f9f9;
+    flex-direction: column;
+    padding: 16px;
+    height: 100%; /* Ocupa 100% del contenedor padre */
+    background-color: white;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    max-height: 96%;
+    overflow-y: auto; /* Contiene el scroll solo en el contenido */
 }
 
+.cash-register-detail h3 {
+    color: #b45a00;
+    margin: 0 0 15px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0; /* Evita que el título se contraiga */
+}
+
+/* Contenedor para scroll en detalles */
+.detail-content {
+    overflow-y: auto;
+    flex-grow: 1;
+    padding-right: 5px; /* Espacio para el scrollbar */
+}
+
+/* Mejora para las secciones de detalle */
+.detail-section {
+    background-color: #f9f9f9;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 16px;
+    border-left: 3px solid #b45a00;
+}
+
+.detail-section:last-child {
+    margin-bottom: 0;
+}
 
 .detail-section h4 {
-    margin-bottom: 10px;
+    margin: 0 0 15px 0;
     color: #b45a00;
-    font-size: 1.2rem; /* Usa unidades relativas para adaptarse a diferentes tamaños de pantalla */
-    text-align: left; /* Alineación clara */
-    white-space: nowrap; /* Evita que el texto se divida en varias líneas */
-    overflow: hidden; /* Oculta el desbordamiento si el texto es demasiado largo */
-    text-overflow: ellipsis; /* Agrega puntos suspensivos si el texto es demasiado largo */
+    font-size: 1.1rem;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .detail-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #e0e0e0;
+}
+
+.detail-row:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
 }
 
 .detail-row p {
     margin: 0;
 }
 
+.detail-row p strong {
+    color: #555;
+}
+
 .detail-row ul {
-    margin: 0;
+    margin: 5px 0 0 0;
     padding-left: 20px;
+    width: 100%;
 }
 
 .detail-row ul li {
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    color: #444;
 }
 
+.detail-row ul li:last-child {
+    margin-bottom: 0;
+}
+
+/* Estilos para listas de métodos de pago e ingresos oficiales */
+
+/* Estilo común para listas de métodos de pago */
+.method-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0 0;
+    width: 100%;
+}
+
+.method-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #fff;
+    border-radius: 5px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.method-list li:last-child {
+    margin-bottom: 0;
+}
+
+.method-list li .method-name {
+    font-weight: bold;
+    color: #555;
+    min-width: 100px;
+    margin-right: 10px;
+}
+
+.method-list li .method-value {
+    text-align: right;
+    font-weight: 500;
+    color: #333;
+    min-width: 150px; /* Para alinear con inputs */
+}
+
+/* Estilos para inputs de ingresos oficiales */
 .official-income-input {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    background-color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.official-income-input:last-child {
+    margin-bottom: 0;
 }
 
 .official-income-input label {
-    margin-right: 10px;
     font-weight: bold;
+    color: #555;
+    min-width: 100px;
+    margin-right: 10px;
+}
+
+.official-income-input input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: right;
+    max-width: 150px;
+    font-size: 0.95rem;
+}
+
+.official-income-input input:focus {
+    outline: none;
+    border-color: #b45a00;
+    box-shadow: 0 0 0 2px rgba(180, 90, 0, 0.1);
+}
+
+/* Para el total registrado - mejor alineación */
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e0e0e0;
+    font-weight: bold;
+}
+
+.total-row span:first-child {
+    min-width: 100px;
+    margin-right: 10px;
+}
+
+.total-value {
+    color: #b45a00;
+    font-size: 1.1rem;
+    min-width: 150px; /* Para alinear con inputs y valores */
+    text-align: right;
 }
 
 .button-cashregister {
@@ -145,8 +304,11 @@
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.3s;
-    max-width: 300px; /* Limita el ancho máximo del botón */
-    align-self: center; /* Centra el botón dentro de su contenedor */
+    max-width: 300px;
+    align-self: center;
+    margin-top: 10px;
+    font-weight: bold;
+    flex-shrink: 0; /* Evita que el botón se contraiga */
 }
 
 .button-cashregister:hover {
@@ -155,17 +317,36 @@
 
 /* Botón para abrir modal */
 .open-modal-button {
-    margin-left: 20px;
+    margin: 10px 15px;
     padding: 10px 15px;
     background-color: #007bff;
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
+    font-weight: bold;
+    align-self: flex-start;
 }
 
 .open-modal-button:hover {
     background-color: #0056b3;
+}
+
+/* Mejora para scrollbars */
+.cash-registers-list::-webkit-scrollbar,
+.cash-register-detail .detail-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cash-registers-list::-webkit-scrollbar-track,
+.cash-register-detail .detail-content::-webkit-scrollbar-track {
+    background: #f5f5f5;
+}
+
+.cash-registers-list::-webkit-scrollbar-thumb,
+.cash-register-detail .detail-content::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 3px;
 }
 
 /* Modal */
@@ -179,27 +360,30 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    z-index: 1000;
 }
 
 .modal-content-cashregister {
     background-color: white;
     padding: 20px;
-    border-radius: 5px;
+    border-radius: 8px;
     width: 300px;
     text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .modal-content-cashregister form {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
 }
 
 .modal-content-cashregister h3 {
     margin-bottom: 20px;
     color: #3b2108;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
 }
-
 
 .modal-content-cashregister input {
     padding: 10px;
@@ -212,6 +396,7 @@
     border: none;
     border-radius: 5px;
     cursor: pointer;
+    font-weight: bold;
 }
 
 .modal-content-cashregister button[type="submit"] {
@@ -225,5 +410,34 @@
 }
 
 .modal-content-cashregister button:hover {
-    opacity: 0.8;
+    opacity: 0.9;
+}
+
+/* Estilos para quitar los botones incrementales de los inputs numéricos */
+input[type="number"] {
+    -moz-appearance: textfield; /* Firefox */
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Media queries para responsividad */
+@media (max-width: 992px) {
+    .cash-register-container {
+        flex-direction: column;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+    
+    .cash-registers, 
+    .cash-register-detail {
+        flex: none;
+        width: 100%;
+        height: 500px;
+        margin-bottom: 15px;
+    }
 }

@@ -2,13 +2,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useProducts } from '../../../hooks/api/useProducts';
 import { useCategories } from '../../../hooks/api/useCategories';
-import { useCartManagement } from '../../../hooks/state/useCartManagement';
+import { useCartManagement } from '../../../hooks/cart/useCartManagement';
 import useUIStore from '../../../store/useUiStore';
 import Cart from '../../cart/Cart';
 import { formatChileanMoney } from '../../../services/utils/formatters';
 import '../../../styles/components/orderForm.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrashAlt } from '@fortawesome/free-solid-svg-icons'; // Añadir esta importación
+import { faTrashAlt } from '@fortawesome/free-solid-svg-icons';
+import PrintComandaAdvanced from '../../common/PrintComandaAdvanced';
 
 const BaseOrderForm = ({
     // Props comunes
@@ -17,6 +18,7 @@ const BaseOrderForm = ({
     selectedPaymentMethod,
     setSelectedPaymentMethod,
     handleSubmit,
+    handleOrderUpdate,
     editingOrderId,
     isViewingCompletedOrder,
     comment,
@@ -36,6 +38,9 @@ const BaseOrderForm = ({
     completeButtonAction,
     cancelOrderAction,
     extraData, // Datos adicionales del formulario
+    
+    // Pedido actual para impresión
+    currentOrder,
 })=> {    const {
         cart,
         getCartTotal,
@@ -125,22 +130,31 @@ const BaseOrderForm = ({
         // Obtener el valor más reciente del campo contentEditable
         const commentElement = document.getElementById('orderComment');
         const latestComment = commentElement ? commentElement.innerHTML : '';
-        console.log('Comentario obtenido al enviar:', latestComment);
         
         // Limpiar localStorage de direcciones en edición para evitar estados inconsistentes
+        console.log('Limpiando localStorage de direcciones en edición', localStorage.getItem('editing_address_original'));
         localStorage.removeItem('editing_address_original');
+        console.log('Dirección en edición eliminada de localStorage', localStorage.getItem('editing_address_original'));
 
         // Si hay una función para resetear el estado de edición de dirección en extraData, llamarla
-        console.log('Extra data:', extraData);
         if (extraData && extraData.resetAddressEditMode) {
             extraData.resetAddressEditMode();
         }
 
-        // Llamar a handleSubmit con los parámetros adecuados según el tipo
-        handleSubmit(e, resetForm, undefined, formType, {
-            comment: latestComment,
-            ...(extraData || {}) // Incluir todos los datos adicionales del formulario
-        });
+        // Decidir qué función usar según si estamos editando o creando
+        if (editingOrderId && handleOrderUpdate) {
+            // Estamos editando un pedido existente
+            handleOrderUpdate(e, resetForm, undefined, formType, {
+                comment: latestComment,
+                ...(extraData || {}) // Incluir todos los datos adicionales del formulario
+            });
+        } else {
+            // Estamos creando un pedido nuevo
+            handleSubmit(e, resetForm, undefined, formType, {
+                comment: latestComment,
+                ...(extraData || {}) // Incluir todos los datos adicionales del formulario
+            });
+        }
     };    return (
         <div className={`order-form ${isEditing ? 'editing-mode' : ''} ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`} 
              data-form-type={formType}>
@@ -301,6 +315,15 @@ const BaseOrderForm = ({
                     >
                         {completeButtonLabel || (formType === 'delivery' ? 'Enviar Pedido' : 'Cerrar Pedido')}
                     </button>
+                    {currentOrder && (
+                        <>
+                            <PrintComandaAdvanced 
+                                order={currentOrder}
+                                buttonText="Imprimir"
+                                buttonClass="print-comanda-button"
+                            />
+                        </>
+                    )}
                     <button
                         type="button"
                         className="cancel-order-button icon-button"
