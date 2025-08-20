@@ -177,7 +177,7 @@ Este proyecto está licenciado bajo [MIT License](LICENSE)
 
 ## 👨‍💻 Autores
 
-- Tu Nombre - [Tu GitHub](https://github.com/tuusuario)
+- Alejandro Muñoz | https://github.com/AMunozSuarez
 
 ## 🔗 Enlaces
 
