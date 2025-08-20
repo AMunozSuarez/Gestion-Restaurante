@@ -327,6 +327,28 @@ const OrderFormDelivery = (props) => {
         </style>
     `; 
     
+    // Crear objeto de pedido para impresión
+    const currentOrder = props.editingOrderId ? {
+        orderNumber: props.editingOrderId,
+        createdAt: new Date(),
+        section: 'delivery',
+        status: 'Preparacion',
+        buyer: { 
+            name: props.customerName,
+            phone: props.customerPhone
+        },
+        comment: props.comment,
+        foods: cart.map(item => ({
+            food: { title: item.title, price: item.price },
+            quantity: item.quantity,
+            comment: item.comment
+        })),
+        payment: props.selectedPaymentMethod,
+        total: cartTotal + (Number(props.deliveryCost) || 0),
+        deliveryCost: Number(props.deliveryCost) || 0,
+        selectedAddress: props.deliveryAddress
+    } : null;
+
     return (
         <>
             <div dangerouslySetInnerHTML={{ __html: customStyles }} />
@@ -340,6 +362,7 @@ const OrderFormDelivery = (props) => {
                 completeButtonLabel="Enviar Pedido"
                 completeButtonAction={handleSendOrder}
                 cancelOrderAction={handleCancelOrder}
+                currentOrder={currentOrder}
                 extraData={{  
                     isAddingNewAddress,
                     isEditingAddress,

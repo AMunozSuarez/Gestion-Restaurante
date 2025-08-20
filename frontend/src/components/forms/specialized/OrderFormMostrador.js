@@ -67,6 +67,24 @@ const OrderFormMostrador = (props) => {
         props.handleOrderUpdate(null, props.resetForm, 'Cancelado', 'mostrador');
     };
 
+    // Crear objeto de pedido para impresión
+    const currentOrder = props.editingOrderId ? {
+        orderNumber: props.editingOrderId,
+        createdAt: new Date(),
+        section: 'mostrador',
+        status: 'Preparacion',
+        buyer: { name: props.customerName },
+        comment: props.comment,
+        foods: cart.map(item => ({
+            food: { title: item.title, price: item.price },
+            quantity: item.quantity,
+            comment: item.comment
+        })),
+        payment: props.selectedPaymentMethod,
+        total: getCartTotal(),
+        deliveryCost: 0
+    } : null;
+
     return (
         <BaseOrderForm
             {...props}
@@ -74,6 +92,7 @@ const OrderFormMostrador = (props) => {
             completeButtonLabel="Cerrar Pedido"
             completeButtonAction={handleCompleteOrder}
             cancelOrderAction={handleCancelOrder}
+            currentOrder={currentOrder}
         />
     );
 };

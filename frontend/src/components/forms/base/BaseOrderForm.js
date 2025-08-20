@@ -8,7 +8,8 @@ import Cart from '../../cart/Cart';
 import { formatChileanMoney } from '../../../services/utils/formatters';
 import '../../../styles/components/orderForm.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTrashAlt } from '@fortawesome/free-solid-svg-icons'; // Añadir esta importación
+import { faTrashAlt } from '@fortawesome/free-solid-svg-icons';
+import PrintComandaAdvanced from '../../common/PrintComandaAdvanced';
 
 const BaseOrderForm = ({
     // Props comunes
@@ -37,6 +38,9 @@ const BaseOrderForm = ({
     completeButtonAction,
     cancelOrderAction,
     extraData, // Datos adicionales del formulario
+    
+    // Pedido actual para impresión
+    currentOrder,
 })=> {    const {
         cart,
         getCartTotal,
@@ -311,6 +315,15 @@ const BaseOrderForm = ({
                     >
                         {completeButtonLabel || (formType === 'delivery' ? 'Enviar Pedido' : 'Cerrar Pedido')}
                     </button>
+                    {currentOrder && (
+                        <>
+                            <PrintComandaAdvanced 
+                                order={currentOrder}
+                                buttonText="Imprimir"
+                                buttonClass="print-comanda-button"
+                            />
+                        </>
+                    )}
                     <button
                         type="button"
                         className="cancel-order-button icon-button"
