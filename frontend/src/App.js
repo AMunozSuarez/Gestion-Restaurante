@@ -25,6 +25,10 @@ import SalesList from './components/admin/salesList';
 import AdminPanel from './components/admin/AdminPanel';
 import ProtectedAdminRoute from './components/common/ProtectedAdminRoute';
 
+// Componentes de rutas
+import ProtectedRoute from './components/common/ProtectedRoute';
+import DefaultRoute from './components/common/DefaultRoute';
+
 // Layouts
 import MostradorLayout from './components/layout/mostradorLayout';
 
@@ -49,38 +53,70 @@ function App() {
         
         <Header />
         <Routes>
+          {/* Ruta raíz - redirige según autenticación */}
+          <Route path="/" element={<DefaultRoute />} />
+          
+          {/* Login - solo accesible si no está autenticado */}
           <Route path="/login" element={<Login />} />
           
-          {/* Módulo de Mostrador */}
-          <Route path="/mostrador" element={<MostradorLayout />}>
+          {/* Módulo de Mostrador - Protegido */}
+          <Route path="/mostrador" element={
+            <ProtectedRoute>
+              <MostradorLayout />
+            </ProtectedRoute>
+          }>
             <Route index element={<Mostrador />} />
             <Route path=":orderNumber" element={<OrderDetails />} />
           </Route>
           
-          {/* Módulo de Delivery */}
-          <Route path="/delivery" element={<MostradorLayout />}>
+          {/* Módulo de Delivery - Protegido */}
+          <Route path="/delivery" element={
+            <ProtectedRoute>
+              <MostradorLayout />
+            </ProtectedRoute>
+          }>
             <Route index element={<Delivery />} />
             <Route path=":orderNumber" element={<DeliveryDetails />} />
           </Route>
           
-          {/* Módulo de Administración */}
-          <Route path="/admin">
-            <Route path="productos" element={<Productos />} />
-            <Route path="categorias" element={<Categorias />} />
-            <Route path="caja" element={<CashRegister />} />
-            <Route path="sales" element={<SalesList />} />
-            <Route path="reportes" element={<Reports />} />
-          </Route>
+          {/* Módulo de Administración - Protegido */}
+          <Route path="/admin/productos" element={
+            <ProtectedRoute>
+              <Productos />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/categorias" element={
+            <ProtectedRoute>
+              <Categorias />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/caja" element={
+            <ProtectedRoute>
+              <CashRegister />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/sales" element={
+            <ProtectedRoute>
+              <SalesList />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/reportes" element={
+            <ProtectedRoute>
+              <Reports />
+            </ProtectedRoute>
+          } />
 
-          {/* Panel de Super Administración */}
+          {/* Panel de Super Administración - Doblemente protegido */}
           <Route path="/super-admin" element={
-            <ProtectedAdminRoute>
-              <AdminPanel />
-            </ProtectedAdminRoute>
+            <ProtectedRoute>
+              <ProtectedAdminRoute>
+                <AdminPanel />
+              </ProtectedAdminRoute>
+            </ProtectedRoute>
           } />
           
-          {/* Redireccionamiento por defecto o página 404 */}
-          <Route path="*" element={<Login />} />
+          {/* Redireccionamiento por defecto */}
+          <Route path="*" element={<DefaultRoute />} />
         </Routes>
       </div>
     </Router>

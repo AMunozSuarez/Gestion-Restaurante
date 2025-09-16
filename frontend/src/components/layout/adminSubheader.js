@@ -11,12 +11,6 @@ const AdminSubheader = () => {
             <NavLink to="/admin/sales" className={({ isActive }) => (isActive ? 'active' : '')}>
                 Ventas
             </NavLink>
-            <NavLink to="/admin/orders" className={({ isActive }) => (isActive ? 'active' : '')}>
-                Pedidos
-            </NavLink>
-            <NavLink to="/admin/products" className={({ isActive }) => (isActive ? 'active' : '')}>
-                Productos
-            </NavLink>
         </div>
     );
 };

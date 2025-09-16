@@ -17,7 +17,6 @@ const useAdminAuth = () => {
             setLoading(true);
             
             if (!token) {
-                console.log('🔐 No hay token disponible');
                 setIsAdmin(false);
                 setUserRole(null);
                 return;
@@ -25,13 +24,10 @@ const useAdminAuth = () => {
 
             // Decodificar el token JWT para obtener información del usuario
             const decodedToken = jwtDecode(token);
-            console.log('🔍 Token decodificado:', decodedToken);
-            
             const currentTime = Date.now() / 1000;
 
             // Verificar si el token ha expirado
             if (decodedToken.exp < currentTime) {
-                console.log('⏰ Token expirado');
                 setIsAdmin(false);
                 setUserRole(null);
                 return;
@@ -39,15 +35,12 @@ const useAdminAuth = () => {
 
             // Verificar el rol del usuario
             const role = decodedToken.role || decodedToken.userRole;
-            console.log('👤 Rol del usuario:', role);
             setUserRole(role);
             
             // Solo los super_admin tienen acceso al panel de administración
             if (role === 'super_admin') {
-                console.log('✅ Usuario es super_admin, acceso permitido');
                 setIsAdmin(true);
             } else {
-                console.log('❌ Usuario no es super_admin, acceso denegado');
                 setIsAdmin(false);
             }
 
