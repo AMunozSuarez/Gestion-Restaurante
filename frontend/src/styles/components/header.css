@@ -65,6 +65,33 @@ header nav a:hover:not(.active) {
     transform: translateY(-1px);
 }
 
+/* Enlace de Super Admin */
+header nav a.super-admin {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-weight: 600;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    animation: adminGlow 2s ease-in-out infinite alternate;
+}
+
+header nav a.super-admin:hover {
+    background: linear-gradient(135deg, #764ba2, #667eea);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+header nav a.super-admin.active {
+    background: linear-gradient(135deg, #764ba2, #667eea);
+    color: white;
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+@keyframes adminGlow {
+    0% { box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }
+    100% { box-shadow: 0 4px 15px rgba(118, 75, 162, 0.5); }
+}
+
 /* Botón de cerrar sesión */
 .logout-button {
     background-color: #bf6516; /* Color distintivo para el botón de logout */

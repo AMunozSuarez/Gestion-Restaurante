@@ -18,11 +18,14 @@ const userSchema = new mongoose.Schema({
     restaurant: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Restaurant',
-        required: true, // Cada usuario debe estar vinculado a un restaurante
+        required: function() {
+            // Solo requerido para roles que no sean super_admin
+            return this.role !== 'super_admin';
+        }
     },
     role: {
         type: String,
-        enum: ['owner', 'employee'], // Roles posibles
+        enum: ['super_admin', 'owner', 'employee'], // Roles posibles
         default: 'employee',
     },
     phone: {

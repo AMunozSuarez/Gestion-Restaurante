@@ -2,9 +2,11 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import '../../styles/components/header.css';
 import useAuth from '../../hooks/useAuth'; // Importa el hook de autenticación
+import useAdminAuth from '../../hooks/useAdminAuth'; // Importa el hook de permisos de admin
 
 const Header = () => {
     const { isAuthenticated, logout } = useAuth(); // Obtén el estado de autenticación y la función logout
+    const { canAccessAdminPanel } = useAdminAuth(); // Obtén permisos de super admin
 
     return (
         <header className="header">
@@ -43,6 +45,17 @@ const Header = () => {
                                     Delivery
                                 </NavLink>
                             </li>
+                            {canAccessAdminPanel() && (
+                                <li className="nav-item">
+                                    <NavLink 
+                                        to="/super-admin" 
+                                        className={({ isActive }) => (isActive ? 'active super-admin' : 'super-admin')}
+                                        title="Panel de Super Administración"
+                                    >
+                                        🔧 Super Admin
+                                    </NavLink>
+                                </li>
+                            )}
                             <li className="nav-item">
                                 <button onClick={logout} className="logout-button">
                                     Cerrar sesión

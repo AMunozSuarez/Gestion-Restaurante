@@ -4,6 +4,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "create-super-admin": "node src/scripts/createSuperAdmin.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

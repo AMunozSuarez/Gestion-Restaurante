@@ -27,6 +27,7 @@ app.use('/api/report', require('./routes/reportRoutes')); // Use the report rout
 app.use('/api/cash', require('./routes/cashRoutes')); // Use the cash register routes
 app.use('/api/customer', require('./routes/customerRoutes')); // Use the customer routes
 app.use('/api/print', require('./routes/printRoutes')); // Use the print routes
+app.use('/api/admin', require('./routes/adminRoutes')); // Use the admin routes
 
 
 

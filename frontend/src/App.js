@@ -21,6 +21,10 @@ import CashRegister from './components/admin/cashRegister';
 import Reports from './components/admin/reports';
 import SalesList from './components/admin/salesList';
 
+// Panel de Super Administración
+import AdminPanel from './components/admin/AdminPanel';
+import ProtectedAdminRoute from './components/common/ProtectedAdminRoute';
+
 // Layouts
 import MostradorLayout from './components/layout/mostradorLayout';
 
@@ -67,6 +71,13 @@ function App() {
             <Route path="sales" element={<SalesList />} />
             <Route path="reportes" element={<Reports />} />
           </Route>
+
+          {/* Panel de Super Administración */}
+          <Route path="/super-admin" element={
+            <ProtectedAdminRoute>
+              <AdminPanel />
+            </ProtectedAdminRoute>
+          } />
           
           {/* Redireccionamiento por defecto o página 404 */}
           <Route path="*" element={<Login />} />
