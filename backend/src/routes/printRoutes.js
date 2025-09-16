@@ -4,7 +4,8 @@ const {
   getAvailablePrinters, 
   printThermalComanda, 
   printPDFComanda, 
-  printToSystemPrinter 
+  printToSystemPrinter,
+  printDirectToPort
 } = require('../controllers/printController');
 
 // Obtener lista de impresoras disponibles
@@ -18,5 +19,8 @@ router.post('/pdf', printPDFComanda);
 
 // Imprimir en impresora específica del sistema
 router.post('/system', printToSystemPrinter);
+
+// Imprimir directamente al puerto de la impresora
+router.post('/direct', printDirectToPort);
 
 module.exports = router; 
