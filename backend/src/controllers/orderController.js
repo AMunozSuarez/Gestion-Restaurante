@@ -93,10 +93,16 @@ const createOrderController = async (req, res) => {
 
         await order.save();
 
+        // Poblar los detalles de los alimentos para la respuesta
+        const populatedOrder = await orderModel.findById(order._id)
+            .populate('foods.food', 'title price')
+            .populate('buyer', 'name phone')
+            .lean();
+
         res.status(201).json({
             success: true,
             message: 'Pedido creado exitosamente',
-            order,
+            order: populatedOrder,
         });
     } catch (error) {
         console.error('Error creando el pedido:', error);
@@ -292,10 +298,16 @@ const updateOrderController = async (req, res) => {
             { new: true, runValidators: true }
         );
 
+        // Poblar los detalles de los alimentos para la respuesta
+        const populatedOrder = await orderModel.findById(updatedOrder._id)
+            .populate('foods.food', 'title price')
+            .populate('buyer', 'name phone')
+            .lean();
+
         res.status(200).json({
             success: true,
             message: 'Pedido actualizado correctamente',
-            order: updatedOrder,
+            order: populatedOrder,
         });
     } catch (error) {
         console.error('Error actualizando el pedido:', error);

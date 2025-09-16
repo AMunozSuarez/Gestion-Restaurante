@@ -127,6 +127,18 @@ const printToSystemPrinter = async (req, res) => {
   try {
     const { order, printerName } = req.body;
     
+    console.log('Datos recibidos para impresión:', {
+      orderExists: !!order,
+      orderNumber: order?.orderNumber,
+      foodsLength: order?.foods?.length,
+      foodsStructure: order?.foods?.map(item => ({
+        hasFood: !!item.food,
+        foodTitle: item.food?.title,
+        foodPrice: item.food?.price,
+        quantity: item.quantity
+      }))
+    });
+    
     if (!order || !printerName) {
       return res.status(400).json({
         success: false,
@@ -221,9 +233,15 @@ const generateComandaText = (order) => {
   content += '----------------------------------------\n';
   
   order.foods.forEach(item => {
-    const productName = item.food.title.substring(0, 20);
-    const quantity = item.quantity;
-    const price = item.food.price;
+    // Verificar que item.food existe y tiene las propiedades necesarias
+    if (!item.food) {
+      console.warn('Item sin datos de alimento:', item);
+      return;
+    }
+    
+    const productName = (item.food.title || 'Producto sin nombre').substring(0, 20);
+    const quantity = item.quantity || 1;
+    const price = item.food.price || 0;
     const total = price * quantity;
     
     content += `${productName.padEnd(20)} ${quantity.toString().padStart(4)}  ${price.toString().padStart(6)}  ${total.toString().padStart(6)}\n`;
@@ -235,7 +253,10 @@ const generateComandaText = (order) => {
   
   content += '----------------------------------------\n';
   
-  const subtotal = order.foods.reduce((sum, item) => sum + (item.food.price * item.quantity), 0);
+  const subtotal = order.foods.reduce((sum, item) => {
+    if (!item.food || !item.food.price) return sum;
+    return sum + (item.food.price * (item.quantity || 1));
+  }, 0);
   content += `Subtotal:                    ${subtotal.toString().padStart(10)}\n`;
   
   if (order.section === 'delivery' && order.deliveryCost > 0) {

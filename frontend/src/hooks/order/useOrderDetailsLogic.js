@@ -17,6 +17,68 @@ export const useOrderDetailsLogic = ({
   const queryClient = useQueryClient();
   const { orders, updateOrderInList } = useOrders();
   const { cart, setCart, setCartContext } = useCartStore();
+
+  // Función para imprimir comanda automáticamente después de actualizar
+  const printComandaAfterUpdate = async (order) => {
+    try {
+      // Obtener configuración guardada del usuario
+      const savedConfig = localStorage.getItem('printConfig');
+      let printMethod = 'system';
+      let selectedPrinter = '';
+      
+      if (savedConfig) {
+        try {
+          const config = JSON.parse(savedConfig);
+          printMethod = config.printMethod || 'system';
+          selectedPrinter = config.selectedPrinter || '';
+        } catch (error) {
+          console.error('Error cargando configuración de impresión:', error);
+        }
+      }
+
+      let response;
+
+      switch (printMethod) {
+        case 'thermal':
+          response = await axios.post('/print/thermal', { order });
+          break;
+        case 'download':
+          response = await axios.post('/print/pdf', { order }, { responseType: 'blob' });
+          // Descargar archivo automáticamente
+          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', `comanda_${order.orderNumber}.txt`);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+          break;
+        case 'system':
+        default:
+          // Si no hay impresora seleccionada, usar la primera disponible
+          if (!selectedPrinter) {
+            const printersResponse = await axios.get('/print/printers');
+            if (printersResponse.data.success && printersResponse.data.printers.length > 0) {
+              selectedPrinter = printersResponse.data.printers[0];
+            }
+          }
+          
+          response = await axios.post('/print/system', { 
+            order, 
+            printerName: selectedPrinter || 'default'
+          });
+          break;
+      }
+      
+      if (response && response.data.success) {
+        console.log('Comanda impresa automáticamente después de actualizar:', response.data.message);
+      }
+    } catch (error) {
+      console.warn('No se pudo imprimir la comanda automáticamente:', error.message);
+      // No mostrar error al usuario, solo log en consola
+    }
+  };
   
   // Añadir el hook de gestión de clientes
   const { 
@@ -185,6 +247,9 @@ export const useOrderDetailsLogic = ({
       if (response.status === 200) {
         if (response.data.order && response.data.order._id) {
           updateOrderInList(response.data.order);
+          
+          // Imprimir comanda automáticamente después de actualizar
+          await printComandaAfterUpdate(response.data.order);
         }
         queryClient.invalidateQueries(['orders']);
         
