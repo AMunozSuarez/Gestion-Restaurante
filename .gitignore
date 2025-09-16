@@ -1,0 +1,235 @@
+# ===========================================
+# GESTIÓN RESTAURANTE - GITIGNORE PRINCIPAL
+# ===========================================
+
+# ===========================================
+# ARCHIVOS DEL SISTEMA OPERATIVO
+# ===========================================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===========================================
+# ARCHIVOS DE CONFIGURACIÓN Y ENTORNO
+# ===========================================
+
+# Variables de entorno
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Archivos de configuración sensibles
+config/database.js
+config/secrets.js
+*.key
+*.pem
+*.p12
+*.pfx
+
+# ===========================================
+# LOGS Y ARCHIVOS TEMPORALES
+# ===========================================
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# ===========================================
+# DEPENDENCIAS Y PAQUETES
+# ===========================================
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
+# ===========================================
+# ARCHIVOS DE CONSTRUCCIÓN Y DISTRIBUCIÓN
+# ===========================================
+
+# Build outputs
+build/
+dist/
+out/
+
+# ===========================================
+# ARCHIVOS DE DESARROLLO Y HERRAMIENTAS
+# ===========================================
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Archivos temporales
+*.tmp
+*.temp
+temp/
+tmp/
+
+# ===========================================
+# ARCHIVOS ESPECÍFICOS DEL PROYECTO
+# ===========================================
+
+# Archivos de impresión temporal
+print-service/temp/
+print-service/output/
+
+# Archivos de respaldo
+*.bak
+*.backup
+*.old
+
+# Archivos de base de datos local
+*.sqlite
+*.sqlite3
+*.db
+
+# ===========================================
+# ARCHIVOS DE TESTING
+# ===========================================
+
+# Jest
+coverage/
+.nyc_output/
+
+# ===========================================
+# ARCHIVOS DE CACHE
+# ===========================================
+
+# Cache de npm
+.npm
+.eslintcache
+
+# Cache de Parcel
+.cache
+.parcel-cache
+
+# Cache de Next.js
+.next/
+
+# Cache de Nuxt.js
+.nuxt/
+
+# ===========================================
+# ARCHIVOS DE DEPLOYMENT
+# ===========================================
+
+# Docker
+.dockerignore
+Dockerfile.local
+
+# PM2
+.pm2/
+
+# ===========================================
+# ARCHIVOS DE DOCUMENTACIÓN GENERADA
+# ===========================================
+
+# JSDoc
+docs/
+
+# ===========================================
+# ARCHIVOS DE MONITOREO Y ANALYTICS
+# ===========================================
+
+# Sentry
+.sentryclirc
+
+# ===========================================
+# ARCHIVOS DE SEGURIDAD
+# ===========================================
+
+# Certificados SSL
+*.crt
+*.csr
+*.der
+*.p7b
+*.p7c
+*.p7m
+*.p7s
+*.spc
+
+# ===========================================
+# ARCHIVOS DE RESPALDO Y VERSIONADO
+# ===========================================
+
+# Archivos de respaldo
+*.orig
+*.rej
+*.patch
+
+# Archivos de versionado local
+.svn/
+.hg/
+.bzr/
