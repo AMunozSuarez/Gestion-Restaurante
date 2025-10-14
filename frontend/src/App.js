@@ -32,6 +32,9 @@ import DefaultRoute from './components/common/DefaultRoute';
 // Layouts
 import MostradorLayout from './components/layout/mostradorLayout';
 
+// Componente de prueba de impresión
+import PrintTestComponent from './components/PrintTestComponent';
+
 function App() {
   return (
     <Router>
@@ -103,6 +106,13 @@ function App() {
           <Route path="/admin/reportes" element={
             <ProtectedRoute>
               <Reports />
+            </ProtectedRoute>
+          } />
+
+          {/* Ruta de prueba de impresión */}
+          <Route path="/test-print" element={
+            <ProtectedRoute>
+              <PrintTestComponent orderId="68a64d5c74648736adf1dc47" />
             </ProtectedRoute>
           } />
 

@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const printController = require('../controllers/printController');
+const printController = require('../controllers/printController_NEW');
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// Middleware de autenticación (comentado por defecto, descomenta si lo necesitas)
-// router.use(authMiddleware);
+// Todas las rutas requieren autenticación (ajusta según tu proyecto)
+// Si no usas auth, comenta esta línea
+router.use(authMiddleware);
 
 // ===== NUEVOS ENDPOINTS CON SERVICIO LOCAL =====
 
@@ -37,4 +38,4 @@ router.post('/pdf', printController.printPDFComanda);
 // Imprimir directamente al puerto de la impresora
 router.post('/direct', printController.printDirectToPort);
 
-module.exports = router; 
+module.exports = router;
