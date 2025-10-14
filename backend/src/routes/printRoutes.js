@@ -3,10 +3,13 @@ const router = express.Router();
 const printController = require('../controllers/printController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// Middleware de autenticación (comentado por defecto, descomenta si lo necesitas)
-// router.use(authMiddleware);
+/**
+ * Rutas de impresión usando el servicio local (PrintingService.exe)
+ * Todas las rutas están protegidas por autenticación
+ */
 
-// ===== NUEVOS ENDPOINTS CON SERVICIO LOCAL =====
+// Aplicar autenticación a todas las rutas
+router.use(authMiddleware);
 
 // Verificar estado del servicio de impresión
 router.get('/status', printController.checkPrintServiceStatus);
@@ -22,19 +25,5 @@ router.post('/kitchen/:orderId', printController.printKitchenTicket);
 
 // Imprimir contenido personalizado
 router.post('/custom', printController.printCustomContent);
-
-// ===== ENDPOINTS DE COMPATIBILIDAD (antiguos) =====
-
-// Imprimir comanda en impresora térmica
-router.post('/thermal', printController.printThermalComanda);
-
-// Imprimir en impresora específica del sistema
-router.post('/system', printController.printToSystemPrinter);
-
-// Generar PDF de comanda
-router.post('/pdf', printController.printPDFComanda);
-
-// Imprimir directamente al puerto de la impresora
-router.post('/direct', printController.printDirectToPort);
 
 module.exports = router; 

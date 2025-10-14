@@ -1,6 +1,6 @@
 # Sistema de Gestión de Restaurante
 
-Un sistema completo para la gestión integral de restaurantes, con módulos para mostrador, delivery y administración.
+Un sistema completo para la gestión integral de restaurantes, con módulos para mostrador, delivery, administración y sistema de impresión térmica integrado.
 
 ![Restaurante](frontend/fondo.jpg)
 
@@ -13,6 +13,7 @@ Este sistema de gestión de restaurante es una solución completa que permite ad
 - **Control de clientes y sus direcciones**
 - **Sistema de caja y reportes financieros**
 - **Panel de administración** con estadísticas y configuraciones
+- **Sistema de impresión térmica** con servicio Windows integrado
 
 El sistema está dividido en tres módulos principales:
 - **Mostrador**: Para gestión de pedidos presenciales
@@ -37,6 +38,12 @@ El sistema está dividido en tres módulos principales:
 - JWT para autenticación
 - bcrypt para encriptación
 - Morgan para logging
+
+### Sistema de Impresión
+- C# .NET 6.0
+- Windows Service
+- HttpListener API (puerto 8088)
+- Soporte para impresoras térmicas
 
 ## 🔧 Instalación
 

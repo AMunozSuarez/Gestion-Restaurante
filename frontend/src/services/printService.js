@@ -1,11 +1,11 @@
 import axiosInstance from './axiosConfig';
 
 // URL de la API del backend
-const API_URL = '/print';
+const API_URL = '/api/print';
 
 /**
  * Servicio de impresión para el frontend
- * Se comunica con el backend que a su vez se comunica con el servicio de impresión local
+ * Se comunica con el backend que a su vez se comunica con el servicio de impresión local (PrintingService.exe)
  */
 
 /**
