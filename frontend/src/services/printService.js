@@ -1,7 +1,7 @@
 import axiosInstance from './axiosConfig';
 
 // URL de la API del backend
-const API_URL = '/api/print';
+const API_URL = '/print';
 
 /**
  * Servicio de impresión para el frontend

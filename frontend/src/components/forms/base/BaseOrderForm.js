@@ -9,7 +9,7 @@ import { formatChileanMoney } from '../../../services/utils/formatters';
 import '../../../styles/components/orderForm.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrashAlt } from '@fortawesome/free-solid-svg-icons';
-import PrintComandaAdvanced from '../../common/PrintComandaAdvanced';
+import PrintButton from '../../common/PrintButton';
 
 const BaseOrderForm = ({
     // Props comunes
@@ -317,10 +317,12 @@ const BaseOrderForm = ({
                     </button>
                     {currentOrder && (
                         <>
-                            <PrintComandaAdvanced 
+                            <PrintButton 
                                 order={currentOrder}
+                                type="customer"
                                 buttonText="Imprimir"
-                                buttonClass="print-comanda-button"
+                                className="print-comanda-button"
+                                showConfig={true}
                             />
                         </>
                     )}

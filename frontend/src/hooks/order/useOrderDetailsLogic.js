@@ -6,7 +6,8 @@ import useCartStore from '../../store/useCartStore';
 import { useOrders } from '../api/useOrders';
 import { useOrderLoader } from './useOrderLoader';
 import { useCompletedOrderSelector } from '../business/useCompletedOrderSelector';
-import { useCustomerManagement } from '../customer/useCustomerManagment'; // Importar hook de gestión de clientes
+import { useCustomerManagement } from '../customer/useCustomerManagment';
+import { PrintOrderTicket, GetAvailablePrinters } from '../../services/printService';
 
 export const useOrderDetailsLogic = ({
   orderNumber,
@@ -21,59 +22,26 @@ export const useOrderDetailsLogic = ({
   // Función para imprimir comanda automáticamente después de actualizar
   const printComandaAfterUpdate = async (order) => {
     try {
-      // Obtener configuración guardada del usuario
-      const savedConfig = localStorage.getItem('printConfig');
-      let printMethod = 'system';
-      let selectedPrinter = '';
+      // Obtener impresora guardada del usuario
+      const savedPrinter = localStorage.getItem('selectedPrinter');
+      let printerName = savedPrinter;
       
-      if (savedConfig) {
+      // Si no hay impresora seleccionada, usar la primera disponible
+      if (!printerName) {
         try {
-          const config = JSON.parse(savedConfig);
-          printMethod = config.printMethod || 'system';
-          selectedPrinter = config.selectedPrinter || '';
+          const response = await GetAvailablePrinters();
+          if (response.success && response.printers && response.printers.length > 0) {
+            printerName = response.printers[0].PrinterName;
+          }
         } catch (error) {
-          console.error('Error cargando configuración de impresión:', error);
+          console.warn('No se pudieron obtener las impresoras:', error.message);
+          return;
         }
       }
 
-      let response;
-
-      switch (printMethod) {
-        case 'thermal':
-          response = await axios.post('/print/thermal', { order });
-          break;
-        case 'download':
-          response = await axios.post('/print/pdf', { order }, { responseType: 'blob' });
-          // Descargar archivo automáticamente
-          const url = window.URL.createObjectURL(new Blob([response.data]));
-          const link = document.createElement('a');
-          link.href = url;
-          link.setAttribute('download', `comanda_${order.orderNumber}.txt`);
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.URL.revokeObjectURL(url);
-          break;
-        case 'system':
-        default:
-          // Si no hay impresora seleccionada, usar la primera disponible
-          if (!selectedPrinter) {
-            const printersResponse = await axios.get('/print/printers');
-            if (printersResponse.data.success && printersResponse.data.printers.length > 0) {
-              selectedPrinter = printersResponse.data.printers[0];
-            }
-          }
-          
-          response = await axios.post('/print/system', { 
-            order, 
-            printerName: selectedPrinter || 'default'
-          });
-          break;
-      }
-      
-      if (response && response.data.success) {
-        console.log('Comanda impresa automáticamente después de actualizar:', response.data.message);
-      }
+      // Imprimir usando el nuevo sistema
+      await PrintOrderTicket(order._id, printerName);
+      console.log('Comanda impresa automáticamente después de actualizar');
     } catch (error) {
       console.warn('No se pudo imprimir la comanda automáticamente:', error.message);
       // No mostrar error al usuario, solo log en consola
