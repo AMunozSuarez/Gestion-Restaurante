@@ -327,8 +327,8 @@ const OrderFormDelivery = (props) => {
         </style>
     `; 
     
-    // Crear objeto de pedido para impresión
     const currentOrder = props.editingOrderId ? {
+        _id: props.editingOrderId,
         orderNumber: props.editingOrderId,
         createdAt: new Date(),
         section: 'delivery',

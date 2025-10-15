@@ -7,7 +7,7 @@ import { useOrders } from '../api/useOrders';
 import { useOrderLoader } from './useOrderLoader';
 import { useCompletedOrderSelector } from '../business/useCompletedOrderSelector';
 import { useCustomerManagement } from '../customer/useCustomerManagment';
-import { PrintOrderTicket, GetAvailablePrinters } from '../../services/printService';
+import { PrintKitchenTicket, GetAvailablePrinters } from '../../services/printService';
 
 export const useOrderDetailsLogic = ({
   orderNumber,
@@ -39,9 +39,9 @@ export const useOrderDetailsLogic = ({
         }
       }
 
-      // Imprimir usando el nuevo sistema
-      await PrintOrderTicket(order._id, printerName);
-      console.log('Comanda impresa automáticamente después de actualizar');
+      // Imprimir ticket de COCINA automáticamente después de actualizar
+      await PrintKitchenTicket(order._id, printerName);
+      console.log('Comanda de cocina impresa automáticamente después de actualizar');
     } catch (error) {
       console.warn('No se pudo imprimir la comanda automáticamente:', error.message);
       // No mostrar error al usuario, solo log en consola

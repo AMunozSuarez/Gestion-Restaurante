@@ -67,8 +67,8 @@ const OrderFormMostrador = (props) => {
         props.handleOrderUpdate(null, props.resetForm, 'Cancelado', 'mostrador');
     };
 
-    // Crear objeto de pedido para impresión
     const currentOrder = props.editingOrderId ? {
+        _id: props.editingOrderId,
         orderNumber: props.editingOrderId,
         createdAt: new Date(),
         section: 'mostrador',

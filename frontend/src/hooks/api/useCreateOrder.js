@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '../../services/axiosConfig';
-import { PrintOrderTicket, GetAvailablePrinters } from '../../services/printService';
+import { PrintKitchenTicket, GetAvailablePrinters } from '../../services/printService';
 
 export const useCreateOrder = () => {
     const queryClient = useQueryClient();
@@ -31,10 +31,10 @@ export const useCreateOrder = () => {
                 printerName
             });
 
-            // Imprimir usando el nuevo sistema
-            const result = await PrintOrderTicket(order._id, printerName);
+            // Imprimir ticket de COCINA automáticamente
+            const result = await PrintKitchenTicket(order._id, printerName);
             if (result && result.success) {
-                console.log('Comanda impresa automáticamente:', result.message);
+                console.log('Comanda de cocina impresa automáticamente:', result.message);
             }
         } catch (error) {
             console.warn('No se pudo imprimir la comanda automáticamente:', error.message);

@@ -40,8 +40,14 @@ const PrintButton = ({ order, type = 'customer', buttonText, className = '', sho
   };
 
   const handlePrint = async () => {
-    if (!order || !order._id) {
+    if (!order) {
       setMessage('Error: No hay orden para imprimir');
+      return;
+    }
+    
+    const orderId = order._id || order.id;
+    if (!orderId) {
+      setMessage('Error: La orden no tiene ID');
       return;
     }
 
@@ -56,9 +62,9 @@ const PrintButton = ({ order, type = 'customer', buttonText, className = '', sho
     try {
       let result;
       if (type === 'kitchen') {
-        result = await PrintKitchenTicket(order._id, selectedPrinter);
+        result = await PrintKitchenTicket(orderId, selectedPrinter);
       } else {
-        result = await PrintOrderTicket(order._id, selectedPrinter);
+        result = await PrintOrderTicket(orderId, selectedPrinter);
       }
 
       if (result.success) {

@@ -320,7 +320,7 @@ const BaseOrderForm = ({
                             <PrintButton 
                                 order={currentOrder}
                                 type="customer"
-                                buttonText="Imprimir"
+                                buttonText="Ticket Cliente"
                                 className="print-comanda-button"
                                 showConfig={true}
                             />

@@ -98,10 +98,11 @@ class PrintServiceClient {
       ticket += `Mesa: ${order.table.number || order.table}\n`;
     }
     
-    if (order.customer) {
-      const customerName = typeof order.customer === 'string' 
-        ? order.customer 
-        : order.customer.name || order.customer.firstName || 'Cliente';
+    const customerData = order.buyer || order.customer || (order.name ? { name: order.name } : null);
+    if (customerData) {
+      const customerName = typeof customerData === 'string' 
+        ? customerData 
+        : customerData.name || customerData.firstName || 'Cliente';
       ticket += `Cliente: ${customerName}\n`;
     }
     
@@ -150,10 +151,14 @@ class PrintServiceClient {
 
       ticket += rightAlign(`${qty} ${name}`, price) + '\n';
 
-      // Notas del item
       if (item.notes) {
         const notes = item.notes.substring(0, width - 7);
         ticket += `   Nota: ${notes}\n`;
+      }
+      
+      if (item.comment) {
+        const comment = item.comment.substring(0, width - 10);
+        ticket += `   Comentario: ${comment}\n`;
       }
     });
 
@@ -188,8 +193,13 @@ class PrintServiceClient {
     if (order.paymentMethod) {
       ticket += `Pago: ${order.paymentMethod.toUpperCase()}\n`;
     }
+    
+    if (order.comment) {
+      ticket += '\n';
+      ticket += 'Comentario:\n';
+      ticket += `${order.comment}\n`;
+    }
 
-    // Pie de página
     ticket += '\n';
     ticket += center('¡GRACIAS POR SU VISITA!') + '\n';
     ticket += center('Vuelva Pronto') + '\n';
@@ -225,6 +235,14 @@ class PrintServiceClient {
       ticket += `MESA: ${order.table.number || order.table}\n`;
     }
     
+    const customerData = order.buyer || order.customer || (order.name ? { name: order.name } : null);
+    if (customerData) {
+      const customerName = typeof customerData === 'string' 
+        ? customerData 
+        : customerData.name || customerData.firstName || 'Cliente';
+      ticket += `Cliente: ${customerName}\n`;
+    }
+    
     if (order.waiter) {
       const waiterName = typeof order.waiter === 'string'
         ? order.waiter
@@ -233,8 +251,15 @@ class PrintServiceClient {
     }
     
     ticket += dash + '\n';
+    
+    if (order.comment) {
+      ticket += '\n';
+      ticket += '*** NOTA GENERAL ***\n';
+      ticket += `>>> ${order.comment} <<<\n`;
+      ticket += '\n';
+      ticket += dash + '\n';
+    }
 
-    // Items
     const orderItems = order.items || order.foods || [];
     
     orderItems.forEach(item => {
@@ -249,9 +274,12 @@ class PrintServiceClient {
       
       ticket += `\n${item.quantity || 1}x ${foodName.toUpperCase()}\n`;
 
-      // Notas especiales en negrita (simulado)
       if (item.notes) {
         ticket += `>>> ${item.notes} <<<\n`;
+      }
+      
+      if (item.comment) {
+        ticket += `>>> ${item.comment} <<<\n`;
       }
 
       ticket += dash + '\n';
