@@ -57,6 +57,15 @@ const Header = () => {
                                 </li>
                             )}
                             <li className="nav-item">
+                                <NavLink 
+                                    to="/settings" 
+                                    className={({ isActive }) => (isActive ? 'active settings-link' : 'settings-link')}
+                                    title="Configuración"
+                                >
+                                    ⚙️ Configuración
+                                </NavLink>
+                            </li>
+                            <li className="nav-item">
                                 <button onClick={logout} className="logout-button">
                                     Cerrar sesión
                                 </button>

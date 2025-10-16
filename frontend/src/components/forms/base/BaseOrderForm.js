@@ -322,7 +322,6 @@ const BaseOrderForm = ({
                                 type="customer"
                                 buttonText="Ticket Cliente"
                                 className="print-comanda-button"
-                                showConfig={true}
                             />
                         </>
                     )}

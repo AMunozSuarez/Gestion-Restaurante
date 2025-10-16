@@ -25,15 +25,15 @@ import SalesList from './components/admin/salesList';
 import AdminPanel from './components/admin/AdminPanel';
 import ProtectedAdminRoute from './components/common/ProtectedAdminRoute';
 
+// Páginas de configuración
+import SettingsPage from './components/settings/SettingsPage';
+
 // Componentes de rutas
 import ProtectedRoute from './components/common/ProtectedRoute';
 import DefaultRoute from './components/common/DefaultRoute';
 
 // Layouts
 import MostradorLayout from './components/layout/mostradorLayout';
-
-// Componente de prueba de impresión
-import PrintTestComponent from './components/PrintTestComponent';
 
 function App() {
   return (
@@ -109,10 +109,10 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* Ruta de prueba de impresión */}
-          <Route path="/test-print" element={
+          {/* Página de Configuración */}
+          <Route path="/settings" element={
             <ProtectedRoute>
-              <PrintTestComponent orderId="68a64d5c74648736adf1dc47" />
+              <SettingsPage />
             </ProtectedRoute>
           } />
 

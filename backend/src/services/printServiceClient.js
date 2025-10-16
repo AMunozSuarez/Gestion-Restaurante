@@ -58,8 +58,9 @@ class PrintServiceClient {
   /**
    * Formatea un ticket de orden para imprimir
    */
-  formatOrderTicket(order, restaurant) {
-    const width = 32; // Ancho típico de impresora térmica de 80mm
+  formatOrderTicket(order, restaurant, options = {}) {
+    const { printOrderNumber = true } = options;
+    const width = 38; // Ancho para impresora térmica de 58mm (máximo horizontal)
     const line = '='.repeat(width);
     const dash = '-'.repeat(width);
 
@@ -74,7 +75,8 @@ class PrintServiceClient {
     };
 
     const formatCurrency = (amount) => {
-      return `$${parseFloat(amount).toFixed(2)}`;
+      // Formato chileno: $1.000 (sin decimales, separador de miles con punto)
+      return `$${Math.round(parseFloat(amount)).toLocaleString('es-CL')}`;
     };
 
     let ticket = '';
@@ -92,7 +94,11 @@ class PrintServiceClient {
     
     const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
     ticket += `Fecha: ${orderDate.toLocaleString('es-ES')}\n`;
-    ticket += `Orden #${order.orderNumber || order._id?.toString().slice(-6).toUpperCase() || 'N/A'}\n`;
+    
+    // Solo incluir número de orden si está habilitado
+    if (printOrderNumber) {
+      ticket += `Orden #${order.orderNumber || order._id?.toString().slice(-6).toUpperCase() || 'N/A'}\n`;
+    }
     
     if (order.table) {
       ticket += `Mesa: ${order.table.number || order.table}\n`;
@@ -213,7 +219,7 @@ class PrintServiceClient {
    * Formatea un ticket de cocina
    */
   formatKitchenTicket(order, restaurant) {
-    const width = 32;
+    const width = 38; // Ancho para impresora térmica de 58mm (máximo horizontal)
     const line = '='.repeat(width);
     const dash = '-'.repeat(width);
 

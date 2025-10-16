@@ -61,7 +61,7 @@ const getAvailablePrinters = async (req, res) => {
 const printOrderTicket = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { printerName } = req.body;
+    const { printerName, copies = 1, printOrderNumber = true } = req.body;
 
     const order = await Order.findById(orderId)
       .populate('foods.food')
@@ -84,12 +84,12 @@ const printOrderTicket = async (req, res) => {
       });
     }
 
-    const ticketContent = printServiceClient.formatOrderTicket(order, restaurant);
-    const result = await printServiceClient.print(ticketContent, printerName);
+    const ticketContent = printServiceClient.formatOrderTicket(order, restaurant, { printOrderNumber });
+    const result = await printServiceClient.print(ticketContent, printerName, copies);
 
     res.json({
       success: true,
-      message: 'Ticket impreso correctamente',
+      message: `Ticket impreso correctamente (${copies} copia${copies > 1 ? 's' : ''})`,
       result
     });
   } catch (error) {
@@ -108,7 +108,7 @@ const printOrderTicket = async (req, res) => {
 const printKitchenTicket = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { printerName } = req.body;
+    const { printerName, copies = 1 } = req.body;
 
     const order = await Order.findById(orderId)
       .populate('foods.food')
@@ -132,11 +132,11 @@ const printKitchenTicket = async (req, res) => {
     }
 
     const ticketContent = printServiceClient.formatKitchenTicket(order, restaurant);
-    const result = await printServiceClient.print(ticketContent, printerName);
+    const result = await printServiceClient.print(ticketContent, printerName, copies);
 
     res.json({
       success: true,
-      message: 'Ticket de cocina impreso correctamente',
+      message: `Ticket de cocina impreso correctamente (${copies} copia${copies > 1 ? 's' : ''})`,
       result
     });
   } catch (error) {

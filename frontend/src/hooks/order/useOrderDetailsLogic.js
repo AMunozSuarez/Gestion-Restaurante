@@ -22,6 +22,20 @@ export const useOrderDetailsLogic = ({
   // Función para imprimir comanda automáticamente después de actualizar
   const printComandaAfterUpdate = async (order) => {
     try {
+      // Verificar si la impresión automática está habilitada
+      const printSettings = localStorage.getItem('printSettings');
+      if (printSettings) {
+        const settings = JSON.parse(printSettings);
+        if (!settings.autoPrintKitchen) {
+          console.log('Impresión automática de cocina deshabilitada');
+          return;
+        }
+      } else {
+        // Si no hay configuración, asumir que está deshabilitada
+        console.log('No hay configuración de impresión, saltando impresión automática');
+        return;
+      }
+
       // Obtener impresora guardada del usuario
       const savedPrinter = localStorage.getItem('selectedPrinter');
       let printerName = savedPrinter;

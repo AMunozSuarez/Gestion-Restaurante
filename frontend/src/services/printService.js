@@ -38,11 +38,31 @@ export const GetAvailablePrinters = async () => {
  * Imprime el ticket de una orden (para el cliente)
  * @param {string} orderId - ID de la orden
  * @param {string} printerName - Nombre de la impresora (opcional)
+ * @param {number} copies - Número de copias (opcional)
  */
-export const PrintOrderTicket = async (orderId, printerName = null) => {
+export const PrintOrderTicket = async (orderId, printerName = null, copies = null) => {
   try {
+    // Si no se especifican copias, usar la configuración guardada
+    let finalCopies = copies;
+    let printOrderNumber = true;
+    
+    if (copies === null || printOrderNumber === undefined) {
+      const printSettings = localStorage.getItem('printSettings');
+      if (printSettings) {
+        const settings = JSON.parse(printSettings);
+        if (finalCopies === null) {
+          finalCopies = settings.defaultCopies || 1;
+        }
+        printOrderNumber = settings.printOrderNumber !== false; // Por defecto true
+      } else {
+        finalCopies = 1;
+      }
+    }
+
     const response = await axiosInstance.post(`${API_URL}/order/${orderId}`, {
-      printerName
+      printerName,
+      copies: finalCopies,
+      printOrderNumber
     });
     return response.data;
   } catch (error) {
@@ -55,11 +75,26 @@ export const PrintOrderTicket = async (orderId, printerName = null) => {
  * Imprime el ticket de cocina
  * @param {string} orderId - ID de la orden
  * @param {string} printerName - Nombre de la impresora (opcional)
+ * @param {number} copies - Número de copias (opcional)
  */
-export const PrintKitchenTicket = async (orderId, printerName = null) => {
+export const PrintKitchenTicket = async (orderId, printerName = null, copies = null) => {
   try {
+    // Si no se especifican copias, usar la configuración guardada
+    let finalCopies = copies;
+    
+    if (copies === null) {
+      const printSettings = localStorage.getItem('printSettings');
+      if (printSettings) {
+        const settings = JSON.parse(printSettings);
+        finalCopies = settings.defaultCopies || 1;
+      } else {
+        finalCopies = 1;
+      }
+    }
+
     const response = await axiosInstance.post(`${API_URL}/kitchen/${orderId}`, {
-      printerName
+      printerName,
+      copies: finalCopies
     });
     return response.data;
   } catch (error) {

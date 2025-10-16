@@ -92,6 +92,7 @@ header nav a.super-admin.active {
     100% { box-shadow: 0 4px 15px rgba(118, 75, 162, 0.5); }
 }
 
+
 /* Botón de cerrar sesión */
 .logout-button {
     background-color: #bf6516; /* Color distintivo para el botón de logout */

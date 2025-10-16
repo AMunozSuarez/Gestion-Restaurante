@@ -2,22 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPrint, faCog, faCheck } from '@fortawesome/free-solid-svg-icons';
 import { PrintOrderTicket, PrintKitchenTicket, GetAvailablePrinters } from '../../services/printService';
+import usePrintSettings from '../../hooks/usePrintSettings';
 import './PrintButton.css';
 
 /**
  * Componente de botón de impresión mejorado
  * Usa el nuevo sistema de impresión con PrintingService.exe
+ * Configuración ahora se maneja desde la página de configuración
  */
-const PrintButton = ({ order, type = 'customer', buttonText, className = '', showConfig = true }) => {
+const PrintButton = ({ order, type = 'customer', buttonText, className = '', showConfig = false }) => {
   const [printers, setPrinters] = useState([]);
-  const [selectedPrinter, setSelectedPrinter] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [message, setMessage] = useState('');
+  
+  // Usar el hook de configuraciones de impresión
+  const { printSettings, updatePrinter, loadPrintSettings } = usePrintSettings();
+  const { selectedPrinter, defaultCopies } = printSettings;
 
   // Cargar impresoras disponibles al montar
   useEffect(() => {
     loadPrinters();
+    loadPrintSettings(); // Cargar configuraciones guardadas
   }, []);
 
   const loadPrinters = async () => {
@@ -26,13 +32,8 @@ const PrintButton = ({ order, type = 'customer', buttonText, className = '', sho
       if (response.success && response.printers) {
         setPrinters(response.printers);
         
-        // Cargar impresora guardada o usar la primera
-        const savedPrinter = localStorage.getItem('selectedPrinter');
-        if (savedPrinter) {
-          setSelectedPrinter(savedPrinter);
-        } else if (response.printers.length > 0) {
-          setSelectedPrinter(response.printers[0].PrinterName);
-        }
+        // NO cambiar automáticamente la impresora seleccionada
+        // La configuración debe venir del hook/localStorage
       }
     } catch (error) {
       console.error('Error cargando impresoras:', error);
@@ -52,7 +53,7 @@ const PrintButton = ({ order, type = 'customer', buttonText, className = '', sho
     }
 
     if (!selectedPrinter) {
-      setMessage('Error: Selecciona una impresora');
+      setMessage('Error: Configura la impresora en Configuración');
       return;
     }
 
@@ -64,6 +65,7 @@ const PrintButton = ({ order, type = 'customer', buttonText, className = '', sho
       if (type === 'kitchen') {
         result = await PrintKitchenTicket(orderId, selectedPrinter);
       } else {
+        // PrintOrderTicket ya usa automáticamente defaultCopies y printOrderNumber desde localStorage
         result = await PrintOrderTicket(orderId, selectedPrinter);
       }
 
@@ -81,8 +83,7 @@ const PrintButton = ({ order, type = 'customer', buttonText, className = '', sho
   };
 
   const handlePrinterChange = (printerName) => {
-    setSelectedPrinter(printerName);
-    localStorage.setItem('selectedPrinter', printerName);
+    updatePrinter(printerName);
     setMessage('✅ Impresora guardada');
     setTimeout(() => setMessage(''), 2000);
   };
@@ -92,11 +93,14 @@ const PrintButton = ({ order, type = 'customer', buttonText, className = '', sho
       <button
         onClick={handlePrint}
         disabled={loading || !selectedPrinter}
-        className="print-button"
-        title={selectedPrinter ? `Imprimir en ${selectedPrinter}` : 'Selecciona una impresora'}
+        className={type === 'customer' ? 'print-icon-only' : 'print-button'}
+        title={selectedPrinter ? 
+          `Imprimir en ${selectedPrinter}` : 
+          (showConfig ? 'Selecciona una impresora' : 'Configura la impresora en Configuración')
+        }
       >
         <FontAwesomeIcon icon={faPrint} />
-        {buttonText || (type === 'kitchen' ? 'Imprimir Cocina' : 'Imprimir Ticket')}
+        {type !== 'customer' && (buttonText || (type === 'kitchen' ? 'Imprimir Cocina' : 'Imprimir Ticket'))}
       </button>
 
       {showConfig && (
