@@ -194,34 +194,6 @@ const SettingsPage = () => {
     }
   };
 
-  // Función de diagnóstico temporal
-  const runDiagnosis = () => {
-    console.log('=== EJECUTANDO DIAGNÓSTICO ===');
-    diagnosePrintSettings();
-    
-    console.log('=== Estado actual del componente ===');
-    console.log('🔧 Estados locales:');
-    console.log('  - localSettings:', localSettings);
-    console.log('  - localPrinter:', localPrinter);
-    console.log('  - originalSettings:', originalSettings);
-    console.log('  - originalPrinter:', originalPrinter);
-    console.log('  - hasChanges:', hasChanges);
-    console.log('  - initialLoadComplete:', initialLoadComplete);
-    
-    console.log('🔧 Hook usePrintSettings:');
-    console.log('  - printSettings:', printSettings);
-    
-    console.log('🔧 localStorage directo:');
-    const directStorage = localStorage.getItem('printSettings');
-    console.log('  - printSettings:', directStorage);
-    const directPrinter = localStorage.getItem('selectedPrinter');
-    console.log('  - selectedPrinter:', directPrinter);
-    
-    setMessage('🔧 Diagnóstico ejecutado. Revisa la consola del navegador.');
-    setMessageType('info');
-    setTimeout(() => setMessage(''), 3000);
-  };
-
   const resetAllSettings = () => {
     setLoading(true);
     
