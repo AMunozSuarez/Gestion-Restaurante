@@ -207,7 +207,7 @@ const OrderFormDelivery = (props) => {
                     
                     {/* Si hay cliente seleccionado Y no estamos añadiendo/editando dirección */}
                     {selectedCustomer && customerAddresses.length > 0 && !isAddingNewAddress && !isEditingAddress ? (
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div>
                             <select
                                 id="deliveryAddressSelect"
                                 value={props.deliveryAddress}

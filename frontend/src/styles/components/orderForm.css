@@ -58,30 +58,57 @@
     color: #6c757d; /* Gris oscuro */
 }
 
-/* Formulario Principal */
 .order-form .form-group {
-    display: flex; /* Alinea los elementos en una fila */
-    align-items: center; /* Centra verticalmente los elementos */
-    justify-content: flex-start; /* Alinea los elementos al inicio */
-    gap: 10px; /* Espaciado entre el label y el input */
+    display: flex;
+    flex-direction: column; /* Label encima del input */
+    align-items: center; /* Centrar label e input */
+    gap: 8px; /* Espaciado entre el label y el input */
     margin-bottom: 15px; /* Espaciado inferior entre grupos */
 }
 
 .order-form .form-group label {
-    width: 200px; /* Ancho fijo para los labels */
-    text-align: right; /* Alinea el texto del label a la derecha */
+    width: auto; /* Dejar que el label tome su ancho natural */
+    text-align: center; /* Centrar el texto del label */
     font-weight: bold; /* Negrita para los labels */
 }
 
 .order-form .form-group input,
 .order-form .form-group select {
-    flex: 1; /* Permite que los inputs ocupen el espacio restante */
-    padding: 5px;
+    width: 100%; /* Ancho fijo y uniforme para todos los inputs principales */
+    max-width: 100%; /* En pantallas pequeñas permitir que reduzcan un poco */
+    padding: 8px;
     border: 1px solid #ccc;
     border-radius: 5px;
     font-size: 14px;
     color: #333; /* Texto oscuro */
+    box-sizing: border-box; /* Incluye padding y border en el ancho */
 }
+
+/* Asegurar que inputs dentro de contenedores flex mantengan su ancho cuando hay botones al lado */
+.order-form .form-group > div {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Mantener el behavior del buscador (search-group) a pantalla completa */
+.order-form .form-group.search-group {
+    display: block;
+    align-items: stretch;
+}
+
+
+/* Asegurar que el botón de limpiar esté siempre dentro del contenedor al final */
+.order-form .customer-phone-input-container #clear-selection-btn,
+.order-form .customer-phone-input-container .clear-selection-btn {
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 3 !important;
+}
+
 
 .order-form .form-group input:disabled,
 .order-form .form-group select:disabled{
