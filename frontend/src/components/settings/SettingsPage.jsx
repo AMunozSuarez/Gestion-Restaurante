@@ -349,13 +349,14 @@ funcionando bien!
             {printServiceStatus ? 'Servicio disponible' : 'Servicio no disponible'}
           </span>
           {!printServiceStatus && (
-            <button 
-              onClick={retryConnection}
-              className="retry-button"
-              disabled={loading}
-            >
-              Reintentar
-            </button>
+            <div className="download-installer">
+              <button 
+                onClick={() => window.open('URL_DEL_INSTALADOR', '_blank')}
+                className="download-button"
+              >
+                Descargar Instalador del Servicio
+              </button>
+            </div>
           )}
         </div>
       </div>
