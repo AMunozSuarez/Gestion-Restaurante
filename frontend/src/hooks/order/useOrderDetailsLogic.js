@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import axios from '../../services/axiosConfig';
 import useCartStore from '../../store/useCartStore';
-import { useOrders } from '../api/useOrders';
+import { useOrders, useRecentOrders } from '../api';
 import { useOrderLoader } from './useOrderLoader';
 import { useCompletedOrderSelector } from '../business/useCompletedOrderSelector';
 import { useCustomerManagement } from '../customer/useCustomerManagment';
@@ -17,6 +17,12 @@ export const useOrderDetailsLogic = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { orders, updateOrderInList } = useOrders();
+
+  // Si se proporcionan opciones para obtener pedidos completados recientes,
+  // usamos el hook useRecentOrders para mantener consistencia entre la vista
+  // de creación y la vista de detalles/edición.
+  const recentOptions = detailsConfig.recentCompletedOptions || null;
+  const { orders: recentCompletedOrders = [] } = recentOptions ? useRecentOrders(recentOptions) : { orders: [] };
   const { cart, setCart, setCartContext } = useCartStore();
 
   // Función para imprimir comanda automáticamente después de actualizar
@@ -113,17 +119,18 @@ export const useOrderDetailsLogic = ({
     });
   };
 
-  // Filtrar pedidos según su estado
-  const preparationOrders = orders.filter(
-    (order) => order.section === section && order.status === 'Preparacion'
-  );
+  // Filtrar pedidos según su estado y ordenarlos de más nuevos a más antiguos
+  const preparationOrders = orders
+    .filter((order) => order.section === section && order.status === 'Preparacion')
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Ordenar por createdAt descendente
   
   // Personalizar el filtro para completados según tipo
   const completedOrdersFilter = detailsConfig.completedOrdersFilter || 
     ((order) => order.section === section && 
                (order.status === 'Completado' || order.status === 'Cancelado'));
                
-  const completedOrders = orders.filter(completedOrdersFilter);
+  // Si se solicitó usar la lista de recientes, preferirla (mantiene límite y orden)
+  const completedOrders = recentOptions ? recentCompletedOrders : orders.filter(completedOrdersFilter);
 
   // Enviar actualización de pedido
   const handleOrderUpdate = async (e, resetForm, status = 'Preparacion', sectionName = section, extraData = {}) => {

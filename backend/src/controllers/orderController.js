@@ -377,6 +377,47 @@ const getFilteredOrders = async (req, res) => {
     }
 };
 
+// export controllers (moved down to include getRecentOrders)
+
+// GET RECENT ORDERS (limit, status, section)
+const getRecentOrders = async (req, res) => {
+    try {
+        const { limit = 10, status, section } = req.query;
+
+        // allow sorting by createdAt or updatedAt
+        let { sortBy } = req.query;
+        const allowedSorts = ['createdAt', 'updatedAt'];
+        if (!allowedSorts.includes(sortBy)) sortBy = 'createdAt';
+
+        const filters = {
+            restaurant: req.user.restaurant,
+        };
+
+        if (status) {
+            // support comma separated statuses
+            const statuses = status.split(',').map(s => s.trim());
+            filters.status = { $in: statuses };
+        }
+
+        if (section) {
+            filters.section = section;
+        }
+
+        const numericLimit = Number(limit) || 10;
+
+        const orders = await orderModel.find(filters)
+            .sort({ [sortBy]: -1 })
+            .limit(numericLimit)
+            .populate('foods.food')
+            .populate('buyer');
+
+        res.status(200).json({ success: true, orders });
+    } catch (error) {
+        console.error('Error en getRecentOrders:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener órdenes recientes', error });
+    }
+};
+
 module.exports = {
     createOrderController,
     getAllOrdersController,
@@ -384,5 +425,6 @@ module.exports = {
     deleteOrderController,
     getOrderByIdController,
     getOrderByNumberController,
-    getFilteredOrders
+    getFilteredOrders,
+    getRecentOrders
 };

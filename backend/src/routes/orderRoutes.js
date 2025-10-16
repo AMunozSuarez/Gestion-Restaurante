@@ -1,6 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
-const { createOrderController, getAllOrdersController, updateOrderController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders } = require('../controllers/orderController');
+const { createOrderController, getAllOrdersController, updateOrderController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders, getRecentOrders } = require('../controllers/orderController');
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
 const router = express.Router();
 
@@ -24,6 +24,9 @@ router.delete('/delete/:id', authMiddleware, filterByRestaurant, deleteOrderCont
 
 // GET FILTERED ORDERS
 router.get('/sales', authMiddleware, filterByRestaurant, getFilteredOrders);
+
+// GET RECENT ORDERS (limit, status, section)
+router.get('/recent', authMiddleware, filterByRestaurant, getRecentOrders);
 
 
 module.exports = router; // Export the router

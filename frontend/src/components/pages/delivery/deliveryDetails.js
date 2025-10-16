@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOrderDetailsLogic } from '../../../hooks/order/useOrderDetailsLogic';
+import { useOrderForm } from '../../../hooks/order/useOrderForm';
 import OrderDetailsBase from '../../layout/OrderDetailsBase';
 import OrderFormDelivery from '../../forms/specialized/OrderFormDelivery';
 import OrderListDelivery from '../../lists/orderListDelivery';
@@ -61,6 +62,8 @@ const DeliveryDetails = () => {  const { orderNumber } = useParams();
     completedOrdersFilter: (order) => 
       order.section === 'delivery' && 
       (order.status === 'Enviado' || order.status === 'Entregado'),
+    // Mantener paridad con la vista de creación usando la lista limitada y ordenada
+    recentCompletedOptions: { limit: 10, status: 'Enviado,Entregado', section: 'delivery', sortBy: 'updatedAt' },
   };
   
   // Usar el hook lógico
@@ -108,9 +111,14 @@ const DeliveryDetails = () => {  const { orderNumber } = useParams();
     resetForm: () => {},
   };
   
+  // Importar el hook para operaciones de pedidos
+  const { handleUpdateOrderStatus, handleRegisterOrderInCash } = useOrderForm();
+
   // Configurar propiedades para la lista
   const listProps = {
     setEditingOrderId: setEditingOrder,
+    handleUpdateOrderStatus,
+    handleRegisterOrderInCashRegister: handleRegisterOrderInCash,
   };
   
   // Configurar propiedades para la lista de completados

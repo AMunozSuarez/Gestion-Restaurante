@@ -2,18 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import '../../styles/Lists/orderListDelivery.css';
 import { useOrderForm } from '../../hooks/order/useOrderForm';
-import { useOrders } from '../../hooks/api/useOrders';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane, faClock } from '@fortawesome/free-solid-svg-icons';
 import { formatChileanMoney } from '../../services/utils/formatters';
 import { focusOnElement } from '../common/focus';
 
 
-const OrderListDelivery = () => {
+const OrderListDelivery = ({ orders = [], handleUpdateOrderStatus = null, handleRegisterOrderInCashRegister = null }) => {
     const navigate = useNavigate();
     const { orderNumber } = useParams();
-    const { handleUpdateOrderStatus, handleRegisterOrderInCashRegister } = useOrderForm();
-    const { orders, isLoading, error } = useOrders();
+    
+    // Si no se proporcionan las funciones como props, obtenemos las funciones del hook
+    const orderForm = useOrderForm();
+    const updateOrderStatus = handleUpdateOrderStatus || orderForm.handleUpdateOrderStatus;
+    const registerOrderInCashRegister = handleRegisterOrderInCashRegister || orderForm.handleRegisterOrderInCashRegister;
     
     // Estado para almacenar los tiempos transcurridos
     const [elapsedTimes, setElapsedTimes] = useState({});
@@ -32,9 +34,7 @@ const OrderListDelivery = () => {
             const times = {};
             if (orders && orders.length > 0) {
                 orders.forEach(order => {
-                    if (order.section === 'delivery' && order.status === 'Preparacion') {
-                        times[order._id] = calculateElapsedMinutes(order.createdAt);
-                    }
+                    times[order._id] = calculateElapsedMinutes(order.createdAt);
                 });
             }
             setElapsedTimes(times);
@@ -49,13 +49,8 @@ const OrderListDelivery = () => {
         return () => clearInterval(interval);
     }, [orders]);
 
-    if (isLoading) return <p>Cargando pedidos...</p>;
-    if (error) return <p>Error al cargar los pedidos: {error.message}</p>;
-
-    // Filtrar solo los pedidos con sección "delivery"
-    const deliveryOrders = orders.filter(
-        (order) => order.section === 'delivery' && order.status === 'Preparacion'
-    );
+    // Ya no es necesario filtrar los pedidos, ya que recibimos solo los pedidos que necesitamos
+    // como prop desde el componente padre, ya filtrados y ordenados
 
     // Modificar la sección del return donde se muestra la lista de pedidos
     return (
@@ -84,9 +79,9 @@ const OrderListDelivery = () => {
             </div>
             
             {/* Verificar si hay pedidos para mostrar */}
-            {deliveryOrders.length > 0 ? (
+            {orders.length > 0 ? (
                 <ul>
-                    {deliveryOrders.map((order) => (
+                    {orders.map((order) => (
                         <li
                             key={order._id}
                             onClick={() => navigate(`/delivery/${order.orderNumber}`)}
@@ -115,6 +110,16 @@ const OrderListDelivery = () => {
                                             return;
                                         }
 
+                                        // Construir objeto con todos los campos requeridos por el backend
+                                        // Validar que la dirección seleccionada existe en buyer.addresses
+                                        let selectedAddress = order.selectedAddress || null;
+                                        let buyerAddresses = (order.buyer && order.buyer.addresses) ? order.buyer.addresses : [];
+                                        const addressExists = buyerAddresses.some(addr => addr.address === selectedAddress);
+                                        if (!addressExists) {
+                                            alert('La dirección seleccionada no existe para este cliente. No se puede enviar el pedido.');
+                                            return;
+                                        }
+
                                         const cleanOrder = {
                                             ...order,
                                             foods: order.foods.map((item) => ({
@@ -123,23 +128,30 @@ const OrderListDelivery = () => {
                                                 comment: item.comment || '',
                                             })),
                                             status: 'Enviado',
+                                            section: order.section,
+                                            payment: order.payment,
+                                            buyer: order.buyer && typeof order.buyer === 'object' 
+                                                ? order.buyer 
+                                                : { _id: order.buyer },
+                                            selectedAddress,
+                                            comment: order.comment || '',
                                         };
 
                                         console.log('Datos enviados a handleUpdateOrderStatus:', cleanOrder);
 
                                         // Actualizar el estado del pedido
-                                        await handleUpdateOrderStatus(cleanOrder);
+                                        await updateOrderStatus(cleanOrder);
                                         console.log(`Pedido #${order.orderNumber} actualizado correctamente.`);
 
                                         // Registrar el pedido en la caja
-                                        await handleRegisterOrderInCashRegister({
-                                            cart: order.foods.map((item) => ({
+                                        await registerOrderInCashRegister({
+                                            items: order.foods.map((item) => ({
                                                 productId: item.food._id,
                                                 quantity: item.quantity,
                                             })),
-                                            cartTotal: order.total,
+                                            total: order.total,
                                             deliveryCost: order.deliveryCost || 0,
-                                            selectedPaymentMethod: order.payment,
+                                            paymentMethod: order.payment,
                                         });
                                         console.log(`Pedido #${order.orderNumber} registrado correctamente en la caja.`);
                                     } catch (error) {

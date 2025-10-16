@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useOrders } from '../../../hooks/api/useOrders';
+import { useOrders, useRecentOrders } from '../../../hooks/api';
 import { useOrderForm } from '../../../hooks/order/useOrderForm';
 import OrderFormDelivery from '../../forms/specialized/OrderFormDelivery';
 import CompletedOrdersList from '../../lists/completedOrdersList';
@@ -26,6 +26,7 @@ const deliveryConfig = {
 
 const Delivery = () => {
     const { orders, isLoading, updateOrderStatus } = useOrders();
+    const { orders: recentCompleted = [] } = useRecentOrders({ limit: 10, status: 'Enviado,Cancelado', section: 'delivery', sortBy: 'updatedAt' });
     const {
         customerName,
         setCustomerName,
@@ -42,6 +43,8 @@ const Delivery = () => {
         setEditingOrderId,
         comment,
         setComment,
+        handleUpdateOrderStatus,
+        handleRegisterOrderInCash,
     } = useOrderForm();
     const { setCartContext, clearCart, setCart } = useCartStore();
     const [isViewingCompletedOrder, setIsViewingCompletedOrder] = useState(false);
@@ -65,8 +68,10 @@ const Delivery = () => {
 
     if (isLoading) return <p>Cargando pedidos...</p>;
 
-    const preparationOrders = orders.filter((order) => order.section === 'delivery' && order.status === 'Preparacion');
-    const completedOrders = orders.filter((order) => order.section === 'delivery' && (order.status === 'Enviado' || order.status === 'Cancelado'));
+    const preparationOrders = orders
+        .filter((order) => order.section === 'delivery' && order.status === 'Preparacion')
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const completedOrders = recentCompleted;
 
     const resetForm = () => {
         console.log('resetForm de Delivery.js');
@@ -139,6 +144,8 @@ const Delivery = () => {
                         <div className="delivery-orders-list">
                             <OrderListDelivery
                                 orders={preparationOrders}
+                                handleUpdateOrderStatus={handleUpdateOrderStatus}
+                                handleRegisterOrderInCashRegister={handleRegisterOrderInCash}
                             />
                         </div>
                         

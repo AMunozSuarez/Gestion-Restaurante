@@ -52,7 +52,6 @@ export const useOrderOperations = () => {
       const response = await registerOrderInCashService(orderData);
       
       if (response.status === 201) {
-        toast.success('Pedido registrado correctamente en la caja.');
         return response;
       } else {
         throw new Error('Error inesperado al registrar el pedido en la caja.');
@@ -102,9 +101,6 @@ export const useOrderOperations = () => {
         toast.success('Pedido procesado correctamente');
       }
       
-      if (result.cashRegister) {
-        toast.success('Pedido registrado en la caja');
-      }
       
       return result;
     } catch (error) {

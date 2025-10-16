@@ -25,6 +25,8 @@ const OrderDetails = () => {
     completedOrdersFilter: (order) => 
       order.section === 'mostrador' && 
       (order.status === 'Completado' || order.status === 'Cancelado'),
+    // Opciones para obtener los pedidos completados recientes (mantener paridad con la vista de creación)
+    recentCompletedOptions: { limit: 10, status: 'Completado,Cancelado', section: 'mostrador', sortBy: 'updatedAt' }
   };
   
   // Usar el hook lógico

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useOrders } from '../../../hooks/api/useOrders'; // Hook para obtener las órdenes
+import { useOrders, useRecentOrders } from '../../../hooks/api'; // Hook para obtener las órdenes y recientes
 import { useOrderForm } from '../../../hooks/order/useOrderForm'; // Hook para manejar el formulario de pedidos
 import OrderFormMostrador from '../../forms/specialized/OrderFormMostrador';
 import OrderList from '../../lists/orderList';
@@ -9,6 +9,7 @@ import '../../../styles/mostrador.css';
 import useCartStore from '../../../store/useCartStore';
 import { CSSTransition } from 'react-transition-group';
 import { useOrderDetailsLogic } from '../../../hooks/order/useOrderDetailsLogic'; // Importar hook
+
 
 // Configuración específica para pedidos de mostrador
 const mostradorConfig = {
@@ -25,6 +26,8 @@ const mostradorConfig = {
 
 const Mostrador = () => {
     const { orders, isLoading, updateOrderStatus } = useOrders();
+    // Obtener solo los últimos 10 pedidos completados/cancelados para mostrador (ordenados por cuando se marcaron como completados)
+    const { orders: recentCompleted = [] } = useRecentOrders({ limit: 10, status: 'Completado,Cancelado', section: 'mostrador', sortBy: 'updatedAt' });
     const {
         customerName,
         setCustomerName,
@@ -54,8 +57,12 @@ const Mostrador = () => {
     if (isLoading) return <p>Cargando pedidos...</p>;
 
     // Filtrar pedidos en preparación y completados/cancelados
-    const preparationOrders = orders.filter((order) => order.status === 'Preparacion');
-    const completedOrders = orders.filter((order) => order.section === 'mostrador' && (order.status === 'Completado' || order.status === 'Cancelado'));
+    // Preparación: ordenar por createdAt desc (más nuevos primero)
+    const preparationOrders = orders
+        .filter((order) => order.status === 'Preparacion')
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    // Usar recentCompleted para mostrar solo los últimos 10
+    const completedOrders = recentCompleted;
 
     // Refactorizado para usar el hook especializado
     const handleSelectCompletedOrder = (order) => {
