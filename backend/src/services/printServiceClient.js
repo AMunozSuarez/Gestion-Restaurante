@@ -110,6 +110,11 @@ class PrintServiceClient {
         ? customerData 
         : customerData.name || customerData.firstName || 'Cliente';
       ticket += `Cliente: ${customerName}\n`;
+
+      // Solo incluir dirección en órdenes de delivery
+      if (order.section === 'delivery' && order.selectedAddress) {
+        ticket += `Dirección: ${order.selectedAddress}\n`;
+      }
     }
     
     if (order.waiter) {
@@ -182,6 +187,16 @@ class PrintServiceClient {
     }
     
     ticket += rightAlign('Subtotal:', formatCurrency(subtotal)) + '\n';
+
+    // Solo incluir costo de envío en órdenes de delivery
+    if (order.section === 'delivery' && order.selectedAddress && order.buyer?.addresses) {
+      const selectedAddressData = order.buyer.addresses.find(
+        addr => addr.address === order.selectedAddress
+      );
+      if (selectedAddressData && selectedAddressData.deliveryCost > 0) {
+        ticket += rightAlign('Envío:', formatCurrency(selectedAddressData.deliveryCost)) + '\n';
+      }
+    }
 
     if (order.tax && order.tax > 0) {
       ticket += rightAlign('Impuestos:', formatCurrency(order.tax)) + '\n';
