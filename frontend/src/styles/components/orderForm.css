@@ -662,6 +662,9 @@
     transition: border-color 0.3s ease;
     min-height: 50px;
     padding: 5px;
+    display: block !important; /* asegurar que sea bloque para permitir saltos de línea */
+    white-space: pre-wrap !important; /* preservar saltos de línea y espacios */
+    box-sizing: border-box !important;
 }
 
 /* Estilo para el comentario general del pedido cuando se está viendo un pedido completado */
