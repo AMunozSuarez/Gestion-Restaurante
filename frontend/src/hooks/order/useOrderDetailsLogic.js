@@ -22,7 +22,7 @@ export const useOrderDetailsLogic = ({
   // usamos el hook useRecentOrders para mantener consistencia entre la vista
   // de creación y la vista de detalles/edición.
   const recentOptions = detailsConfig.recentCompletedOptions || null;
-  const { orders: recentCompletedOrders = [] } = recentOptions ? useRecentOrders(recentOptions) : { orders: [] };
+  const recentCompletedOrders = useRecentOrders(recentOptions || {});
   const { cart, setCart, setCartContext } = useCartStore();
 
   // Función para imprimir comanda automáticamente después de actualizar

@@ -1,4 +1,5 @@
 import axiosInstance from './axiosConfig';
+import React from 'react';
 
 // URL de la API del backend
 const API_URL = '/print';
