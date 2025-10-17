@@ -373,8 +373,8 @@ funcionando bien!
                 className="printer-select"
               >
                 <option value="">Seleccionar impresora...</option>
-                {printers.map((printer) => (
-                  <option key={printer.PrinterName} value={printer.PrinterName}>
+                {printers.map((printer, index) => (
+                  <option key={`printer-${index}-${printer.PrinterName}`} value={printer.PrinterName}>
                     {printer.PrinterName} {printer.Status === 'Available' ? '✓' : '⚠️'}
                   </option>
                 ))}

@@ -36,10 +36,22 @@ export const GetAvailablePrinters = async () => {
   try {
     const printersList = await localPrintApi.getPrinters();
     // Formatear para mantener compatibilidad con el código existente
-    const formattedPrinters = printersList.map(printer => ({
-      PrinterName: printer,
-      IsDefault: false // El servicio local no diferencia impresoras por defecto
-    }));
+    const formattedPrinters = printersList.map((printer, index) => {
+      // Si printer es string, convertir a objeto
+      if (typeof printer === 'string') {
+        return {
+          PrinterName: printer,
+          Status: 'Available',
+          IsDefault: false
+        };
+      }
+      // Si ya es objeto, mantenerlo pero asegurar propiedades
+      return {
+        PrinterName: printer.PrinterName || printer,
+        Status: printer.Status || 'Available', 
+        IsDefault: printer.IsDefault || false
+      };
+    });
     
     return {
       success: true,
@@ -59,12 +71,12 @@ export const GetAvailablePrinters = async () => {
  */
 export const PrintOrderTicket = async (orderId, printerName = null, copies = null) => {
   try {
-    // Obtener la orden del backend
-    const orderResponse = await axiosInstance.get(`/order/${orderId}`);
+    // Obtener la orden del backend (ruta correcta)
+    const orderResponse = await axiosInstance.get(`/order/get/${orderId}`);
     const order = orderResponse.data.order;
     
-    // Obtener información del restaurante
-    const restaurantResponse = await axiosInstance.get(`/restaurant/${order.restaurant}`);
+    // Obtener información del restaurante (ruta correcta)
+    const restaurantResponse = await axiosInstance.get(`/restaurant/get/${order.restaurant}`);
     const restaurant = restaurantResponse.data.restaurant;
     
     // Obtener configuración de impresión
@@ -99,6 +111,17 @@ export const PrintOrderTicket = async (orderId, printerName = null, copies = nul
     };
   } catch (error) {
     console.error('Error printing order ticket:', error);
+    
+    // Si es error 404, la orden no existe
+    if (error.response?.status === 404) {
+      throw new Error(`Orden ${orderId} no encontrada. Es posible que haya sido eliminada.`);
+    }
+    
+    // Si es error de conexión al servicio de impresión
+    if (error.code === 'ECONNREFUSED' || error.message.includes('localhost:8088')) {
+      throw new Error('Servicio de impresión no disponible. Verifica que esté instalado y corriendo.');
+    }
+    
     throw error;
   }
 };
@@ -111,12 +134,12 @@ export const PrintOrderTicket = async (orderId, printerName = null, copies = nul
  */
 export const PrintKitchenTicket = async (orderId, printerName = null, copies = null) => {
   try {
-    // Obtener la orden del backend
-    const orderResponse = await axiosInstance.get(`/order/${orderId}`);
+    // Obtener la orden del backend (ruta correcta)
+    const orderResponse = await axiosInstance.get(`/order/get/${orderId}`);
     const order = orderResponse.data.order;
     
-    // Obtener información del restaurante
-    const restaurantResponse = await axiosInstance.get(`/restaurant/${order.restaurant}`);
+    // Obtener información del restaurante (ruta correcta)
+    const restaurantResponse = await axiosInstance.get(`/restaurant/get/${order.restaurant}`);
     const restaurant = restaurantResponse.data.restaurant;
     
     // Obtener configuración de copias
@@ -146,6 +169,17 @@ export const PrintKitchenTicket = async (orderId, printerName = null, copies = n
     };
   } catch (error) {
     console.error('Error printing kitchen ticket:', error);
+    
+    // Si es error 404, la orden no existe
+    if (error.response?.status === 404) {
+      throw new Error(`Orden ${orderId} no encontrada. Es posible que haya sido eliminada.`);
+    }
+    
+    // Si es error de conexión al servicio de impresión
+    if (error.code === 'ECONNREFUSED' || error.message.includes('localhost:8088')) {
+      throw new Error('Servicio de impresión no disponible. Verifica que esté instalado y corriendo.');
+    }
+    
     throw error;
   }
 };
