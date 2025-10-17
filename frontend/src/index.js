@@ -6,7 +6,8 @@ import App from './App';
 import axios from 'axios';
 
 // Configura la URL base de Axios
-axios.defaults.baseURL = 'http://localhost:3001/api'; // Cambia esto si tu backend está en otro dominio o puerto
+// axios.defaults.baseURL = 'http://localhost:3001/api'; // Cambia esto si tu backend está en otro dominio o puerto
+axios.defaults.baseURL = 'https://gestion-restaurante-vibe.onrender.com/api';
 
 // axios.defaults.baseURL = 'https://txhxjh3c-3001.brs.devtunnels.ms/api'; // Cambia esto si tu backend está en otro dominio o puerto
 
