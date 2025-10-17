@@ -1,7 +1,7 @@
 const Restaurant = require('../models/restaurantModel');
 const User = require('../models/userModel');
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 // Crear un restaurante con un usuario por defecto
 const createRestaurantWithUser = async (req, res) => {
