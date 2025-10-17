@@ -1,12 +1,11 @@
 import axiosInstance from './axiosConfig';
+import localPrintApi from '../api/localPrintApi';
 import React from 'react';
-
-// URL de la API del backend
-const API_URL = '/print';
 
 /**
  * Servicio de impresión para el frontend
- * Se comunica con el backend que a su vez se comunica con el servicio de impresión local (PrintingService.exe)
+ * NUEVO: Ahora se comunica directamente con el servicio de impresión local en localhost:8088
+ * Esto elimina la necesidad de que el backend se conecte al servicio local
  */
 
 /**
@@ -14,11 +13,19 @@ const API_URL = '/print';
  */
 export const CheckPrintServiceStatus = async () => {
   try {
-    const response = await axiosInstance.get(`${API_URL}/status`);
-    return response.data;
+    const available = await localPrintApi.isAvailable();
+    return {
+      success: true,
+      available,
+      message: available ? 'Servicio de impresión disponible' : 'Servicio de impresión no disponible'
+    };
   } catch (error) {
     console.error('Error checking print service status:', error);
-    throw error;
+    return {
+      success: false,
+      available: false,
+      message: error.message
+    };
   }
 };
 
@@ -27,8 +34,17 @@ export const CheckPrintServiceStatus = async () => {
  */
 export const GetAvailablePrinters = async () => {
   try {
-    const response = await axiosInstance.get(`${API_URL}/printers`);
-    return response.data;
+    const printersList = await localPrintApi.getPrinters();
+    // Formatear para mantener compatibilidad con el código existente
+    const formattedPrinters = printersList.map(printer => ({
+      PrinterName: printer,
+      IsDefault: false // El servicio local no diferencia impresoras por defecto
+    }));
+    
+    return {
+      success: true,
+      printers: formattedPrinters
+    };
   } catch (error) {
     console.error('Error fetching printers:', error);
     throw error;
@@ -43,7 +59,15 @@ export const GetAvailablePrinters = async () => {
  */
 export const PrintOrderTicket = async (orderId, printerName = null, copies = null) => {
   try {
-    // Si no se especifican copias, usar la configuración guardada
+    // Obtener la orden del backend
+    const orderResponse = await axiosInstance.get(`/order/${orderId}`);
+    const order = orderResponse.data.order;
+    
+    // Obtener información del restaurante
+    const restaurantResponse = await axiosInstance.get(`/restaurant/${order.restaurant}`);
+    const restaurant = restaurantResponse.data.restaurant;
+    
+    // Obtener configuración de impresión
     let finalCopies = copies;
     let printOrderNumber = true;
     
@@ -54,18 +78,25 @@ export const PrintOrderTicket = async (orderId, printerName = null, copies = nul
         if (finalCopies === null) {
           finalCopies = settings.defaultCopies || 1;
         }
-        printOrderNumber = settings.printOrderNumber !== false; // Por defecto true
+        printOrderNumber = settings.printOrderNumber !== false;
       } else {
         finalCopies = 1;
       }
     }
 
-    const response = await axiosInstance.post(`${API_URL}/order/${orderId}`, {
+    // Imprimir directamente usando el servicio local
+    const result = await localPrintApi.printOrderTicket(
+      order,
+      restaurant,
       printerName,
-      copies: finalCopies,
-      printOrderNumber
-    });
-    return response.data;
+      { copies: finalCopies, printOrderNumber }
+    );
+    
+    return {
+      success: true,
+      message: `Ticket impreso correctamente (${finalCopies} copia${finalCopies > 1 ? 's' : ''})`,
+      result
+    };
   } catch (error) {
     console.error('Error printing order ticket:', error);
     throw error;
@@ -80,7 +111,15 @@ export const PrintOrderTicket = async (orderId, printerName = null, copies = nul
  */
 export const PrintKitchenTicket = async (orderId, printerName = null, copies = null) => {
   try {
-    // Si no se especifican copias, usar la configuración guardada
+    // Obtener la orden del backend
+    const orderResponse = await axiosInstance.get(`/order/${orderId}`);
+    const order = orderResponse.data.order;
+    
+    // Obtener información del restaurante
+    const restaurantResponse = await axiosInstance.get(`/restaurant/${order.restaurant}`);
+    const restaurant = restaurantResponse.data.restaurant;
+    
+    // Obtener configuración de copias
     let finalCopies = copies;
     
     if (copies === null) {
@@ -93,11 +132,18 @@ export const PrintKitchenTicket = async (orderId, printerName = null, copies = n
       }
     }
 
-    const response = await axiosInstance.post(`${API_URL}/kitchen/${orderId}`, {
-      printerName,
-      copies: finalCopies
-    });
-    return response.data;
+    // Imprimir directamente usando el servicio local
+    const result = await localPrintApi.printKitchenTicket(
+      order,
+      restaurant,
+      printerName
+    );
+    
+    return {
+      success: true,
+      message: 'Ticket de cocina impreso correctamente',
+      result
+    };
   } catch (error) {
     console.error('Error printing kitchen ticket:', error);
     throw error;
@@ -112,12 +158,12 @@ export const PrintKitchenTicket = async (orderId, printerName = null, copies = n
  */
 export const PrintCustomContent = async (content, printerName = null, copies = 1) => {
   try {
-    const response = await axiosInstance.post(`${API_URL}/custom`, {
-      content,
-      printerName,
-      copies
-    });
-    return response.data;
+    const result = await localPrintApi.print(content, printerName, copies);
+    return {
+      success: true,
+      message: 'Contenido impreso correctamente',
+      result
+    };
   } catch (error) {
     console.error('Error printing custom content:', error);
     throw error;

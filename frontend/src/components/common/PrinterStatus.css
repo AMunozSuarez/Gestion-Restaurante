@@ -1,0 +1,230 @@
+/* Estilos para el componente de estado de impresión */
+
+.printer-status-container {
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.printer-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.printer-status-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.btn-refresh {
+  padding: 8px 16px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.printer-status-card {
+  background: white;
+  padding: 20px;
+  border-radius: 6px;
+  border: 2px solid #ddd;
+  margin-bottom: 15px;
+}
+
+.printer-status-card.available {
+  border-color: #28a745;
+  background: #f0fff4;
+}
+
+.printer-status-card.unavailable {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.status-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.status-info {
+  flex: 1;
+}
+
+.status-title {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.status-message {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.download-link {
+  display: inline-block;
+  margin-left: 10px;
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.download-link:hover {
+  text-decoration: underline;
+}
+
+.printer-selector {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.printer-selector label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #555;
+}
+
+.printer-select-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.printer-select-group select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+}
+
+.btn-refresh-printers {
+  padding: 8px 12px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.3s;
+}
+
+.btn-refresh-printers:hover {
+  background: #5a6268;
+}
+
+.printer-info {
+  margin: 8px 0 0 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.printer-instructions {
+  background: #e7f3ff;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #007bff;
+}
+
+.printer-instructions h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.printer-instructions ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.printer-instructions li {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 5px;
+}
+
+/* Versión compacta */
+.printer-status-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.printer-status-compact.available {
+  background: #d4edda;
+  color: #155724;
+}
+
+.printer-status-compact.unavailable {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.printer-status-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.printer-status-text {
+  line-height: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .printer-status-container {
+    padding: 15px;
+  }
+
+  .printer-status-header h3 {
+    font-size: 16px;
+  }
+
+  .btn-refresh {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .status-icon {
+    font-size: 24px;
+  }
+
+  .printer-select-group {
+    flex-direction: column;
+  }
+
+  .btn-refresh-printers {
+    width: 100%;
+  }
+}
