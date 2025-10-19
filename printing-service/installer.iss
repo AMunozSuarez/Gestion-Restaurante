@@ -1,16 +1,21 @@
 [Setup]
-AppName=Printing Service
+AppName=Restaurant Printing Service
 AppVersion=1.0
-DefaultDirName={autopf}\PrintingService
-DefaultGroupName=Printing Service
+DefaultDirName={autopf}\RestaurantPrintingService
+DefaultGroupName=Restaurant Printing Service
 OutputDir=output
-OutputBaseFilename=PrintingServiceInstaller
+OutputBaseFilename=RestaurantPrintingServiceInstaller
 Compression=lzma
 SolidCompression=yes
+PrivilegesRequired=admin
 
 [Files]
 Source: "publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-Source: "install-service.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 [Run]
-Filename: "{app}\install-service.bat"; Description: "Registrar e iniciar el servicio"; Flags: runhidden
+Filename: "sc.exe"; Parameters: "create RestaurantPrintService binPath= ""{app}\PrintingService.exe"" start= auto DisplayName= ""Restaurant Print Service"""; Flags: runhidden waituntilterminated
+Filename: "sc.exe"; Parameters: "start RestaurantPrintService"; Flags: runhidden waituntilterminated
+
+[UninstallRun]
+Filename: "sc.exe"; Parameters: "stop RestaurantPrintService"; Flags: runhidden waituntilterminated
+Filename: "sc.exe"; Parameters: "delete RestaurantPrintService"; Flags: runhidden waituntilterminated

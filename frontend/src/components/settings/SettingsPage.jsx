@@ -29,13 +29,13 @@ const SettingsPage = () => {
 
   // Estados para detectar cambios
   const [localSettings, setLocalSettings] = useState({
-    autoPrintKitchen: false,
+    autoPrintKitchen: true,
     printOrderNumber: true,
     defaultCopies: 1
   });
   const [localPrinter, setLocalPrinter] = useState('');
   const [originalSettings, setOriginalSettings] = useState({
-    autoPrintKitchen: false,
+    autoPrintKitchen: true,
     printOrderNumber: true,
     defaultCopies: 1
   });
@@ -84,7 +84,7 @@ const SettingsPage = () => {
       
       // Establecer configuraciones locales para edición con valores seguros
       const settingsToUse = {
-        autoPrintKitchen: currentSettings?.autoPrintKitchen === true, // Solo true si explícitamente es true
+        autoPrintKitchen: currentSettings?.autoPrintKitchen !== false, // true por defecto, false solo si explícitamente es false
         printOrderNumber: currentSettings?.printOrderNumber !== false, // true por defecto, false solo si explícitamente es false
         defaultCopies: currentSettings?.defaultCopies && currentSettings.defaultCopies > 0 ? currentSettings.defaultCopies : 1
       };
@@ -164,7 +164,7 @@ const SettingsPage = () => {
       // Crear objeto con todas las configuraciones
       const allSettings = {
         selectedPrinter: localPrinter,
-        autoPrintKitchen: localSettings.autoPrintKitchen || false,
+        autoPrintKitchen: localSettings.autoPrintKitchen !== false,
         printOrderNumber: localSettings.printOrderNumber !== false,
         defaultCopies: localSettings.defaultCopies || 1
       };
@@ -350,12 +350,15 @@ funcionando bien!
           </span>
           {!printServiceStatus && (
             <div className="download-installer">
-              <button 
-                onClick={() => window.open('URL_DEL_INSTALADOR', '_blank')}
+              <a
+                href="https://github.com/AMunozSuarez/Django/releases/download/V1.0/RestaurantPrintingServiceInstaller.exe"
+                download
                 className="download-button"
               >
-                Descargar Instalador del Servicio
-              </button>
+                <FontAwesomeIcon icon={faPrint} className="download-icon" />
+                <span className="download-text">Descargar Instalador del Servicio</span>
+                <small className="download-subtitle">Se requiere para imprimir tickets</small>
+              </a>
             </div>
           )}
         </div>
@@ -411,7 +414,7 @@ funcionando bien!
           <label>
             <input
               type="checkbox"
-              checked={localSettings.autoPrintKitchen || false}
+              checked={localSettings.autoPrintKitchen !== false}
               onChange={(e) => handlePrintSettingChange('autoPrintKitchen', e.target.checked)}
             />
             Imprimir automáticamente comandas de cocina al crear/actualizar órdenes
