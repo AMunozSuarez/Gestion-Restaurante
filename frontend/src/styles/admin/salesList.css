@@ -144,3 +144,101 @@
 .detail-section ul li {
     margin-bottom: 5px;
 }
+
+/* Fila de producto en detalle de venta */
+.product-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+.product-qty {
+    min-width: 40px;
+    text-align: right;
+    font-weight: bold;
+}
+.product-title {
+    flex: 1;
+    margin: 0 8px;
+    text-align: left;
+}
+.product-price {
+    min-width: 60px;
+    text-align: right;
+    color: #b45a00;
+    font-weight: bold;
+}
+
+/* Estilos para edición de método de pago */
+.payment-display-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.payment-edit-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.payment-edit-container select {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    background-color: white;
+}
+
+.payment-edit-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-edit-payment,
+.btn-save-payment,
+.btn-cancel-payment {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-edit-payment {
+    background-color: #b45a00;
+    color: white;
+}
+
+.btn-edit-payment:hover {
+    background-color: #8a4500;
+}
+
+.btn-save-payment {
+    background-color: #28a745;
+    color: white;
+    flex: 1;
+}
+
+.btn-save-payment:hover:not(:disabled) {
+    background-color: #218838;
+}
+
+.btn-cancel-payment {
+    background-color: #6c757d;
+    color: white;
+    flex: 1;
+}
+
+.btn-cancel-payment:hover:not(:disabled) {
+    background-color: #5a6268;
+}
+
+.btn-save-payment:disabled,
+.btn-cancel-payment:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

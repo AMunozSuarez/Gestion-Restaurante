@@ -206,95 +206,127 @@ const updateOrderController = async (req, res) => {
     try {
         const { buyer, foods, payment, section, status, selectedAddress, comment } = req.body;
         console.log('Datos recibidos en el backend:', req.body);
-        if (!req.body.foods || !Array.isArray(req.body.foods)) {
-            return res.status(400).json({
+        
+        // Buscar la orden existente
+        const existingOrder = await orderModel.findOne({ 
+            _id: req.params.id, 
+            restaurant: req.user.restaurant 
+        });
+
+        if (!existingOrder) {
+            return res.status(404).json({
                 success: false,
-                message: 'La propiedad foods debe ser un array.',
+                message: 'Pedido no encontrado o no pertenece a este restaurante',
             });
+        }
+
+        // Preparar objeto de actualización
+        const updateData = {};
+
+        // Si solo se está actualizando el método de pago (o status u otro campo simple)
+        if (payment !== undefined) {
+            updateData.payment = payment;
         }
         
-        const invalidFood = req.body.foods.find((item) => !item.food || !item.quantity || item.comment === undefined);
-        if (invalidFood) {
-            return res.status(400).json({
-                success: false,
-                message: 'Todos los elementos de foods deben tener las propiedades food, quantity y comment.',
-            });
+        if (status !== undefined) {
+            updateData.status = status;
+        }
+        
+        if (comment !== undefined) {
+            updateData.comment = comment;
         }
 
-        let customer = null;
-        let deliveryCost = 0;
-
-        if (buyer && buyer.phone) {
-            customer = await Customer.findOne({ phone: buyer.phone });
-
-            if (!customer) {
-                customer = new Customer({
-                    name: buyer.name,
-                    phone: buyer.phone,
-                    addresses: buyer.addresses || [],
-                    comment: buyer.comment || '',
-                });
-                await customer.save();
-            } else {
-                customer.name = buyer.name;
-                customer.comment = buyer.comment || customer.comment;
-
-                customer.addresses.forEach((addr) => {
-                    if (addr.address === selectedAddress) {
-                        addr.deliveryCost = buyer.addresses.find((newAddr) => newAddr.address === selectedAddress).deliveryCost;
-                    }
-                });
-
-                buyer.addresses.forEach((newAddress) => {
-                    const existingAddress = customer.addresses.find(
-                        (addr) => addr.address === newAddress.address
-                    );
-                    if (!existingAddress) {
-                        customer.addresses.push(newAddress);
-                    }
-                });
-
-                await customer.save();
-            }
-
-            const selectedAddressObj = customer.addresses.find((addr) => addr.address === selectedAddress);
-            if (!selectedAddressObj) {
+        // Si se envían foods, validar y actualizar con cálculo completo
+        if (foods && Array.isArray(foods)) {
+            if (!Array.isArray(foods)) {
                 return res.status(400).json({
                     success: false,
-                    message: 'La dirección seleccionada no está asociada al cliente',
+                    message: 'La propiedad foods debe ser un array.',
                 });
             }
-            deliveryCost = selectedAddressObj.deliveryCost;
+            
+            const invalidFood = foods.find((item) => !item.food || !item.quantity || item.comment === undefined);
+            if (invalidFood) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Todos los elementos de foods deben tener las propiedades food, quantity y comment.',
+                });
+            }
+
+            let customer = null;
+            let deliveryCost = 0;
+
+            if (buyer && buyer.phone) {
+                customer = await Customer.findOne({ phone: buyer.phone });
+
+                if (!customer) {
+                    customer = new Customer({
+                        name: buyer.name,
+                        phone: buyer.phone,
+                        addresses: buyer.addresses || [],
+                        comment: buyer.comment || '',
+                    });
+                    await customer.save();
+                } else {
+                    customer.name = buyer.name;
+                    customer.comment = buyer.comment || customer.comment;
+
+                    customer.addresses.forEach((addr) => {
+                        if (addr.address === selectedAddress) {
+                            addr.deliveryCost = buyer.addresses.find((newAddr) => newAddr.address === selectedAddress).deliveryCost;
+                        }
+                    });
+
+                    buyer.addresses.forEach((newAddress) => {
+                        const existingAddress = customer.addresses.find(
+                            (addr) => addr.address === newAddress.address
+                        );
+                        if (!existingAddress) {
+                            customer.addresses.push(newAddress);
+                        }
+                    });
+
+                    await customer.save();
+                }
+
+                const selectedAddressObj = customer.addresses.find((addr) => addr.address === selectedAddress);
+                if (!selectedAddressObj) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'La dirección seleccionada no está asociada al cliente',
+                    });
+                }
+                deliveryCost = selectedAddressObj.deliveryCost;
+            }
+
+            const foodIds = foods.map((item) => item.food);
+            const existingFoods = await foodModel.find({ _id: { $in: foodIds }, restaurant: req.user.restaurant });
+
+            if (existingFoods.length !== foods.length) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Uno o más alimentos no pertenecen a este restaurante',
+                });
+            }
+
+            const total = foods.reduce((sum, item) => {
+                const foodDetails = existingFoods.find((food) => food._id.toString() === item.food);
+                return sum + (foodDetails.price * item.quantity);
+            }, 0) + deliveryCost;
+
+            // Actualizar datos relacionados con foods
+            updateData.name = !customer ? buyer.name : null;
+            updateData.buyer = customer ? customer._id : null;
+            updateData.foods = foods;
+            if (section !== undefined) updateData.section = section;
+            updateData.total = total;
+            updateData.selectedAddress = customer ? selectedAddress : null;
         }
 
-        const foodIds = foods.map((item) => item.food);
-        const existingFoods = await foodModel.find({ _id: { $in: foodIds }, restaurant: req.user.restaurant });
-
-        if (existingFoods.length !== foods.length) {
-            return res.status(400).json({
-                success: false,
-                message: 'Uno o más alimentos no pertenecen a este restaurante',
-            });
-        }
-
-        const total = foods.reduce((sum, item) => {
-            const foodDetails = existingFoods.find((food) => food._id.toString() === item.food);
-            return sum + (foodDetails.price * item.quantity);
-        }, 0) + deliveryCost;
-
+        // Actualizar la orden
         const updatedOrder = await orderModel.findByIdAndUpdate(
             req.params.id,
-            {
-                name: !customer ? buyer.name : null,
-                buyer: customer ? customer._id : null,
-                foods,
-                payment,
-                section,
-                total,
-                status,
-                selectedAddress: customer ? selectedAddress : null,
-                comment: comment || '', // Actualizar el comentario
-            },
+            updateData,
             { new: true, runValidators: true }
         );
 

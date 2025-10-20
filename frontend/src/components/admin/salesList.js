@@ -2,10 +2,14 @@ import React, { useState } from 'react';
 import '../../styles/admin/salesList.css'; // Estilos específicos para la lista de ventas
 import AdminSubheader from '../layout/adminSubheader'; // Subheader para navegación
 import { useOrders } from '../../hooks/api/useOrders'; // Hook para obtener las órdenes
+import axios from '../../services/axiosConfig';
 
 const SalesList = () => {
-    const { orders, isLoading, error } = useOrders(); // Usar el hook useOrders
+    const { orders, isLoading, error, updateOrderInList } = useOrders(); // Usar el hook useOrders
     const [selectedSale, setSelectedSale] = useState(null); // Estado para la venta seleccionada
+    const [isEditingPayment, setIsEditingPayment] = useState(false); // Estado para editar método de pago
+    const [editedPaymentMethod, setEditedPaymentMethod] = useState(''); // Método de pago editado
+    const [isSaving, setIsSaving] = useState(false); // Estado de guardado
     const [filters, setFilters] = useState({
         date: new Date().toISOString().split('T')[0], // Fecha actual
         status: '',
@@ -26,6 +30,43 @@ const SalesList = () => {
     // Manejar la selección de una venta
     const handleViewSale = (sale) => {
         setSelectedSale(sale);
+        setIsEditingPayment(false); // Resetear estado de edición
+        setEditedPaymentMethod(sale.payment); // Inicializar con el método actual
+    };
+
+    // Activar modo de edición para método de pago
+    const handleEditPayment = () => {
+        setIsEditingPayment(true);
+    };
+
+    // Cancelar edición de método de pago
+    const handleCancelEdit = () => {
+        setIsEditingPayment(false);
+        setEditedPaymentMethod(selectedSale.payment); // Restaurar valor original
+    };
+
+    // Guardar el método de pago actualizado
+    const handleSavePayment = async () => {
+        if (!selectedSale || !editedPaymentMethod) return;
+
+        setIsSaving(true);
+        try {
+            const response = await axios.put(`/order/update/${selectedSale._id}`, {
+                payment: editedPaymentMethod
+            });
+
+            // Actualizar la orden en la lista
+            const updatedOrder = { ...selectedSale, payment: editedPaymentMethod };
+            updateOrderInList(updatedOrder);
+            setSelectedSale(updatedOrder);
+            setIsEditingPayment(false);
+            
+        } catch (error) {
+            console.error('Error al actualizar el método de pago:', error);
+            alert('Error al actualizar el método de pago');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     if (isLoading) {
@@ -59,8 +100,10 @@ const SalesList = () => {
                                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
                             >
                                 <option value="">Todos</option>
+                                <option value="Preparacion">Preparación</option>
+                                <option value="En camino">En camino</option>
+                                <option value="Enviado">Enviado</option>
                                 <option value="Completado">Completado</option>
-                                <option value="Preparacion">Preparacion</option>
                                 <option value="Cancelado">Cancelado</option>
                             </select>
                         </label>
@@ -72,8 +115,8 @@ const SalesList = () => {
                             >
                                 <option value="">Todos</option>
                                 <option value="Efectivo">Efectivo</option>
-                                <option value="Débito">Débito</option>
-                                <option value="Crédito">Crédito</option>
+                                <option value="Debito">Débito</option>
+                                <option value="Transferencia">Transferencia</option>
                             </select>
                         </label>
                         <label>
@@ -83,9 +126,8 @@ const SalesList = () => {
                                 onChange={(e) => setFilters({ ...filters, section: e.target.value })}
                             >
                                 <option value="">Todas</option>
-                                <option value="Mostrador">Mostrador</option>
-                                <option value="Delivery">Delivery</option>
-                                <option value="Mesa">Mesa</option>
+                                <option value="mostrador">Mostrador</option>
+                                <option value="delivery">Delivery</option>
                             </select>
                         </label>
                     </form>
@@ -111,7 +153,7 @@ const SalesList = () => {
                                     onClick={() => handleViewSale(sale)}
                                 >
                                     <p>{new Date(sale.createdAt).toLocaleString()}</p>
-                                    <p>{sale.buyer}</p>
+                                    <p>{sale.buyer?.name || sale.name || 'Sin nombre'}</p>
                                     <p>{sale.status}</p>
                                     <p>{sale.payment}</p>
                                     <p>${sale.total}</p>
@@ -132,7 +174,7 @@ const SalesList = () => {
                                 </div>
                                 <div className="detail-row">
                                     <p><strong>Cliente:</strong></p>
-                                    <p>{selectedSale.buyer}</p>
+                                    <p>{selectedSale.buyer?.name || selectedSale.name || 'Sin nombre'}</p>
                                 </div>
                                 <div className="detail-row">
                                     <p><strong>Estado:</strong></p>
@@ -140,7 +182,46 @@ const SalesList = () => {
                                 </div>
                                 <div className="detail-row">
                                     <p><strong>Método de Pago:</strong></p>
-                                    <p>{selectedSale.payment}</p>
+                                    {isEditingPayment ? (
+                                        <div className="payment-edit-container">
+                                            <select 
+                                                value={editedPaymentMethod}
+                                                onChange={(e) => setEditedPaymentMethod(e.target.value)}
+                                                disabled={isSaving}
+                                            >
+                                                <option value="Efectivo">Efectivo</option>
+                                                <option value="Debito">Débito</option>
+                                                <option value="Transferencia">Transferencia</option>
+                                            </select>
+                                            <div className="payment-edit-buttons">
+                                                <button 
+                                                    className="btn-save-payment"
+                                                    onClick={handleSavePayment}
+                                                    disabled={isSaving}
+                                                >
+                                                    {isSaving ? 'Guardando...' : 'Guardar'}
+                                                </button>
+                                                <button 
+                                                    className="btn-cancel-payment"
+                                                    onClick={handleCancelEdit}
+                                                    disabled={isSaving}
+                                                >
+                                                    Cancelar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="payment-display-container">
+                                            <button 
+                                                className="btn-edit-payment"
+                                                onClick={handleEditPayment}
+                                            >
+                                                Editar
+                                            </button>
+                                            <p>{selectedSale.payment}</p>
+                                            
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="detail-row">
                                     <p><strong>Total:</strong></p>
@@ -152,8 +233,10 @@ const SalesList = () => {
                                 <h4>Productos</h4>
                                 <ul>
                                     {selectedSale.foods.map((food, index) => (
-                                        <li key={index}>
-                                            <strong>{food.food.title}:</strong> {food.quantity} x ${food.food.price}
+                                        <li key={index} className="product-row">
+                                            <span className="product-qty">{food.quantity}x</span>
+                                            <span className="product-title">{food.food.title}</span>
+                                            <span className="product-price">{food.food.price.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 })}</span>
                                         </li>
                                     ))}
                                 </ul>
