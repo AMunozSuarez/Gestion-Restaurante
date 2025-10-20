@@ -5,6 +5,38 @@
 
 const LOCAL_PRINT_SERVICE_URL = 'http://localhost:8088';
 
+/**
+ * Convierte HTML a texto plano preservando saltos de línea
+ * @param {string} html - Texto HTML a convertir
+ * @returns {string} Texto plano con saltos de línea
+ */
+const htmlToPlainText = (html) => {
+  if (!html) return '';
+  
+  // Crear un elemento temporal para parsear el HTML
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  
+  // Reemplazar <div> y <br> con saltos de línea
+  temp.querySelectorAll('div').forEach(div => {
+    div.replaceWith('\n' + div.textContent);
+  });
+  
+  temp.querySelectorAll('br').forEach(br => {
+    br.replaceWith('\n');
+  });
+  
+  // Obtener el texto limpio
+  let text = temp.textContent || temp.innerText || '';
+  
+  // Limpiar espacios múltiples pero preservar saltos de línea
+  text = text.replace(/[ \t]+/g, ' '); // Múltiples espacios/tabs a uno solo
+  text = text.replace(/\n+/g, '\n'); // Múltiples saltos de línea a uno solo
+  text = text.trim(); // Limpiar espacios al inicio y final
+  
+  return text;
+};
+
 class LocalPrintApi {
   /**
    * Verifica si el servicio de impresión local está disponible
@@ -149,6 +181,10 @@ class LocalPrintApi {
       if (order.section === 'delivery' && order.selectedAddress) {
         ticket += `Dirección: ${order.selectedAddress}\n`;
       }
+        // Agregar teléfono del cliente si existe
+        if (customerData.phone) {
+          ticket += `Teléfono: ${customerData.phone}\n`;
+        }
     }
     
     if (order.waiter) {
@@ -194,12 +230,14 @@ class LocalPrintApi {
       ticket += rightAlign(`${qty} ${name}`, price) + '\n';
 
       if (item.notes) {
-        const notes = item.notes.substring(0, width - 7);
+        const cleanNotes = htmlToPlainText(item.notes);
+        const notes = cleanNotes.substring(0, width - 7);
         ticket += `   Nota: ${notes}\n`;
       }
       
       if (item.comment) {
-        const comment = item.comment.substring(0, width - 10);
+        const cleanComment = htmlToPlainText(item.comment);
+        const comment = cleanComment.substring(0, width - 10);
         ticket += `   Comentario: ${comment}\n`;
       }
     });
@@ -240,14 +278,18 @@ class LocalPrintApi {
     ticket += rightAlign('TOTAL:', formatCurrency(order.total || subtotal)) + '\n';
     ticket += line + '\n';
 
-    if (order.paymentMethod) {
-      ticket += `Pago: ${order.paymentMethod.toUpperCase()}\n`;
-    }
+      // Agregar método de pago si existe
+      if (order.payment || order.paymentMethod) {
+        const paymentMethod = order.payment || order.paymentMethod;
+        ticket += `Pago: ${paymentMethod.toUpperCase()}\n`;
+      }
     
     if (order.comment) {
       ticket += '\n';
       ticket += 'Comentario:\n';
-      ticket += `${order.comment}\n`;
+      // Convertir HTML a texto plano con saltos de línea correctos
+      const cleanComment = htmlToPlainText(order.comment);
+      ticket += `${cleanComment}\n`;
     }
 
     ticket += '\n';
@@ -278,10 +320,15 @@ class LocalPrintApi {
     let ticket = '';
 
     ticket += line + '\n';
-    ticket += center('*** COCINA ***') + '\n';
+    let cocinaTipo = 'COCINA';
+    if (order.section === 'delivery') {
+      cocinaTipo += ' - DELIVERY';
+    } else {
+      cocinaTipo += ' - MOSTRADOR';
+    }
+    ticket += center(`*** ${cocinaTipo} ***`) + '\n';
     ticket += line + '\n';
     ticket += `Orden #${order.orderNumber || order._id?.toString().slice(-6).toUpperCase() || 'N/A'}\n`;
-    ticket += `Hora: ${new Date().toLocaleTimeString('es-ES')}\n`;
     
     if (order.table) {
       ticket += `MESA: ${order.table.number || order.table}\n`;
@@ -307,7 +354,9 @@ class LocalPrintApi {
     if (order.comment) {
       ticket += '\n';
       ticket += '*** NOTA GENERAL ***\n';
-      ticket += `>>> ${order.comment} <<<\n`;
+      // Convertir HTML a texto plano con saltos de línea correctos
+      const cleanComment = htmlToPlainText(order.comment);
+      ticket += `>>> ${cleanComment} <<<\n`;
       ticket += '\n';
       ticket += dash + '\n';
     }
@@ -327,11 +376,13 @@ class LocalPrintApi {
       ticket += `\n${item.quantity || 1}x ${foodName.toUpperCase()}\n`;
 
       if (item.notes) {
-        ticket += `>>> ${item.notes} <<<\n`;
+        const cleanNotes = htmlToPlainText(item.notes);
+        ticket += `>>> ${cleanNotes} <<<\n`;
       }
       
       if (item.comment) {
-        ticket += `>>> ${item.comment} <<<\n`;
+        const cleanComment = htmlToPlainText(item.comment);
+        ticket += `>>> ${cleanComment} <<<\n`;
       }
 
       ticket += dash + '\n';

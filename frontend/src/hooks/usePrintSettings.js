@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 export const usePrintSettings = () => {
   const [printSettings, setPrintSettings] = useState({
     selectedPrinter: '',
-    autoPrintKitchen: false,
+    autoPrintKitchen: true,
     printOrderNumber: true,
     defaultCopies: 1
   });
@@ -34,7 +34,7 @@ export const usePrintSettings = () => {
       if (legacyPrinter) {
         const legacySettings = {
           selectedPrinter: legacyPrinter,
-          autoPrintKitchen: false,
+          autoPrintKitchen: true,
           printOrderNumber: true,
           defaultCopies: 1
         };
@@ -47,7 +47,7 @@ export const usePrintSettings = () => {
       // Solo devolver configuración por defecto si realmente no hay nada guardado
       const defaultSettings = {
         selectedPrinter: '',
-        autoPrintKitchen: false,
+        autoPrintKitchen: true,
         printOrderNumber: true,
         defaultCopies: 1
       };
@@ -89,7 +89,7 @@ export const usePrintSettings = () => {
   const resetSettings = () => {
     const defaultSettings = {
       selectedPrinter: '',
-      autoPrintKitchen: false,
+      autoPrintKitchen: true,
       printOrderNumber: true,
       defaultCopies: 1
     };

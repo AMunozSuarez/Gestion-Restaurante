@@ -250,7 +250,6 @@ class PrintServiceClient {
     ticket += center('*** COCINA ***') + '\n';
     ticket += line + '\n';
     ticket += `Orden #${order.orderNumber || order._id?.toString().slice(-6).toUpperCase() || 'N/A'}\n`;
-    ticket += `Hora: ${new Date().toLocaleTimeString('es-ES')}\n`;
     
     if (order.table) {
       ticket += `MESA: ${order.table.number || order.table}\n`;
