@@ -48,7 +48,6 @@ export const useCreateOrder = () => {
             // Imprimir ticket de COCINA automáticamente
             const result = await PrintKitchenTicket(order._id, printerName);
             if (result && result.success) {
-                console.log('Comanda de cocina impresa automáticamente:', result.message);
             }
         } catch (error) {
             console.warn('No se pudo imprimir la comanda automáticamente:', error.message);

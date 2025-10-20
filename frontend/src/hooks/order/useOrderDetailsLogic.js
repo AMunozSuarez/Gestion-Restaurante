@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import axios from '../../services/axiosConfig';
 import useCartStore from '../../store/useCartStore';
+import useRestaurantStore from '../../store/useRestaurantStore';
 import { useOrders, useRecentOrders } from '../api';
 import { useOrderLoader } from './useOrderLoader';
 import { useCompletedOrderSelector } from '../business/useCompletedOrderSelector';
@@ -17,6 +18,7 @@ export const useOrderDetailsLogic = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { orders, updateOrderInList } = useOrders();
+  const { currentRestaurant } = useRestaurantStore();
 
   // Si se proporcionan opciones para obtener pedidos completados recientes,
   // usamos el hook useRecentOrders para mantener consistencia entre la vista
@@ -59,9 +61,19 @@ export const useOrderDetailsLogic = ({
         }
       }
 
-      // Imprimir ticket de COCINA automáticamente después de actualizar
-      await PrintKitchenTicket(order._id, printerName);
-      console.log('Comanda de cocina impresa automáticamente después de actualizar');
+      let restaurant = currentRestaurant;
+      
+      if (!restaurant && order.restaurant) {
+        try {
+          const restaurantResponse = await axios.get(`/restaurant/get/${order.restaurant}`);
+          restaurant = restaurantResponse.data.restaurant;
+        } catch (error) {
+          console.warn('No se pudo obtener información del restaurante:', error.message);
+        }
+      }
+
+      const localPrintApi = (await import('../../api/localPrintApi')).default;
+      await localPrintApi.printKitchenTicket(order, restaurant, printerName);
     } catch (error) {
       console.warn('No se pudo imprimir la comanda automáticamente:', error.message);
       // No mostrar error al usuario, solo log en consola
@@ -134,7 +146,6 @@ export const useOrderDetailsLogic = ({
 
   // Enviar actualización de pedido
   const handleOrderUpdate = async (e, resetForm, status = 'Preparacion', sectionName = section, extraData = {}) => {
-    console.log('useOrderDetailsLogic.js: handleOrderUpdate');
     if (e && e.preventDefault) e.preventDefault();
     if (isViewingCompletedOrder) return;
     if (!editingOrder) return;
@@ -230,17 +241,16 @@ export const useOrderDetailsLogic = ({
         });
       }
 
-      console.log('Enviando actualización del pedido:', updatedOrder);
       const response = await axios.put(`/order/update/${editingOrder._id}`, updatedOrder);
 
       if (response.status === 200) {
         if (response.data.order && response.data.order._id) {
           updateOrderInList(response.data.order);
           
-          // Imprimir comanda automáticamente después de actualizar
-          await printComandaAfterUpdate(response.data.order);
+          printComandaAfterUpdate(response.data.order).catch(err => {
+            console.warn('Error en impresión automática:', err);
+          });
         }
-        queryClient.invalidateQueries(['orders']);
         
         if (resetForm) {
           resetForm();

@@ -6,7 +6,6 @@ export const useProducts = () => {
         queryKey: ['products'], // Clave única para identificar esta consulta
         queryFn: async () => {
             const response = await axios.get('/food/getAll'); // Cambia la URL según tu backend
-            console.log('Respuesta de la API:', response.data); // Depuración
             // Verifica que la respuesta tenga la estructura esperada
             if (!response.data || !response.data.foods) {
                 throw new Error('La respuesta de la API no contiene productos');

@@ -132,9 +132,7 @@ const BaseOrderForm = ({
         const latestComment = commentElement ? commentElement.innerHTML : '';
         
         // Limpiar localStorage de direcciones en edición para evitar estados inconsistentes
-        console.log('Limpiando localStorage de direcciones en edición', localStorage.getItem('editing_address_original'));
         localStorage.removeItem('editing_address_original');
-        console.log('Dirección en edición eliminada de localStorage', localStorage.getItem('editing_address_original'));
 
         // Si hay una función para resetear el estado de edición de dirección en extraData, llamarla
         if (extraData && extraData.resetAddressEditMode) {

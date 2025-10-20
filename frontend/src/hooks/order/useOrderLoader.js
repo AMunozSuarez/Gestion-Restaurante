@@ -69,7 +69,6 @@ export const useOrderLoader = ({
     // Actualizar pedido cargado
     setLoadedOrder(foundOrder || null);
 
-    console.log('useEffect de useOrderLoader que se ejecuta al cargar el pedido:',);
 
     if (foundOrder) {
       // Transformar productos a formato de carrito
