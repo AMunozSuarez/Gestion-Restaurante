@@ -77,14 +77,13 @@ class LocalPrintApi {
       });
 
       if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+        return [];
       }
 
       const data = await response.json();
       return data.printers || [];
     } catch (error) {
-      console.error('Error obteniendo impresoras:', error);
-      throw new Error('No se pudieron obtener las impresoras. Verifica que el servicio de impresión esté corriendo.');
+      return [];
     }
   }
 
@@ -403,6 +402,11 @@ class LocalPrintApi {
    * @returns {Promise<Object>}
    */
   async printOrderTicket(order, restaurant, printerName = null, options = {}) {
+    // Verificar disponibilidad antes de imprimir
+    const available = await this.isAvailable();
+    if (!available) {
+      return { skipped: true };
+    }
     const ticketContent = this.formatOrderTicket(order, restaurant, options);
     return await this.print(ticketContent, printerName, options.copies || 1);
   }
@@ -415,6 +419,11 @@ class LocalPrintApi {
    * @returns {Promise<Object>}
    */
   async printKitchenTicket(order, restaurant, printerName = null) {
+    // Verificar disponibilidad antes de imprimir
+    const available = await this.isAvailable();
+    if (!available) {
+      return { skipped: true };
+    }
     const ticketContent = this.formatKitchenTicket(order, restaurant);
     return await this.print(ticketContent, printerName, 1);
   }

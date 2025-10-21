@@ -39,18 +39,11 @@ export const useCreateOrder = () => {
                 }
             }
 
-            console.log('Enviando pedido para impresión automática:', {
-                orderNumber: order?.orderNumber,
-                orderId: order?._id,
-                printerName
-            });
-
             // Imprimir ticket de COCINA automáticamente
             const result = await PrintKitchenTicket(order._id, printerName);
             if (result && result.success) {
             }
         } catch (error) {
-            console.warn('No se pudo imprimir la comanda automáticamente:', error.message);
             // No mostrar error al usuario, solo log en consola
         }
     };
@@ -60,7 +53,6 @@ export const useCreateOrder = () => {
         mutationFn: async (newOrder) => {
             try {
                 const response = await axios.post('/order/create', newOrder);
-                console.log('Pedido creado:', response.data.order);
                 return response.data;
                 
             } catch (error) {

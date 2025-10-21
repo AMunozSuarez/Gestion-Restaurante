@@ -10,7 +10,7 @@ import './PrintButton.css';
  * Usa el nuevo sistema de impresión con PrintingService.exe
  * Configuración ahora se maneja desde la página de configuración
  */
-const PrintButton = ({ order, type = 'customer', buttonText, className = '', showConfig = false }) => {
+const PrintButton = ({ order, type = 'customer', buttonText, className = '', showConfig = false, printServiceAvailable = true }) => {
   const [printers, setPrinters] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -88,6 +88,10 @@ const PrintButton = ({ order, type = 'customer', buttonText, className = '', sho
     setTimeout(() => setMessage(''), 2000);
   };
 
+  if (!printServiceAvailable) {
+    // No mostrar el botón si el servicio no está disponible
+    return null;
+  }
   return (
     <div className={`print-button-container ${className}`}>
       <button

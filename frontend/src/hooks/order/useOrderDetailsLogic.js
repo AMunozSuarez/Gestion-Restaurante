@@ -35,19 +35,17 @@ export const useOrderDetailsLogic = ({
       if (printSettings) {
         const settings = JSON.parse(printSettings);
         if (!settings.autoPrintKitchen) {
-          console.log('Impresión automática de cocina deshabilitada');
           return;
         }
       } else {
         // Si no hay configuración, asumir que está deshabilitada
-        console.log('No hay configuración de impresión, saltando impresión automática');
         return;
       }
 
       // Obtener impresora guardada del usuario
       const savedPrinter = localStorage.getItem('selectedPrinter');
       let printerName = savedPrinter;
-      
+
       // Si no hay impresora seleccionada, usar la primera disponible
       if (!printerName) {
         try {
@@ -56,27 +54,23 @@ export const useOrderDetailsLogic = ({
             printerName = response.printers[0].PrinterName;
           }
         } catch (error) {
-          console.warn('No se pudieron obtener las impresoras:', error.message);
           return;
         }
       }
 
       let restaurant = currentRestaurant;
-      
+
       if (!restaurant && order.restaurant) {
         try {
           const restaurantResponse = await axios.get(`/restaurant/get/${order.restaurant}`);
           restaurant = restaurantResponse.data.restaurant;
         } catch (error) {
-          console.warn('No se pudo obtener información del restaurante:', error.message);
         }
       }
 
       const localPrintApi = (await import('../../api/localPrintApi')).default;
       await localPrintApi.printKitchenTicket(order, restaurant, printerName);
     } catch (error) {
-      console.warn('No se pudo imprimir la comanda automáticamente:', error.message);
-      // No mostrar error al usuario, solo log en consola
     }
   };
   

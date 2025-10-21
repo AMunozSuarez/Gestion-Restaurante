@@ -10,6 +10,7 @@ import '../../../styles/components/orderForm.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrashAlt } from '@fortawesome/free-solid-svg-icons';
 import PrintButton from '../../common/PrintButton';
+import { CheckPrintServiceStatus } from '../../../services/printService';
 
 const BaseOrderForm = ({
     // Props comunes
@@ -58,6 +59,15 @@ const BaseOrderForm = ({
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [categoryFilter, setCategoryFilter] = useState('');
+    const [printServiceAvailable, setPrintServiceAvailable] = useState(true);
+    // Verificar estado del servicio de impresión al montar
+    useEffect(() => {
+        let mounted = true;
+        CheckPrintServiceStatus().then((status) => {
+            if (mounted) setPrintServiceAvailable(!!status.available);
+        });
+        return () => { mounted = false; };
+    }, []);
     const [modalSearchQuery, setModalSearchQuery] = useState('');
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [isEditing, setIsEditing] = useState(!!editingOrderId);
@@ -320,6 +330,7 @@ const BaseOrderForm = ({
                                 type="customer"
                                 buttonText="Ticket Cliente"
                                 className="print-comanda-button"
+                                printServiceAvailable={printServiceAvailable}
                             />
                         </>
                     )}

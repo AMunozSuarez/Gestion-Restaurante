@@ -41,7 +41,6 @@ export const useOrderForm = () => {
 
     // Función para manejar el envío del formulario
     const handleSubmit = async (e, resetForm, status = 'Preparacion', section = 'mostrador', extraData = {}) => {
-        console.log('Editing Order ID:', editingOrderId);
         if (e && e.preventDefault) e.preventDefault();
 
         try {
@@ -111,7 +110,6 @@ export const useOrderForm = () => {
 
 
                 await new Promise((resolve, reject) => {
-                    console.log('funcion create order en la funciona handleSubmit de useOrderForm');
                     createOrder(newOrder, {
                         onSuccess: () => {
                             if (typeof resetForm === 'function') resetForm();
