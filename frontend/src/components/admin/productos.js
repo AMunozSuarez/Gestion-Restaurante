@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import axios from '../../services/axiosConfig'; // Asegúrate de que la ruta sea correcta
 import '../../styles/admin/productos.css';
 
@@ -17,6 +18,7 @@ const Productos = () => {
     const [filteredProductos, setFilteredProductos] = useState([]); // Productos filtrados
     const [searchTerm, setSearchTerm] = useState(''); // Término de búsqueda
     const [selectedCategory, setSelectedCategory] = useState(''); // Categoría seleccionada para filtrar
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         fetchProductos();
@@ -93,6 +95,7 @@ const Productos = () => {
             });
             setEditingId(null);
             fetchProductos();
+            queryClient.invalidateQueries(['products']); // Fuerza actualización global
         } catch (error) {
             console.error('Error al guardar el producto:', error.response?.data || error.message);
         }
@@ -130,6 +133,7 @@ const Productos = () => {
             await axios.delete(`/food/delete/${id}`); // Ruta correcta
             console.log('Producto eliminado:', id);
             fetchProductos();
+            queryClient.invalidateQueries(['products']); // Fuerza actualización global
         } catch (error) {
             console.error('Error al eliminar el producto:', error.response?.data || error.message);
         }

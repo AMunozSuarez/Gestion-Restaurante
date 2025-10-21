@@ -63,7 +63,7 @@ const Login = () => {
             {/* Mensaje si fue redirigido desde una página protegida */}
             {location.state?.from && (
                 <div className="info-message">
-                    <p>🔒 Debes iniciar sesión para acceder a esa página</p>
+                    <p>🔒 Debes iniciar sesión para acceder a esta página</p>
                 </div>
             )}
             
