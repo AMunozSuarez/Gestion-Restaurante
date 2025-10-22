@@ -42,7 +42,8 @@ const BaseOrderForm = ({
     
     // Pedido actual para impresión
     currentOrder,
-})=> {    const {
+})=> {
+    const {
         cart,
         getCartTotal,
         addToCart,
@@ -51,10 +52,13 @@ const BaseOrderForm = ({
         removeProduct,
         textAreaRefs,
     } = useCartManagement();
-    
+
     const { isSearchFocused, setIsSearchFocused, handleClickOutside } = useUIStore();
     const { products, isLoading: productsLoading } = useProducts();
     const { categories, isLoading: categoriesLoading } = useCategories();
+
+    // Toast
+    const toast = require('../../../hooks/useToast').default();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -140,7 +144,7 @@ const BaseOrderForm = ({
         // Obtener el valor más reciente del campo contentEditable
         const commentElement = document.getElementById('orderComment');
         const latestComment = commentElement ? commentElement.innerHTML : '';
-        
+
         // Limpiar localStorage de direcciones en edición para evitar estados inconsistentes
         localStorage.removeItem('editing_address_original');
 
@@ -156,12 +160,14 @@ const BaseOrderForm = ({
                 comment: latestComment,
                 ...(extraData || {}) // Incluir todos los datos adicionales del formulario
             });
+            toast.success('¡Pedido guardado exitosamente!');
         } else {
             // Estamos creando un pedido nuevo
             handleSubmit(e, resetForm, undefined, formType, {
                 comment: latestComment,
                 ...(extraData || {}) // Incluir todos los datos adicionales del formulario
             });
+            toast.success('¡Pedido creado exitosamente!');
         }
     };    return (
         <div className={`order-form ${isEditing ? 'editing-mode' : ''} ${isViewingCompletedOrder ? 'viewing-completed-order' : ''}`} 
