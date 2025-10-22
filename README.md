@@ -163,30 +163,12 @@ La API REST del backend proporciona los siguientes endpoints principales:
 - `/api/cash`: Control de caja
 - `/api/report`: Generación de reportes
 
-## 📝 Guía de Contribución
-
-Si deseas contribuir a este proyecto, sigue estos pasos:
-
-1. Realiza un fork del repositorio
-2. Crea una rama para tu funcionalidad (`git checkout -b feature/nueva-funcionalidad`)
-3. Realiza tus cambios y haz commit (`git commit -m 'Añade nueva funcionalidad'`)
-4. Sube tus cambios a tu fork (`git push origin feature/nueva-funcionalidad`)
-5. Abre un Pull Request
-
 ### Estándares de código
 - Utiliza ESLint para mantener un estilo consistente
 - Escribe pruebas para nuevas funcionalidades
 - Documenta las funciones y componentes
 
-## 📄 Licencia
-
-Este proyecto está licenciado bajo [MIT License](LICENSE)
-
 ## 👨‍💻 Autores
 
 - Alejandro Muñoz | https://github.com/AMunozSuarez
 
-## 🔗 Enlaces
-
-- [Documentación de la API](enlace_a_documentacion)
-- [Manual de Usuario](enlace_a_manual)
