@@ -6,7 +6,7 @@ import App from './App';
 import axios from 'axios';
 
 // Configura la URL base de Axios desde las variables de entorno
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+axios.defaults.baseURL = process.env.REACT_APP_API_URL;
 
 // Crea el root para React 18
 const root = ReactDOM.createRoot(document.getElementById('root'));

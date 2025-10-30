@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const instance = axios.create({
-    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001/api', // URL desde variables de entorno
+    baseURL: process.env.REACT_APP_API_URL, // URL desde variables de entorno
 });
 
 // Interceptor para agregar el token a cada solicitud
