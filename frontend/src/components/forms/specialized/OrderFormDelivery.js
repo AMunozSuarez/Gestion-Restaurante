@@ -48,7 +48,6 @@ const OrderFormDelivery = (props) => {
     // Resetear estados cuando se limpia el teléfono
     useEffect(() => {
         if (!props.customerPhone) {
-            console.log('[OrderFormDelivery] Teléfono limpiado, reseteando todos los estados');
             resetAll(); // Limpiar todos los estados, no solo los de dirección
         }
     }, [props.customerPhone, resetAll]);
@@ -58,7 +57,6 @@ const OrderFormDelivery = (props) => {
     useEffect(() => {
         // Si los campos principales están vacíos todos a la vez, probablemente se llamó resetForm
         if (!props.customerPhone && !props.customerName && !props.deliveryAddress) {
-            console.log('[OrderFormDelivery] Detectado resetForm, limpiando estados internos');
             resetAll();
         }
     }, [props.customerPhone, props.customerName, props.deliveryAddress, resetAll]);

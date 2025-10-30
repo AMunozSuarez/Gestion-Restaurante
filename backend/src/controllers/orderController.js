@@ -100,6 +100,7 @@ const createOrderController = async (req, res) => {
             foods,
             payment,
             total,
+            deliveryCost,
             name: !customer ? (buyer?.name || null) : null,
             buyer: customer ? customer._id : null,
             selectedAddress: customer ? selectedAddress : null,
@@ -374,6 +375,7 @@ const updateOrderController = async (req, res) => {
             updateData.foods = foods;
             if (section !== undefined) updateData.section = section;
             updateData.total = total;
+            updateData.deliveryCost = deliveryCost;
             updateData.selectedAddress = customer ? selectedAddress : null;
         }
 
@@ -438,10 +440,10 @@ const getFilteredOrders = async (req, res) => {
 
         // Filtrar por fecha (usando createdAt)
         if (date) {
-            const startOfDay = new Date(date);
-            startOfDay.setUTCHours(0, 0, 0, 0); // Establecer el inicio del día en UTC
-            const endOfDay = new Date(date);
-            endOfDay.setUTCHours(23, 59, 59, 999); // Establecer el final del día en UTC
+            // Usar la zona horaria de Chile (UTC-3 o UTC-4)
+            // Convertir la fecha recibida a inicio y fin del día en hora local de Chile
+            const startOfDay = new Date(date + 'T00:00:00-03:00'); // Inicio del día en Chile
+            const endOfDay = new Date(date + 'T23:59:59.999-03:00'); // Fin del día en Chile
             filters.createdAt = { $gte: startOfDay, $lte: endOfDay };
         }
 

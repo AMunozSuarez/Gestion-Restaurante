@@ -32,7 +32,6 @@ export const useCustomerSearch = () => {
     setError(null);
 
     try {
-      console.log('Ejecutando búsqueda de clientes en useCustomerSearch.js');
       const response = await axios.get(`/customer/search?query=${encodeURIComponent(query)}`);
       
       // Manejar diferentes formatos de respuesta
@@ -41,7 +40,6 @@ export const useCustomerSearch = () => {
         : (response.data?.customers || []);
         
       setSuggestions(customers);
-      console.log(`Se encontraron ${customers.length} clientes`);
     } catch (err) {
       console.error('Error al buscar clientes:', err);
       
@@ -67,7 +65,6 @@ export const useCustomerSearch = () => {
       _isTemporary: true
     };
     
-    console.log("[useCustomerSearch] Creando cliente temporal:", tempCustomer);
     setSelectedCustomer(tempCustomer);
     setCustomerAddresses(tempCustomer.addresses);
     return tempCustomer;
@@ -83,7 +80,6 @@ export const useCustomerSearch = () => {
     
     // Evitar búsquedas duplicadas
     if (isFetchingRef.current) {
-      console.log("[useCustomerSearch] Ya hay una búsqueda en curso, omitiendo");
       return null;
     }
     
@@ -91,7 +87,6 @@ export const useCustomerSearch = () => {
       isFetchingRef.current = true;
       setIsLoading(true);
       
-      console.log("[useCustomerSearch] Buscando cliente en el servidor:", phone);
       const response = await axios.get(`/customer/search?query=${phone}`);
       
       if (response.data?.success && response.data?.customers?.length > 0) {
@@ -192,7 +187,6 @@ export const useCustomerSearch = () => {
     // Si solo tenemos el teléfono, buscar datos completos
     if (Object.keys(customerData).length === 1 && customerData.phone) {
       if (!isFetchingRef.current) {
-        console.log("[DEBUG] handleCustomerSelect - Buscando cliente por teléfono:", customerData.phone);
         const foundCustomer = await fetchCustomerData(customerData.phone);
         
         if (foundCustomer) {
@@ -223,13 +217,11 @@ export const useCustomerSearch = () => {
           return null;
         }
       } else {
-        console.log("[DEBUG] handleCustomerSelect - Ya hay una búsqueda en curso, omitiendo");
         return null;
       }
     }
     
     // Si ya tenemos los datos completos del cliente (desde el autocomplete)
-    console.log("[DEBUG] handleCustomerSelect - Cliente seleccionado con datos completos:", customerData);
     setSelectedCustomer(customerData);
     
     // Actualizar el resto de campos
@@ -256,7 +248,6 @@ export const useCustomerSearch = () => {
   // Función para manejar cambio de dirección en selector
   const handleAddressChange = useCallback((selectedValue, callbacks) => {
     const { setDeliveryAddress, setDeliveryCost } = callbacks || {};
-    console.log('[DEBUG] handleAddressChange - Valor seleccionado:', selectedValue);
     
     if (selectedValue === 'new') {
       // Activar modo de nueva dirección
@@ -286,7 +277,6 @@ export const useCustomerSearch = () => {
 
   // Función para iniciar edición de dirección
   const startEditingAddress = useCallback((currentAddress, currentCost) => {
-    console.log('[DEBUG] startEditingAddress - Iniciando edición de dirección:', currentAddress);
     
     setIsEditingAddress(true);
     setIsAddingNewAddress(false);
@@ -295,10 +285,8 @@ export const useCustomerSearch = () => {
     const currentAddressObj = customerAddresses.find(addr => addr.address === currentAddress);
     
     if (currentAddressObj) {
-      console.log("[DEBUG] Guardando dirección original para edición:", currentAddressObj);
       setOriginalAddress(currentAddressObj);
     } else {
-      console.log("[DEBUG] No se encontró objeto de dirección, creando nuevo:", currentAddress);
       setOriginalAddress({
         address: currentAddress,
         deliveryCost: Number(currentCost) || 0
@@ -317,7 +305,6 @@ export const useCustomerSearch = () => {
   // Función para cancelar edición de dirección
   const cancelAddressAction = useCallback((callbacks) => {
     const { setDeliveryAddress, setDeliveryCost } = callbacks || {};
-    console.log('[DEBUG] cancelAddressAction - Cancelando edición de dirección');
     
     setIsEditingAddress(false);
     setIsAddingNewAddress(false);
@@ -405,7 +392,6 @@ export const useCustomerSearch = () => {
     setIsEditingAddress(false);
     setOriginalAddress(null);
     
-    console.log('[useCustomerSearch] Estado completamente reseteado');
   }, []);
 
   // Gestión de la búsqueda con debounce para autocompletado

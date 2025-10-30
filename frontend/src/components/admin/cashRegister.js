@@ -248,13 +248,6 @@ const CashRegister = () => {
             ticket += '\n';
         }
 
-        // Resumen de pedidos
-        ticket += center('*** RESUMEN DE PEDIDOS ***') + '\n';
-        ticket += dash + '\n';
-        ticket += rightAlign('Total de pedidos:', `${selectedCashRegister.orders.length}`) + '\n';
-        ticket += dash + '\n';
-        ticket += '\n';
-
         // Pie de página
         ticket += line + '\n';
         ticket += center('DOCUMENTO DE CONTROL INTERNO') + '\n';

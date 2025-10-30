@@ -149,6 +149,7 @@ const SalesList = () => {
                         <div className="sales-header">
                             <p>Fecha</p>
                             <p>Cliente</p>
+                            <p>Sección</p>
                             <p>Estado</p>
                             <p>Método de Pago</p>
                             <p>Total</p>
@@ -162,9 +163,10 @@ const SalesList = () => {
                                 >
                                     <p>{new Date(sale.createdAt).toLocaleString()}</p>
                                     <p>{sale.buyer?.name || sale.name || 'Sin nombre'}</p>
+                                    <p>{sale.section === 'mostrador' ? 'Mostrador' : 'Delivery'}</p>
                                     <p>{sale.status}</p>
                                     <p>{sale.payment}</p>
-                                    <p>${sale.total}</p>
+                                    <p>{sale.total.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 })}</p>
                                 </li>
                             ))}
                         </ul>
@@ -183,6 +185,10 @@ const SalesList = () => {
                                 <div className="detail-row">
                                     <p><strong>Cliente:</strong></p>
                                     <p>{selectedSale.buyer?.name || selectedSale.name || 'Sin nombre'}</p>
+                                </div>
+                                <div className="detail-row">
+                                    <p><strong>Sección:</strong></p>
+                                    <p>{selectedSale.section === 'mostrador' ? 'Mostrador' : 'Delivery'}</p>
                                 </div>
                                 <div className="detail-row">
                                     <p><strong>Estado:</strong></p>
@@ -231,10 +237,6 @@ const SalesList = () => {
                                         </div>
                                     )}
                                 </div>
-                                <div className="detail-row">
-                                    <p><strong>Total:</strong></p>
-                                    <p>${selectedSale.total}</p>
-                                </div>
                             </section>
 
                             <section className="detail-section">
@@ -254,6 +256,25 @@ const SalesList = () => {
                                     ))}
                                 </ul>
                             </section>
+
+                            {selectedSale.section === 'delivery' && selectedSale.deliveryCost > 0 && (
+                                <section className="detail-section">
+                                    <ul>
+                                        <li className="product-row delivery-row">
+                                            <span className="product-qty"></span>
+                                            <span className="product-title">Costo de Envío</span>
+                                            <span className="product-price">
+                                                {selectedSale.deliveryCost.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 })}
+                                            </span>
+                                        </li>
+                                    </ul>
+                                </section>
+                            )}
+
+                                <div className="detail-row total-row">
+                                    <p><strong>Total:</strong></p>
+                                    <p><strong>{selectedSale.total.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 })}</strong></p>
+                                </div>
                         </div>
                     )}
                 </div>

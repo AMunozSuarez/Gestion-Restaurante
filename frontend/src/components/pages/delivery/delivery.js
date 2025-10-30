@@ -88,7 +88,6 @@ const Delivery = () => {
     const completedOrders = recentCompleted;
 
     const resetForm = () => {
-        console.log('resetForm de Delivery.js');
         setCustomerName('');
         setDeliveryAddress('');
         setSelectedPaymentMethod('Efectivo');
