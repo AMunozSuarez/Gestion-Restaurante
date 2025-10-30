@@ -273,6 +273,60 @@
     box-shadow: 0 0 0 2px rgba(180, 90, 0, 0.1);
 }
 
+/* Sección de comentario */
+.comment-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.comment-section label {
+    display: block;
+    font-weight: bold;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+.comment-section textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-family: Arial, sans-serif;
+    resize: vertical;
+    min-height: 60px;
+    box-sizing: border-box;
+}
+
+.comment-section textarea:focus {
+    outline: none;
+    border-color: #b45a00;
+    box-shadow: 0 0 0 2px rgba(180, 90, 0, 0.1);
+}
+
+/* Visualización del comentario en cajas cerradas */
+.comment-display {
+    margin-top: 16px;
+    padding: 12px;
+    background-color: #f9f9f9;
+    border-left: 3px solid #b45a00;
+    border-radius: 4px;
+}
+
+.comment-display h5 {
+    margin: 0 0 8px 0;
+    color: #b45a00;
+    font-size: 0.95rem;
+}
+
+.comment-display p {
+    margin: 0;
+    color: #555;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
 /* Para el total registrado - mejor alineación */
 .total-row {
     display: flex;
@@ -313,6 +367,61 @@
 
 .button-cashregister:hover {
     background-color: #944800;
+}
+
+.button-print {
+    background-color: #28a745;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.button-print:hover {
+    background-color: #218838;
+}
+
+.button-print::before {
+    content: '🖨️';
+    font-size: 1.1rem;
+}
+
+/* Header del detalle con botón de impresión */
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.detail-header h3 {
+    margin: 0;
+}
+
+.icon-print-button {
+    background-color: #fcbf81;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.icon-print-button:hover {
+    background-color: #b45a00;
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.icon-print-button:active {
+    transform: scale(0.95);
 }
 
 /* Botón para abrir modal */

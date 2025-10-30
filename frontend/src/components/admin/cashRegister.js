@@ -5,6 +5,7 @@ import AdminSubheader from '../layout/adminSubheader';
 import { formatChileanMoney } from '../../services/utils/formatters';
 import PendingOrdersAlert from '../common/PendingOrdersAlert';
 import useToast from '../../hooks/useToast';
+import localPrintApi from '../../api/localPrintApi';
 
 const CashRegister = () => {
     const [allCashRegisters, setAllCashRegisters] = useState([]);
@@ -14,6 +15,7 @@ const CashRegister = () => {
     const [officialIncome, setOfficialIncome] = useState({});
     const [showPendingOrdersAlert, setShowPendingOrdersAlert] = useState(false);
     const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+    const [comment, setComment] = useState('');
     
     const toast = useToast();
     
@@ -62,6 +64,10 @@ const CashRegister = () => {
                     }
                 });
                 setOfficialIncome(initialIncome);
+                setComment(''); // Resetear el comentario
+            } else {
+                // Si la caja está cerrada, mostrar el comentario guardado
+                setComment(response.data.cashRegister.comment || '');
             }
         } catch (error) {
             console.error('Error al obtener el detalle de la caja:', error);
@@ -71,10 +77,11 @@ const CashRegister = () => {
     // Cerrar una caja abierta
     const handleCloseCashRegister = async () => {
         try {
-            await closeCashRegister({ officialIncome });
+            await closeCashRegister({ officialIncome, comment });
             toast.success('Caja cerrada exitosamente');
             setSelectedCashRegister(null);
             setShowPendingOrdersAlert(false);
+            setComment(''); // Resetear el comentario
             fetchAllCashRegisters();
         } catch (error) {
             // Si hay pedidos pendientes, mostrar la alerta (error esperado)
@@ -92,6 +99,25 @@ const CashRegister = () => {
     // Calcular el total de los ingresos oficiales
     const calculateOfficialTotal = () => {
         return Object.values(officialIncome).reduce((sum, value) => sum + parseFloat(value || 0), 0);
+    };
+
+    // Función para formatear números con separador de miles mientras se escribe
+    const handleOfficialIncomeChange = (method, value) => {
+        // Eliminar cualquier carácter que no sea número
+        const numericValue = value.replace(/\D/g, '');
+        
+        // Actualizar el estado con el valor numérico sin formato
+        setOfficialIncome({
+            ...officialIncome,
+            [method]: numericValue
+        });
+    };
+
+    // Función para formatear el valor mostrado en el input
+    const formatInputValue = (value) => {
+        if (!value) return '';
+        // Formatear con separador de miles
+        return parseInt(value).toLocaleString('es-CL');
     };
 
     // Cargar las cajas al iniciar el componente
@@ -116,6 +142,138 @@ const CashRegister = () => {
             return acc;
         }, {});
         return paymentSummary;
+    };
+
+    // Función para imprimir el detalle de la caja cerrada
+    const handlePrintCashRegister = async () => {
+        if (!selectedCashRegister) return;
+
+        // Obtener configuración de impresión guardada
+        let printerName = null;
+        try {
+            const savedSettings = localStorage.getItem('printSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                printerName = settings.selectedPrinter || null;
+            }
+        } catch (error) {
+            console.error('Error al cargar configuración de impresión:', error);
+        }
+
+        // Si no hay impresora configurada, mostrar advertencia
+        if (!printerName) {
+            toast.error('Por favor, configura una impresora en Configuración');
+            return;
+        }
+
+        const width = 38; // Ancho para impresora térmica de 58mm
+        const line = '='.repeat(width);
+        const dash = '-'.repeat(width);
+
+        const center = (text) => {
+            const padding = Math.max(0, Math.floor((width - text.length) / 2));
+            return ' '.repeat(padding) + text;
+        };
+
+        const rightAlign = (left, right) => {
+            const spaces = width - left.length - right.length;
+            return left + ' '.repeat(Math.max(1, spaces)) + right;
+        };
+
+        const paymentMethods = calculatePaymentMethods(selectedCashRegister.orders);
+        const totalSystem = Object.values(paymentMethods).reduce((sum, total) => sum + total, 0);
+
+        let ticket = '';
+
+        // Encabezado
+        ticket += line + '\n';
+        ticket += center('CIERRE DE CAJA') + '\n';
+        ticket += line + '\n';
+        ticket += '\n';
+
+        // Información General
+        ticket += center('*** INFORMACION GENERAL ***') + '\n';
+        ticket += dash + '\n';
+        ticket += `Apertura: ${new Date(selectedCashRegister.dateOpened).toLocaleString('es-ES')}\n`;
+        if (selectedCashRegister.dateClosed) {
+            ticket += `Cierre: ${new Date(selectedCashRegister.dateClosed).toLocaleString('es-ES')}\n`;
+        }
+        ticket += `Estado: ${selectedCashRegister.status}\n`;
+        ticket += rightAlign('Saldo Inicial:', formatChileanMoney(selectedCashRegister.initialBalance)) + '\n';
+        ticket += dash + '\n';
+        ticket += '\n';
+
+        // Ingresos del Sistema
+        ticket += center('*** INGRESOS DEL SISTEMA ***') + '\n';
+        ticket += dash + '\n';
+        Object.entries(paymentMethods).forEach(([method, total]) => {
+            ticket += rightAlign(`${method}:`, formatChileanMoney(total)) + '\n';
+        });
+        ticket += dash + '\n';
+        ticket += rightAlign('Total Sistema:', formatChileanMoney(totalSystem)) + '\n';
+        ticket += dash + '\n';
+        ticket += '\n';
+
+        // Ingresos Oficiales (solo para cajas cerradas)
+        if (selectedCashRegister.status === 'Cerrada' && selectedCashRegister.officialIncome) {
+            ticket += center('*** INGRESOS OFICIALES ***') + '\n';
+            ticket += dash + '\n';
+            Object.entries(selectedCashRegister.officialIncome).forEach(([method, total]) => {
+                ticket += rightAlign(`${method}:`, formatChileanMoney(total)) + '\n';
+            });
+            ticket += dash + '\n';
+            ticket += rightAlign('Total Real:', formatChileanMoney(selectedCashRegister.amountSystem)) + '\n';
+            ticket += dash + '\n';
+            ticket += '\n';
+
+            // Diferencia
+            const difference = selectedCashRegister.amountSystem - totalSystem;
+            ticket += center('*** DIFERENCIA ***') + '\n';
+            ticket += dash + '\n';
+            ticket += rightAlign('Diferencia:', formatChileanMoney(difference)) + '\n';
+            if (difference !== 0) {
+                const diffText = difference > 0 ? 'SOBRANTE' : 'FALTANTE';
+                ticket += center(`(${diffText})`) + '\n';
+            }
+            ticket += dash + '\n';
+            ticket += '\n';
+        }
+
+        // Comentario
+        if (selectedCashRegister.comment) {
+            ticket += center('*** COMENTARIO ***') + '\n';
+            ticket += dash + '\n';
+            ticket += `${selectedCashRegister.comment}\n`;
+            ticket += dash + '\n';
+            ticket += '\n';
+        }
+
+        // Resumen de pedidos
+        ticket += center('*** RESUMEN DE PEDIDOS ***') + '\n';
+        ticket += dash + '\n';
+        ticket += rightAlign('Total de pedidos:', `${selectedCashRegister.orders.length}`) + '\n';
+        ticket += dash + '\n';
+        ticket += '\n';
+
+        // Pie de página
+        ticket += line + '\n';
+        ticket += center('DOCUMENTO DE CONTROL INTERNO') + '\n';
+        ticket += center(new Date().toLocaleString('es-ES')) + '\n';
+        ticket += line + '\n';
+
+        // Intentar imprimir con el servicio local
+        try {
+            const isAvailable = await localPrintApi.isAvailable();
+            if (isAvailable) {
+                await localPrintApi.print(ticket, printerName);
+                toast.success('Impresión enviada correctamente');
+            } else {
+                toast.error('Servicio de impresión no disponible');
+            }
+        } catch (error) {
+            console.error('Error al imprimir:', error);
+            toast.error('Error al enviar la impresión');
+        }
     };
 
     return (
@@ -162,7 +320,18 @@ const CashRegister = () => {
                 {/* Detalle de la caja seleccionada */}
                 {selectedCashRegister && (
                     <div className="cash-register-detail">
-                        <h3>Detalle de Caja</h3>
+                        <div className="detail-header">
+                            <h3>Detalle de Caja</h3>
+                            {selectedCashRegister.status === 'Cerrada' && (
+                                <button 
+                                    className='icon-print-button' 
+                                    onClick={handlePrintCashRegister}
+                                    title="Imprimir Detalle de Caja"
+                                >
+                                    🖨️
+                                </button>
+                            )}
+                        </div>
 
                         {/* Información general */}
                         <section className="detail-section">
@@ -228,14 +397,10 @@ const CashRegister = () => {
                                         <div key={method} className="official-income-input">
                                             <label>{method}:</label>
                                             <input
-                                                type="number"
-                                                value={officialIncome[method]}
-                                                onChange={(e) =>
-                                                    setOfficialIncome({
-                                                        ...officialIncome,
-                                                        [method]: e.target.value,
-                                                    })
-                                                }
+                                                type="text"
+                                                value={formatInputValue(officialIncome[method])}
+                                                onChange={(e) => handleOfficialIncomeChange(method, e.target.value)}
+                                                placeholder="0"
                                             />
                                         </div>
                                     ))}
@@ -243,6 +408,18 @@ const CashRegister = () => {
                                 <div className="total-row">
                                     <span>Total Real:</span>
                                     <span className="total-value">{formatChileanMoney(calculateOfficialTotal())}</span>
+                                </div>
+                                
+                                {/* Campo de comentario */}
+                                <div className="comment-section">
+                                    <label htmlFor="cashComment">Comentario (opcional):</label>
+                                    <textarea
+                                        id="cashComment"
+                                        value={comment}
+                                        onChange={(e) => setComment(e.target.value)}
+                                        placeholder="Agregue un comentario sobre el cierre de caja..."
+                                        rows="3"
+                                    />
                                 </div>
                             </section>
                         )}
@@ -263,6 +440,14 @@ const CashRegister = () => {
                                     <span>Total Real Registrado:</span>
                                     <span className="total-value">{formatChileanMoney(selectedCashRegister.amountSystem)}</span>
                                 </div>
+                                
+                                {/* Mostrar comentario si existe */}
+                                {selectedCashRegister.comment && (
+                                    <div className="comment-display">
+                                        <h5>Comentario:</h5>
+                                        <p>{selectedCashRegister.comment}</p>
+                                    </div>
+                                )}
                             </section>
                         )}
 

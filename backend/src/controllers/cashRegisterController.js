@@ -37,7 +37,7 @@ const getCurrentCashRegister = async (req, res) => {
 // Update amount system and close cash register
 const closeCashRegister = async (req, res) => {
     try {
-        const { officialIncome } = req.body;
+        const { officialIncome, comment } = req.body;
         
         // Verificar si hay pedidos en preparación
         const orderModel = require('../models/orderModel');
@@ -61,6 +61,7 @@ const closeCashRegister = async (req, res) => {
             {
                 amountSystem: totalReal,
                 officialIncome, // Guardar los ingresos oficiales
+                comment: comment || '', // Guardar el comentario
                 status: 'Cerrada',
                 dateClosed: new Date(),
             },

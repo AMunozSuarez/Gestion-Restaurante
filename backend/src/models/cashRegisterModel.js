@@ -20,6 +20,10 @@ const cashRegisterSchema = new mongoose.Schema({
         of: Number, // Almacena los ingresos oficiales por método de pago
         default: {},
     },
+    comment: {
+        type: String,
+        default: '',
+    },
 });
 
 module.exports = mongoose.model('CashRegister', cashRegisterSchema);
