@@ -42,6 +42,10 @@ const BaseOrderForm = ({
     
     // Pedido actual para impresión
     currentOrder,
+    
+    // Verificación de caja registradora
+    hasOpenCashRegister,
+    onShowCashRegisterAlert,
 })=> {
     const {
         cart,
@@ -140,6 +144,12 @@ const BaseOrderForm = ({
     // Función para manejar el envío del formulario
     const handleFormSubmit = (e) => {
         e.preventDefault();
+
+        // Verificar caja si no está editando
+        if (!editingOrderId && !hasOpenCashRegister) {
+            onShowCashRegisterAlert?.();
+            return;
+        }
 
         // Obtener el valor más reciente del campo contentEditable
         const commentElement = document.getElementById('orderComment');
@@ -279,7 +289,13 @@ const BaseOrderForm = ({
                                 ))}
                             </ul>
                         )}
-                        <button type="button" onClick={() => setIsModalOpen(true)}>
+                        <button type="button" onClick={() => {
+                            if (!editingOrderId && !hasOpenCashRegister) {
+                                onShowCashRegisterAlert?.();
+                                return;
+                            }
+                            setIsModalOpen(true);
+                        }}>
                             Ver Productos +
                         </button>
                     </div>
@@ -325,7 +341,13 @@ const BaseOrderForm = ({
                     <button
                         type="button"
                         className="mark-completed-button"
-                        onClick={completeButtonAction}
+                        onClick={() => {
+                            if (!hasOpenCashRegister) {
+                                onShowCashRegisterAlert?.();
+                                return;
+                            }
+                            completeButtonAction();
+                        }}
                     >
                         {completeButtonLabel || (formType === 'delivery' ? 'Enviar Pedido' : 'Cerrar Pedido')}
                     </button>

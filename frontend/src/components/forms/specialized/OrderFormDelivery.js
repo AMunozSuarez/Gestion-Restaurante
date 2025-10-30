@@ -370,6 +370,8 @@ const OrderFormDelivery = (props) => {
                     resetAddressEditMode: resetAddressStates,
                     _debug_renderCount: renderCount.current
                 }}
+                hasOpenCashRegister={props.hasOpenCashRegister}
+                onShowCashRegisterAlert={props.onShowCashRegisterAlert}
             />
         </>
     );

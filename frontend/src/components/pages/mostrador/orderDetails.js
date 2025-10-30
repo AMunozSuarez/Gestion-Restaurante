@@ -5,9 +5,24 @@ import OrderDetailsBase from '../../layout/OrderDetailsBase';
 import OrderFormMostrador from '../../forms/specialized/OrderFormMostrador';
 import OrderList from '../../lists/orderList';
 import '../../../styles/orderDetails.css';
+import { useCashRegisterStatus } from '../../../hooks/cash/useCashRegisterStatus';
+import CashRegisterAlert from '../../common/CashRegisterAlert';
 
 const OrderDetails = () => {
   const { orderNumber } = useParams();
+  
+  // Verificar estado de la caja registradora
+  const { hasOpenCashRegister, isLoading: cashRegisterLoading, checkCashRegister } = useCashRegisterStatus();
+  
+  // Estado para controlar si se muestra la alerta
+  const [showCashRegisterAlert, setShowCashRegisterAlert] = React.useState(false);
+  
+  // Mostrar alerta automáticamente si no hay caja abierta al cargar
+  React.useEffect(() => {
+    if (!cashRegisterLoading && !hasOpenCashRegister) {
+      setShowCashRegisterAlert(true);
+    }
+  }, [cashRegisterLoading, hasOpenCashRegister]);
   
   // Configuración específica para pedidos de mostrador
   const mostradorConfig = {
@@ -63,6 +78,8 @@ const OrderDetails = () => {
     comment,
     setComment,
     resetForm: () => {},
+    hasOpenCashRegister,
+    onShowCashRegisterAlert: () => setShowCashRegisterAlert(true),
   };
   
   // Configurar propiedades para la lista de completados
@@ -72,16 +89,26 @@ const OrderDetails = () => {
   };
 
   return (
-    <OrderDetailsBase
-      editingOrder={editingOrder}
-      containerClass="mostrador"
-      OrderFormComponent={OrderFormMostrador}
-      OrderListComponent={OrderList}
-      formProps={formProps}
-      completedListProps={completedListProps}
-      preparationOrders={preparationOrders}
-      completedOrders={completedOrders}
-    />
+    <>
+      {/* Mostrar alerta si está activa */}
+      {showCashRegisterAlert && (
+        <CashRegisterAlert 
+          onRetry={checkCashRegister}
+          onClose={() => setShowCashRegisterAlert(false)}
+        />
+      )}
+      
+      <OrderDetailsBase
+        editingOrder={editingOrder}
+        containerClass="mostrador"
+        OrderFormComponent={OrderFormMostrador}
+        OrderListComponent={OrderList}
+        formProps={formProps}
+        completedListProps={completedListProps}
+        preparationOrders={preparationOrders}
+        completedOrders={completedOrders}
+      />
+    </>
   );
 };
 

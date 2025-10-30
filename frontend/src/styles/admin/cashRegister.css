@@ -349,68 +349,177 @@
     border-radius: 3px;
 }
 
-/* Modal */
-.modal {
+/* Modal para crear caja - Nombres únicos para evitar conflictos */
+.create-cash-modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    right: 0;
+    bottom: 0;
     background-color: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease-in-out;
 }
 
-.modal-content-cashregister {
-    background-color: white;
-    padding: 20px;
-    border-radius: 8px;
-    width: 300px;
+.create-cash-modal-container {
+    background: white;
+    border-radius: 12px;
+    padding: 40px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s ease-in-out;
+    position: relative;
+}
+
+.create-cash-modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: transparent;
+    border: none;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    color: #9ca3af;
+    transition: all 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    padding: 0;
+    font-size: 32px;
+    line-height: 1;
+}
+
+.create-cash-modal-close:hover {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.create-cash-modal-close:active {
+    transform: scale(0.95);
+}
+
+.create-cash-modal-content h3 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 12px;
     text-align: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.modal-content-cashregister form {
+.create-cash-modal-description {
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.6;
+    margin: 0 0 24px;
+    text-align: center;
+}
+
+.create-cash-modal-content form {
     display: flex;
     flex-direction: column;
+    gap: 20px;
+}
+
+.create-cash-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+}
+
+.create-cash-form-group label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.create-cash-form-group input {
+    padding: 12px 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.2s ease-in-out;
+    outline: none;
+}
+
+.create-cash-form-group input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.create-cash-modal-actions {
+    display: flex;
     gap: 12px;
+    justify-content: center;
+    margin-top: 8px;
 }
 
-.modal-content-cashregister h3 {
-    margin-bottom: 20px;
-    color: #3b2108;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #eee;
-}
-
-.modal-content-cashregister input {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
-.modal-content-cashregister button {
-    padding: 10px;
+.create-cash-modal-actions button {
+    padding: 12px 24px;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
     cursor: pointer;
-    font-weight: bold;
+    transition: all 0.2s ease-in-out;
+    outline: none;
 }
 
-.modal-content-cashregister button[type="submit"] {
-    background-color: #28a745;
+.create-cash-btn-primary {
+    background-color: #3b82f6;
     color: white;
 }
 
-.modal-content-cashregister button[type="button"] {
-    background-color: #dc3545;
-    color: white;
+.create-cash-btn-primary:hover {
+    background-color: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
-.modal-content-cashregister button:hover {
-    opacity: 0.9;
+.create-cash-btn-primary:active {
+    transform: translateY(0);
+}
+
+.create-cash-btn-secondary {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.create-cash-btn-secondary:hover {
+    background-color: #d1d5db;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.create-cash-btn-secondary:active {
+    transform: translateY(0);
+}
+
+/* Animaciones para el modal */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Estilos para quitar los botones incrementales de los inputs numéricos */
@@ -439,5 +548,29 @@ input[type="number"]::-webkit-inner-spin-button {
         width: 100%;
         height: 500px;
         margin-bottom: 15px;
+    }
+
+    /* Modal responsivo */
+    .create-cash-modal-container {
+        padding: 24px;
+        width: 95%;
+    }
+
+    .create-cash-modal-content h3 {
+        font-size: 20px;
+    }
+
+    .create-cash-modal-description {
+        font-size: 13px;
+    }
+
+    .create-cash-modal-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .create-cash-modal-actions button {
+        width: 100%;
+        padding: 14px 20px;
     }
 }

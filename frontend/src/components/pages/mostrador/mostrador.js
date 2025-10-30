@@ -9,6 +9,8 @@ import '../../../styles/mostrador.css';
 import useCartStore from '../../../store/useCartStore';
 import { CSSTransition } from 'react-transition-group';
 import { useOrderDetailsLogic } from '../../../hooks/order/useOrderDetailsLogic'; // Importar hook
+import { useCashRegisterStatus } from '../../../hooks/cash/useCashRegisterStatus';
+import CashRegisterAlert from '../../common/CashRegisterAlert';
 
 
 // Configuración específica para pedidos de mostrador
@@ -43,6 +45,12 @@ const Mostrador = () => {
     const [comment, setComment] = useState(''); // Estado para el comentario
     const navigate = useNavigate();
     
+    // Verificar estado de la caja registradora
+    const { hasOpenCashRegister, isLoading: cashRegisterLoading, checkCashRegister } = useCashRegisterStatus();
+    
+    // Estado para controlar si se muestra la alerta
+    const [showCashRegisterAlert, setShowCashRegisterAlert] = useState(false);
+    
     // Usar SOLO handleSelectCompletedOrder del hook useOrderDetailsLogic
     const { handleSelectCompletedOrder: selectOrderFromHook } = useOrderDetailsLogic({
       section: 'mostrador',
@@ -54,7 +62,14 @@ const Mostrador = () => {
         clearCart();
     }, [setCartContext, clearCart]);
 
-    if (isLoading) return <p>Cargando pedidos...</p>;
+    // Mostrar alerta automáticamente si no hay caja abierta al cargar
+    useEffect(() => {
+        if (!cashRegisterLoading && !hasOpenCashRegister) {
+            setShowCashRegisterAlert(true);
+        }
+    }, [cashRegisterLoading, hasOpenCashRegister]);
+
+    if (isLoading || cashRegisterLoading) return <p>Cargando pedidos...</p>;
 
     // Filtrar pedidos en preparación y completados/cancelados
     // Preparación: ordenar por createdAt desc (más nuevos primero)
@@ -103,6 +118,14 @@ const Mostrador = () => {
             unmountOnExit
         >
             <div className="mostrador-container creating-mode">
+                {/* Mostrar alerta si está activa */}
+                {showCashRegisterAlert && (
+                    <CashRegisterAlert 
+                        onRetry={checkCashRegister}
+                        onClose={() => setShowCashRegisterAlert(false)}
+                    />
+                )}
+                
                 <div className="mostrador-content">
                     {/* Columna izquierda - OrderForm ocupa todo el alto */}
                     <div className="mostrador-left-column mostrador-create-order">
@@ -119,6 +142,8 @@ const Mostrador = () => {
                             resetForm={resetForm}
                             comment={comment}
                             setComment={setComment}
+                            hasOpenCashRegister={hasOpenCashRegister}
+                            onShowCashRegisterAlert={() => setShowCashRegisterAlert(true)}
                         />
                     </div>
 

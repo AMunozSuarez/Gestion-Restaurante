@@ -40,11 +40,6 @@ const Header = () => {
                                     Caja
                                 </NavLink>
                             </li>
-                            <li className="nav-item">
-                                <NavLink to="/delivery" className={({ isActive }) => (isActive ? 'active' : '')}>
-                                    Delivery
-                                </NavLink>
-                            </li>
                             {canAccessAdminPanel() && (
                                 <li className="nav-item">
                                     <NavLink 

@@ -37,7 +37,23 @@ const getCurrentCashRegister = async (req, res) => {
 // Update amount system and close cash register
 const closeCashRegister = async (req, res) => {
     try {
-        const { officialIncome } = req.body; // Recibir los ingresos oficiales desde el frontend
+        const { officialIncome } = req.body;
+        
+        // Verificar si hay pedidos en preparación
+        const orderModel = require('../models/orderModel');
+        const pendingOrders = await orderModel.find({
+            restaurant: req.user.restaurant,
+            status: 'Preparacion'
+        });
+        
+        if (pendingOrders.length > 0) {
+            return res.status(400).send({ 
+                success: false, 
+                message: 'Hay pedidos en preparación', 
+                pendingOrdersCount: pendingOrders.length 
+            });
+        }
+        
         const totalReal = Object.values(officialIncome).reduce((sum, value) => sum + parseFloat(value || 0), 0);
 
         const cashRegister = await cashRegisterModel.findOneAndUpdate(

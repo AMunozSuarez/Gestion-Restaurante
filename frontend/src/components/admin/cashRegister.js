@@ -3,13 +3,19 @@ import { createCashRegister, getAllCashRegisters, getCashRegisterById, closeCash
 import '../../styles/admin/cashRegister.css';
 import AdminSubheader from '../layout/adminSubheader';
 import { formatChileanMoney } from '../../services/utils/formatters';
+import PendingOrdersAlert from '../common/PendingOrdersAlert';
+import useToast from '../../hooks/useToast';
 
 const CashRegister = () => {
     const [allCashRegisters, setAllCashRegisters] = useState([]);
     const [selectedCashRegister, setSelectedCashRegister] = useState(null);
-    const [initialBalance, setInitialBalance] = useState('');
+    const [initialBalance, setInitialBalance] = useState('0');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [officialIncome, setOfficialIncome] = useState({});
+    const [showPendingOrdersAlert, setShowPendingOrdersAlert] = useState(false);
+    const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+    
+    const toast = useToast();
     
     // Crear una referencia para el input de saldo inicial
     const initialBalanceInputRef = useRef(null);
@@ -30,16 +36,14 @@ const CashRegister = () => {
     const handleCreateCashRegister = async (e) => {
         e.preventDefault();
         try {
-            if (!initialBalance) {
-                alert('Por favor, ingrese el saldo inicial.');
-                return;
-            }
             await createCashRegister({ initialBalance });
-            setInitialBalance('');
+            setInitialBalance('0');
             setIsModalOpen(false);
             fetchAllCashRegisters();
+            toast.success('Caja creada exitosamente');
         } catch (error) {
             console.error('Error al crear la caja:', error);
+            toast.error('Error al crear la caja');
         }
     };
 
@@ -67,13 +71,21 @@ const CashRegister = () => {
     // Cerrar una caja abierta
     const handleCloseCashRegister = async () => {
         try {
-            const totalReal = calculateOfficialTotal();
             await closeCashRegister({ officialIncome });
-            alert('Caja cerrada exitosamente.');
+            toast.success('Caja cerrada exitosamente');
             setSelectedCashRegister(null);
+            setShowPendingOrdersAlert(false);
             fetchAllCashRegisters();
         } catch (error) {
-            console.error('Error al cerrar la caja:', error);
+            // Si hay pedidos pendientes, mostrar la alerta (error esperado)
+            if (error.response?.status === 400 && error.response?.data?.pendingOrdersCount) {
+                setPendingOrdersCount(error.response.data.pendingOrdersCount);
+                setShowPendingOrdersAlert(true);
+            } else {
+                // Solo mostrar en consola errores inesperados
+                console.error('Error inesperado al cerrar la caja:', error);
+                toast.error('Error al cerrar la caja: ' + (error.response?.data?.message || error.message));
+            }
         }
     };
 
@@ -108,6 +120,13 @@ const CashRegister = () => {
 
     return (
         <div className="cash-register">
+            {/* Alerta de pedidos pendientes */}
+            {showPendingOrdersAlert && (
+                <PendingOrdersAlert 
+                    pendingOrdersCount={pendingOrdersCount}
+                    onClose={() => setShowPendingOrdersAlert(false)}
+                />
+            )}
             
             <AdminSubheader />
             <button className="open-modal-button" onClick={() => setIsModalOpen(true)}>Crear Nueva Caja</button>
@@ -259,21 +278,43 @@ const CashRegister = () => {
 
             {/* Modal para crear una nueva caja */}
             {isModalOpen && (
-                <div className="modal">
-                    <div className="modal-content-cashregister">
-                        <h3>Crear Nueva Caja</h3>
-                        <form onSubmit={handleCreateCashRegister}>
-                            <input
-                                type="number"
-                                placeholder="Saldo Inicial"
-                                value={initialBalance}
-                                onChange={(e) => setInitialBalance(e.target.value)}
-                                required
-                                ref={initialBalanceInputRef} // Asignar la referencia al input
-                            />
-                            <button type="submit">Crear</button>
-                            <button type="button" onClick={() => setIsModalOpen(false)}>Cancelar</button>
-                        </form>
+                <div className="create-cash-modal-overlay" onClick={() => setIsModalOpen(false)}>
+                    <div className="create-cash-modal-container" onClick={(e) => e.stopPropagation()}>
+                        <button 
+                            className="create-cash-modal-close" 
+                            onClick={() => setIsModalOpen(false)}
+                            aria-label="Cerrar"
+                        >
+                            ×
+                        </button>
+                        <div className="create-cash-modal-content">
+                            <h3>Crear Nueva Caja</h3>
+                            <p className="create-cash-modal-description">Ingrese el saldo inicial con el que comenzará la caja registradora.</p>
+                            <form onSubmit={handleCreateCashRegister}>
+                                <div className="create-cash-form-group">
+                                    <label htmlFor="initialBalance">Saldo Inicial:</label>
+                                    <input
+                                        id="initialBalance"
+                                        type="number"
+                                        placeholder="0"
+                                        value={initialBalance}
+                                        onChange={(e) => setInitialBalance(e.target.value)}
+                                        required
+                                        ref={initialBalanceInputRef}
+                                        min="0"
+                                        step="1"
+                                    />
+                                </div>
+                                <div className="create-cash-modal-actions">
+                                    <button type="button" className="create-cash-btn-secondary" onClick={() => setIsModalOpen(false)}>
+                                        Cancelar
+                                    </button>
+                                    <button type="submit" className="create-cash-btn-primary">
+                                        Crear Caja
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             )}

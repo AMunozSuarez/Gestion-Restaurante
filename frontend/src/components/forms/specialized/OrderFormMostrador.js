@@ -93,6 +93,8 @@ const OrderFormMostrador = (props) => {
             completeButtonAction={handleCompleteOrder}
             cancelOrderAction={handleCancelOrder}
             currentOrder={currentOrder}
+            hasOpenCashRegister={props.hasOpenCashRegister}
+            onShowCashRegisterAlert={props.onShowCashRegisterAlert}
         />
     );
 };

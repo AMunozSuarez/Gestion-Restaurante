@@ -22,7 +22,20 @@ export const getCurrentCashRegister = async () => {
 
 // Close the current cash register
 export const closeCashRegister = async (data) => {
-    return await axios.put('/cash/close', data);
+    return await axios.put('/cash/close', data, {
+        validateStatus: function (status) {
+            // Considerar 400 como válido si es por pedidos pendientes
+            return status < 500;
+        }
+    }).then(response => {
+        // Si es 400, lanzar error para que se maneje en el catch
+        if (response.status === 400) {
+            const error = new Error(response.data.message);
+            error.response = response;
+            throw error;
+        }
+        return response;
+    });
 };
 
 // Get all cash registers for a restaurant

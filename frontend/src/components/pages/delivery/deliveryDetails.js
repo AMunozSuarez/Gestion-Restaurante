@@ -6,8 +6,23 @@ import OrderDetailsBase from '../../layout/OrderDetailsBase';
 import OrderFormDelivery from '../../forms/specialized/OrderFormDelivery';
 import OrderListDelivery from '../../lists/orderListDelivery';
 import '../../../styles/delivery.css';
+import { useCashRegisterStatus } from '../../../hooks/cash/useCashRegisterStatus';
+import CashRegisterAlert from '../../common/CashRegisterAlert';
 
 const DeliveryDetails = () => {  const { orderNumber } = useParams();
+  
+  // Verificar estado de la caja registradora
+  const { hasOpenCashRegister, isLoading: cashRegisterLoading, checkCashRegister } = useCashRegisterStatus();
+  
+  // Estado para controlar si se muestra la alerta
+  const [showCashRegisterAlert, setShowCashRegisterAlert] = React.useState(false);
+  
+  // Mostrar alerta automáticamente si no hay caja abierta al cargar
+  React.useEffect(() => {
+    if (!cashRegisterLoading && !hasOpenCashRegister) {
+      setShowCashRegisterAlert(true);
+    }
+  }, [cashRegisterLoading, hasOpenCashRegister]);
   
   // Limpiar estado de edición de dirección al cargar/cambiar componente
   useEffect(() => {
@@ -109,6 +124,8 @@ const DeliveryDetails = () => {  const { orderNumber } = useParams();
     comment,
     setComment,
     resetForm: () => {},
+    hasOpenCashRegister,
+    onShowCashRegisterAlert: () => setShowCashRegisterAlert(true),
   };
   
   // Importar el hook para operaciones de pedidos
@@ -129,17 +146,27 @@ const DeliveryDetails = () => {  const { orderNumber } = useParams();
   };
 
   return (
-    <OrderDetailsBase
-      editingOrder={editingOrder}
-      containerClass="delivery"
-      OrderFormComponent={OrderFormDelivery}
-      OrderListComponent={OrderListDelivery}
-      formProps={formProps}
-      listProps={listProps}
-      completedListProps={completedListProps}
-      preparationOrders={preparationOrders}
-      completedOrders={completedOrders}
-    />
+    <>
+      {/* Mostrar alerta si está activa */}
+      {showCashRegisterAlert && (
+        <CashRegisterAlert 
+          onRetry={checkCashRegister}
+          onClose={() => setShowCashRegisterAlert(false)}
+        />
+      )}
+      
+      <OrderDetailsBase
+        editingOrder={editingOrder}
+        containerClass="delivery"
+        OrderFormComponent={OrderFormDelivery}
+        OrderListComponent={OrderListDelivery}
+        formProps={formProps}
+        listProps={listProps}
+        completedListProps={completedListProps}
+        preparationOrders={preparationOrders}
+        completedOrders={completedOrders}
+      />
+    </>
   );
 };
 

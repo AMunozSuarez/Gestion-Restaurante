@@ -9,6 +9,8 @@ import useCartStore from '../../../store/useCartStore';
 import { CSSTransition } from 'react-transition-group';
 import OrderListDelivery from '../../lists/orderListDelivery';
 import { useOrderDetailsLogic } from '../../../hooks/order/useOrderDetailsLogic';
+import { useCashRegisterStatus } from '../../../hooks/cash/useCashRegisterStatus';
+import CashRegisterAlert from '../../common/CashRegisterAlert';
 
 // Definir la configuración específica para pedidos de delivery
 const deliveryConfig = {
@@ -53,6 +55,11 @@ const Delivery = () => {
     const { orderNumber } = useParams();
     const [selectedCustomer, setSelectedCustomer] = useState(null);
 
+    // Verificar estado de la caja registradora
+    const { hasOpenCashRegister, isLoading: cashRegisterLoading, checkCashRegister } = useCashRegisterStatus();
+    
+    // Estado para controlar si se muestra la alerta
+    const [showCashRegisterAlert, setShowCashRegisterAlert] = useState(false);
     
     // Usar SOLO handleSelectCompletedOrder del hook useOrderDetailsLogic
     const { handleSelectCompletedOrder: selectOrderFromHook } = useOrderDetailsLogic({
@@ -66,7 +73,14 @@ const Delivery = () => {
         clearCart(); // Limpiar el carrito solo al montar
     }, []);
 
-    if (isLoading) return <p>Cargando pedidos...</p>;
+    // Mostrar alerta automáticamente si no hay caja abierta al cargar
+    useEffect(() => {
+        if (!cashRegisterLoading && !hasOpenCashRegister) {
+            setShowCashRegisterAlert(true);
+        }
+    }, [cashRegisterLoading, hasOpenCashRegister]);
+
+    if (isLoading || cashRegisterLoading) return <p>Cargando pedidos...</p>;
 
     const preparationOrders = orders
         .filter((order) => order.section === 'delivery' && order.status === 'Preparacion')
@@ -114,6 +128,14 @@ const Delivery = () => {
             unmountOnExit
         >
             <div className="delivery-container creating-mode">
+                {/* Mostrar alerta si está activa */}
+                {showCashRegisterAlert && (
+                    <CashRegisterAlert 
+                        onRetry={checkCashRegister}
+                        onClose={() => setShowCashRegisterAlert(false)}
+                    />
+                )}
+                
                 <div className="delivery-content">
                     {/* Columna izquierda - OrderForm ocupa todo el alto */}
                     <div className="delivery-left-column delivery-create-order">
@@ -136,6 +158,8 @@ const Delivery = () => {
                             comment={comment}
                             setComment={setComment}
                             cancelOrder={cancelOrder}
+                            hasOpenCashRegister={hasOpenCashRegister}
+                            onShowCashRegisterAlert={() => setShowCashRegisterAlert(true)}
                         />
                     </div>
 
