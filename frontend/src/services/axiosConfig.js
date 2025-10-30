@@ -1,9 +1,7 @@
 import axios from 'axios';
 
 const instance = axios.create({
-    baseURL: 'https://gestion-restaurante-vibe.onrender.com/api', // Cambia esto según la URL de tu backend
-    
-    // baseURL: 'https://txhxjh3c-3001.brs.devtunnels.ms/api', // Cambia esto según la URL de tu backend
+    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001/api', // URL desde variables de entorno
 });
 
 // Interceptor para agregar el token a cada solicitud

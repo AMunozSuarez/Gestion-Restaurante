@@ -46,9 +46,11 @@ const orderSchema = new mongoose.Schema({
         type: String,
         default: '',
     },
-
-
-
+    cashRegister: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CashRegister',
+        required: false, // No requerido para compatibilidad con órdenes antiguas
+    },
     restaurant: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Restaurant',

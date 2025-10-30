@@ -1,15 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../../styles/admin/salesList.css'; // Estilos específicos para la lista de ventas
 import AdminSubheader from '../layout/adminSubheader'; // Subheader para navegación
-import { useOrders } from '../../hooks/api/useOrders'; // Hook para obtener las órdenes
+import { useSales } from '../../hooks/api/useSales'; // Hook para obtener las ventas históricas
 import axios from '../../services/axiosConfig';
 
 const SalesList = () => {
-    const { orders, isLoading, error, updateOrderInList } = useOrders(); // Usar el hook useOrders
-    const [selectedSale, setSelectedSale] = useState(null); // Estado para la venta seleccionada
-    const [isEditingPayment, setIsEditingPayment] = useState(false); // Estado para editar método de pago
-    const [editedPaymentMethod, setEditedPaymentMethod] = useState(''); // Método de pago editado
-    const [isSaving, setIsSaving] = useState(false); // Estado de guardado
     const [filters, setFilters] = useState({
         date: new Date().toISOString().split('T')[0], // Fecha actual
         status: '',
@@ -17,14 +12,27 @@ const SalesList = () => {
         section: '',
     });
 
-    // Filtrar las órdenes según los filtros seleccionados
-    const filteredOrders = orders.filter((order) => {
-        const matchesDate = filters.date ? order.createdAt.startsWith(filters.date) : true;
-        const matchesStatus = filters.status ? order.status === filters.status : true;
-        const matchesPayment = filters.paymentMethod ? order.payment === filters.paymentMethod : true;
-        const matchesSection = filters.section ? order.section === filters.section : true;
+    // Usar el hook useSales con los filtros (excepto section que se filtra en el frontend)
+    const { orders, isLoading, error, updateOrderInList, refetch } = useSales({
+        date: filters.date,
+        status: filters.status,
+        paymentMethod: filters.paymentMethod,
+    });
 
-        return matchesDate && matchesStatus && matchesPayment && matchesSection;
+    const [selectedSale, setSelectedSale] = useState(null); // Estado para la venta seleccionada
+    const [isEditingPayment, setIsEditingPayment] = useState(false); // Estado para editar método de pago
+    const [editedPaymentMethod, setEditedPaymentMethod] = useState(''); // Método de pago editado
+    const [isSaving, setIsSaving] = useState(false); // Estado de guardado
+
+    // Refetch cuando cambien los filtros
+    useEffect(() => {
+        refetch();
+    }, [filters.date, filters.status, filters.paymentMethod, refetch]);
+
+    // Filtrar por sección en el frontend (ya que el backend no lo soporta en /sales)
+    const filteredOrders = orders.filter((order) => {
+        const matchesSection = filters.section ? order.section === filters.section : true;
+        return matchesSection;
     });
 
     // Manejar la selección de una venta
@@ -235,8 +243,13 @@ const SalesList = () => {
                                     {selectedSale.foods.map((food, index) => (
                                         <li key={index} className="product-row">
                                             <span className="product-qty">{food.quantity}x</span>
-                                            <span className="product-title">{food.food.title}</span>
-                                            <span className="product-price">{food.food.price.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 })}</span>
+                                            <span className="product-title">{food.food?.title || 'Producto no disponible'}</span>
+                                            <span className="product-price">
+                                                {food.food?.price 
+                                                    ? food.food.price.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 })
+                                                    : 'N/A'
+                                                }
+                                            </span>
                                         </li>
                                     ))}
                                 </ul>

@@ -5,3 +5,4 @@ export * from './useProducts';
 export * from './useCategories';
 export * from './useCreateOrder';
 export * from './useRecentOrders';
+export * from './useSales';

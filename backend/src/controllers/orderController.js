@@ -1,6 +1,7 @@
 const orderModel = require('../models/orderModel');
 const foodModel = require('../models/foodModel'); // Importar el modelo de alimentos
 const Customer = require('../models/customerModel'); // Importar el modelo de clientes
+const cashRegisterModel = require('../models/cashRegisterModel'); // Importar el modelo de caja
 
 // CREATE A NEW ORDER
 
@@ -74,7 +75,24 @@ const createOrderController = async (req, res) => {
             return sum + (foodDetails.price * item.quantity);
         }, 0) + deliveryCost;
 
-        const lastOrder = await orderModel.findOne({ restaurant: req.user.restaurant }).sort({ orderNumber: -1 });
+        // Obtener la caja abierta actual
+        const currentCashRegister = await cashRegisterModel.findOne({
+            restaurant: req.user.restaurant,
+            status: 'Abierta',
+        });
+
+        if (!currentCashRegister) {
+            return res.status(400).json({
+                success: false,
+                message: 'No hay una caja abierta. Por favor, abre una caja antes de crear órdenes.',
+            });
+        }
+
+        // Obtener el último número de orden de la caja actual
+        const lastOrder = await orderModel.findOne({ 
+            cashRegister: currentCashRegister._id 
+        }).sort({ orderNumber: -1 });
+        
         const orderNumber = lastOrder && lastOrder.orderNumber ? lastOrder.orderNumber + 1 : 1;
 
         const order = new orderModel({
@@ -88,6 +106,7 @@ const createOrderController = async (req, res) => {
             section,
             status: status || 'Preparacion',
             comment: comment || '',
+            cashRegister: currentCashRegister._id, // Asignar la caja actual
             restaurant: req.user.restaurant, // Siempre asignar el restaurante
         });
 
@@ -117,8 +136,26 @@ const createOrderController = async (req, res) => {
 // GET ALL ORDERS
 const getAllOrdersController = async (req, res) => {
     try {
+        // Obtener la caja abierta actual
+        const currentCashRegister = await cashRegisterModel.findOne({
+            restaurant: req.user.restaurant,
+            status: 'Abierta',
+        });
+
+        // Si no hay caja abierta, devolver lista vacía en lugar de error
+        if (!currentCashRegister) {
+            return res.status(200).json({
+                success: true,
+                message: 'No hay una caja abierta',
+                orders: [],
+            });
+        }
+
         const orders = await orderModel
-            .find({ restaurant: req.user.restaurant })
+            .find({ 
+                restaurant: req.user.restaurant,
+                cashRegister: currentCashRegister._id 
+            })
             .populate('foods.food') // Incluir los datos de los alimentos
             .populate('buyer'); // Incluir los datos del cliente
 
@@ -174,8 +211,25 @@ const getOrderByIdController = async (req, res) => {
 const getOrderByNumberController = async (req, res) => {
     try {
         const { orderNumber } = req.params;
+        
+        // Obtener la caja abierta actual
+        const currentCashRegister = await cashRegisterModel.findOne({
+            restaurant: req.user.restaurant,
+            status: 'Abierta',
+        });
+
+        if (!currentCashRegister) {
+            return res.status(400).json({
+                success: false,
+                message: 'No se puede buscar órdenes sin una caja abierta. Por favor, abra una caja primero.',
+            });
+        }
+
         const order = await orderModel
-            .findOne({ orderNumber })
+            .findOne({ 
+                orderNumber,
+                cashRegister: currentCashRegister._id 
+            })
             .populate('foods.food') // Incluir los datos de los alimentos
             .populate('buyer'); // Incluir los datos del cliente
 
@@ -401,7 +455,11 @@ const getFilteredOrders = async (req, res) => {
             filters.payment = paymentMethod;
         }
 
-        const orders = await orderModel.find(filters).sort({ createdAt: -1 });
+        const orders = await orderModel.find(filters)
+            .sort({ createdAt: -1 })
+            .populate('foods.food', 'title price') // Incluir los datos de los alimentos
+            .populate('buyer', 'name phone'); // Incluir los datos del cliente
+        
         res.status(200).json({ success: true, orders });
     } catch (error) {
         console.error('Error en getFilteredOrders:', error);
@@ -421,8 +479,24 @@ const getRecentOrders = async (req, res) => {
         const allowedSorts = ['createdAt', 'updatedAt'];
         if (!allowedSorts.includes(sortBy)) sortBy = 'createdAt';
 
+        // Obtener la caja abierta actual
+        const currentCashRegister = await cashRegisterModel.findOne({
+            restaurant: req.user.restaurant,
+            status: 'Abierta',
+        });
+
+        // Si no hay caja abierta, devolver lista vacía en lugar de error
+        if (!currentCashRegister) {
+            return res.status(200).json({
+                success: true,
+                message: 'No hay una caja abierta',
+                orders: [],
+            });
+        }
+
         const filters = {
             restaurant: req.user.restaurant,
+            cashRegister: currentCashRegister._id,
         };
 
         if (status) {

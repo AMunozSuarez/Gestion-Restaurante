@@ -68,9 +68,10 @@ const Cart = ({
                             <div className="cart-quantity">
                                 {!isViewingCompletedOrder && (
                                     <>
-                                        <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
-                                        <span>{item.quantity}</span>
+                                        
                                         <button type="button" onClick={() => decreaseQuantity(item._id)}>-</button>
+                                        <span>{item.quantity}</span>
+                                        <button type="button" onClick={() => increaseQuantity(item._id)}>+</button>
                                     </>
                                 )}
                                 {isViewingCompletedOrder && <span>{item.quantity}</span>}
