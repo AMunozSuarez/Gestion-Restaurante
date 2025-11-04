@@ -91,7 +91,8 @@
 
 /* Modificación para listas de pedidos */
 .mostrador-orders-list {
-    flex: 1;
+    flex: 2; /* Doble espacio que completedOrders */
+    min-height: 400px; /* Altura mínima más grande */
     border-bottom: 1px solid #ddd;
     background-color: #ffffff;
     padding: 20px;
@@ -124,7 +125,9 @@
 }
 
 .mostrador-completed-orders {
-    flex: 1;
+    flex: 0.5; /* Menor espacio que orders-list */
+    min-height: 200px; /* Altura mínima más pequeña */
+    max-height: 300px; /* Límite máximo */
     background-color: #ffffff;
     padding: 20px;
     border-radius: 8px;
@@ -175,15 +178,15 @@
   
   .mostrador-orders-list {
     flex: none;
-    max-height: 45vh;
-    min-height: 300px;
+    max-height: 55vh; /* Más espacio para preparación */
+    min-height: 400px; /* Altura mínima más grande */
     margin-bottom: 15px;
   }
   
   .mostrador-completed-orders {
     flex: none;
-    max-height: 35vh;
-    min-height: 250px;
+    max-height: 25vh; /* Menos espacio para completados */
+    min-height: 150px; /* Altura mínima más pequeña */
   }
   
   .mostrador-container {
@@ -194,24 +197,28 @@
 
 /* Para pantallas muy grandes, limitar la altura máxima de ciertos elementos */
 @media (min-height: 1080px) {
-  .mostrador-orders-list,
+  .mostrador-orders-list {
+    max-height: 600px; /* Más espacio para preparación */
+    min-height: 450px;
+  }
+  
   .mostrador-completed-orders {
-    max-height: 500px;
+    max-height: 350px; /* Menos espacio para completados */
   }
 }
 
 /* Para pantallas pequeñas en altura */
 @media (max-height: 768px) {
   .mostrador-orders-list {
-    flex: 1.2; /* Dar más espacio proporcional al orderList */
-    max-height: 45vh; /* 45% de la altura de viewport */
-    min-height: 250px;
+    flex: 2; /* Mantener doble espacio */
+    max-height: 50vh; /* Más espacio de viewport */
+    min-height: 300px; /* Altura mínima grande */
   }
   
   .mostrador-completed-orders {
-    flex: 0.8; /* Menos espacio proporcional para completedOrders */
-    max-height: 30vh; /* 30% de la altura de viewport */
-    min-height: 150px;
+    flex: 0.5; /* Menos espacio */
+    max-height: 25vh; /* Menos espacio de viewport */
+    min-height: 120px;
   }
   
   .mostrador-right-column {
@@ -228,16 +235,16 @@
 /* Media query específico para pantallas muy pequeñas en altura */
 @media (max-height: 600px) {
   .mostrador-orders-list {
-    flex: 1.5;
-    max-height: 40vh;
-    min-height: 200px;
+    flex: 2; /* Mantener prioridad */
+    max-height: 45vh; /* Más espacio proporcional */
+    min-height: 250px; /* Altura mínima grande */
     padding: 15px;
   }
   
   .mostrador-completed-orders {
-    flex: 0.5;
-    max-height: 25vh;
-    min-height: 120px;
+    flex: 0.4; /* Muy poco espacio */
+    max-height: 20vh;
+    min-height: 100px;
     padding: 15px;
   }
 }
@@ -256,8 +263,8 @@
   
   .mostrador-orders-list {
     flex: none;
-    max-height: 35vh;
-    min-height: 180px;
+    max-height: 40vh; /* Más espacio para preparación */
+    min-height: 220px; /* Altura mínima más grande */
     margin-bottom: 10px;
     padding: 10px;
     overflow-y: scroll; /* Mantener scroll visible */
@@ -265,8 +272,8 @@
   
   .mostrador-completed-orders {
     flex: none;
-    max-height: 20vh;
-    min-height: 100px;
+    max-height: 15vh; /* Menos espacio para completados */
+    min-height: 80px;
     padding: 10px;
     overflow-y: scroll; /* Mantener scroll visible */
   }
