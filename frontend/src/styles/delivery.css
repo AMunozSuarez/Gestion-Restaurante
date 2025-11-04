@@ -48,9 +48,30 @@
   min-height: 400px;
   /* Ajuste importante para altura */
   max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 42px);
-  overflow-y: auto;
+  overflow-y: scroll; /* Scroll siempre visible */
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: #cccccc #f0f0f0; /* Firefox */
   animation: slideInFromLeft 0.3s ease-in-out;
   border: 2px solid #007399;
+}
+
+/* Estilos para la scrollbar del formulario en WebKit */
+.creating-mode .delivery-create-order::-webkit-scrollbar {
+  width: 8px;
+}
+
+.creating-mode .delivery-create-order::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.creating-mode .delivery-create-order::-webkit-scrollbar-thumb {
+  background: #007399; /* Azul a juego con el borde */
+  border-radius: 4px;
+}
+
+.creating-mode .delivery-create-order::-webkit-scrollbar-thumb:hover {
+  background: #005f73;
 }
 
 /* Columnas laterales con altura ajustada */
@@ -66,7 +87,8 @@
   max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 30px);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow-y: hidden; /* El scroll será en las listas individuales */
+  gap: 20px; /* Separación entre listas */
 }
 
 /* Modificación para listas de pedidos */
@@ -79,6 +101,28 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   height: auto;
   margin-bottom: 20px;
+  overflow-y: scroll; /* Scroll siempre visible */
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: #cccccc #f0f0f0; /* Firefox */
+}
+
+/* Estilos para la scrollbar en WebKit (Chrome, Safari, Edge) */
+.delivery-orders-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.delivery-orders-list::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.delivery-orders-list::-webkit-scrollbar-thumb {
+  background: #cccccc;
+  border-radius: 4px;
+}
+
+.delivery-orders-list::-webkit-scrollbar-thumb:hover {
+  background: #aaaaaa;
 }
 
 .delivery-completed-orders {
@@ -87,12 +131,35 @@
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow-y: scroll; /* Scroll siempre visible */
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: #cccccc #f0f0f0; /* Firefox */
+}
+
+/* Estilos para la scrollbar en WebKit (Chrome, Safari, Edge) */
+.delivery-completed-orders::-webkit-scrollbar {
+  width: 8px;
+}
+
+.delivery-completed-orders::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.delivery-completed-orders::-webkit-scrollbar-thumb {
+  background: #cccccc;
+  border-radius: 4px;
+}
+
+.delivery-completed-orders::-webkit-scrollbar-thumb:hover {
+  background: #aaaaaa;
 }
 
 /* Media queries para ajustes responsivos */
 @media (max-width: 1200px) {
   .delivery-content {
     flex-direction: column;
+    gap: 15px;
   }
   
   .delivery-left-column, 
@@ -101,6 +168,23 @@
     width: 100%;
     max-height: none;
     height: auto;
+  }
+  
+  .delivery-right-column {
+    overflow-y: hidden; /* Evitar scroll en el contenedor principal */
+  }
+  
+  .delivery-orders-list {
+    flex: none;
+    max-height: 45vh;
+    min-height: 300px;
+    margin-bottom: 15px;
+  }
+  
+  .delivery-completed-orders {
+    flex: none;
+    max-height: 35vh;
+    min-height: 250px;
   }
   
   .delivery-container {
@@ -117,16 +201,101 @@
   }
 }
 
-/* Para pantallas pequeñas en altura */
-@media (max-height: 768px) {
-  .delivery-orders-list,
+/* Media query específico para tablets */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .delivery-orders-list {
+    max-height: 350px;
+    min-height: 250px;
+  }
+  
   .delivery-completed-orders {
     max-height: 300px;
+    min-height: 200px;
+  }
+}
+
+/* Para pantallas pequeñas en altura */
+@media (max-height: 768px) {
+  .delivery-orders-list {
+    flex: 1.2; /* Dar más espacio proporcional al orderList */
+    max-height: 45vh; /* 45% de la altura de viewport */
+    min-height: 250px;
+  }
+  
+  .delivery-completed-orders {
+    flex: 0.8; /* Menos espacio proporcional para completedOrders */
+    max-height: 30vh; /* 30% de la altura de viewport */
+    min-height: 150px;
+  }
+  
+  .delivery-right-column {
+    max-height: calc(100vh - var(--header-height) - var(--subheader-height) - 20px);
+    overflow-y: hidden; /* El scroll será en cada lista individual */
   }
   
   :root {
     --header-height: 50px; /* Reducir en pantallas pequeñas */
     --subheader-height: 30px;
+  }
+}
+
+/* Media query específico para pantallas muy pequeñas en altura */
+@media (max-height: 600px) {
+  .delivery-orders-list {
+    flex: 1.5;
+    max-height: 40vh;
+    min-height: 200px;
+    padding: 15px;
+  }
+  
+  .delivery-completed-orders {
+    flex: 0.5;
+    max-height: 25vh;
+    min-height: 120px;
+    padding: 15px;
+  }
+}
+
+/* Media query para móviles en landscape (ancho pequeño Y altura pequeña) */
+@media (max-width: 768px) and (max-height: 600px) {
+  .delivery-content {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .delivery-left-column, 
+  .delivery-right-column {
+    width: 100%;
+  }
+  
+  .delivery-orders-list {
+    flex: none;
+    max-height: 35vh;
+    min-height: 180px;
+    margin-bottom: 10px;
+    padding: 10px;
+    overflow-y: scroll; /* Mantener scroll visible */
+  }
+  
+  .delivery-completed-orders {
+    flex: none;
+    max-height: 20vh;
+    min-height: 100px;
+    padding: 10px;
+    overflow-y: scroll; /* Mantener scroll visible */
+  }
+  
+  .creating-mode .delivery-create-order {
+    max-height: 40vh;
+    padding: 10px;
+    overflow-y: scroll; /* Mantener scroll visible */
+  }
+  
+  /* Scrollbars más delgadas en pantallas pequeñas */
+  .delivery-orders-list::-webkit-scrollbar,
+  .delivery-completed-orders::-webkit-scrollbar,
+  .creating-mode .delivery-create-order::-webkit-scrollbar {
+    width: 6px;
   }
 }
 
