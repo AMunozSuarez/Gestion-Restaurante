@@ -1,14 +1,28 @@
 import React from 'react';
 import { Button } from '../components/ui';
-import { PlusIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ClockIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useOrders, useRecentOrders } from '../hooks/useOrders';
+import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../hooks/useCashRegister';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
+import ProductModal from '../components/common/ProductModal';
 
 const Mostrador = () => {
   // Estado para crear pedido
   const [isCreatingOrder, setIsCreatingOrder] = React.useState(false);
   const [showCashAlert, setShowCashAlert] = React.useState(false);
+  const [showProductModal, setShowProductModal] = React.useState(false);
+  
+  // Estados del formulario de pedido
+  const [customerName, setCustomerName] = React.useState('');
+  const [comments, setComments] = React.useState('');
+  const [paymentMethod, setPaymentMethod] = React.useState('');
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [cart, setCart] = React.useState([]);
+  const [addedProductNotification, setAddedProductNotification] = React.useState(null);
+  const [commentingProduct, setCommentingProduct] = React.useState(null);
+  const [productComment, setProductComment] = React.useState('');
+  const [isCreatingOrderRequest, setIsCreatingOrderRequest] = React.useState(false);
   
   // Hook para caja registradora
   const { 
@@ -17,12 +31,18 @@ const Mostrador = () => {
     openCashRegister 
   } = useCashRegister();
   
+  // Hooks para productos
+  const { products, isLoading: productsLoading } = useProducts({ available: true });
+  const { searchResults, isSearching, searchProducts } = useProductSearch();
+  
   // Hooks para obtener datos reales
   const { 
     orders, 
     isLoading: ordersLoading, 
     error: ordersError,
-    updateOrderStatus 
+    updateOrderStatus,
+    createOrder,
+    refetch: refetchOrders
   } = useOrders({ 
     section: 'mostrador', 
     status: 'Preparacion' 
@@ -43,6 +63,156 @@ const Mostrador = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Funciones para manejo del carrito
+  const addToCart = (product) => {
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === product.id);
+      if (existingItem) {
+        // Mostrar notificación de cantidad actualizada
+        setAddedProductNotification(`${product.name} - Cantidad actualizada`);
+        setTimeout(() => setAddedProductNotification(null), 2000);
+        
+        return prevCart.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      
+      // Mostrar notificación de producto agregado
+      setAddedProductNotification(`${product.name} agregado al carrito`);
+      setTimeout(() => setAddedProductNotification(null), 2000);
+      
+      return [...prevCart, { ...product, quantity: 1, comments: '' }];
+    });
+  };
+
+  // Función para agregar comentarios a productos en el carrito
+  const addCommentToProduct = (productId, comment) => {
+    setCart(prevCart =>
+      prevCart.map(item =>
+        item.id === productId
+          ? { ...item, comments: comment }
+          : item
+      )
+    );
+  };
+
+  const openCommentModal = (product) => {
+    setCommentingProduct(product);
+    setProductComment(product.comments || '');
+  };
+
+  const saveComment = () => {
+    if (commentingProduct) {
+      addCommentToProduct(commentingProduct.id, productComment);
+      setCommentingProduct(null);
+      setProductComment('');
+    }
+  };
+
+  const cancelComment = () => {
+    setCommentingProduct(null);
+    setProductComment('');
+  };
+
+  const removeFromCart = (productId) => {
+    setCart(prevCart => prevCart.filter(item => item.id !== productId));
+  };
+
+  const updateQuantity = (productId, newQuantity) => {
+    if (newQuantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    setCart(prevCart =>
+      prevCart.map(item =>
+        item.id === productId
+          ? { ...item, quantity: newQuantity }
+          : item
+      )
+    );
+  };
+
+  const calculateTotal = () => {
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
+  // Funciones para búsqueda de productos
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    if (value.trim()) {
+      searchProducts(value);
+    }
+  };
+
+  const clearForm = () => {
+    setCustomerName('');
+    setComments('');
+    setPaymentMethod('');
+    setSearchTerm('');
+    setCart([]);
+    setCommentingProduct(null);
+    setProductComment('');
+    setIsCreatingOrderRequest(false);
+  };
+
+  const handleCancelNewOrder = () => {
+    setIsCreatingOrder(false);
+    clearForm();
+  };
+
+  // Función para crear el pedido
+  const handleCreateOrder = async () => {
+    if (isCreatingOrderRequest) return; // Prevenir clicks múltiples
+    
+    try {
+      setIsCreatingOrderRequest(true);
+      
+      // Preparar los datos del pedido
+      const orderData = {
+        foods: cart.map(item => ({
+          food: item.id,
+          quantity: item.quantity,
+          comment: item.comments || ''
+        })),
+        payment: paymentMethod,
+        buyer: {
+          name: customerName,
+          phone: '', // En mostrador no necesariamente hay teléfono
+        },
+        section: 'mostrador',
+        status: 'Preparacion',
+        comment: comments
+      };
+
+      console.log('Creando pedido:', orderData);
+      
+      const response = await createOrder(orderData);
+      
+      if (response.success) {
+        // Mostrar notificación de éxito
+        setAddedProductNotification(`Pedido #${response.order?.orderNumber || 'N/A'} creado exitosamente`);
+        setTimeout(() => setAddedProductNotification(null), 3000);
+        
+        // Limpiar formulario y cerrar
+        clearForm();
+        setIsCreatingOrder(false);
+        
+        // Refrescar la lista de pedidos
+        refetchOrders();
+      } else {
+        alert('Error al crear el pedido: ' + (response.error || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('Error creating order:', error);
+      alert('Error al crear el pedido: ' + error.message);
+    } finally {
+      setIsCreatingOrderRequest(false);
+    }
   };
 
   const handleCompleteOrder = async (orderId) => {
@@ -110,7 +280,7 @@ const Mostrador = () => {
         <div className="flex justify-between items-center flex-shrink-0">
           <h1 className="text-professional-title">Mostrador</h1>
           <Button
-            onClick={() => setIsCreatingOrder(!isCreatingOrder)}
+            onClick={() => isCreatingOrder ? handleCancelNewOrder() : setIsCreatingOrder(true)}
             className="btn-professional-primary flex items-center gap-2"
           >
             <PlusIcon className="w-5 h-5" />
@@ -137,6 +307,8 @@ const Mostrador = () => {
                       type="text"
                       className="input-professional"
                       placeholder="Ingrese el nombre del cliente"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
                     />
                   </div>
                   
@@ -148,6 +320,8 @@ const Mostrador = () => {
                       className="input-professional resize-none"
                       rows="2"
                       placeholder="Comentarios adicionales"
+                      value={comments}
+                      onChange={(e) => setComments(e.target.value)}
                     />
                   </div>
 
@@ -159,25 +333,106 @@ const Mostrador = () => {
                       type="text"
                       className="input-professional mb-2"
                       placeholder="Buscar productos..."
+                      value={searchTerm}
+                      onChange={handleSearchChange}
                     />
-                    <button className="w-full btn-professional-outline">
+                    {/* Resultados de búsqueda */}
+                    {searchTerm && searchResults.length > 0 && (
+                      <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md mb-2">
+                        {searchResults.map((product) => (
+                          <div
+                            key={product.id}
+                            className="p-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                            onClick={() => {
+                              addToCart(product);
+                              setSearchTerm('');
+                            }}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="text-sm font-medium">{product.name}</span>
+                                <div className="text-xs text-gray-500">{product.category?.title || product.category?.name || 'Sin categoría'}</div>
+                              </div>
+                              <span className="text-sm font-semibold text-orange-600">
+                                ${product.price?.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button 
+                      className="w-full btn-professional-outline"
+                      onClick={() => setShowProductModal(true)}
+                    >
                       Ver Productos
                     </button>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-professional-body mb-1">
-                      Carrito
+                      Carrito ({cart.length} items)
                     </label>
-                    <div className="product-list min-h-[100px] flex items-center justify-center">
-                      <p className="text-professional-body text-center text-sm">El carrito está vacío</p>
-                    </div>
-                  </div>
-
-                  <div className="total-highlight">
-                    <div className="flex justify-between text-lg">
-                      <span>Total:</span>
-                      <span>$0</span>
+                    <div className="product-list min-h-[150px] max-h-[200px] overflow-y-auto">
+                      {cart.length === 0 ? (
+                        <div className="flex items-center justify-center h-full">
+                          <p className="text-professional-body text-center text-sm">El carrito está vacío</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {cart.map((item) => (
+                            <div key={item.id} className="bg-gray-50 rounded p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium">{item.name}</div>
+                                  <div className="text-xs text-gray-500">
+                                    ${item.price?.toFixed(2)} c/u
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                    className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-8 text-center text-sm">{item.quantity}</span>
+                                  <button
+                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                    className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
+                                  >
+                                    +
+                                  </button>
+                                  <button
+                                    onClick={() => removeFromCart(item.id)}
+                                    className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs"
+                                  >
+                                    <TrashIcon className="w-3 h-3 mx-auto" />
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              {/* Comentarios del producto */}
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => openCommentModal(item)}
+                                  className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center gap-1"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1.586l-4.707 4.707z" />
+                                  </svg>
+                                  {item.comments ? 'Editar' : 'Agregar'} comentario
+                                </button>
+                                {item.comments && (
+                                  <div className="flex-1 text-xs text-gray-600 italic">
+                                    "{item.comments}"
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -185,18 +440,40 @@ const Mostrador = () => {
                     <label className="block text-sm font-medium text-professional-body mb-1">
                       Método de Pago
                     </label>
-                    <select className="input-professional">
+                    <select 
+                      className="input-professional"
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                    >
                       <option value="">Seleccionar método</option>
-                      <option value="efectivo">Efectivo</option>
-                      <option value="tarjeta">Tarjeta</option>
-                      <option value="transferencia">Transferencia</option>
+                      <option value="Efectivo">Efectivo</option>
+                      <option value="Debito">Débito</option>
+                      <option value="Transferencia">Transferencia</option>
                     </select>
+                  </div>
+
+                  <div className="total-highlight">
+                    <div className="flex justify-between text-lg">
+                      <span>Total:</span>
+                      <span>${calculateTotal().toFixed(2)}</span>
+                    </div>
                   </div>
 
                   {/* Botón al final del scroll */}
                   <div className="pt-3">
-                    <button className="w-full btn-professional-primary">
-                      Crear Pedido
+                    <button 
+                      className="w-full btn-professional-primary"
+                      disabled={cart.length === 0 || !customerName.trim() || !paymentMethod || isCreatingOrderRequest}
+                      onClick={handleCreateOrder}
+                    >
+                      {isCreatingOrderRequest ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Creando...
+                        </div>
+                      ) : (
+                        'Crear Pedido'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -342,6 +619,79 @@ const Mostrador = () => {
         onClose={() => setShowCashAlert(false)}
         onOpenCashRegister={handleOpenCash}
       />
+
+      {/* Modal de productos */}
+      <ProductModal
+        isOpen={showProductModal}
+        onClose={() => setShowProductModal(false)}
+        products={products}
+        onAddToCart={addToCart}
+        isLoading={productsLoading}
+      />
+
+      {/* Notificación de producto agregado */}
+      {addedProductNotification && (
+        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            {addedProductNotification}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de comentarios para productos */}
+      {commentingProduct && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            {/* Overlay */}
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={cancelComment}></div>
+
+            {/* Modal */}
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              {/* Header */}
+              <div className="bg-white px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Comentario para {commentingProduct.name}
+                </h3>
+              </div>
+
+              {/* Content */}
+              <div className="bg-white px-6 py-4">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Agregar comentario específico para este producto:
+                  </label>
+                  <textarea
+                    value={productComment}
+                    onChange={(e) => setProductComment(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    rows="3"
+                    placeholder="Ej: Sin cebolla, extra queso, término 3/4..."
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="bg-gray-50 px-6 py-3 flex justify-end gap-3">
+                <button
+                  onClick={cancelComment}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={saveComment}
+                  className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
