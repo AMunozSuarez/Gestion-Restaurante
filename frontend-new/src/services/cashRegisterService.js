@@ -39,6 +39,36 @@ export const cashRegisterService = {
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener caja actual');
     }
+  },
+
+  // Obtener todas las cajas registradoras
+  getAllCashRegisters: async () => {
+    try {
+      const response = await api.get('/cash/cashRegister');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al obtener todas las cajas');
+    }
+  },
+
+  // Obtener detalle de una caja específica por ID
+  getCashRegisterById: async (id) => {
+    try {
+      const response = await api.get(`/cash/cashRegister/${id}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al obtener detalle de la caja');
+    }
+  },
+
+  // Agregar pedido completado a la caja registradora actual
+  addOrderToCashRegister: async (orderData) => {
+    try {
+      const response = await api.post('/cash/add-order', orderData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al agregar pedido a la caja');
+    }
   }
 };
 

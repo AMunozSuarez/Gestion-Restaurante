@@ -73,7 +73,8 @@ const Delivery = () => {
   const { 
     isOpen: isCashOpen, 
     isLoading: cashLoading, 
-    openCashRegister 
+    openCashRegister,
+    addOrderToCashRegister 
   } = useCashRegister();
   
   // Hook para customers
@@ -147,8 +148,8 @@ const Delivery = () => {
 
   // Función helper para obtener la dirección del cliente
   const getCustomerAddress = (order) => {
-    // Priorizar buyer.address, luego address, luego fallback vacío
-    return order.buyer?.address || order.address || '';
+    // Priorizar selectedAddress del pedido, luego buyer.address, luego address, luego fallback vacío
+    return order.selectedAddress || order.buyer?.address || order.address || '';
   };
 
   // Función helper para obtener el costo de envío
@@ -677,9 +678,12 @@ const Delivery = () => {
           if (matchingAddress) {
             setEditSelectedAddressId(matchingAddress._id);
             setEditDeliveryCost(matchingAddress.deliveryCost || 0);
-          } else if (foundCustomer.addresses && foundCustomer.addresses.length > 0) {
-            setEditSelectedAddressId(foundCustomer.addresses[0]._id);
-            setEditDeliveryCost(foundCustomer.addresses[0].deliveryCost || 0);
+          } else {
+            console.log('No se encontró dirección coincidente, usando la primera disponible');
+            if (foundCustomer.addresses && foundCustomer.addresses.length > 0) {
+              setEditSelectedAddressId(foundCustomer.addresses[0]._id);
+              setEditDeliveryCost(foundCustomer.addresses[0].deliveryCost || 0);
+            }
           }
         } else {
           // No se encontró cliente - se tratará como nuevo
@@ -734,6 +738,12 @@ const Delivery = () => {
   // Función para crear el pedido
   const handleCreateOrder = async () => {
     if (isCreatingOrderRequest) return; // Prevenir clicks múltiples
+    
+    // Verificar si la caja está abierta
+    if (!isCashOpen) {
+      setShowCashAlert(true);
+      return;
+    }
     
     try {
       setIsCreatingOrderRequest(true);
@@ -993,6 +1003,37 @@ const Delivery = () => {
     if (!result.success) {
       alert('Error al completar el pedido: ' + result.error);
     } else {
+      // Agregar pedido a la caja registradora si hay una caja abierta
+      if (isCashOpen) {
+        try {
+          const total = calculateEditTotal();
+          const orderData = {
+            orderId: orderId,
+            total: total,
+            paymentMethod: editPaymentMethod,
+            items: editCart.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              comment: item.comment || ''
+            }))
+          };
+          
+          const cashResult = await addOrderToCashRegister(orderData);
+          if (cashResult.success) {
+            console.log('Pedido agregado a la caja registradora exitosamente');
+          } else {
+            console.error('Error al agregar pedido a la caja:', cashResult.error);
+            setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
+            setTimeout(() => setAddedProductNotification(null), 4000);
+          }
+        } catch (error) {
+          console.error('Error al agregar pedido a la caja registradora:', error);
+          setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
+          setTimeout(() => setAddedProductNotification(null), 4000);
+        }
+      }
+      
       // Mostrar notificación de éxito
       setAddedProductNotification('Pedido completado exitosamente');
       setTimeout(() => setAddedProductNotification(null), 2000);
@@ -1146,15 +1187,7 @@ const Delivery = () => {
                           >
                             Deseleccionar
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              alert('Función de editar número del cliente en desarrollo');
-                            }}
-                            className="text-blue-600 hover:text-blue-800 text-xs bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded"
-                          >
-                            Editar número
-                          </button>
+                          
                         </div>
                       )}
                     </label>
@@ -1456,7 +1489,7 @@ const Delivery = () => {
                     <button 
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
                       onClick={handleCreateOrder}
-                      disabled={cart.length === 0 || isCreatingOrderRequest}
+                      disabled={isCreatingOrderRequest}
                     >
                       {isCreatingOrderRequest ? (
                         <div className="flex items-center justify-center gap-2">
@@ -1655,15 +1688,6 @@ const Delivery = () => {
                             className="text-red-600 hover:text-red-800 text-xs bg-red-50 hover:bg-red-100 px-2 py-1 rounded"
                           >
                             Deseleccionar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              alert('Función de editar número del cliente en desarrollo');
-                            }}
-                            className="text-blue-600 hover:text-blue-800 text-xs bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded"
-                          >
-                            Editar número
                           </button>
                         </div>
                       )}
@@ -1964,7 +1988,7 @@ const Delivery = () => {
                   <div className="pt-3 space-y-2">
                     <button 
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
-                      disabled={editCart.length === 0 || isUpdatingOrderRequest}
+                      disabled={isUpdatingOrderRequest}
                       onClick={handleUpdateOrder}
                     >
                       {isUpdatingOrderRequest ? (

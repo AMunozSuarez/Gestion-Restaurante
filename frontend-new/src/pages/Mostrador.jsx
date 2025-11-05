@@ -44,7 +44,8 @@ const Mostrador = () => {
   const { 
     isOpen: isCashOpen, 
     isLoading: cashLoading, 
-    openCashRegister 
+    openCashRegister,
+    addOrderToCashRegister 
   } = useCashRegister();
   
   // Hooks para productos
@@ -378,6 +379,12 @@ const Mostrador = () => {
   const handleCreateOrder = async () => {
     if (isCreatingOrderRequest) return; // Prevenir clicks múltiples
     
+    // Verificar si la caja está abierta
+    if (!isCashOpen) {
+      setShowCashAlert(true);
+      return;
+    }
+    
     try {
       setIsCreatingOrderRequest(true);
       
@@ -520,6 +527,37 @@ const Mostrador = () => {
     if (!result.success) {
       alert('Error al completar el pedido: ' + result.error);
     } else {
+      // Agregar pedido a la caja registradora si hay una caja abierta
+      if (isCashOpen) {
+        try {
+          const total = calculateEditTotal();
+          const orderData = {
+            orderId: orderId,
+            total: total,
+            paymentMethod: editPaymentMethod,
+            items: editCart.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              comment: item.comment || ''
+            }))
+          };
+          
+          const cashResult = await addOrderToCashRegister(orderData);
+          if (cashResult.success) {
+            console.log('Pedido agregado a la caja registradora exitosamente');
+          } else {
+            console.error('Error al agregar pedido a la caja:', cashResult.error);
+            setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
+            setTimeout(() => setAddedProductNotification(null), 4000);
+          }
+        } catch (error) {
+          console.error('Error al agregar pedido a la caja registradora:', error);
+          setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
+          setTimeout(() => setAddedProductNotification(null), 4000);
+        }
+      }
+      
       // Mostrar notificación de éxito
       setAddedProductNotification('Pedido completado exitosamente');
       setTimeout(() => setAddedProductNotification(null), 2000);

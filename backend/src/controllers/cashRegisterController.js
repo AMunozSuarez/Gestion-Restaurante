@@ -141,6 +141,51 @@ const getCashMovements = async (req, res) => {
 
 
 
+// Add completed order to current cash register
+const addOrderToCashRegister = async (req, res) => {
+    try {
+        const { orderId, total, paymentMethod, items } = req.body;
+
+        // Buscar la caja activa
+        const activeCashRegister = await cashRegisterModel.findOne({
+            restaurant: req.user.restaurant,
+            status: 'Abierta',
+        });
+
+        if (!activeCashRegister) {
+            return res.status(400).send({ success: false, message: 'No hay una caja activa.' });
+        }
+
+        // Crear el registro del pedido para la caja
+        const orderEntry = {
+            orderId,
+            total: parseFloat(total) || 0,
+            paymentMethod,
+            items,
+            date: new Date(),
+        };
+
+        // Agregar el pedido a la caja
+        activeCashRegister.orders.push(orderEntry);
+
+        // Recalcular el total del sistema basado en todos los pedidos
+        const systemTotal = activeCashRegister.orders.reduce((sum, order) => sum + (order.total || 0), 0);
+        activeCashRegister.amountSystem = systemTotal;
+
+        // Guardar los cambios
+        await activeCashRegister.save();
+
+        res.status(200).send({ 
+            success: true, 
+            message: 'Pedido agregado a la caja registradora.', 
+            cashRegister: activeCashRegister 
+        });
+    } catch (error) {
+        console.error('Error al agregar pedido a la caja:', error);
+        res.status(500).send({ success: false, message: 'Error al agregar pedido a la caja.', error });
+    }
+};
+
 // Close an order
 const closeOrder = async (req, res) => {
     try {
@@ -190,5 +235,6 @@ module.exports = {
     getCashRegisterById,
     addCashMovement,
     getCashMovements,
+    addOrderToCashRegister,
     closeOrder,
 };

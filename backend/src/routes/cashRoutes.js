@@ -2,7 +2,7 @@ const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
-const { addCashMovement, getCashMovements, createCashRegister, getCurrentCashRegister, getAllCashRegisters, closeCashRegister, getCashRegisterById, closeOrder } = require('../controllers/cashRegisterController');
+const { addCashMovement, getCashMovements, createCashRegister, getCurrentCashRegister, getAllCashRegisters, closeCashRegister, getCashRegisterById, addOrderToCashRegister, closeOrder } = require('../controllers/cashRegisterController');
 const router = express.Router();
 
 // create cash register
@@ -26,6 +26,9 @@ router.post('/movement', authMiddleware, filterByRestaurant, addCashMovement); /
 // get cash movements
 router.get('/movement', authMiddleware, filterByRestaurant, getCashMovements); // Route to get all cash movements for a restaurant
 
+
+// add order to cash register
+router.post('/add-order', authMiddleware, filterByRestaurant, addOrderToCashRegister); // Route to add completed order to current cash register
 
 // Close an order
 router.post('/order/close', authMiddleware, filterByRestaurant, closeOrder); // Route to close an order

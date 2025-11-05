@@ -50,11 +50,27 @@ export const useCashRegister = () => {
     }
   };
 
-  const closeCashRegister = async (finalAmount) => {
+  const closeCashRegister = async ({ officialIncome, comment }) => {
     try {
       const response = await cashRegisterService.closeCashRegister({
-        finalAmount: parseFloat(finalAmount) || 0
+        officialIncome,
+        comment
       });
+      
+      if (response.success) {
+        await checkCashRegisterStatus(); // Refrescar estado
+        return { success: true };
+      } else {
+        return { success: false, error: response.message };
+      }
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  const addOrderToCashRegister = async (orderData) => {
+    try {
+      const response = await cashRegisterService.addOrderToCashRegister(orderData);
       
       if (response.success) {
         await checkCashRegisterStatus(); // Refrescar estado
@@ -74,6 +90,7 @@ export const useCashRegister = () => {
     error,
     checkCashRegisterStatus,
     openCashRegister,
-    closeCashRegister
+    closeCashRegister,
+    addOrderToCashRegister
   };
 };
