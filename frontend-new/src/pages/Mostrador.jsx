@@ -35,6 +35,10 @@ const Mostrador = () => {
   const [editCommentingProduct, setEditCommentingProduct] = React.useState(null);
   const [editProductComment, setEditProductComment] = React.useState('');
   const [isUpdatingOrderRequest, setIsUpdatingOrderRequest] = React.useState(false);
+
+  // Estados para ver detalle de pedidos completados/cancelados
+  const [isViewingCompletedOrder, setIsViewingCompletedOrder] = React.useState(false);
+  const [selectedCompletedOrder, setSelectedCompletedOrder] = React.useState(null);
   
   // Hook para caja registradora
   const { 
@@ -291,11 +295,46 @@ const Mostrador = () => {
     clearEditForm();
   };
 
+  // Función para seleccionar pedido completado/cancelado para ver detalle
+  const handleSelectCompletedOrder = (order) => {
+    console.log('Pedido completado seleccionado:', order); // Debug log
+    setSelectedCompletedOrder(order);
+    setIsViewingCompletedOrder(true);
+    
+    // Cerrar la vista de crear pedido sin limpiar estados
+    if (isCreatingOrder) {
+      setIsCreatingOrder(false);
+    }
+    
+    // Si hay un pedido en edición, cerrarlo
+    if (isEditingOrder) {
+      setIsEditingOrder(false);
+      setSelectedOrder(null);
+      clearEditForm();
+    }
+  };
+
+  const handleCancelViewCompletedOrder = () => {
+    setIsViewingCompletedOrder(false);
+    setSelectedCompletedOrder(null);
+  };
+
   // Función para seleccionar pedido para editar
   const handleSelectOrderToEdit = (order) => {
     console.log('Pedido seleccionado:', order); // Debug log
     setSelectedOrder(order);
     setIsEditingOrder(true);
+    
+    // Cerrar la vista de crear pedido sin limpiar estados
+    if (isCreatingOrder) {
+      setIsCreatingOrder(false);
+    }
+    
+    // Si hay un pedido completado en vista, cerrarlo
+    if (isViewingCompletedOrder) {
+      setIsViewingCompletedOrder(false);
+      setSelectedCompletedOrder(null);
+    }
     
     // Cargar datos del pedido en el formulario de edición
     setEditCustomerName(getCustomerName(order));
@@ -577,7 +616,23 @@ const Mostrador = () => {
         <div className="flex justify-between items-center flex-shrink-0">
           <h1 className="text-professional-title">Mostrador</h1>
           <Button
-            onClick={() => isCreatingOrder ? handleCancelNewOrder() : setIsCreatingOrder(true)}
+            onClick={() => {
+              if (isCreatingOrder) {
+                handleCancelNewOrder();
+              } else {
+                // Cerrar cualquier vista activa antes de crear nuevo pedido
+                if (isEditingOrder) {
+                  setIsEditingOrder(false);
+                  setSelectedOrder(null);
+                  clearEditForm();
+                }
+                if (isViewingCompletedOrder) {
+                  setIsViewingCompletedOrder(false);
+                  setSelectedCompletedOrder(null);
+                }
+                setIsCreatingOrder(true);
+              }
+            }}
             className="btn-professional-primary flex items-center gap-2"
           >
             <PlusIcon className="w-5 h-5" />
@@ -670,7 +725,7 @@ const Mostrador = () => {
                     <label className="block text-sm font-medium text-professional-body mb-1">
                       Carrito ({cart.length} items)
                     </label>
-                    <div className="product-list min-h-[150px] max-h-[200px] overflow-y-auto">
+                    <div className={`product-list ${cart.length === 0 ? 'min-h-[80px] max-h-[80px]' : 'min-h-[150px] max-h-[200px]'} overflow-y-auto`}>
                       {cart.length === 0 ? (
                         <div className="flex items-center justify-center h-full">
                           <p className="text-professional-body text-center text-sm">El carrito está vacío</p>
@@ -779,7 +834,7 @@ const Mostrador = () => {
         )}
 
         {/* Columna derecha - Lista de pedidos con altura controlada */}
-        <div className={`${isCreatingOrder ? 'flex-1' : isEditingOrder ? 'flex-1' : 'w-full'} flex flex-col gap-3 min-h-0`}>
+        <div className={`${isCreatingOrder ? 'flex-1' : (isEditingOrder || isViewingCompletedOrder) ? 'flex-1' : 'w-full'} flex flex-col gap-3 min-h-0`}>
           {/* Pedidos en preparación - 60% de la altura */}
           <div className="flex-[60] min-h-0">
             <div className="h-full flex flex-col card-professional p-4">
@@ -873,10 +928,15 @@ const Mostrador = () => {
                     <div 
                       key={order.id} 
                       className={`grid grid-cols-5 gap-3 p-2 rounded transition-colors cursor-pointer ${
-                        order.status === 'Completado' ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100'
+                        (selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
+                          ? (order.status === 'Completado' ? 'bg-green-200 border-green-400' : 'bg-red-200 border-red-400')
+                          : (order.status === 'Completado' ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100')
                       } border-l-4 ${
-                        order.status === 'Completado' ? 'border-green-500' : 'border-red-500'
+                        (selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
+                          ? (order.status === 'Completado' ? 'border-green-500' : 'border-red-500')
+                          : (order.status === 'Completado' ? 'border-green-500' : 'border-red-500')
                       }`}
+                      onClick={() => handleSelectCompletedOrder(order)}
                     >
                       <div className="text-center font-medium text-gray-800 text-sm">
                         #{order.orderNumber}
@@ -1003,7 +1063,7 @@ const Mostrador = () => {
                     <label className="block text-sm font-medium text-professional-body mb-1">
                       Carrito ({editCart.length} items)
                     </label>
-                    <div className="product-list min-h-[150px] max-h-[200px] overflow-y-auto">
+                    <div className={`product-list ${editCart.length === 0 ? 'min-h-[80px] max-h-[80px]' : 'min-h-[150px] max-h-[200px]'} overflow-y-auto`}>
                       {editCart.length === 0 ? (
                         <div className="flex items-center justify-center h-full">
                           <p className="text-professional-body text-center text-sm">El carrito está vacío</p>
@@ -1119,6 +1179,151 @@ const Mostrador = () => {
                       >
                         Cancelar
                       </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Columna de vista - Detalle de pedidos completados/cancelados (solo lectura) */}
+        {isViewingCompletedOrder && selectedCompletedOrder && (
+          <div className="w-[480px] flex-shrink-0">
+            <div className="h-full flex flex-col card-professional p-4 bg-gray-50 border border-gray-300">
+              <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
+                <span className="text-gray-700">
+                  Detalle Pedido #{selectedCompletedOrder.orderNumber} 
+                  <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                    selectedCompletedOrder.status === 'Completado' 
+                      ? 'bg-green-100 text-green-800 border border-green-300' 
+                      : 'bg-red-100 text-red-800 border border-red-300'
+                  }`}>
+                    {selectedCompletedOrder.status}
+                  </span>
+                </span>
+                <button
+                  onClick={handleCancelViewCompletedOrder}
+                  className="text-gray-500 hover:text-gray-700 text-sm"
+                >
+                  ✕ Cerrar
+                </button>
+              </h2>
+              
+              {/* Contenido de solo lectura con scroll independiente */}
+              <div className="flex-1 min-h-0">
+                <div className="h-full space-y-3 scrollbar-professional overflow-y-auto pr-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                      Cliente
+                    </label>
+                    <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700">
+                      {getCustomerName(selectedCompletedOrder)}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                      Fecha y Hora
+                    </label>
+                    <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700">
+                      {new Date(selectedCompletedOrder.createdAt).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                      })}, {formatTime(selectedCompletedOrder.createdAt)}
+                    </div>
+                  </div>
+
+                  {selectedCompletedOrder.comment && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">
+                        Comentario del Pedido
+                      </label>
+                      <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap">
+                        {selectedCompletedOrder.comment}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                      Productos ({selectedCompletedOrder.foods?.length || 0} items)
+                    </label>
+                    <div className="bg-gray-100 border border-gray-300 rounded min-h-[150px] max-h-[300px] overflow-y-auto p-3">
+                      {selectedCompletedOrder.foods?.length === 0 ? (
+                        <div className="flex items-center justify-center h-full">
+                          <p className="text-gray-600 text-center text-sm">No hay productos</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {selectedCompletedOrder.foods?.map((food, index) => (
+                            <div key={index} className="bg-white rounded p-3 border border-gray-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-800">
+                                    {food.food?.name || 'Producto'}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    ${food.food?.price?.toFixed(2) || '0.00'} c/u
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-sm text-gray-600">
+                                    Cantidad: {food.quantity || 1}
+                                  </span>
+                                  <span className="text-sm font-semibold text-gray-800">
+                                    ${((food.food?.price || 0) * (food.quantity || 1)).toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Comentarios del producto */}
+                              {food.comment && (
+                                <div className="mt-2 pt-2 border-t border-gray-200">
+                                  <div className="text-xs text-gray-600">
+                                    <span className="font-medium">Comentario:</span> 
+                                    <span className="whitespace-pre-wrap"> "{food.comment}"</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">
+                      Método de Pago
+                    </label>
+                    <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700">
+                      {selectedCompletedOrder.payment || 'No especificado'}
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-200 border border-gray-400 rounded p-3">
+                    <div className="flex justify-between text-lg font-semibold text-gray-800">
+                      <span>Total:</span>
+                      <span>${selectedCompletedOrder.total?.toFixed(2) || '0.00'}</span>
+                    </div>
+                  </div>
+
+                  {/* Información adicional */}
+                  <div className="pt-3 border-t border-gray-300">
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <div>Sección: {selectedCompletedOrder.section || 'mostrador'}</div>
+                      {selectedCompletedOrder.updatedAt && (
+                        <div>
+                          {selectedCompletedOrder.status === 'Completado' ? 'Completado' : 'Cancelado'} el: {' '}
+                          {new Date(selectedCompletedOrder.updatedAt).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          })}, {formatTime(selectedCompletedOrder.updatedAt)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
