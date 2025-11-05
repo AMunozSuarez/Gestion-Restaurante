@@ -1,0 +1,165 @@
+/* Estilos hogareños adicionales */
+
+/* Gradientes personalizados */
+.gradient-warm {
+  background: linear-gradient(135deg, #fef9f3 0%, #fef2e7 50%, #fce3c3 100%);
+}
+
+.gradient-terracotta {
+  background: linear-gradient(135deg, #fdf6f4 0%, #faede9 50%, #f2d3c8 100%);
+}
+
+.gradient-sage {
+  background: linear-gradient(135deg, #f7f8f5 0%, #eff1eb 50%, #d7dccd 100%);
+}
+
+/* Texturas sutiles */
+.texture-paper {
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+.texture-linen {
+  background-image: 
+    repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0.1) 4px);
+}
+
+/* Animaciones suaves */
+.float-gentle {
+  animation: float-gentle 6s ease-in-out infinite;
+}
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+
+.pulse-warm {
+  animation: pulse-warm 2s ease-in-out infinite;
+}
+
+@keyframes pulse-warm {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+/* Sombras suaves */
+.shadow-warm {
+  box-shadow: 
+    0 4px 6px -1px rgba(202, 81, 35, 0.1),
+    0 2px 4px -1px rgba(202, 81, 35, 0.06);
+}
+
+.shadow-warm-lg {
+  box-shadow: 
+    0 10px 15px -3px rgba(202, 81, 35, 0.1),
+    0 4px 6px -2px rgba(202, 81, 35, 0.05);
+}
+
+/* Bordes cálidos */
+.border-warm-gradient {
+  border-image: linear-gradient(45deg, #f1a20f, #ca5123, #5f7337) 1;
+}
+
+/* Efectos de hover hogareños */
+.hover-lift {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 20px 25px -5px rgba(202, 81, 35, 0.1),
+    0 10px 10px -5px rgba(202, 81, 35, 0.04);
+}
+
+/* Scrollbar personalizada */
+.scrollbar-warm::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-warm::-webkit-scrollbar-track {
+  background: #fef9f3;
+  border-radius: 4px;
+}
+
+.scrollbar-warm::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #f1a20f, #ca5123);
+  border-radius: 4px;
+}
+
+.scrollbar-warm::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #d9920e, #b6491f);
+}
+
+/* Elementos interactivos */
+.interactive-warm {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.interactive-warm:hover {
+  background: linear-gradient(135deg, rgba(241, 162, 15, 0.1) 0%, rgba(202, 81, 35, 0.1) 100%);
+}
+
+/* Estados de botones */
+.btn-warm-primary {
+  background: linear-gradient(135deg, #ca5123 0%, #b6491f 100%);
+  border: 2px solid #973d1a;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-warm-primary:hover {
+  background: linear-gradient(135deg, #b6491f 0%, #973d1a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 15px rgba(202, 81, 35, 0.3);
+}
+
+.btn-warm-secondary {
+  background: linear-gradient(135deg, #5f7337 0%, #566832 100%);
+  border: 2px solid #47562a;
+}
+
+.btn-warm-secondary:hover {
+  background: linear-gradient(135deg, #566832 0%, #47562a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 15px rgba(95, 115, 55, 0.3);
+}
+
+/* Cards especiales */
+.card-warm {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(254, 252, 248, 0.9) 100%);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(241, 162, 15, 0.2);
+}
+
+.card-warm::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(241, 162, 15, 0.05) 0%, transparent 50%);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Indicadores de estado */
+.status-preparing {
+  background: linear-gradient(135deg, #f2d3c8 0%, #da8565 100%);
+  color: #622811;
+  border: 2px solid #eab9a7;
+}
+
+.status-completed {
+  background: linear-gradient(135deg, #d7dccd 0%, #8f9d73 100%);
+  color: #2e381c;
+  border: 2px solid #bfc7af;
+}
+
+.status-pending {
+  background: linear-gradient(135deg, #fce3c3 0%, #f5b957 100%);
+  color: #764f08;
+  border: 2px solid #f9d09f;
+}

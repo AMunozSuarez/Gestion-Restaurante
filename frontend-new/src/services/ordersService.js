@@ -1,0 +1,90 @@
+import api from './api';
+
+export const ordersService = {
+  // Obtener todos los pedidos
+  getOrders: async (filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      
+      // Agregar filtros si existen
+      if (filters.status) params.append('status', filters.status);
+      if (filters.section) params.append('section', filters.section);
+      if (filters.limit) params.append('limit', filters.limit);
+      if (filters.sortBy) params.append('sortBy', filters.sortBy);
+
+      const response = await api.get(`/order/getAll?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al obtener pedidos');
+    }
+  },
+
+  // Obtener pedido por ID
+  getOrderById: async (id) => {
+    try {
+      const response = await api.get(`/order/get/${id}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al obtener pedido');
+    }
+  },
+
+  // Crear nuevo pedido
+  createOrder: async (orderData) => {
+    try {
+      const response = await api.post('/order/create', orderData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al crear pedido');
+    }
+  },
+
+  // Actualizar pedido
+  updateOrder: async (id, updateData) => {
+    try {
+      const response = await api.put(`/order/update/${id}`, updateData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al actualizar pedido');
+    }
+  },
+
+  // Actualizar estado del pedido
+  updateOrderStatus: async (id, status) => {
+    try {
+      const response = await api.put(`/order/update/${id}`, { status });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al actualizar estado del pedido');
+    }
+  },
+
+  // Eliminar pedido
+  deleteOrder: async (id) => {
+    try {
+      const response = await api.delete(`/order/delete/${id}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al eliminar pedido');
+    }
+  },
+
+  // Obtener pedidos recientes
+  getRecentOrders: async (filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      
+      if (filters.limit) params.append('limit', filters.limit);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.section) params.append('section', filters.section);
+      if (filters.sortBy) params.append('sortBy', filters.sortBy);
+
+      const response = await api.get(`/order/recent?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al obtener pedidos recientes');
+    }
+  }
+};
+
+export default ordersService;
