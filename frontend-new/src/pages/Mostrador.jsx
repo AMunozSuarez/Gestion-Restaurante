@@ -362,7 +362,7 @@ const Mostrador = () => {
       
       return {
         id: productId,
-        name: food.food?.name || 'Producto',
+        name: food.food?.title || 'Producto',
         price: food.food?.price || 0,
         quantity: food.quantity || 1,
         comments: food.comment || '',
@@ -1262,7 +1262,7 @@ const Mostrador = () => {
                               <div className="flex items-center justify-between mb-1">
                                 <div className="flex-1">
                                   <div className="text-sm font-medium text-gray-800">
-                                    {food.food?.name || 'Producto'}
+                                    {food.food?.title || 'Producto'}
                                   </div>
                                   <div className="text-xs text-gray-500">
                                     ${food.food?.price?.toFixed(2) || '0.00'} c/u
