@@ -23,6 +23,18 @@ const Mostrador = () => {
   const [commentingProduct, setCommentingProduct] = React.useState(null);
   const [productComment, setProductComment] = React.useState('');
   const [isCreatingOrderRequest, setIsCreatingOrderRequest] = React.useState(false);
+
+  // Estados para editar pedido
+  const [isEditingOrder, setIsEditingOrder] = React.useState(false);
+  const [selectedOrder, setSelectedOrder] = React.useState(null);
+  const [editCustomerName, setEditCustomerName] = React.useState('');
+  const [editComments, setEditComments] = React.useState('');
+  const [editPaymentMethod, setEditPaymentMethod] = React.useState('');
+  const [editSearchTerm, setEditSearchTerm] = React.useState('');
+  const [editCart, setEditCart] = React.useState([]);
+  const [editCommentingProduct, setEditCommentingProduct] = React.useState(null);
+  const [editProductComment, setEditProductComment] = React.useState('');
+  const [isUpdatingOrderRequest, setIsUpdatingOrderRequest] = React.useState(false);
   
   // Hook para caja registradora
   const { 
@@ -42,6 +54,7 @@ const Mostrador = () => {
     error: ordersError,
     updateOrderStatus,
     createOrder,
+    updateOrder,
     refetch: refetchOrders
   } = useOrders({ 
     section: 'mostrador', 
@@ -50,7 +63,8 @@ const Mostrador = () => {
 
   const { 
     orders: completedOrders, 
-    isLoading: completedLoading 
+    isLoading: completedLoading,
+    refetch: refetchCompletedOrders 
   } = useRecentOrders({ 
     limit: 10, 
     status: 'Completado,Cancelado', 
@@ -65,9 +79,45 @@ const Mostrador = () => {
     });
   };
 
+  // Función helper para obtener el nombre del cliente
+  const getCustomerName = (order) => {
+    // Priorizar buyer.name, luego name, luego customerName, luego fallback
+    return order.buyer?.name || order.name || order.customerName || 'Cliente';
+  };
+
+  // Función helper para obtener el teléfono del cliente
+  const getCustomerPhone = (order) => {
+    // Priorizar buyer.phone, luego phone, luego fallback vacío
+    return order.buyer?.phone || order.phone || '';
+  };
+
   // Funciones para manejo del carrito
   const addToCart = (product) => {
     setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === product.id);
+      if (existingItem) {
+        // Mostrar notificación de cantidad actualizada
+        setAddedProductNotification(`${product.name} - Cantidad actualizada`);
+        setTimeout(() => setAddedProductNotification(null), 2000);
+        
+        return prevCart.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      
+      // Mostrar notificación de producto agregado
+      setAddedProductNotification(`${product.name} agregado al carrito`);
+      setTimeout(() => setAddedProductNotification(null), 2000);
+      
+      return [...prevCart, { ...product, quantity: 1, comments: '' }];
+    });
+  };
+
+  // Funciones para edición - manejo del carrito de edición
+  const addToEditCart = (product) => {
+    setEditCart(prevCart => {
       const existingItem = prevCart.find(item => item.id === product.id);
       if (existingItem) {
         // Mostrar notificación de cantidad actualizada
@@ -100,9 +150,25 @@ const Mostrador = () => {
     );
   };
 
+  // Función para agregar comentarios a productos en el carrito de edición
+  const addCommentToEditProduct = (productId, comment) => {
+    setEditCart(prevCart =>
+      prevCart.map(item =>
+        item.id === productId
+          ? { ...item, comments: comment }
+          : item
+      )
+    );
+  };
+
   const openCommentModal = (product) => {
     setCommentingProduct(product);
     setProductComment(product.comments || '');
+  };
+
+  const openEditCommentModal = (product) => {
+    setEditCommentingProduct(product);
+    setEditProductComment(product.comments || '');
   };
 
   const saveComment = () => {
@@ -113,13 +179,30 @@ const Mostrador = () => {
     }
   };
 
+  const saveEditComment = () => {
+    if (editCommentingProduct) {
+      addCommentToEditProduct(editCommentingProduct.id, editProductComment);
+      setEditCommentingProduct(null);
+      setEditProductComment('');
+    }
+  };
+
   const cancelComment = () => {
     setCommentingProduct(null);
     setProductComment('');
   };
 
+  const cancelEditComment = () => {
+    setEditCommentingProduct(null);
+    setEditProductComment('');
+  };
+
   const removeFromCart = (productId) => {
     setCart(prevCart => prevCart.filter(item => item.id !== productId));
+  };
+
+  const removeFromEditCart = (productId) => {
+    setEditCart(prevCart => prevCart.filter(item => item.id !== productId));
   };
 
   const updateQuantity = (productId, newQuantity) => {
@@ -136,14 +219,40 @@ const Mostrador = () => {
     );
   };
 
+  const updateEditQuantity = (productId, newQuantity) => {
+    if (newQuantity <= 0) {
+      removeFromEditCart(productId);
+      return;
+    }
+    setEditCart(prevCart =>
+      prevCart.map(item =>
+        item.id === productId
+          ? { ...item, quantity: newQuantity }
+          : item
+      )
+    );
+  };
+
   const calculateTotal = () => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
+  const calculateEditTotal = () => {
+    return editCart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
   // Funciones para búsqueda de productos
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
+    if (value.trim()) {
+      searchProducts(value);
+    }
+  };
+
+  const handleEditSearchChange = (e) => {
+    const value = e.target.value;
+    setEditSearchTerm(value);
     if (value.trim()) {
       searchProducts(value);
     }
@@ -160,9 +269,70 @@ const Mostrador = () => {
     setIsCreatingOrderRequest(false);
   };
 
+  const clearEditForm = () => {
+    setEditCustomerName('');
+    setEditComments('');
+    setEditPaymentMethod('');
+    setEditSearchTerm('');
+    setEditCart([]);
+    setEditCommentingProduct(null);
+    setEditProductComment('');
+    setIsUpdatingOrderRequest(false);
+  };
+
   const handleCancelNewOrder = () => {
     setIsCreatingOrder(false);
     clearForm();
+  };
+
+  const handleCancelEditOrder = () => {
+    setIsEditingOrder(false);
+    setSelectedOrder(null);
+    clearEditForm();
+  };
+
+  // Función para seleccionar pedido para editar
+  const handleSelectOrderToEdit = (order) => {
+    console.log('Pedido seleccionado:', order); // Debug log
+    setSelectedOrder(order);
+    setIsEditingOrder(true);
+    
+    // Cargar datos del pedido en el formulario de edición
+    setEditCustomerName(getCustomerName(order));
+    setEditComments(order.comment || '');
+    setEditPaymentMethod(order.payment || '');
+    
+    // Cargar productos del pedido en el carrito de edición
+    const orderProducts = order.foods?.map(food => {
+      console.log('Procesando food:', food); // Debug log
+      
+      // Determinar el ID del producto
+      let productId;
+      if (typeof food.food === 'string') {
+        // Si food.food es un string, es el ID
+        productId = food.food;
+      } else if (food.food && typeof food.food === 'object') {
+        // Si food.food es un objeto, obtener su _id o id
+        productId = food.food._id || food.food.id;
+      } else {
+        console.warn('Estructura de food inesperada:', food);
+        productId = food.food;
+      }
+      
+      console.log('ID del producto extraído:', productId);
+      
+      return {
+        id: productId,
+        name: food.food?.name || 'Producto',
+        price: food.food?.price || 0,
+        quantity: food.quantity || 1,
+        comments: food.comment || '',
+        category: food.food?.category
+      };
+    }) || [];
+    
+    console.log('Productos cargados en editCart:', orderProducts);
+    setEditCart(orderProducts);
   };
 
   // Función para crear el pedido
@@ -215,17 +385,144 @@ const Mostrador = () => {
     }
   };
 
+  // Función para actualizar el pedido
+  const handleUpdateOrder = async () => {
+    if (isUpdatingOrderRequest || !selectedOrder) return;
+    
+    try {
+      setIsUpdatingOrderRequest(true);
+      
+      // Preparar los datos del pedido actualizado
+      const orderData = {
+        foods: editCart.map(item => {
+          console.log('Enviando item al backend:', item);
+          return {
+            food: item.id,
+            quantity: item.quantity,
+            comment: item.comments || ''
+          };
+        }),
+        payment: editPaymentMethod,
+        buyer: {
+          name: editCustomerName,
+          phone: getCustomerPhone(selectedOrder),
+        },
+        section: 'mostrador',
+        status: selectedOrder.status,
+        comment: editComments
+      };
+
+      console.log('Datos completos a enviar:', orderData);
+      console.log('Foods a enviar:', orderData.foods);
+      
+      // Validar que todos los productos tengan IDs válidos
+      const invalidFoods = orderData.foods.filter(food => !food.food || typeof food.food !== 'string');
+      if (invalidFoods.length > 0) {
+        console.error('Productos con IDs inválidos:', invalidFoods);
+        throw new Error('Algunos productos no tienen IDs válidos');
+      }
+
+      console.log('Actualizando pedido:', orderData);
+      
+      // Obtener el ID correcto del pedido
+      const orderId = selectedOrder._id || selectedOrder.id;
+      console.log('ID del pedido a actualizar:', orderId);
+      
+      if (!orderId) {
+        throw new Error('ID del pedido no válido');
+      }
+      
+      // Llamar a la función updateOrder del hook
+      const response = await updateOrder(orderId, orderData);
+      
+      if (response.success) {
+        // Mostrar notificación de éxito
+        setAddedProductNotification(`Pedido #${selectedOrder.orderNumber} actualizado exitosamente`);
+        setTimeout(() => setAddedProductNotification(null), 3000);
+        
+        // Limpiar formulario y cerrar
+        clearEditForm();
+        setIsEditingOrder(false);
+        setSelectedOrder(null);
+        
+        // Refrescar la lista de pedidos
+        refetchOrders();
+      } else {
+        alert('Error al actualizar el pedido: ' + (response.error || 'Error desconocido'));
+      }
+      
+    } catch (error) {
+      console.error('Error updating order:', error);
+      alert('Error al actualizar el pedido: ' + error.message);
+    } finally {
+      setIsUpdatingOrderRequest(false);
+    }
+  };
+
   const handleCompleteOrder = async (orderId) => {
+    console.log('Completando pedido con ID:', orderId); // Debug log
+    if (!orderId) {
+      alert('Error: ID del pedido no válido');
+      return;
+    }
+    
+    // Validaciones simples
+    if (!editCart || editCart.length === 0) {
+      alert('⚠️ Debe agregar al menos un producto al pedido');
+      return;
+    }
+    
+    if (!editPaymentMethod || editPaymentMethod.trim() === '') {
+      alert('⚠️ Debe seleccionar un método de pago');
+      return;
+    }
+    
     const result = await updateOrderStatus(orderId, 'Completado');
     if (!result.success) {
       alert('Error al completar el pedido: ' + result.error);
+    } else {
+      // Mostrar notificación de éxito
+      setAddedProductNotification('Pedido completado exitosamente');
+      setTimeout(() => setAddedProductNotification(null), 2000);
+      
+      // Cerrar la edición si el pedido se completó exitosamente
+      setIsEditingOrder(false);
+      setSelectedOrder(null);
+      clearEditForm();
+      
+      // Refrescar ambas listas con un pequeño delay para asegurar sincronización
+      setTimeout(() => {
+        refetchOrders(); // Lista de pedidos en preparación
+        refetchCompletedOrders(); // Lista de pedidos completados
+      }, 100);
     }
   };
 
   const handleCancelOrder = async (orderId) => {
+    console.log('Cancelando pedido con ID:', orderId); // Debug log
+    if (!orderId) {
+      alert('Error: ID del pedido no válido');
+      return;
+    }
+    
     const result = await updateOrderStatus(orderId, 'Cancelado');
     if (!result.success) {
       alert('Error al cancelar el pedido: ' + result.error);
+    } else {
+      // Mostrar notificación de éxito
+      setAddedProductNotification('Pedido cancelado exitosamente');
+      setTimeout(() => setAddedProductNotification(null), 2000);
+      
+      // Cerrar la edición si el pedido se canceló exitosamente
+      setIsEditingOrder(false);
+      setSelectedOrder(null);
+      clearEditForm();
+      
+      // Refrescar ambas listas con un pequeño delay para asegurar sincronización
+      setTimeout(() => {
+        refetchOrders(); // Lista de pedidos en preparación
+        refetchCompletedOrders(); // Lista de pedidos completados
+      }, 100);
     }
   };
 
@@ -463,7 +760,6 @@ const Mostrador = () => {
                   <div className="pt-3">
                     <button 
                       className="w-full btn-professional-primary"
-                      disabled={cart.length === 0 || !customerName.trim() || !paymentMethod || isCreatingOrderRequest}
                       onClick={handleCreateOrder}
                     >
                       {isCreatingOrderRequest ? (
@@ -483,7 +779,7 @@ const Mostrador = () => {
         )}
 
         {/* Columna derecha - Lista de pedidos con altura controlada */}
-        <div className={`${isCreatingOrder ? 'flex-1' : 'w-full'} flex flex-col gap-3 min-h-0`}>
+        <div className={`${isCreatingOrder ? 'flex-1' : isEditingOrder ? 'flex-1' : 'w-full'} flex flex-col gap-3 min-h-0`}>
           {/* Pedidos en preparación - 60% de la altura */}
           <div className="flex-[60] min-h-0">
             <div className="h-full flex flex-col card-professional p-4">
@@ -507,8 +803,13 @@ const Mostrador = () => {
                 <div className="flex-1 overflow-y-auto scrollbar-professional space-y-1 pr-1">
                   {orders.map((order, index) => (
                     <div 
-                      key={order.id} 
-                      className="grid grid-cols-6 gap-3 p-3 rounded-lg border transition-all duration-200 cursor-pointer hover:shadow-md bg-yellow-50 hover:bg-yellow-100"
+                      key={order._id || order.id} 
+                      className={`grid grid-cols-6 gap-3 p-3 rounded-lg border transition-all duration-200 cursor-pointer hover:shadow-md ${
+                        (selectedOrder?._id || selectedOrder?.id) === (order._id || order.id)
+                          ? 'bg-yellow-100 shadow-md border-yellow-300' 
+                          : 'bg-yellow-50 hover:bg-yellow-100'
+                      }`}
+                      onClick={() => handleSelectOrderToEdit(order)}
                     >
                       <div className="text-center font-semibold text-gray-800 text-sm">
                         {order.orderNumber}
@@ -526,7 +827,7 @@ const Mostrador = () => {
                         </span>
                       </div>
                       <div className="text-center text-gray-800 font-medium text-sm truncate">
-                        {order.buyer?.name || order.customerName}
+                        {getCustomerName(order)}
                       </div>
                       <div className="text-center">
                         <span className="status-preparing text-xs">
@@ -587,7 +888,7 @@ const Mostrador = () => {
                         })}, {formatTime(order.createdAt)}
                       </div>
                       <div className="text-center text-xs text-gray-800 font-medium truncate">
-                        {(order.buyer?.name || order.customerName)?.toUpperCase()}
+                        {getCustomerName(order)?.toUpperCase()}
                       </div>
                       <div className="text-center">
                         <span className={order.status === 'Completado' ? 'status-completed text-xs' : 'bg-red-100 border-red-300 text-red-600 rounded-full px-1 py-0.5 text-xs font-medium'}>
@@ -610,6 +911,221 @@ const Mostrador = () => {
             </div>
           </div>
         </div>
+
+        {/* Columna de edición - Formulario de edición (cuando está activo) */}
+        {isEditingOrder && selectedOrder && (
+          <div className="w-[480px] flex-shrink-0">
+            <div className="h-full flex flex-col card-professional p-4">
+              <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
+                <span>Editando Pedido #{selectedOrder.orderNumber}</span>
+                <button
+                  onClick={handleCancelEditOrder}
+                  className="text-gray-500 hover:text-gray-700 text-sm"
+                >
+                  ✕ Cerrar
+                </button>
+              </h2>
+              
+              {/* Formulario de edición con scroll independiente */}
+              <div className="flex-1 min-h-0">
+                <div className="h-full space-y-3 scrollbar-professional overflow-y-auto pr-2">
+                  <div>
+                    <label className="block text-sm font-medium text-professional-body mb-1">
+                      Nombre del Cliente
+                    </label>
+                    <input
+                      type="text"
+                      className="input-professional"
+                      placeholder="Ingrese el nombre del cliente"
+                      value={editCustomerName}
+                      onChange={(e) => setEditCustomerName(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-professional-body mb-1">
+                      Comentario
+                    </label>
+                    <textarea
+                      className="input-professional resize-none"
+                      rows="2"
+                      placeholder="Comentarios adicionales"
+                      value={editComments}
+                      onChange={(e) => setEditComments(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-professional-body mb-1">
+                      Buscar Productos
+                    </label>
+                    <input
+                      type="text"
+                      className="input-professional mb-2"
+                      placeholder="Buscar productos..."
+                      value={editSearchTerm}
+                      onChange={handleEditSearchChange}
+                    />
+                    {/* Resultados de búsqueda para edición */}
+                    {editSearchTerm && searchResults.length > 0 && (
+                      <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md mb-2">
+                        {searchResults.map((product) => (
+                          <div
+                            key={product.id}
+                            className="p-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                            onClick={() => {
+                              addToEditCart(product);
+                              setEditSearchTerm('');
+                            }}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="text-sm font-medium">{product.name}</span>
+                                <div className="text-xs text-gray-500">{product.category?.title || product.category?.name || 'Sin categoría'}</div>
+                              </div>
+                              <span className="text-sm font-semibold text-orange-600">
+                                ${product.price?.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button 
+                      className="w-full btn-professional-outline"
+                      onClick={() => setShowProductModal(true)}
+                    >
+                      Ver Productos
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-professional-body mb-1">
+                      Carrito ({editCart.length} items)
+                    </label>
+                    <div className="product-list min-h-[150px] max-h-[200px] overflow-y-auto">
+                      {editCart.length === 0 ? (
+                        <div className="flex items-center justify-center h-full">
+                          <p className="text-professional-body text-center text-sm">El carrito está vacío</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {editCart.map((item) => (
+                            <div key={item.id} className="bg-gray-50 rounded p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium">{item.name}</div>
+                                  <div className="text-xs text-gray-500">
+                                    ${item.price?.toFixed(2)} c/u
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => updateEditQuantity(item.id, item.quantity - 1)}
+                                    className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-8 text-center text-sm">{item.quantity}</span>
+                                  <button
+                                    onClick={() => updateEditQuantity(item.id, item.quantity + 1)}
+                                    className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
+                                  >
+                                    +
+                                  </button>
+                                  <button
+                                    onClick={() => removeFromEditCart(item.id)}
+                                    className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs"
+                                  >
+                                    <TrashIcon className="w-3 h-3 mx-auto" />
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              {/* Comentarios del producto */}
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => openEditCommentModal(item)}
+                                  className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center gap-1"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1.586l-4.707 4.707z" />
+                                  </svg>
+                                  {item.comments ? 'Editar' : 'Agregar'} comentario
+                                </button>
+                                {item.comments && (
+                                  <div className="flex-1 text-xs text-gray-600 italic">
+                                    "{item.comments}"
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-professional-body mb-1">
+                      Método de Pago
+                    </label>
+                    <select 
+                      className="input-professional"
+                      value={editPaymentMethod}
+                      onChange={(e) => setEditPaymentMethod(e.target.value)}
+                    >
+                      <option value="">Seleccionar método</option>
+                      <option value="Efectivo">Efectivo</option>
+                      <option value="Debito">Débito</option>
+                      <option value="Transferencia">Transferencia</option>
+                    </select>
+                  </div>
+
+                  <div className="total-highlight">
+                    <div className="flex justify-between text-lg">
+                      <span>Total:</span>
+                      <span>${calculateEditTotal().toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Botones al final del scroll */}
+                  <div className="pt-3 space-y-2">
+                    <button 
+                      className="w-full btn-professional-primary"
+                      disabled={editCart.length === 0 || isUpdatingOrderRequest}
+                      onClick={handleUpdateOrder}
+                    >
+                      {isUpdatingOrderRequest ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Actualizando...
+                        </div>
+                      ) : (
+                        'Actualizar Pedido'
+                      )}
+                    </button>
+                    
+                    <div className="flex gap-2">
+                      <button 
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded transition-colors text-sm"
+                        onClick={() => handleCompleteOrder(selectedOrder._id || selectedOrder.id)}
+                      >
+                        Completar
+                      </button>
+                      <button 
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded transition-colors text-sm"
+                        onClick={() => handleCancelOrder(selectedOrder._id || selectedOrder.id)}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         </div>
       </div>
 
@@ -625,7 +1141,7 @@ const Mostrador = () => {
         isOpen={showProductModal}
         onClose={() => setShowProductModal(false)}
         products={products}
-        onAddToCart={addToCart}
+        onAddToCart={isEditingOrder ? addToEditCart : addToCart}
         isLoading={productsLoading}
       />
 
@@ -683,6 +1199,58 @@ const Mostrador = () => {
                 </button>
                 <button
                   onClick={saveComment}
+                  className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de comentarios para productos en edición */}
+      {editCommentingProduct && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            {/* Overlay */}
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={cancelEditComment}></div>
+
+            {/* Modal */}
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              {/* Header */}
+              <div className="bg-white px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Comentario para {editCommentingProduct.name}
+                </h3>
+              </div>
+
+              {/* Content */}
+              <div className="bg-white px-6 py-4">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Agregar comentario específico para este producto:
+                  </label>
+                  <textarea
+                    value={editProductComment}
+                    onChange={(e) => setEditProductComment(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    rows="3"
+                    placeholder="Ej: Sin cebolla, extra queso, término 3/4..."
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="bg-gray-50 px-6 py-3 flex justify-end gap-3">
+                <button
+                  onClick={cancelEditComment}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={saveEditComment}
                   className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
                 >
                   Guardar

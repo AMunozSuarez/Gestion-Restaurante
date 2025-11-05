@@ -12,7 +12,12 @@ export const ordersService = {
       if (filters.limit) params.append('limit', filters.limit);
       if (filters.sortBy) params.append('sortBy', filters.sortBy);
 
-      const response = await api.get(`/order/getAll?${params.toString()}`);
+      const url = `/order/getAll?${params.toString()}`;
+      console.log('Llamando al backend:', url);
+      console.log('Filtros enviados:', filters);
+      
+      const response = await api.get(url);
+      console.log('Respuesta del backend - Total pedidos:', response.data?.orders?.length);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener pedidos');
@@ -79,7 +84,12 @@ export const ordersService = {
       if (filters.section) params.append('section', filters.section);
       if (filters.sortBy) params.append('sortBy', filters.sortBy);
 
-      const response = await api.get(`/order/recent?${params.toString()}`);
+      const url = `/order/recent?${params.toString()}`;
+      console.log('Llamando pedidos recientes:', url);
+      console.log('Filtros para pedidos recientes:', filters);
+
+      const response = await api.get(url);
+      console.log('Respuesta pedidos recientes - Total:', response.data?.orders?.length);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener pedidos recientes');

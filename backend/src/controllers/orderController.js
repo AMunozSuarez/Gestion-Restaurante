@@ -8,8 +8,8 @@ const cashRegisterModel = require('../models/cashRegisterModel'); // Importar el
 const createOrderController = async (req, res) => {
     try {
         const { foods, payment, buyer, section, status, selectedAddress, comment } = req.body;
-
-        let customer = null;
+        
+                let customer = null;
         let deliveryCost = 0;
 
         // Verificar si se proporciona el campo buyer
@@ -98,7 +98,7 @@ const createOrderController = async (req, res) => {
         const order = new orderModel({
             orderNumber,
             foods,
-            payment,
+            payment: payment || null, // Hacer payment opcional
             total,
             deliveryCost,
             name: !customer ? (buyer?.name || null) : null,

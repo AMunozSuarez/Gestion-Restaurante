@@ -11,11 +11,30 @@ export const useOrders = (filters = {}) => {
     try {
       setIsLoading(true);
       setError(null);
+      console.log('Obteniendo pedidos con filtros:', filters);
       const response = await ordersService.getOrders(filters);
       
       // El backend devuelve { success: true, orders: [...] }
       if (response.success) {
-        setOrders(response.orders || []);
+        console.log('Pedidos obtenidos:', response.orders?.length || 0);
+        console.log('Estados y secciones de pedidos:', response.orders?.map(o => ({ id: o._id || o.id, status: o.status, section: o.section })));
+        
+        // Filtrar adicional en el cliente para asegurar que coincida con los filtros
+        let filteredOrders = response.orders || [];
+        
+        // Filtrar por estado si se especifica
+        if (filters.status) {
+          filteredOrders = filteredOrders.filter(order => order.status === filters.status);
+          console.log('Pedidos después de filtrar por estado:', filteredOrders.length);
+        }
+        
+        // Filtrar por sección si se especifica
+        if (filters.section) {
+          filteredOrders = filteredOrders.filter(order => order.section === filters.section);
+          console.log('Pedidos después de filtrar por sección:', filteredOrders.length);
+        }
+        
+        setOrders(filteredOrders);
       } else {
         setOrders([]);
         setError(response.message || 'No se pudieron obtener los pedidos');
@@ -34,15 +53,30 @@ export const useOrders = (filters = {}) => {
 
   const updateOrderStatus = async (orderId, status) => {
     try {
-      await ordersService.updateOrderStatus(orderId, status);
-      // Actualizar el pedido en el estado local
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order.id === orderId 
-            ? { ...order, status, updatedAt: new Date().toISOString() }
-            : order
-        )
-      );
+      const response = await ordersService.updateOrderStatus(orderId, status);
+      
+      // Si el filtro actual es para pedidos en preparación y el nuevo estado no es preparación,
+      // remover el pedido de la lista local inmediatamente
+      if (filters.status === 'Preparacion' && (status === 'Completado' || status === 'Cancelado')) {
+        setOrders(prevOrders => {
+          const filteredOrders = prevOrders.filter(order => 
+            (order._id || order.id) !== orderId
+          );
+          console.log('Removiendo pedido de preparación:', orderId);
+          console.log('Pedidos restantes:', filteredOrders.length);
+          return filteredOrders;
+        });
+      } else {
+        // Actualizar el pedido en el estado local
+        setOrders(prevOrders => 
+          prevOrders.map(order => 
+            (order._id || order.id) === orderId 
+              ? { ...order, status, updatedAt: new Date().toISOString() }
+              : order
+          )
+        );
+      }
+      
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -90,32 +124,57 @@ export const useRecentOrders = (filters = {}) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchRecentOrders = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const response = await ordersService.getRecentOrders(filters);
+  const fetchRecentOrders = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      console.log('Obteniendo pedidos recientes con filtros:', filters);
+      const response = await ordersService.getRecentOrders(filters);
+      
+      // El backend devuelve { success: true, orders: [...] }
+      if (response.success) {
+        console.log('Pedidos recientes obtenidos:', response.orders?.length || 0);
+        console.log('Secciones de pedidos recientes:', response.orders?.map(o => ({ id: o._id || o.id, section: o.section, status: o.status })));
         
-        // El backend devuelve { success: true, orders: [...] }
-        if (response.success) {
-          setOrders(response.orders || []);
-        } else {
-          setOrders([]);
-          setError(response.message || 'No se pudieron obtener los pedidos recientes');
+        // Filtrar adicional en el cliente para asegurar que coincida con los filtros
+        let filteredOrders = response.orders || [];
+        
+        // Filtrar por sección si se especifica
+        if (filters.section) {
+          filteredOrders = filteredOrders.filter(order => order.section === filters.section);
+          console.log('Pedidos recientes después de filtrar por sección:', filteredOrders.length);
         }
-      } catch (error) {
-        setError(error.message);
+        
+        // Filtrar por estado si se especifica (puede ser múltiple separado por comas)
+        if (filters.status) {
+          const statuses = filters.status.split(',').map(s => s.trim());
+          filteredOrders = filteredOrders.filter(order => statuses.includes(order.status));
+          console.log('Pedidos recientes después de filtrar por estado:', filteredOrders.length);
+        }
+        
+        setOrders(filteredOrders);
+      } else {
         setOrders([]);
-      } finally {
-        setIsLoading(false);
+        setError(response.message || 'No se pudieron obtener los pedidos recientes');
       }
-    };
+    } catch (error) {
+      setError(error.message);
+      setOrders([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchRecentOrders();
   }, [JSON.stringify(filters)]);
 
-  return { orders, isLoading, error };
+  return { 
+    orders, 
+    isLoading, 
+    error, 
+    refetch: fetchRecentOrders 
+  };
 };
 
 // Hook para un pedido específico
