@@ -2,12 +2,17 @@ import React from 'react';
 import { useCashRegister } from '../hooks/useCashRegister';
 import { useCashRegisters } from '../hooks/useCashRegisters';
 import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import VentaDetailModal from '../components/common/VentaDetailModal';
 
 const CashRegister = () => {
   // Estados principales
   const [showCreateModal, setShowCreateModal] = React.useState(false);
   const [selectedCashRegister, setSelectedCashRegister] = React.useState(null);
   const [notification, setNotification] = React.useState(null);
+  
+  // Estados para modal de detalle de pedido
+  const [selectedOrder, setSelectedOrder] = React.useState(null);
+  const [showOrderDetailModal, setShowOrderDetailModal] = React.useState(false);
   
   // Estados para crear caja
   const [initialAmount, setInitialAmount] = React.useState('');
@@ -146,6 +151,35 @@ const CashRegister = () => {
       ...prev,
       [method]: value
     }));
+  };
+
+  // Manejar detalle de pedido
+  const handleViewOrderDetail = (order) => {
+    // Adaptar los datos de la orden para que coincidan con la estructura esperada por VentaDetailModal
+    const adaptedOrder = {
+      ...order,
+      // Mapear campos para compatibilidad con el modal
+      payment: order.paymentMethod,
+      createdAt: order.date,
+      foods: order.items?.map((item, index) => ({
+        food: {
+          title: item.name || `Producto ${index + 1}`,
+          price: item.price || 0
+        },
+        quantity: item.quantity || 1,
+        comment: item.comment || ''
+      })) || [],
+      // Campos adicionales que el modal puede esperar
+      name: 'Cliente anónimo',
+      buyer: {
+        name: 'Cliente anónimo'
+      },
+      status: 'Completado',
+      section: 'mostrador'
+    };
+    
+    setSelectedOrder(adaptedOrder);
+    setShowOrderDetailModal(true);
   };
 
   // Mostrar loading
@@ -559,7 +593,11 @@ const CashRegister = () => {
             {selectedCashRegister.orders && selectedCashRegister.orders.length > 0 ? (
               <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-professional">
                 {selectedCashRegister.orders.map((order, index) => (
-                  <div key={index} className="bg-white bg-opacity-50 p-3 rounded-lg border border-amber-200">
+                  <div 
+                    key={index} 
+                    className="bg-white bg-opacity-50 p-3 rounded-lg border border-amber-200 cursor-pointer hover:bg-amber-50 transition-colors"
+                    onClick={() => handleViewOrderDetail(order)}
+                  >
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-sm text-professional-body font-medium">
                         {formatCurrency(order.total)}
@@ -641,6 +679,18 @@ const CashRegister = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de detalle de pedido */}
+      {showOrderDetailModal && selectedOrder && (
+        <VentaDetailModal
+          venta={selectedOrder}
+          isOpen={showOrderDetailModal}
+          onClose={() => {
+            setShowOrderDetailModal(false);
+            setSelectedOrder(null);
+          }}
+        />
       )}
 
       {/* Notificación toast */}
