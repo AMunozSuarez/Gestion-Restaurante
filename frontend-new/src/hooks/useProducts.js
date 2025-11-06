@@ -45,11 +45,15 @@ export const useProducts = (filters = {}) => {
     products,
     isLoading,
     error,
-    refetch: fetchProducts
+    refetch: () => {
+      // Limpiar caché y recargar
+      productsService.clearCache();
+      fetchProducts();
+    }
   };
 };
 
-// Hook para buscar productos por nombre
+// Hook para buscar productos por nombre (filtrado instantáneo)
 export const useProductSearch = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -64,7 +68,7 @@ export const useProductSearch = () => {
     try {
       setIsSearching(true);
       setSearchError(null);
-      const response = await productsService.searchProducts(searchTerm);
+            const response = await productsService.searchProducts(searchTerm);
       
       if (response.success) {
         setSearchResults(response.products || []);

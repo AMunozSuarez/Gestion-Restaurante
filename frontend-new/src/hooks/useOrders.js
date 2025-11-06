@@ -11,13 +11,10 @@ export const useOrders = (filters = {}) => {
     try {
       setIsLoading(true);
       setError(null);
-      console.log('Obteniendo pedidos con filtros:', filters);
       const response = await ordersService.getOrders(filters);
       
       // El backend devuelve { success: true, orders: [...] }
       if (response.success) {
-        console.log('Pedidos obtenidos:', response.orders?.length || 0);
-        console.log('Estados y secciones de pedidos:', response.orders?.map(o => ({ id: o._id || o.id, status: o.status, section: o.section })));
         
         // Filtrar adicional en el cliente para asegurar que coincida con los filtros
         let filteredOrders = response.orders || [];
@@ -25,13 +22,11 @@ export const useOrders = (filters = {}) => {
         // Filtrar por estado si se especifica
         if (filters.status) {
           filteredOrders = filteredOrders.filter(order => order.status === filters.status);
-          console.log('Pedidos después de filtrar por estado:', filteredOrders.length);
         }
         
         // Filtrar por sección si se especifica
         if (filters.section) {
           filteredOrders = filteredOrders.filter(order => order.section === filters.section);
-          console.log('Pedidos después de filtrar por sección:', filteredOrders.length);
         }
         
         setOrders(filteredOrders);
@@ -62,8 +57,6 @@ export const useOrders = (filters = {}) => {
           const filteredOrders = prevOrders.filter(order => 
             (order._id || order.id) !== orderId
           );
-          console.log('Removiendo pedido de preparación:', orderId);
-          console.log('Pedidos restantes:', filteredOrders.length);
           return filteredOrders;
         });
       } else {
@@ -132,7 +125,6 @@ export const useOrders = (filters = {}) => {
               (order._id || order.id) !== orderId
             )
           );
-          console.log('Removiendo pedido actualizado que ya no coincide con filtros:', orderId);
         } else {
           setOrders(prevOrders => 
             prevOrders.map(order => 
@@ -171,13 +163,10 @@ export const useRecentOrders = (filters = {}) => {
     try {
       setIsLoading(true);
       setError(null);
-      console.log('Obteniendo pedidos recientes con filtros:', filters);
       const response = await ordersService.getRecentOrders(filters);
       
       // El backend devuelve { success: true, orders: [...] }
       if (response.success) {
-        console.log('Pedidos recientes obtenidos:', response.orders?.length || 0);
-        console.log('Secciones de pedidos recientes:', response.orders?.map(o => ({ id: o._id || o.id, section: o.section, status: o.status })));
         
         // Filtrar adicional en el cliente para asegurar que coincida con los filtros
         let filteredOrders = response.orders || [];
@@ -185,14 +174,12 @@ export const useRecentOrders = (filters = {}) => {
         // Filtrar por sección si se especifica
         if (filters.section) {
           filteredOrders = filteredOrders.filter(order => order.section === filters.section);
-          console.log('Pedidos recientes después de filtrar por sección:', filteredOrders.length);
         }
         
         // Filtrar por estado si se especifica (puede ser múltiple separado por comas)
         if (filters.status) {
           const statuses = filters.status.split(',').map(s => s.trim());
           filteredOrders = filteredOrders.filter(order => statuses.includes(order.status));
-          console.log('Pedidos recientes después de filtrar por estado:', filteredOrders.length);
         }
         
         setOrders(filteredOrders);

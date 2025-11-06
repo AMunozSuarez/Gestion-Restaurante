@@ -14,11 +14,8 @@ export const ordersService = {
       if (filters.sortBy) params.append('sortBy', filters.sortBy);
 
       const url = `/order/getAll?${params.toString()}`;
-      console.log('Llamando al backend:', url);
-      console.log('Filtros enviados:', filters);
       
       const response = await api.get(url);
-      console.log('Respuesta del backend - Total pedidos:', response.data?.orders?.length);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener pedidos');
@@ -45,11 +42,7 @@ export const ordersService = {
         try {
           const defaultPrinter = printingService.getDefaultPrinter();
           if (defaultPrinter) {
-            console.log('Imprimiendo comanda automáticamente para pedido:', response.data.order.id);
             await printingService.printKitchenOrder(response.data.order);
-            console.log('Comanda impresa exitosamente');
-          } else {
-            console.log('No hay impresora predeterminada configurada - no se imprime comanda');
           }
         } catch (printError) {
           console.error('Error al imprimir comanda automáticamente:', printError);
@@ -74,11 +67,8 @@ export const ordersService = {
         try {
           const defaultPrinter = printingService.getDefaultPrinter();
           if (defaultPrinter) {
-            console.log('Imprimiendo comanda actualizada automáticamente para pedido:', response.data.order.id);
             await printingService.printKitchenOrder(response.data.order);
-            console.log('Comanda actualizada impresa exitosamente');
           } else {
-            console.log('No hay impresora predeterminada configurada - no se imprime comanda actualizada');
           }
         } catch (printError) {
           console.error('Error al imprimir comanda actualizada automáticamente:', printError);
@@ -124,11 +114,8 @@ export const ordersService = {
       if (filters.sortBy) params.append('sortBy', filters.sortBy);
 
       const url = `/order/recent?${params.toString()}`;
-      console.log('Llamando pedidos recientes:', url);
-      console.log('Filtros para pedidos recientes:', filters);
 
       const response = await api.get(url);
-      console.log('Respuesta pedidos recientes - Total:', response.data?.orders?.length);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener pedidos recientes');
@@ -149,13 +136,8 @@ export const ordersService = {
       if (filters.dateTo) params.append('dateTo', filters.dateTo);
 
       const url = `/order/getAllSales?${params.toString()}`;
-      console.log('Llamando al backend para todas las ventas:', url);
-      console.log('Filtros enviados:', filters);
       
       const response = await api.get(url);
-      console.log('Respuesta del backend - Total ventas:', response.data?.orders?.length);
-      console.log('Zona horaria del servidor:', response.data?.timezone);
-      console.log('Hora actual de Chile en servidor:', response.data?.currentChileTime);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener todas las ventas');

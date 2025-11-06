@@ -317,7 +317,6 @@ TOTAL:            $25.00
     `;
     
     const result = await printTicket(ticket);
-    console.log(result);
   } catch (error) {
     console.error('Error printing:', error);
   }

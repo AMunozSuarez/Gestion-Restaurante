@@ -127,7 +127,6 @@ funcionando correctamente.
 
   // Generar comanda de cocina
   generateKitchenOrder(order) {
-    console.log('Generando comanda para pedido:', order);
     
     const date = new Date();
     const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
@@ -148,7 +147,6 @@ funcionando correctamente.
       customer = order.customerName;
     }
 
-    console.log('Cliente extraído:', customer);
 
     const orderType = order.section || order.order_type || order.orderType || 'Mostrador';
     
@@ -164,8 +162,6 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
 
     // Agregar notas generales del pedido si existen (antes de productos)
     const orderNotes = order.comment || order.notes || '';
-    console.log('Notas del pedido:', orderNotes);
-    
     if (orderNotes && orderNotes.trim()) {
       // Manejar notas generales con saltos de línea
       const noteLines = orderNotes.trim().split('\n');
@@ -192,7 +188,6 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
         quantity: item.quantity || 1,
         notes: item.comment || ''
       }));
-      console.log('Productos extraídos desde order.foods:', items);
     }
     // Estructura alternativa: order.items
     else if (order.items && Array.isArray(order.items)) {
@@ -201,7 +196,6 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
         quantity: item.quantity || 1,
         notes: item.notes || item.comment || ''
       }));
-      console.log('Productos extraídos desde order.items:', items);
     }
     // Estructura alternativa: order.order_items
     else if (order.order_items && Array.isArray(order.order_items)) {
@@ -210,7 +204,6 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
         quantity: item.quantity || 1,
         notes: item.notes || item.comment || ''
       }));
-      console.log('Productos extraídos desde order.order_items:', items);
     }
 
     // Agregar cada producto al contenido
@@ -237,7 +230,6 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
 
 =`;
 
-    console.log('Contenido de comanda generado:', content);
     return content.trim();
   },
 
@@ -249,7 +241,6 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
 
   // Generar ticket de cliente
   generateCustomerTicket(order) {
-    console.log('Generando ticket de cliente para pedido:', order);
     
     const date = new Date();
     const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
@@ -459,7 +450,6 @@ RESUMEN
 
 `;
 
-    console.log('Contenido de ticket de cliente generado:', content);
     return content.trim();
   },
 
@@ -471,7 +461,6 @@ RESUMEN
 
   // Generar reporte de caja cerrada
   generateCashRegisterReport(cashRegister) {
-    console.log('Generando reporte de caja para:', cashRegister);
     
     const date = new Date();
     
@@ -591,7 +580,6 @@ ${cashRegister.comment.trim()}
 
 `;
 
-    console.log('Contenido de reporte de caja generado:', content);
     return content.trim();
   },
 

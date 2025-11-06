@@ -300,7 +300,6 @@ const Mostrador = () => {
 
   // Función para seleccionar pedido completado/cancelado para ver detalle
   const handleSelectCompletedOrder = (order) => {
-    console.log('Pedido completado seleccionado:', order); // Debug log
     setSelectedCompletedOrder(order);
     setIsViewingCompletedOrder(true);
     
@@ -324,7 +323,6 @@ const Mostrador = () => {
 
   // Función para seleccionar pedido para editar
   const handleSelectOrderToEdit = (order) => {
-    console.log('Pedido seleccionado:', order); // Debug log
     setSelectedOrder(order);
     setIsEditingOrder(true);
     
@@ -346,7 +344,6 @@ const Mostrador = () => {
     
     // Cargar productos del pedido en el carrito de edición
     const orderProducts = order.foods?.map(food => {
-      console.log('Procesando food:', food); // Debug log
       
       // Determinar el ID del producto
       let productId;
@@ -361,7 +358,6 @@ const Mostrador = () => {
         productId = food.food;
       }
       
-      console.log('ID del producto extraído:', productId);
       
       return {
         id: productId,
@@ -373,7 +369,6 @@ const Mostrador = () => {
       };
     }) || [];
     
-    console.log('Productos cargados en editCart:', orderProducts);
     setEditCart(orderProducts);
   };
 
@@ -407,7 +402,6 @@ const Mostrador = () => {
         comment: comments
       };
 
-      console.log('Creando pedido:', orderData);
       
       const response = await createOrder(orderData);
       
@@ -443,7 +437,6 @@ const Mostrador = () => {
       // Preparar los datos del pedido actualizado
       const orderData = {
         foods: editCart.map(item => {
-          console.log('Enviando item al backend:', item);
           return {
             food: item.id,
             quantity: item.quantity,
@@ -460,8 +453,6 @@ const Mostrador = () => {
         comment: editComments
       };
 
-      console.log('Datos completos a enviar:', orderData);
-      console.log('Foods a enviar:', orderData.foods);
       
       // Validar que todos los productos tengan IDs válidos
       const invalidFoods = orderData.foods.filter(food => !food.food || typeof food.food !== 'string');
@@ -470,11 +461,9 @@ const Mostrador = () => {
         throw new Error('Algunos productos no tienen IDs válidos');
       }
 
-      console.log('Actualizando pedido:', orderData);
       
       // Obtener el ID correcto del pedido
       const orderId = selectedOrder._id || selectedOrder.id;
-      console.log('ID del pedido a actualizar:', orderId);
       
       if (!orderId) {
         throw new Error('ID del pedido no válido');
@@ -508,7 +497,6 @@ const Mostrador = () => {
   };
 
   const handleCompleteOrder = async (orderId) => {
-    console.log('Completando pedido con ID:', orderId); // Debug log
     if (!orderId) {
       alert('Error: ID del pedido no válido');
       return;
@@ -552,7 +540,6 @@ const Mostrador = () => {
         return;
       }
 
-      console.log('Pedido completado exitosamente');
       
       // Agregar pedido a la caja registradora si hay una caja abierta
       if (isCashOpen) {
@@ -572,7 +559,6 @@ const Mostrador = () => {
           
           const cashResult = await addOrderToCashRegister(orderData);
           if (cashResult.success) {
-            console.log('Pedido agregado a la caja registradora exitosamente');
           } else {
             console.error('Error al agregar pedido a la caja:', cashResult.error);
             setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
@@ -603,7 +589,6 @@ const Mostrador = () => {
   };
 
   const handleCancelOrder = async (orderId) => {
-    console.log('Cancelando pedido con ID:', orderId); // Debug log
     if (!orderId) {
       alert('Error: ID del pedido no válido');
       return;

@@ -1,5 +1,10 @@
 import api from './api';
 
+// Caché para productos
+let productsCache = null;
+let cacheTimestamp = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos en milisegundos
+
 export const productsService = {
   // Obtener todos los productos
   getProducts: async (filters = {}) => {
@@ -7,6 +12,10 @@ export const productsService = {
       const response = await api.get('/food/getAll');
       
       if (response.data.success && response.data.foods) {
+        // Actualizar el caché con los productos obtenidos
+        productsCache = response.data.foods;
+        cacheTimestamp = Date.now();
+        
         let products = response.data.foods;
         
         // Si se especifica filtrar solo disponibles (para crear pedidos)
@@ -26,39 +35,61 @@ export const productsService = {
     }
   },
 
-  // Buscar productos por nombre (búsqueda local en frontend)
+  // Buscar productos por nombre (búsqueda local usando caché)
   searchProducts: async (searchTerm) => {
     try {
-      // Obtener todos los productos primero
-      const response = await api.get('/food/getAll');
+      // Verificar si el caché existe y es válido
+      const now = Date.now();
+      const isCacheValid = productsCache && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION);
       
-      if (response.data.success && response.data.foods) {
-        // Filtrar productos por nombre Y que estén disponibles
-        const filteredProducts = response.data.foods.filter(product => 
-          product.isAvailable && ( // Solo productos disponibles
-            product.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.description?.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-        );
+      // Si no hay caché válido, obtener productos del servidor
+      if (!isCacheValid) {
+        const response = await api.get('/food/getAll');
         
-        return {
-          success: true,
-          products: filteredProducts.map(food => ({
-            id: food._id,
-            name: food.title,
-            description: food.description,
-            price: food.price,
-            category: food.category,
-            isAvailable: food.isAvailable,
-            imageUrl: food.imageUrl
-          }))
-        };
-      }
+        if (response.data.success && response.data.foods) {
+          productsCache = response.data.foods;
+          cacheTimestamp = now;
+        } else {
+          throw new Error('No se pudieron obtener los productos');
+        }
+      } 
       
-      return { success: true, products: [] };
+      // Filtrar productos desde el caché
+      const filteredProducts = productsCache.filter(product => 
+        product.isAvailable && ( // Solo productos disponibles
+          product.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
+      
+      return {
+        success: true,
+        products: filteredProducts.map(food => ({
+          id: food._id,
+          name: food.title,
+          description: food.description,
+          price: food.price,
+          category: food.category,
+          isAvailable: food.isAvailable,
+          imageUrl: food.imageUrl
+        }))
+      };
+      
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al buscar productos');
     }
+  },
+
+  // Función para limpiar el caché (útil cuando se actualiza un producto)
+  clearCache: () => {
+    productsCache = null;
+    cacheTimestamp = null;
+  },
+
+  // Función para verificar si el caché es válido
+  isCacheValid: () => {
+    const now = Date.now();
+    return productsCache && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION);
   },
 
   // Obtener producto por ID
@@ -75,6 +106,12 @@ export const productsService = {
   createProduct: async (productData) => {
     try {
       const response = await api.post('/food/create', productData);
+      
+      // Limpiar caché cuando se crea un producto
+      if (response.data.success) {
+        productsService.clearCache();
+      }
+      
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al crear producto');
@@ -85,6 +122,12 @@ export const productsService = {
   updateProduct: async (id, productData) => {
     try {
       const response = await api.put(`/food/update/${id}`, productData);
+      
+      // Limpiar caché cuando se actualiza un producto
+      if (response.data.success) {
+        productsService.clearCache();
+      }
+      
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al actualizar producto');
@@ -95,6 +138,12 @@ export const productsService = {
   toggleProductAvailability: async (id, isAvailable) => {
     try {
       const response = await api.put(`/food/update/${id}`, { isAvailable });
+      
+      // Limpiar caché cuando se cambia la disponibilidad
+      if (response.data.success) {
+        productsService.clearCache();
+      }
+      
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al cambiar disponibilidad del producto');
