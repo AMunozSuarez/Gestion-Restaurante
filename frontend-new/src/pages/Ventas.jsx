@@ -157,7 +157,7 @@ const Ventas = () => {
               onClick={clearFilters}
               className="btn-professional-outline text-xs"
             >
-              Ventas de hoy
+              Limpiar Filtros
             </button>
           </div>
           

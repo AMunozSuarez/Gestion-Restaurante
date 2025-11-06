@@ -56,11 +56,21 @@ const isToday = (date) => {
 
 // Obtener rango de fechas para filtros (desde inicio del día hasta fin del día en Chile)
 const getChileDayRange = (dateString) => {
-  const date = new Date(dateString);
+  // Parseamos la fecha como YYYY-MM-DD
+  const [year, month, day] = dateString.split('-').map(Number);
+  
+  // Crear fecha en zona horaria de Chile usando el constructor específico
+  // Esto evita problemas de interpretación UTC
+  const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0);
+  const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
+  
+  console.log(`Rango para fecha ${dateString}:`);
+  console.log(`- Inicio: ${startOfDay.toISOString()} (${formatChileDate(startOfDay)})`);
+  console.log(`- Fin: ${endOfDay.toISOString()} (${formatChileDate(endOfDay)})`);
   
   return {
-    start: getChileStartOfDay(date),
-    end: getChileEndOfDay(date)
+    start: startOfDay,
+    end: endOfDay
   };
 };
 
