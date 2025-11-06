@@ -236,9 +236,6 @@ const Productos = () => {
                     src={product.imageUrl}
                     alt={product.title}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = 'https://openclipart.org/image/800px/289282';
-                    }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gray-100">
@@ -254,20 +251,19 @@ const Productos = () => {
 
               {/* Contenido */}
               <div className="p-3">
-                <div className="mb-1">
+                <div className="mb-1 text-center">
                   <Badge variant="outline" className="text-xs px-1 py-0.5">
                     {getCategoryName(product.category)}
                   </Badge>
                 </div>
                 
-                <h3 className="font-medium text-brown-900 mb-1 text-sm line-clamp-2">
+                <h3 className="font-medium text-brown-900 mb-1 text-sm line-clamp-2 text-center">
                   {product.title}
                 </h3>
                 
                 <div className="flex items-center justify-center mb-2">
-                  <div className="flex items-center text-orange-600 font-semibold text-sm">
-                    <CurrencyDollarIcon className="w-3 h-3 mr-0.5" />
-                    {product.price?.toFixed(2) || '0.00'}
+                  <div className="text-orange-600 font-semibold text-sm">
+                    {formatChileanCurrency(product.price || 0)}
                   </div>
                 </div>
 

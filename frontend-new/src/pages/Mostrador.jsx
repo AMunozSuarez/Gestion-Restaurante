@@ -792,7 +792,7 @@ const Mostrador = () => {
                                 <div className="text-xs text-gray-500">{product.category?.title || product.category?.name || 'Sin categoría'}</div>
                               </div>
                               <span className="text-sm font-semibold text-orange-600">
-                                ${product.price?.toFixed(2)}
+                                {formatChileanCurrency(product.price || 0)}
                               </span>
                             </div>
                           </div>
@@ -824,7 +824,7 @@ const Mostrador = () => {
                                 <div className="flex-1">
                                   <div className="text-sm font-medium">{item.name}</div>
                                   <div className="text-xs text-gray-500">
-                                    ${item.price?.toFixed(2)} c/u
+                                    {formatChileanCurrency(item.price || 0)} c/u
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -1144,7 +1144,7 @@ const Mostrador = () => {
                                 <div className="text-xs text-gray-500">{product.category?.title || product.category?.name || 'Sin categoría'}</div>
                               </div>
                               <span className="text-sm font-semibold text-orange-600">
-                                ${product.price?.toFixed(2)}
+                                {formatChileanCurrency(product.price || 0)}
                               </span>
                             </div>
                           </div>
@@ -1176,7 +1176,7 @@ const Mostrador = () => {
                                 <div className="flex-1">
                                   <div className="text-sm font-medium">{item.name}</div>
                                   <div className="text-xs text-gray-500">
-                                    ${item.price?.toFixed(2)} c/u
+                                    {formatChileanCurrency(item.price || 0)} c/u
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -1375,7 +1375,7 @@ const Mostrador = () => {
                                     {food.food?.title || 'Producto'}
                                   </div>
                                   <div className="text-xs text-gray-500">
-                                    ${food.food?.price?.toFixed(2) || '0.00'} c/u
+                                    {formatChileanCurrency(food.food?.price || 0)} c/u
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -1383,7 +1383,7 @@ const Mostrador = () => {
                                     Cantidad: {food.quantity || 1}
                                   </span>
                                   <span className="text-sm font-semibold text-gray-800">
-                                    ${((food.food?.price || 0) * (food.quantity || 1)).toFixed(2)}
+                                    {formatChileanCurrency((food.food?.price || 0) * (food.quantity || 1))}
                                   </span>
                                 </div>
                               </div>
@@ -1416,7 +1416,7 @@ const Mostrador = () => {
                   <div className="bg-gray-200 border border-gray-400 rounded p-3">
                     <div className="flex justify-between text-lg font-semibold text-gray-800">
                       <span>Total:</span>
-                      <span>${selectedCompletedOrder.total?.toFixed(2) || '0.00'}</span>
+                      <span>{formatChileanCurrency(selectedCompletedOrder.total || 0)}</span>
                     </div>
                   </div>
 

@@ -106,7 +106,7 @@ const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading }) => 
                     )}
                     <div className="flex items-center justify-between">
                       <span className="text-lg font-semibold text-orange-600">
-                        ${product.price?.toFixed(2) || '0.00'}
+                        {formatChileanCurrency(product.price || 0)}
                       </span>
                     </div>
                     {product.foodTags && product.foodTags.length > 0 && (
