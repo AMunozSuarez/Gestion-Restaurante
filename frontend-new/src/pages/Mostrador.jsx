@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '../components/ui';
-import { PlusIcon, ClockIcon, TrashIcon, PrinterIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MinusIcon, ClockIcon, TrashIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import { useOrders, useRecentOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../hooks/useCashRegister';
@@ -721,7 +721,7 @@ const Mostrador = () => {
             }}
             className="btn-professional-primary flex items-center gap-2"
           >
-            <PlusIcon className="w-5 h-5" />
+            {isCreatingOrder ? <MinusIcon className="w-5 h-5" /> : <PlusIcon className="w-5 h-5" />}
             {isCreatingOrder ? 'Cancelar' : 'Crear Pedido'}
           </Button>
         </div>
@@ -1071,7 +1071,7 @@ const Mostrador = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handlePrintCustomerTicket(selectedOrder)}
-                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                    className="text-blue-600 hover:text-blue-body text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
                     title="Imprimir ticket de cliente"
                   >
                     <PrinterIcon className="w-4 h-4" />
@@ -1305,7 +1305,7 @@ const Mostrador = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handlePrintCustomerTicket(selectedCompletedOrder)}
-                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                    className="text-blue-600 hover:text-blue-body text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
                     title="Imprimir ticket de cliente"
                   >
                     <PrinterIcon className="w-4 h-4" />

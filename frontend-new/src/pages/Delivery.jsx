@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '../components/ui';
-import { PlusIcon, TruckIcon, TrashIcon, MapIcon, PhoneIcon, PencilIcon, PrinterIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MinusIcon, TruckIcon, TrashIcon, MapIcon, PhoneIcon, PencilIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import { useOrders, useRecentOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../hooks/useCashRegister';
@@ -11,6 +11,7 @@ import ProductModal from '../components/common/ProductModal';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import AddressModal from '../components/common/AddressModal';
 import printingService from '../services/printingService';
+import '../styles/professional.css';
 
 const Delivery = () => {
   // Estado para crear pedido
@@ -1177,7 +1178,7 @@ const Delivery = () => {
       <div className="h-full flex items-center justify-center bg-blue-50">
         <div className="text-center bg-white rounded-lg shadow-lg p-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-6"></div>
-          <p className="text-blue-800">Cargando pedidos...</p>
+          <p className="text-blue-body">Cargando pedidos...</p>
         </div>
       </div>
     );
@@ -1206,7 +1207,7 @@ const Delivery = () => {
             ? 'max-w-6xl mx-auto w-full' 
             : ''
         }`}>
-          <h1 className="text-2xl font-bold text-blue-900 flex items-center gap-2">
+          <h1 className="text-blue-title flex items-center gap-2">
             <TruckIcon className="w-8 h-8" />
             Delivery
           </h1>
@@ -1228,9 +1229,9 @@ const Delivery = () => {
                 setIsCreatingOrder(true);
               }
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors"
+            className="btn-blue-primary flex items-center gap-2"
           >
-            <PlusIcon className="w-5 h-5" />
+            {isCreatingOrder ? <MinusIcon className="w-5 h-5" /> : <PlusIcon className="w-5 h-5" />}
             {isCreatingOrder ? 'Cancelar' : 'Crear Pedido'}
           </Button>
         </div>
@@ -1240,14 +1241,14 @@ const Delivery = () => {
         {/* Columna izquierda - Formulario de creación (cuando está activo) */}
         {isCreatingOrder && (
           <div className="w-[480px] flex-shrink-0">
-            <div className="h-full flex flex-col bg-white rounded-lg shadow-lg border border-blue-200 p-4">
-              <h2 className="text-lg font-semibold text-blue-900 mb-3 flex-shrink-0">Creando Nuevo Pedido - Delivery</h2>
+            <div className="h-full flex flex-col card-blue p-4">
+              <h2 className="text-blue-subtitle mb-3 flex-shrink-0">Creando Nuevo Pedido - Delivery</h2>
               
               {/* Formulario temporal con scroll independiente */}
               <div className="flex-1 min-h-0">
-                <div className="h-full space-y-3 overflow-y-auto pr-2" style={{scrollbarWidth: 'thin', scrollbarColor: '#3b82f6 #e5e7eb'}}>
+                <div className="h-full space-y-3 scrollbar-professional overflow-y-auto pr-2">
                   <div>
-                    <label className="text-sm font-medium text-blue-800 mb-1 flex items-center gap-1">
+                    <label className="text-sm font-medium text-blue-body mb-1 flex items-center gap-1">
                       <PhoneIcon className="w-4 h-4" />
                       Teléfono del Cliente
                       {selectedCustomer && (
@@ -1275,7 +1276,7 @@ const Delivery = () => {
                     <div className="relative">
                       <input
                         type="tel"
-                        className={`w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        className={`input-blue ${
                           selectedCustomer ? 'bg-gray-100 cursor-not-allowed' : ''
                         }`}
                         placeholder={selectedCustomer ? 
@@ -1337,12 +1338,12 @@ const Delivery = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-blue-800 mb-1">
+                    <label className="block text-sm font-medium text-blue-body mb-1">
                       Nombre del Cliente
                     </label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="input-blue"
                       placeholder="Ingrese el nombre del cliente"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
@@ -1350,13 +1351,13 @@ const Delivery = () => {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-blue-800 mb-1 flex items-center gap-1">
+                    <label className="text-sm font-medium text-blue-body mb-1 flex items-center gap-1">
                       <MapIcon className="w-4 h-4" />
                       Dirección de Entrega
                       <button
                         type="button"
                         onClick={handleAddAddress}
-                        className="ml-auto text-blue-600 hover:text-blue-800 text-sm"
+                        className="ml-auto text-blue-600 hover:text-blue-body text-sm"
                       >
                         + Agregar dirección
                       </button>
@@ -1364,7 +1365,7 @@ const Delivery = () => {
                     {customerAddresses.length > 0 ? (
                       <div className="space-y-2">
                         <select
-                          className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="input-blue"
                           value={selectedAddressId}
                           onChange={(e) => {
                             const addressId = e.target.value;
@@ -1394,7 +1395,7 @@ const Delivery = () => {
                                 setShowAddressModal(true);
                               }
                             }}
-                            className="text-blue-600 hover:text-blue-800 text-sm"
+                            className="text-blue-600 hover:text-blue-body text-sm"
                           >
                             Editar dirección seleccionada
                           </button>
@@ -1409,11 +1410,11 @@ const Delivery = () => {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-blue-800 mb-1">
+                    <label className="block text-sm font-medium text-blue-body mb-1">
                       Comentario
                     </label>
                     <textarea
-                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      className="input-blue resize-none"
                       rows="2"
                       placeholder="Comentarios adicionales del pedido"
                       value={comments}
@@ -1422,12 +1423,12 @@ const Delivery = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-blue-800 mb-1">
+                    <label className="block text-sm font-medium text-blue-body mb-1">
                       Buscar Productos
                     </label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2"
+                      className="input-blue mb-2"
                       placeholder="Buscar productos..."
                       value={searchTerm}
                       onChange={handleSearchChange}
@@ -1466,7 +1467,7 @@ const Delivery = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-blue-800 mb-1">
+                    <label className="block text-sm font-medium text-blue-body mb-1">
                       Carrito ({cart.length} items)
                     </label>
                     <div className={`border border-blue-200 rounded-md p-3 ${cart.length === 0 ? 'min-h-[80px] max-h-[80px]' : 'min-h-[150px] max-h-[200px]'} overflow-y-auto bg-gray-50`}>
@@ -1533,11 +1534,11 @@ const Delivery = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-blue-800 mb-1">
+                    <label className="block text-sm font-medium text-blue-body mb-1">
                       Método de Pago
                     </label>
                     <select 
-                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="input-blue"
                       value={paymentMethod}
                       onChange={(e) => setPaymentMethod(e.target.value)}
                     >
@@ -1548,7 +1549,7 @@ const Delivery = () => {
                     </select>
                   </div>
 
-                  <div className="bg-blue-100 border border-blue-300 rounded-lg p-3">
+                  <div className="total-highlight-blue">
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span>Subtotal:</span>
@@ -1568,7 +1569,7 @@ const Delivery = () => {
                   {/* Botón al final del scroll */}
                   <div className="pt-3">
                     <button 
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
+                      className="w-full btn-blue-primary"
                       onClick={handleCreateOrder}
                       disabled={isCreatingOrderRequest}
                     >
@@ -1596,26 +1597,26 @@ const Delivery = () => {
         } flex flex-col gap-3 min-h-0`}>
           {/* Pedidos en preparación - 60% de la altura */}
           <div className="flex-[60] min-h-0">
-            <div className="h-full flex flex-col bg-white rounded-lg shadow-lg border border-blue-200 p-4">
-              <h2 className="text-lg font-semibold text-blue-900 mb-3 flex-shrink-0 flex items-center gap-3">
+            <div className="h-full flex flex-col card-blue p-4">
+              <h2 className="text-blue-subtitle mb-3 flex-shrink-0 flex items-center gap-3">
                 <TruckIcon className="w-6 h-6 text-blue-600" />
                 Pedidos en Preparación
               </h2>
               
               <div className="flex-1 min-h-0 flex flex-col">
                 {/* Encabezado de la tabla - fijo */}
-                <div className="bg-blue-600 text-white grid grid-cols-7 gap-3 p-2 rounded-t-lg mb-2 flex-shrink-0">
-                  <div className="text-center font-semibold text-xs">#</div>
-                  <div className="text-center font-semibold text-xs">Fecha/Hora</div>
-                  <div className="text-center font-semibold text-xs">Tiempo</div>
-                  <div className="text-center font-semibold text-xs">Cliente</div>
-                  <div className="text-center font-semibold text-xs">Teléfono</div>
-                  <div className="text-center font-semibold text-xs">Estado</div>
-                  <div className="text-center font-semibold text-xs">Total</div>
+                <div className="table-header-blue grid grid-cols-7 gap-3 mb-2 flex-shrink-0">
+                  <div className="text-center font-semibold text-sm">#</div>
+                  <div className="text-center font-semibold text-sm">Fecha/Hora</div>
+                  <div className="text-center font-semibold text-sm">Tiempo</div>
+                  <div className="text-center font-semibold text-sm">Cliente</div>
+                  <div className="text-center font-semibold text-sm">Teléfono</div>
+                  <div className="text-center font-semibold text-sm">Estado</div>
+                  <div className="text-center font-semibold text-sm">Total</div>
                 </div>
                 
                 {/* Lista de pedidos con scroll independiente */}
-                <div className="flex-1 overflow-y-auto space-y-1 pr-1" style={{scrollbarWidth: 'thin', scrollbarColor: '#3b82f6 #e5e7eb'}}>
+                <div className="flex-1 overflow-y-auto scrollbar-professional space-y-1 pr-1">
                   {orders.map((order, index) => (
                     <div 
                       key={order._id || order.id} 
@@ -1626,7 +1627,7 @@ const Delivery = () => {
                       }`}
                       onClick={() => handleSelectOrderToEdit(order)}
                     >
-                      <div className="text-center font-semibold text-blue-800 text-sm">
+                      <div className="text-center font-semibold text-blue-body text-sm">
                         {order.orderNumber}
                       </div>
                       <div className="text-center text-xs text-blue-600">
@@ -1641,7 +1642,7 @@ const Delivery = () => {
                           {Math.max(0, Math.floor((new Date() - new Date(order.createdAt)) / 60000))} min
                         </span>
                       </div>
-                      <div className="text-center text-blue-800 font-medium text-sm truncate">
+                      <div className="text-center text-blue-body font-medium text-sm truncate">
                         {getCustomerName(order)}
                       </div>
                       <div className="text-center text-blue-600 text-xs truncate">
@@ -1652,7 +1653,7 @@ const Delivery = () => {
                           Preparación
                         </span>
                       </div>
-                      <div className="text-center font-semibold text-blue-800 text-sm">
+                      <div className="text-center font-semibold text-blue-body text-sm">
                         {formatChileanCurrency(order.total || 0)}
                       </div>
                     </div>
@@ -1670,8 +1671,8 @@ const Delivery = () => {
 
           {/* Pedidos completados recientes - 40% de la altura */}
           <div className="flex-[40] min-h-0">
-            <div className="h-full flex flex-col bg-white rounded-lg shadow-lg border border-blue-200 p-4">
-              <h2 className="text-lg font-semibold text-blue-900 mb-3 flex-shrink-0">
+            <div className="h-full flex flex-col card-blue p-4">
+              <h2 className="text-blue-subtitle mb-3 flex-shrink-0">
                 Pedidos Completados/Cancelados
               </h2>
               
@@ -1686,7 +1687,7 @@ const Delivery = () => {
                 </div>
                 
                 {/* Lista de pedidos completados con scroll independiente */}
-                <div className="flex-1 overflow-y-auto space-y-1 pr-1" style={{scrollbarWidth: 'thin', scrollbarColor: '#3b82f6 #e5e7eb'}}>
+                <div className="flex-1 overflow-y-auto scrollbar-professional space-y-1 pr-1">
                   {completedOrders.map((order, index) => (
                     <div 
                       key={order.id} 
@@ -1738,13 +1739,13 @@ const Delivery = () => {
         {/* Columna de edición - Formulario de edición (cuando está activo) */}
         {isEditingOrder && selectedOrder && (
           <div className="w-[480px] flex-shrink-0">
-            <div className="h-full flex flex-col bg-white rounded-lg shadow-lg border border-blue-200 p-4">
-              <h2 className="text-lg font-semibold text-blue-900 mb-3 flex-shrink-0 flex items-center justify-between">
+            <div className="h-full flex flex-col card-blue p-4">
+              <h2 className="text-blue-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
                 <span>Editando Pedido #{selectedOrder.orderNumber}</span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handlePrintCustomerTicket(selectedOrder)}
-                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                    className="text-blue-600 hover:text-blue-body text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
                     title="Imprimir ticket de cliente"
                   >
                     <PrinterIcon className="w-4 h-4" />
@@ -1761,9 +1762,9 @@ const Delivery = () => {
               
               {/* Formulario de edición con scroll independiente */}
               <div className="flex-1 min-h-0">
-                <div className="h-full space-y-3 overflow-y-auto pr-2" style={{scrollbarWidth: 'thin', scrollbarColor: '#3b82f6 #e5e7eb'}}>
+                <div className="h-full space-y-3 scrollbar-professional overflow-y-auto pr-2">
                   <div>
-                    <label className="text-sm font-medium text-blue-800 mb-1 flex items-center gap-1">
+                    <label className="text-sm font-medium text-blue-body mb-1 flex items-center gap-1">
                       <PhoneIcon className="w-4 h-4" />
                       Teléfono del Cliente
                       {editSelectedCustomer && (
@@ -1790,7 +1791,7 @@ const Delivery = () => {
                     <div className="relative">
                       <input
                         type="tel"
-                        className={`w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        className={`input-blue ${
                           editSelectedCustomer ? 'bg-gray-100 cursor-not-allowed' : ''
                         }`}
                         placeholder={editSelectedCustomer ? 
@@ -1852,12 +1853,12 @@ const Delivery = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-blue-800 mb-1">
+                    <label className="block text-sm font-medium text-blue-body mb-1">
                       Nombre del Cliente
                     </label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="input-blue"
                       placeholder="Ingrese el nombre del cliente"
                       value={editCustomerName}
                       onChange={(e) => setEditCustomerName(e.target.value)}
@@ -1865,13 +1866,13 @@ const Delivery = () => {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-blue-800 mb-1 flex items-center gap-1">
+                    <label className="text-sm font-medium text-blue-body mb-1 flex items-center gap-1">
                       <MapIcon className="w-4 h-4" />
                       Dirección de Entrega
                       <button
                         type="button"
                         onClick={() => setShowEditAddressModal(true)}
-                        className="ml-auto text-blue-600 hover:text-blue-800 text-sm"
+                        className="ml-auto text-blue-600 hover:text-blue-body text-sm"
                       >
                         + Agregar dirección
                       </button>
@@ -1879,7 +1880,7 @@ const Delivery = () => {
                     {editCustomerAddresses.length > 0 ? (
                       <div className="space-y-2">
                         <select
-                          className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="input-blue"
                           value={editSelectedAddressId}
                           onChange={(e) => {
                             const addressId = e.target.value;
@@ -1909,7 +1910,7 @@ const Delivery = () => {
                                 setShowEditAddressModal(true);
                               }
                             }}
-                            className="text-blue-600 hover:text-blue-800 text-sm"
+                            className="text-blue-600 hover:text-blue-body text-sm"
                           >
                             Editar dirección seleccionada
                           </button>
@@ -1923,11 +1924,11 @@ const Delivery = () => {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-blue-800 mb-1">
+                    <label className="block text-sm font-medium text-blue-body mb-1">
                       Comentario
                     </label>
                     <textarea
-                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      className="input-blue resize-none"
                       rows="2"
                       placeholder="Comentarios adicionales del pedido"
                       value={editComments}
@@ -1936,12 +1937,12 @@ const Delivery = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-blue-800 mb-1">
+                    <label className="block text-sm font-medium text-blue-body mb-1">
                       Buscar Productos
                     </label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2"
+                      className="input-blue mb-2"
                       placeholder="Buscar productos..."
                       value={editSearchTerm}
                       onChange={handleEditSearchChange}
@@ -1980,7 +1981,7 @@ const Delivery = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-blue-800 mb-1">
+                    <label className="block text-sm font-medium text-blue-body mb-1">
                       Carrito ({editCart.length} items)
                     </label>
                     <div className={`border border-blue-200 rounded-md p-3 ${editCart.length === 0 ? 'min-h-[80px] max-h-[80px]' : 'min-h-[150px] max-h-[200px]'} overflow-y-auto bg-gray-50`}>
@@ -2047,11 +2048,11 @@ const Delivery = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-blue-800 mb-1">
+                    <label className="block text-sm font-medium text-blue-body mb-1">
                       Método de Pago
                     </label>
                     <select 
-                      className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="input-blue"
                       value={editPaymentMethod}
                       onChange={(e) => setEditPaymentMethod(e.target.value)}
                     >
@@ -2062,7 +2063,7 @@ const Delivery = () => {
                     </select>
                   </div>
 
-                  <div className="bg-blue-100 border border-blue-300 rounded-lg p-3">
+                  <div className="total-highlight-blue">
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span>Subtotal:</span>
@@ -2082,7 +2083,7 @@ const Delivery = () => {
                   {/* Botones al final del scroll */}
                   <div className="pt-3 space-y-2">
                     <button 
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
+                      className="w-full btn-blue-primary"
                       disabled={isUpdatingOrderRequest}
                       onClick={handleUpdateOrder}
                     >
@@ -2135,7 +2136,7 @@ const Delivery = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handlePrintCustomerTicket(selectedCompletedOrder)}
-                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                    className="text-blue-600 hover:text-blue-body text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
                     title="Imprimir ticket de cliente"
                   >
                     <PrinterIcon className="w-4 h-4" />
@@ -2152,7 +2153,7 @@ const Delivery = () => {
               
               {/* Contenido de solo lectura con scroll independiente */}
               <div className="flex-1 min-h-0">
-                <div className="h-full space-y-3 overflow-y-auto pr-2" style={{scrollbarWidth: 'thin', scrollbarColor: '#6b7280 #e5e7eb'}}>
+                <div className="h-full space-y-3 scrollbar-professional overflow-y-auto pr-2">
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">
                       Cliente
@@ -2357,7 +2358,7 @@ const Delivery = () => {
                   <textarea
                     value={productComment}
                     onChange={(e) => setProductComment(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="input-blue"
                     rows="3"
                     placeholder="Ej: Sin cebolla, extra queso, término 3/4..."
                   />
@@ -2409,7 +2410,7 @@ const Delivery = () => {
                   <textarea
                     value={editProductComment}
                     onChange={(e) => setEditProductComment(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="input-blue"
                     rows="3"
                     placeholder="Ej: Sin cebolla, extra queso, término 3/4..."
                   />
