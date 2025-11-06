@@ -4,14 +4,17 @@ import {
   DocumentTextIcon,
   EyeIcon
 } from '@heroicons/react/24/outline';
-import { useOrders } from '../hooks/useOrders';
-import { useCashRegister } from '../hooks/useCashRegister';
+import { useSales } from '../hooks/useSales';
 import VentaDetailModal from '../components/common/VentaDetailModal';
+import { getChileToday, formatChileDateTime, formatChileanCurrency } from '../utils/dateUtils';
 
 const Ventas = () => {
-  // Estados para filtros
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  // Obtener fecha de hoy en zona horaria de Chile
+  const today = getChileToday();
+  
+  // Estados para filtros - Por defecto filtrar por hoy
+  const [dateFrom, setDateFrom] = useState(today);
+  const [dateTo, setDateTo] = useState(today);
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('all');
   const [sectionFilter, setSectionFilter] = useState('all');
@@ -21,41 +24,25 @@ const Ventas = () => {
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  // Hook para obtener pedidos (ventas)
-  const { orders: ventas, isLoading, error, refetch: fetchOrders } = useOrders({
-    status: statusFilter === 'all' ? undefined : statusFilter
+  // Hook para obtener TODAS las ventas del restaurante (sin filtro de caja)
+  const { sales: ventas, isLoading, error, refetch: fetchSales } = useSales({
+    status: statusFilter === 'all' ? undefined : statusFilter,
+    section: sectionFilter === 'all' ? undefined : sectionFilter,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined
   });
-
-  // Hook para caja registradora
-  const { isOpen: isCashOpen } = useCashRegister();
 
   // Filtrar ventas según criterios usando useMemo para optimización
   const ventasFiltradas = useMemo(() => {
     return ventas.filter(venta => {
       let matches = true;
 
-      // Filtro por rango de fechas
-      if (dateFrom) {
-        const ventaDate = new Date(venta.createdAt);
-        const fromDate = new Date(dateFrom);
-        matches = matches && ventaDate >= fromDate;
-      }
-      
-      if (dateTo) {
-        const ventaDate = new Date(venta.createdAt);
-        const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999); // Incluir todo el día
-        matches = matches && ventaDate <= toDate;
-      }
+      // Los filtros de fecha, estado y sección ya se manejan en el backend
+      // Solo aplicamos filtros adicionales aquí
 
       // Filtro por método de pago
       if (paymentMethodFilter !== 'all') {
         matches = matches && venta.payment === paymentMethodFilter;
-      }
-
-      // Filtro por sección
-      if (sectionFilter !== 'all') {
-        matches = matches && venta.section === sectionFilter;
       }
 
       // Filtro por búsqueda (cliente o ID)
@@ -71,7 +58,7 @@ const Ventas = () => {
 
       return matches;
     });
-  }, [ventas, dateFrom, dateTo, paymentMethodFilter, sectionFilter, searchTerm]);
+  }, [ventas, paymentMethodFilter, searchTerm]);
 
   // Calcular estadísticas usando useMemo para optimización
   const stats = useMemo(() => {
@@ -106,25 +93,14 @@ const Ventas = () => {
     );
   }
 
-  // Formatear fecha para mostrar
+  // Formatear fecha para mostrar en zona horaria de Chile
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatChileDateTime(dateString);
   };
 
-  // Formatear moneda
+  // Formatear moneda chilena
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2
-    }).format(amount || 0);
+    return formatChileanCurrency(amount);
   };
 
   // Abrir modal de detalle
@@ -135,8 +111,9 @@ const Ventas = () => {
 
   // Limpiar filtros
   const clearFilters = () => {
-    setDateFrom('');
-    setDateTo('');
+    const todayDate = getChileToday();
+    setDateFrom(todayDate);
+    setDateTo(todayDate);
     setStatusFilter('all');
     setPaymentMethodFilter('all');
     setSectionFilter('all');
@@ -180,7 +157,7 @@ const Ventas = () => {
               onClick={clearFilters}
               className="btn-professional-outline text-xs"
             >
-              Limpiar filtros
+              Ventas de hoy
             </button>
           </div>
           
@@ -322,7 +299,7 @@ const Ventas = () => {
               <div className="text-center">
                 <p className="text-red-600 mb-4">{error}</p>
                 <button 
-                  onClick={fetchOrders}
+                  onClick={fetchSales}
                   className="btn-professional-outline"
                 >
                   Intentar nuevamente

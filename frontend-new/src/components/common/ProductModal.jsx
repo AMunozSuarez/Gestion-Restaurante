@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { formatChileanCurrency } from '../../utils/dateUtils';
 
 const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');

@@ -4,7 +4,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { 
   HomeIcon, 
   TruckIcon, 
-  CogIcon, 
   UserIcon,
   ArrowRightEndOnRectangleIcon,
   CurrencyDollarIcon,
@@ -43,7 +42,6 @@ const Header = () => {
 
   const singleItems = [
     { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
-    { name: 'Admin', href: '/admin', icon: CogIcon },
     { name: 'Configuración', href: '/configuracion', icon: WrenchScrewdriverIcon },
   ];
 

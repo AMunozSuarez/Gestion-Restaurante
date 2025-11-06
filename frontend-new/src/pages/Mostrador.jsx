@@ -6,6 +6,7 @@ import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../hooks/useCashRegister';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import ProductModal from '../components/common/ProductModal';
+import { formatChileanCurrency } from '../utils/dateUtils';
 
 const Mostrador = () => {
   // Estado para crear pedido
@@ -871,7 +872,7 @@ const Mostrador = () => {
                   <div className="total-highlight">
                     <div className="flex justify-between text-lg">
                       <span>Total:</span>
-                      <span>${calculateTotal().toFixed(2)}</span>
+                      <span>{formatChileanCurrency(calculateTotal())}</span>
                     </div>
                   </div>
 
@@ -958,7 +959,7 @@ const Mostrador = () => {
                         </span>
                       </div>
                       <div className="text-center font-semibold text-gray-800 text-sm">
-                        ${order.total.toFixed(3)}
+                        {formatChileanCurrency(order.total || 0)}
                       </div>
                     </div>
                   ))}
@@ -1024,7 +1025,7 @@ const Mostrador = () => {
                         </span>
                       </div>
                       <div className="text-center font-semibold text-gray-800 text-xs">
-                        ${order.total.toFixed(3)}
+                        {formatChileanCurrency(order.total || 0)}
                       </div>
                     </div>
                   ))}
@@ -1213,7 +1214,7 @@ const Mostrador = () => {
                   <div className="total-highlight">
                     <div className="flex justify-between text-lg">
                       <span>Total:</span>
-                      <span>${calculateEditTotal().toFixed(2)}</span>
+                      <span>{formatChileanCurrency(calculateEditTotal())}</span>
                     </div>
                   </div>
 

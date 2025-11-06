@@ -11,6 +11,7 @@ import {
 import { Button, Card, Input, Badge } from '../components/ui';
 import ProductFormModal from '../components/common/ProductFormModal';
 import useProductsManagement from '../hooks/useProductsManagement';
+import { formatChileanCurrency } from '../utils/dateUtils';
 
 const Productos = () => {
   // Estados del hook de gestión de productos

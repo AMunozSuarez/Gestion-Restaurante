@@ -8,6 +8,7 @@ import { useCustomers } from '../hooks/useCustomers';
 import { useCustomerSearch } from '../hooks/useCustomerSearch';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import ProductModal from '../components/common/ProductModal';
+import { formatChileanCurrency } from '../utils/dateUtils';
 import AddressModal from '../components/common/AddressModal';
 
 const Delivery = () => {
@@ -1532,15 +1533,15 @@ const Delivery = () => {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span>Subtotal:</span>
-                        <span>${calculateSubtotal().toFixed(2)}</span>
+                        <span>{formatChileanCurrency(calculateSubtotal())}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Costo de envío:</span>
-                        <span>${getCurrentDeliveryCost().toFixed(2)}</span>
+                        <span>{formatChileanCurrency(getCurrentDeliveryCost())}</span>
                       </div>
                       <div className="flex justify-between text-lg font-semibold border-t border-blue-300 pt-1">
                         <span>Total:</span>
-                        <span>${calculateTotal().toFixed(2)}</span>
+                        <span>{formatChileanCurrency(calculateTotal())}</span>
                       </div>
                     </div>
                   </div>
@@ -1633,7 +1634,7 @@ const Delivery = () => {
                         </span>
                       </div>
                       <div className="text-center font-semibold text-blue-800 text-sm">
-                        ${order.total.toFixed(3)}
+                        {formatChileanCurrency(order.total || 0)}
                       </div>
                     </div>
                   ))}
@@ -1699,7 +1700,7 @@ const Delivery = () => {
                         </span>
                       </div>
                       <div className="text-center font-semibold text-gray-800 text-xs">
-                        ${order.total.toFixed(3)}
+                        {formatChileanCurrency(order.total || 0)}
                       </div>
                     </div>
                   ))}
@@ -2036,15 +2037,15 @@ const Delivery = () => {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span>Subtotal:</span>
-                        <span>${calculateEditSubtotal().toFixed(2)}</span>
+                        <span>{formatChileanCurrency(calculateEditSubtotal())}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Costo de envío:</span>
-                        <span>${editDeliveryCost.toFixed(2)}</span>
+                        <span>{formatChileanCurrency(editDeliveryCost)}</span>
                       </div>
                       <div className="flex justify-between text-lg font-semibold border-t border-blue-300 pt-1">
                         <span>Total:</span>
-                        <span>${calculateEditTotal().toFixed(2)}</span>
+                        <span>{formatChileanCurrency(calculateEditTotal())}</span>
                       </div>
                     </div>
                   </div>

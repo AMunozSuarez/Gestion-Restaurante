@@ -2,6 +2,7 @@ const orderModel = require('../models/orderModel');
 const foodModel = require('../models/foodModel'); // Importar el modelo de alimentos
 const Customer = require('../models/customerModel'); // Importar el modelo de clientes
 const cashRegisterModel = require('../models/cashRegisterModel'); // Importar el modelo de caja
+const { getChileDate, getChileTimestamp, formatChileDate, getChileDayRange } = require('../utils/dateUtils');
 
 // CREATE A NEW ORDER
 
@@ -551,6 +552,81 @@ const getRecentOrders = async (req, res) => {
     }
 };
 
+// GET ALL SALES (ALL ORDERS) FOR SALES PAGE - WITHOUT CASH REGISTER FILTER
+const getAllSalesController = async (req, res) => {
+    try {
+        const { status, section, limit, sortBy = 'createdAt', dateFrom, dateTo } = req.query;
+
+        // Validar sortBy para seguridad
+        const allowedSorts = ['createdAt', 'updatedAt', 'orderNumber'];
+        const validSortBy = allowedSorts.includes(sortBy) ? sortBy : 'createdAt';
+
+        // Construir filtros - SOLO filtrar por restaurante, NO por caja
+        const filters = {
+            restaurant: req.user.restaurant
+        };
+
+        // Agregar filtros opcionales
+        if (status) {
+            filters.status = status;
+        }
+        if (section) {
+            filters.section = section;
+        }
+
+        // Filtros de fecha en zona horaria de Chile
+        if (dateFrom || dateTo) {
+            filters.createdAt = {};
+            
+            if (dateFrom) {
+                // Obtener inicio del día en Chile para la fecha 'desde'
+                const fromRange = getChileDayRange(dateFrom);
+                filters.createdAt.$gte = fromRange.start;
+                console.log('Filtro desde (Chile):', formatChileDate(fromRange.start));
+            }
+            
+            if (dateTo) {
+                // Obtener fin del día en Chile para la fecha 'hasta'
+                const toRange = getChileDayRange(dateTo);
+                filters.createdAt.$lte = toRange.end;
+                console.log('Filtro hasta (Chile):', formatChileDate(toRange.end));
+            }
+        }
+
+        console.log('Filtros aplicados:', JSON.stringify(filters, null, 2));
+
+        let query = orderModel
+            .find(filters)
+            .sort({ [validSortBy]: -1 }) // Ordenar descendente (más nuevos/recientes primero)
+            .populate('foods.food') // Incluir los datos de los alimentos
+            .populate('buyer'); // Incluir los datos del cliente
+
+        // Aplicar límite si se especifica
+        if (limit) {
+            query = query.limit(Number(limit));
+        }
+
+        const orders = await query;
+
+        console.log(`Ventas encontradas: ${orders.length}`);
+
+        res.status(200).send({
+            success: true,
+            message: 'Todas las ventas recuperadas exitosamente',
+            orders,
+            timezone: 'America/Santiago',
+            currentChileTime: formatChileDate(getChileDate())
+        });
+    } catch (error) {
+        console.error('Error en getAllSalesController:', error);
+        res.status(500).send({
+            success: false,
+            message: 'Error al obtener las ventas',
+            error: error.message,
+        });
+    }
+};
+
 module.exports = {
     createOrderController,
     getAllOrdersController,
@@ -559,5 +635,6 @@ module.exports = {
     getOrderByIdController,
     getOrderByNumberController,
     getFilteredOrders,
-    getRecentOrders
+    getRecentOrders,
+    getAllSalesController
 };

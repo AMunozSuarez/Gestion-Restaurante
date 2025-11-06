@@ -135,6 +135,33 @@ export const ordersService = {
     }
   },
 
+  // Obtener TODAS las ventas del restaurante (para página de ventas)
+  getAllSales: async (filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      
+      // Agregar filtros si existen
+      if (filters.status) params.append('status', filters.status);
+      if (filters.section) params.append('section', filters.section);
+      if (filters.limit) params.append('limit', filters.limit);
+      if (filters.sortBy) params.append('sortBy', filters.sortBy);
+      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+      if (filters.dateTo) params.append('dateTo', filters.dateTo);
+
+      const url = `/order/getAllSales?${params.toString()}`;
+      console.log('Llamando al backend para todas las ventas:', url);
+      console.log('Filtros enviados:', filters);
+      
+      const response = await api.get(url);
+      console.log('Respuesta del backend - Total ventas:', response.data?.orders?.length);
+      console.log('Zona horaria del servidor:', response.data?.timezone);
+      console.log('Hora actual de Chile en servidor:', response.data?.currentChileTime);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al obtener todas las ventas');
+    }
+  },
+
   // Imprimir comanda manualmente
   printOrderKitchen: async (orderId) => {
     try {

@@ -7,6 +7,7 @@ import {
   UserIcon,
   ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
+import { formatChileanCurrency } from '../../utils/dateUtils';
 
 const VentaDetailModal = ({ venta, isOpen, onClose }) => {
   if (!venta) return null;
@@ -25,11 +26,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
 
   // Formatear moneda
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2
-    }).format(amount || 0);
+    return formatChileanCurrency(amount);
   };
 
   // Obtener badge de estado
