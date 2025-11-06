@@ -999,6 +999,16 @@ const Delivery = () => {
       return;
     }
     
+    // Primero actualizar el pedido para guardar cambios pendientes
+    try {
+      await handleUpdateOrder();
+      console.log('Pedido actualizado exitosamente antes de completar');
+    } catch (error) {
+      console.error('Error al actualizar el pedido antes de completar:', error);
+      alert('Error al guardar los cambios del pedido. No se puede completar.');
+      return;
+    }
+    
     const result = await updateOrderStatus(orderId, 'Completado');
     if (!result.success) {
       alert('Error al completar el pedido: ' + result.error);

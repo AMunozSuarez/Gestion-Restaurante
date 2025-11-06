@@ -7,6 +7,7 @@ import Mostrador from './pages/Mostrador';
 import Delivery from './pages/Delivery';
 import Admin from './pages/Admin';
 import CashRegister from './pages/CashRegister';
+import Ventas from './pages/Ventas';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
@@ -74,6 +75,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <CashRegister />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/ventas"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Ventas />
                 </Layout>
               </ProtectedRoute>
             }
