@@ -125,7 +125,7 @@ const Delivery = () => {
     refetch: refetchCompletedOrders 
   } = useRecentOrders({ 
     limit: 10, 
-    status: 'Completado,Cancelado', 
+    status: 'Completado,Cancelado,Enviado', 
     section: 'delivery', 
     sortBy: 'updatedAt' 
   });
@@ -975,7 +975,6 @@ const Delivery = () => {
   };
 
   const handleCompleteOrder = async (orderId) => {
-    console.log('Completando pedido con ID:', orderId); // Debug log
     if (!orderId) {
       alert('Error: ID del pedido no válido');
       return;
@@ -1002,7 +1001,7 @@ const Delivery = () => {
       return;
     }
     
-    // Preparar los datos del pedido actualizado antes de completar
+    // Preparar los datos del pedido actualizado antes de enviar
     const selectedAddress = getEditSelectedAddress();
     if (!selectedAddress) {
       alert('⚠️ Error: No se pudo obtener la información de la dirección');
@@ -1025,7 +1024,7 @@ const Delivery = () => {
         }]
       },
       section: 'delivery',
-      status: 'Completado', // Cambiar directamente a completado
+      status: 'Enviado', // Cambiar a enviado para delivery
       comment: editComments,
       selectedAddress: selectedAddress.address
     };
@@ -1046,12 +1045,12 @@ const Delivery = () => {
           
           const saveResult = await saveCustomer(customerData);
           if (saveResult.success) {
-            console.log('Cliente actualizado exitosamente antes de completar:', saveResult.customer);
+            console.log('Cliente actualizado exitosamente antes de enviar:', saveResult.customer);
           } else {
-            console.warn('No se pudo actualizar el cliente antes de completar:', saveResult.error);
+            console.warn('No se pudo actualizar el cliente antes de enviar:', saveResult.error);
           }
         } catch (error) {
-          console.error('Error al actualizar cliente antes de completar:', error);
+          console.error('Error al actualizar cliente antes de enviar:', error);
         }
       }
 
@@ -1060,11 +1059,10 @@ const Delivery = () => {
       const response = await updateOrder(orderId, orderData);
       
       if (!response.success) {
-        alert('Error al completar el pedido: ' + (response.error || 'Error desconocido'));
+        alert('Error al enviar el pedido: ' + (response.error || 'Error desconocido'));
         return;
       }
 
-      console.log('Pedido completado exitosamente');
       
       // Agregar pedido a la caja registradora si hay una caja abierta
       if (isCashOpen) {
@@ -1098,10 +1096,10 @@ const Delivery = () => {
       }
       
       // Mostrar notificación de éxito
-      setAddedProductNotification('Pedido completado exitosamente');
+      setAddedProductNotification('Pedido enviado exitosamente');
       setTimeout(() => setAddedProductNotification(null), 2000);
       
-      // Cerrar la edición si el pedido se completó exitosamente
+      // Cerrar la edición si el pedido se envió exitosamente
       setIsEditingOrder(false);
       setSelectedOrder(null);
       clearEditForm();
@@ -1109,8 +1107,8 @@ const Delivery = () => {
       // Solo actualizar la lista de pedidos completados (los pedidos en preparación se actualizan automáticamente)
       refetchCompletedOrders();
     } catch (error) {
-      console.error('Error al completar el pedido:', error);
-      alert('Error al completar el pedido: ' + error.message);
+      console.error('Error al enviar el pedido:', error);
+      alert('Error al enviar el pedido: ' + error.message);
     }
   };
 
@@ -1693,12 +1691,12 @@ const Delivery = () => {
                       key={order.id} 
                       className={`grid grid-cols-5 gap-3 p-2 rounded transition-colors cursor-pointer ${
                         (selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
-                          ? (order.status === 'Completado' ? 'bg-green-200 border-green-400' : 'bg-red-200 border-red-400')
-                          : (order.status === 'Completado' ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100')
+                          ? (['Completado', 'Enviado'].includes(order.status) ? 'bg-green-200 border-green-400' : 'bg-red-200 border-red-400')
+                          : (['Completado', 'Enviado'].includes(order.status) ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100')
                       } border-l-4 ${
                         (selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
-                          ? (order.status === 'Completado' ? 'border-green-500' : 'border-red-500')
-                          : (order.status === 'Completado' ? 'border-green-500' : 'border-red-500')
+                          ? (['Completado', 'Enviado'].includes(order.status) ? 'border-green-500' : 'border-red-500')
+                          : (['Completado', 'Enviado'].includes(order.status) ? 'border-green-500' : 'border-red-500')
                       }`}
                       onClick={() => handleSelectCompletedOrder(order)}
                     >
@@ -1715,7 +1713,7 @@ const Delivery = () => {
                         {getCustomerName(order)?.toUpperCase()}
                       </div>
                       <div className="text-center">
-                        <span className={order.status === 'Completado' ? 'bg-green-100 border-green-300 text-green-600 rounded-full px-1 py-0.5 text-xs font-medium' : 'bg-red-100 border-red-300 text-red-600 rounded-full px-1 py-0.5 text-xs font-medium'}>
+                        <span className={['Completado', 'Enviado'].includes(order.status) ? 'bg-green-100 border-green-300 text-green-600 rounded-full px-1 py-0.5 text-xs font-medium' : 'bg-red-100 border-red-300 text-red-600 rounded-full px-1 py-0.5 text-xs font-medium'}>
                           {order.status}
                         </span>
                       </div>
@@ -2102,7 +2100,7 @@ const Delivery = () => {
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded transition-colors text-sm"
                         onClick={() => handleCompleteOrder(selectedOrder._id || selectedOrder.id)}
                       >
-                        Completar
+                        Enviar
                       </button>
                       <button 
                         className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded transition-colors text-sm"
@@ -2126,7 +2124,7 @@ const Delivery = () => {
                 <span>
                   Detalle Pedido #{selectedCompletedOrder.orderNumber} 
                   <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                    selectedCompletedOrder.status === 'Completado' 
+                    ['Completado', 'Enviado'].includes(selectedCompletedOrder.status) 
                       ? 'bg-green-100 text-green-800 border border-green-300' 
                       : 'bg-red-100 text-red-800 border border-red-300'
                   }`}>
@@ -2287,7 +2285,8 @@ const Delivery = () => {
                       <div>Sección: {selectedCompletedOrder.section || 'delivery'}</div>
                       {selectedCompletedOrder.updatedAt && (
                         <div>
-                          {selectedCompletedOrder.status === 'Completado' ? 'Completado' : 'Cancelado'} el: {' '}
+                          {selectedCompletedOrder.status === 'Completado' ? 'Completado' : 
+                           selectedCompletedOrder.status === 'Enviado' ? 'Enviado' : 'Cancelado'} el: {' '}
                           {new Date(selectedCompletedOrder.updatedAt).toLocaleDateString('es-ES', {
                             day: '2-digit',
                             month: '2-digit',

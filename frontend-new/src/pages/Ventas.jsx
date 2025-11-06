@@ -62,7 +62,7 @@ const Ventas = () => {
 
   // Calcular estadísticas usando useMemo para optimización
   const stats = useMemo(() => {
-    const completedVentas = ventasFiltradas.filter(v => v.status === 'Completado');
+    const completedVentas = ventasFiltradas.filter(v => ['Completado', 'Enviado'].includes(v.status));
     const canceledVentas = ventasFiltradas.filter(v => v.status === 'Cancelado');
     
     const totalMonto = completedVentas.reduce((sum, venta) => sum + (venta.total || 0), 0);
@@ -353,7 +353,7 @@ const Ventas = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                          venta.status === 'Completado' 
+                          ['Completado', 'Enviado'].includes(venta.status)
                             ? 'bg-green-100 text-green-800 border border-green-200'
                             : venta.status === 'Preparacion'
                             ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
