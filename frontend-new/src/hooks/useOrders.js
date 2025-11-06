@@ -85,9 +85,30 @@ export const useOrders = (filters = {}) => {
 
   const createOrder = async (orderData) => {
     try {
-      const newOrder = await ordersService.createOrder(orderData);
-      setOrders(prevOrders => [newOrder, ...prevOrders]);
-      return { success: true, order: newOrder };
+      const response = await ordersService.createOrder(orderData);
+      
+      // El servicio retorna { success: true, order: {...} }
+      if (response.success && response.order) {
+        // Solo agregar el pedido si coincide con los filtros actuales
+        const newOrder = response.order;
+        let shouldAdd = true;
+        
+        // Verificar filtros
+        if (filters.status && newOrder.status !== filters.status) {
+          shouldAdd = false;
+        }
+        if (filters.section && newOrder.section !== filters.section) {
+          shouldAdd = false;
+        }
+        
+        if (shouldAdd) {
+          setOrders(prevOrders => [newOrder, ...prevOrders]);
+        }
+        
+        return { success: true, order: newOrder };
+      } else {
+        return { success: false, error: response.message || 'Error desconocido' };
+      }
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -95,13 +116,35 @@ export const useOrders = (filters = {}) => {
 
   const updateOrder = async (orderId, updateData) => {
     try {
-      const updatedOrder = await ordersService.updateOrder(orderId, updateData);
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order.id === orderId ? updatedOrder : order
-        )
-      );
-      return { success: true, order: updatedOrder };
+      const response = await ordersService.updateOrder(orderId, updateData);
+      
+      // El servicio retorna { success: true, order: {...} }
+      if (response.success && response.order) {
+        const updatedOrder = response.order;
+        
+        // Si el pedido cambió de estado y ya no coincide con los filtros actuales, removerlo
+        const shouldRemove = (filters.status && updatedOrder.status !== filters.status) ||
+                            (filters.section && updatedOrder.section !== filters.section);
+        
+        if (shouldRemove) {
+          setOrders(prevOrders => 
+            prevOrders.filter(order => 
+              (order._id || order.id) !== orderId
+            )
+          );
+          console.log('Removiendo pedido actualizado que ya no coincide con filtros:', orderId);
+        } else {
+          setOrders(prevOrders => 
+            prevOrders.map(order => 
+              (order._id || order.id) === orderId ? updatedOrder : order
+            )
+          );
+        }
+        
+        return { success: true, order: updatedOrder };
+      } else {
+        return { success: false, error: response.message || 'Error desconocido' };
+      }
     } catch (error) {
       return { success: false, error: error.message };
     }

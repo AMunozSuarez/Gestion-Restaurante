@@ -14,7 +14,7 @@ const orderSchema = new mongoose.Schema({
     ],
     payment: {
         type: String,
-        enum: ['Efectivo', 'Debito', 'Transferencia'],
+        enum: ['Efectivo', 'Debito', 'Transferencia', ''],
         default: 'Efectivo',
     },
     total: {

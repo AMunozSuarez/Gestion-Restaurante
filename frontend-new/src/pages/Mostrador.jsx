@@ -418,8 +418,8 @@ const Mostrador = () => {
         clearForm();
         setIsCreatingOrder(false);
         
-        // Refrescar la lista de pedidos
-        refetchOrders();
+        // El estado ya se actualiza automáticamente en el hook useOrders
+        // No necesitamos refetchOrders() aquí
       } else {
         alert('Error al crear el pedido: ' + (response.error || 'Error desconocido'));
       }
@@ -491,8 +491,8 @@ const Mostrador = () => {
         setIsEditingOrder(false);
         setSelectedOrder(null);
         
-        // Refrescar la lista de pedidos
-        refetchOrders();
+        // El estado ya se actualiza automáticamente en el hook useOrders
+        // No necesitamos refetchOrders() aquí
       } else {
         alert('Error al actualizar el pedido: ' + (response.error || 'Error desconocido'));
       }
@@ -523,20 +523,35 @@ const Mostrador = () => {
       return;
     }
     
-    // Primero actualizar el pedido para guardar cambios pendientes
+    // Preparar los datos del pedido actualizado antes de completar
+    const orderData = {
+      foods: editCart.map(item => ({
+        food: item.id,
+        quantity: item.quantity,
+        comment: item.comments || ''
+      })),
+      payment: editPaymentMethod,
+      buyer: {
+        name: editCustomerName,
+        phone: getCustomerPhone(selectedOrder),
+      },
+      section: 'mostrador',
+      status: 'Completado', // Cambiar directamente a completado
+      comment: editComments
+    };
+
     try {
-      await handleUpdateOrder();
-      console.log('Pedido actualizado exitosamente antes de completar');
-    } catch (error) {
-      console.error('Error al actualizar el pedido antes de completar:', error);
-      alert('Error al guardar los cambios del pedido. No se puede completar.');
-      return;
-    }
-    
-    const result = await updateOrderStatus(orderId, 'Completado');
-    if (!result.success) {
-      alert('Error al completar el pedido: ' + result.error);
-    } else {
+      // Actualizar el pedido con estado completado en una sola operación
+      const orderId = selectedOrder._id || selectedOrder.id;
+      const response = await updateOrder(orderId, orderData);
+      
+      if (!response.success) {
+        alert('Error al completar el pedido: ' + (response.error || 'Error desconocido'));
+        return;
+      }
+
+      console.log('Pedido completado exitosamente');
+      
       // Agregar pedido a la caja registradora si hay una caja abierta
       if (isCashOpen) {
         try {
@@ -577,11 +592,11 @@ const Mostrador = () => {
       setSelectedOrder(null);
       clearEditForm();
       
-      // Refrescar ambas listas con un pequeño delay para asegurar sincronización
-      setTimeout(() => {
-        refetchOrders(); // Lista de pedidos en preparación
-        refetchCompletedOrders(); // Lista de pedidos completados
-      }, 100);
+      // Solo actualizar la lista de pedidos completados (los pedidos en preparación se actualizan automáticamente)
+      refetchCompletedOrders();
+    } catch (error) {
+      console.error('Error al completar el pedido:', error);
+      alert('Error al completar el pedido: ' + error.message);
     }
   };
 
@@ -605,11 +620,8 @@ const Mostrador = () => {
       setSelectedOrder(null);
       clearEditForm();
       
-      // Refrescar ambas listas con un pequeño delay para asegurar sincronización
-      setTimeout(() => {
-        refetchOrders(); // Lista de pedidos en preparación
-        refetchCompletedOrders(); // Lista de pedidos completados
-      }, 100);
+      // Solo actualizar la lista de pedidos completados (los pedidos en preparación se actualizan automáticamente)
+      refetchCompletedOrders();
     }
   };
 

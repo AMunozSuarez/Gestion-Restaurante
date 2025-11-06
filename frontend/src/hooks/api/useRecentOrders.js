@@ -15,7 +15,7 @@ const fetchRecent = async ({ queryKey }) => {
     return resp.data.orders || [];
 };
 
-export const useRecentOrders = (params = { limit: 10, sortBy: 'createdAt' }) => {
+export const useRecentOrders = (params = { limit: 10, sortBy: 'updatedAt' }) => {
     const { data = [], isLoading, error } = useQuery({
         queryKey: ['recentOrders', params],
         queryFn: fetchRecent,

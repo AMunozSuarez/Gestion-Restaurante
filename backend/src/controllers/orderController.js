@@ -137,6 +137,12 @@ const createOrderController = async (req, res) => {
 // GET ALL ORDERS
 const getAllOrdersController = async (req, res) => {
     try {
+        const { status, section, limit, sortBy = 'createdAt' } = req.query;
+
+        // Validar sortBy para seguridad
+        const allowedSorts = ['createdAt', 'updatedAt', 'orderNumber'];
+        const validSortBy = allowedSorts.includes(sortBy) ? sortBy : 'createdAt';
+
         // Obtener la caja abierta actual
         const currentCashRegister = await cashRegisterModel.findOne({
             restaurant: req.user.restaurant,
@@ -152,13 +158,32 @@ const getAllOrdersController = async (req, res) => {
             });
         }
 
-        const orders = await orderModel
-            .find({ 
-                restaurant: req.user.restaurant,
-                cashRegister: currentCashRegister._id 
-            })
+        // Construir filtros
+        const filters = {
+            restaurant: req.user.restaurant,
+            cashRegister: currentCashRegister._id
+        };
+
+        // Agregar filtros opcionales
+        if (status) {
+            filters.status = status;
+        }
+        if (section) {
+            filters.section = section;
+        }
+
+        let query = orderModel
+            .find(filters)
+            .sort({ [validSortBy]: -1 }) // Ordenar descendente (más nuevos/recientes primero)
             .populate('foods.food') // Incluir los datos de los alimentos
             .populate('buyer'); // Incluir los datos del cliente
+
+        // Aplicar límite si se especifica
+        if (limit) {
+            query = query.limit(Number(limit));
+        }
+
+        const orders = await query;
 
         if (!orders) {
             return res.status(404).send({
