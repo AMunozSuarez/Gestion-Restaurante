@@ -1134,7 +1134,11 @@ const Delivery = () => {
     <>
       <div className="h-full bg-blue-50 flex flex-col gap-4 p-4 overflow-hidden">
         {/* Header con botón crear pedido */}
-        <div className="flex justify-between items-center flex-shrink-0">
+        <div className={`flex justify-between items-center flex-shrink-0 ${
+          !isCreatingOrder && !isEditingOrder && !isViewingCompletedOrder 
+            ? 'max-w-6xl mx-auto w-full' 
+            : ''
+        }`}>
           <h1 className="text-2xl font-bold text-blue-900 flex items-center gap-2">
             <TruckIcon className="w-8 h-8" />
             Delivery
@@ -1518,7 +1522,11 @@ const Delivery = () => {
         )}
 
         {/* Columna derecha - Lista de pedidos con altura controlada */}
-        <div className={`${isCreatingOrder ? 'flex-1' : (isEditingOrder || isViewingCompletedOrder) ? 'flex-1' : 'w-full'} flex flex-col gap-3 min-h-0`}>
+        <div className={`${
+          isCreatingOrder ? 'flex-1' : 
+          (isEditingOrder || isViewingCompletedOrder) ? 'flex-1' : 
+          'w-full max-w-6xl mx-auto'
+        } flex flex-col gap-3 min-h-0`}>
           {/* Pedidos en preparación - 60% de la altura */}
           <div className="flex-[60] min-h-0">
             <div className="h-full flex flex-col bg-white rounded-lg shadow-lg border border-blue-200 p-4">

@@ -661,7 +661,11 @@ const Mostrador = () => {
     <>
       <div className="h-full bg-professional flex flex-col gap-4 p-4 overflow-hidden">
         {/* Header con botón crear pedido */}
-        <div className="flex justify-between items-center flex-shrink-0">
+        <div className={`flex justify-between items-center flex-shrink-0 ${
+          !isCreatingOrder && !isEditingOrder && !isViewingCompletedOrder 
+            ? 'max-w-6xl mx-auto w-full' 
+            : ''
+        }`}>
           <h1 className="text-professional-title">Mostrador</h1>
           <Button
             onClick={() => {
@@ -882,7 +886,11 @@ const Mostrador = () => {
         )}
 
         {/* Columna derecha - Lista de pedidos con altura controlada */}
-        <div className={`${isCreatingOrder ? 'flex-1' : (isEditingOrder || isViewingCompletedOrder) ? 'flex-1' : 'w-full'} flex flex-col gap-3 min-h-0`}>
+        <div className={`${
+          isCreatingOrder ? 'flex-1' : 
+          (isEditingOrder || isViewingCompletedOrder) ? 'flex-1' : 
+          'w-full max-w-6xl mx-auto'
+        } flex flex-col gap-3 min-h-0`}>
           {/* Pedidos en preparación - 60% de la altura */}
           <div className="flex-[60] min-h-0">
             <div className="h-full flex flex-col card-professional p-4">
