@@ -62,6 +62,7 @@ const Mostrador = () => {
     updateOrderStatus,
     createOrder,
     updateOrder,
+    updateOrderWithoutPrint,
     refetch: refetchOrders
   } = useOrders({ 
     section: 'mostrador', 
@@ -533,7 +534,7 @@ const Mostrador = () => {
     try {
       // Actualizar el pedido con estado completado en una sola operación
       const orderId = selectedOrder._id || selectedOrder.id;
-      const response = await updateOrder(orderId, orderData);
+      const response = await updateOrderWithoutPrint(orderId, orderData);
       
       if (!response.success) {
         alert('Error al completar el pedido: ' + (response.error || 'Error desconocido'));

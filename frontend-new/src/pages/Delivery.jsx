@@ -113,6 +113,7 @@ const Delivery = () => {
     updateOrderStatus,
     createOrder,
     updateOrder,
+    updateOrderWithoutPrint,
     refetch: refetchOrders
   } = useOrders({ 
     section: 'delivery', 
@@ -1056,7 +1057,7 @@ const Delivery = () => {
 
       // Actualizar el pedido con estado completado en una sola operación
       const orderId = selectedOrder._id || selectedOrder.id;
-      const response = await updateOrder(orderId, orderData);
+      const response = await updateOrderWithoutPrint(orderId, orderData);
       
       if (!response.success) {
         alert('Error al enviar el pedido: ' + (response.error || 'Error desconocido'));

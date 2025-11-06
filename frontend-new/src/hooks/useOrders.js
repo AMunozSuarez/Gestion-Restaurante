@@ -142,6 +142,41 @@ export const useOrders = (filters = {}) => {
     }
   };
 
+  const updateOrderWithoutPrint = async (orderId, updateData) => {
+    try {
+      const response = await ordersService.updateOrderWithoutPrint(orderId, updateData);
+      
+      // El servicio retorna { success: true, order: {...} }
+      if (response.success && response.order) {
+        const updatedOrder = response.order;
+        
+        // Si el pedido cambió de estado y ya no coincide con los filtros actuales, removerlo
+        const shouldRemove = (filters.status && updatedOrder.status !== filters.status) ||
+                            (filters.section && updatedOrder.section !== filters.section);
+        
+        if (shouldRemove) {
+          setOrders(prevOrders => 
+            prevOrders.filter(order => 
+              (order._id || order.id) !== orderId
+            )
+          );
+        } else {
+          setOrders(prevOrders => 
+            prevOrders.map(order => 
+              (order._id || order.id) === orderId ? updatedOrder : order
+            )
+          );
+        }
+        
+        return { success: true, order: updatedOrder };
+      } else {
+        return { success: false, error: response.message || 'Error desconocido' };
+      }
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
   return {
     orders,
     isLoading,
@@ -149,7 +184,8 @@ export const useOrders = (filters = {}) => {
     refetch: fetchOrders,
     updateOrderStatus,
     createOrder,
-    updateOrder
+    updateOrder,
+    updateOrderWithoutPrint
   };
 };
 

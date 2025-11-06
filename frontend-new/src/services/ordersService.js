@@ -68,7 +68,6 @@ export const ordersService = {
           const defaultPrinter = printingService.getDefaultPrinter();
           if (defaultPrinter) {
             await printingService.printKitchenOrder(response.data.order);
-          } else {
           }
         } catch (printError) {
           console.error('Error al imprimir comanda actualizada automáticamente:', printError);
@@ -90,6 +89,16 @@ export const ordersService = {
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al actualizar estado del pedido');
+    }
+  },
+
+  // Actualizar pedido completo sin imprimir (para completar/enviar)
+  updateOrderWithoutPrint: async (id, updateData) => {
+    try {
+      const response = await api.put(`/order/update/${id}`, updateData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al actualizar pedido');
     }
   },
 
