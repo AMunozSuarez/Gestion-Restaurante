@@ -11,7 +11,8 @@ import {
   ChartBarIcon,
   TagIcon,
   RectangleStackIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -43,6 +44,7 @@ const Header = () => {
   const singleItems = [
     { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
     { name: 'Admin', href: '/admin', icon: CogIcon },
+    { name: 'Configuración', href: '/configuracion', icon: WrenchScrewdriverIcon },
   ];
 
   const isActive = (href) => location.pathname === href;

@@ -10,6 +10,7 @@ import CashRegister from './pages/CashRegister';
 import Ventas from './pages/Ventas';
 import Productos from './pages/Productos';
 import Categorias from './pages/Categorias';
+import Configuracion from './pages/Configuracion';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
@@ -110,6 +111,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Categorias />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/configuracion"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Configuracion />
                 </Layout>
               </ProtectedRoute>
             }

@@ -1,4 +1,5 @@
 import api from './api';
+import printingService from './printingService';
 
 export const ordersService = {
   // Obtener todos los pedidos
@@ -38,6 +39,25 @@ export const ordersService = {
   createOrder: async (orderData) => {
     try {
       const response = await api.post('/order/create', orderData);
+      
+      // Intentar imprimir comanda automáticamente si hay impresora predeterminada
+      if (response.data && response.data.order) {
+        try {
+          const defaultPrinter = printingService.getDefaultPrinter();
+          if (defaultPrinter) {
+            console.log('Imprimiendo comanda automáticamente para pedido:', response.data.order.id);
+            await printingService.printKitchenOrder(response.data.order);
+            console.log('Comanda impresa exitosamente');
+          } else {
+            console.log('No hay impresora predeterminada configurada - no se imprime comanda');
+          }
+        } catch (printError) {
+          console.error('Error al imprimir comanda automáticamente:', printError);
+          // No lanzamos el error porque el pedido se creó exitosamente
+          // Solo logueamos el error de impresión
+        }
+      }
+      
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al crear pedido');
@@ -48,6 +68,25 @@ export const ordersService = {
   updateOrder: async (id, updateData) => {
     try {
       const response = await api.put(`/order/update/${id}`, updateData);
+      
+      // Intentar imprimir comanda automáticamente si hay impresora predeterminada
+      if (response.data && response.data.order) {
+        try {
+          const defaultPrinter = printingService.getDefaultPrinter();
+          if (defaultPrinter) {
+            console.log('Imprimiendo comanda actualizada automáticamente para pedido:', response.data.order.id);
+            await printingService.printKitchenOrder(response.data.order);
+            console.log('Comanda actualizada impresa exitosamente');
+          } else {
+            console.log('No hay impresora predeterminada configurada - no se imprime comanda actualizada');
+          }
+        } catch (printError) {
+          console.error('Error al imprimir comanda actualizada automáticamente:', printError);
+          // No lanzamos el error porque el pedido se actualizó exitosamente
+          // Solo logueamos el error de impresión
+        }
+      }
+      
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al actualizar pedido');
@@ -93,6 +132,29 @@ export const ordersService = {
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener pedidos recientes');
+    }
+  },
+
+  // Imprimir comanda manualmente
+  printOrderKitchen: async (orderId) => {
+    try {
+      // Primero obtener los datos del pedido
+      const orderResponse = await ordersService.getOrderById(orderId);
+      
+      if (!orderResponse.order) {
+        throw new Error('No se pudo obtener los datos del pedido');
+      }
+      
+      // Imprimir la comanda
+      const printResponse = await printingService.printKitchenOrder(orderResponse.order);
+      
+      if (!printResponse.success) {
+        throw new Error(printResponse.error);
+      }
+      
+      return { success: true, message: 'Comanda impresa exitosamente' };
+    } catch (error) {
+      throw new Error(error.message || 'Error al imprimir comanda');
     }
   }
 };
