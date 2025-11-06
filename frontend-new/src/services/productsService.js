@@ -101,10 +101,25 @@ export const productsService = {
     }
   },
 
-  // Obtener categorías
-  getCategories: async () => {
+  // Obtener categorías (solo activas para el formulario de productos)
+  getCategories: async (activeOnly = false) => {
     try {
       const response = await api.get('/category/getAll');
+      
+      if (response.data.success && response.data.categories) {
+        let categories = response.data.categories;
+        
+        // Si se solicitan solo categorías activas
+        if (activeOnly) {
+          categories = categories.filter(category => category.isAvailable);
+        }
+        
+        return {
+          ...response.data,
+          categories
+        };
+      }
+      
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener categorías');

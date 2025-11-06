@@ -22,6 +22,13 @@ const Admin = () => {
       color: 'text-orange-600'
     },
     {
+      title: 'Gestión de Categorías',
+      description: 'Organizar y administrar categorías de productos',
+      icon: TagIcon,
+      path: '/categorias',
+      color: 'text-purple-600'
+    },
+    {
       title: 'Gestión de Usuarios',
       description: 'Administrar empleados y permisos',
       icon: UserGroupIcon,

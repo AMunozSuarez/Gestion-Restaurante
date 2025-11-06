@@ -1,5 +1,6 @@
 const foodModel = require('../models/foodModel');
 const orderModel = require('../models/orderModel');
+const categoryModel = require('../models/categoryModel');
 
 // CREATE A NEW FOOD
 const createFoodController = async (req, res) => {
@@ -145,13 +146,46 @@ const updateFoodController = async (req, res) => {
     try {
         const { title, description, price, imageUrl, foodTags, category, code, isAvailable } = req.body;
 
-        const food = await foodModel.findOneAndUpdate(
+        // Si se está intentando activar el producto, verificar que la categoría esté activa
+        if (isAvailable === true) {
+            const food = await foodModel.findOne({ 
+                _id: req.params.id, 
+                restaurant: req.user.restaurant 
+            }).populate('category');
+
+            if (!food) {
+                return res.status(404).send({ 
+                    success: false,
+                    message: 'Food not found or does not belong to this restaurant' 
+                });
+            }
+
+            // Verificar si la categoría está activa
+            let categoryToCheck = food.category;
+            
+            // Si se está cambiando la categoría, verificar la nueva categoría
+            if (category && category !== food.category._id.toString()) {
+                categoryToCheck = await categoryModel.findOne({
+                    _id: category,
+                    restaurant: req.user.restaurant
+                });
+            }
+
+            if (!categoryToCheck || !categoryToCheck.isAvailable) {
+                return res.status(400).send({ 
+                    success: false,
+                    message: 'No se puede activar el producto porque su categoría está desactivada. Primero active la categoría correspondiente.' 
+                });
+            }
+        }
+
+        const updatedFood = await foodModel.findOneAndUpdate(
             { _id: req.params.id, restaurant: req.user.restaurant }, // Filtra por restaurante
             { title, description, price, imageUrl, foodTags, category, code, isAvailable },
             { new: true }
         );
 
-        if (!food) {
+        if (!updatedFood) {
             return res.status(404).send({ 
                 success: false,
                 message: 'Food not found or does not belong to this restaurant' 
@@ -160,7 +194,7 @@ const updateFoodController = async (req, res) => {
         res.status(200).send({ 
             success: true,
             message: 'Food updated successfully',
-            food
+            food: updatedFood
         });
     } catch (error) {
         res.status(400).json({ 

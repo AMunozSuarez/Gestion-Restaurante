@@ -33,6 +33,7 @@ const Productos = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [availabilityFilter, setAvailabilityFilter] = useState('all');
+  const [notification, setNotification] = useState(null);
 
   // Filtrar productos
   const filteredProducts = useMemo(() => {
@@ -93,9 +94,18 @@ const Productos = () => {
       if (result.success) {
         setShowFormModal(false);
         setEditingProduct(null);
+        showNotification(
+          editingProduct 
+            ? '✅ Producto actualizado exitosamente' 
+            : '✅ Producto creado exitosamente',
+          'success'
+        );
+      } else {
+        showNotification(`❌ ${result.error}`, 'error');
       }
     } catch (error) {
       console.error('Error al procesar producto:', error);
+      showNotification(`❌ Error: ${error.message}`, 'error');
     }
   };
 
@@ -105,8 +115,23 @@ const Productos = () => {
     const action = newAvailability ? 'activar' : 'desactivar';
     
     if (window.confirm(`¿Estás seguro de que quieres ${action} "${product.title}"?`)) {
-      await toggleProductAvailability(product.id, newAvailability);
+      try {
+        const result = await toggleProductAvailability(product.id, newAvailability);
+        if (result.success) {
+          showNotification(`✅ Producto ${action}do exitosamente`, 'success');
+        } else {
+          showNotification(`❌ ${result.error}`, 'error');
+        }
+      } catch (error) {
+        showNotification(`❌ Error: ${error.message}`, 'error');
+      }
     }
+  };
+
+  // Mostrar notificación
+  const showNotification = (message, type) => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
   };
 
   // Obtener nombre de categoría
@@ -133,6 +158,17 @@ const Productos = () => {
               Nuevo Producto
             </Button>
           </div>
+
+          {/* Notificación */}
+          {notification && (
+            <div className={`p-4 rounded-lg ${
+              notification.type === 'success' 
+                ? 'bg-green-50 border border-green-200 text-green-800' 
+                : 'bg-red-50 border border-red-200 text-red-800'
+            }`}>
+              {notification.message}
+            </div>
+          )}
 
       {/* Filtros */}
       <Card className="p-6">
@@ -186,19 +222,6 @@ const Productos = () => {
         </div>
       )}
 
-      {/* Error State */}
-      {error && (
-        <Card className="p-6 bg-red-50 border-red-200">
-          <p className="text-red-600">Error: {error}</p>
-          <Button 
-            variant="outline" 
-            onClick={refreshProducts}
-            className="mt-2"
-          >
-            Reintentar
-          </Button>
-        </Card>
-      )}
 
       {/* Products Grid */}
       {!isLoading && (
@@ -301,18 +324,18 @@ const Productos = () => {
         </Card>
       )}
 
-        {/* Modal de formulario */}
-        <ProductFormModal
-          isOpen={showFormModal}
-          onClose={() => {
-            setShowFormModal(false);
-            setEditingProduct(null);
-          }}
-          onSubmit={handleFormSubmit}
-          product={editingProduct}
-          categories={categories}
-          isLoading={isCreating || isUpdating}
-        />
+      {/* Modal de formulario */}
+      <ProductFormModal
+        isOpen={showFormModal}
+        onClose={() => {
+          setShowFormModal(false);
+          setEditingProduct(null);
+        }}
+        onSubmit={handleFormSubmit}
+        product={editingProduct}
+        categories={categories}
+        isLoading={isCreating || isUpdating}
+      />
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@ import Admin from './pages/Admin';
 import CashRegister from './pages/CashRegister';
 import Ventas from './pages/Ventas';
 import Productos from './pages/Productos';
+import Categorias from './pages/Categorias';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
@@ -98,6 +99,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Productos />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/categorias"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Categorias />
                 </Layout>
               </ProtectedRoute>
             }

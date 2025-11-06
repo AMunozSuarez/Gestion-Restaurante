@@ -41,10 +41,10 @@ export const useProductsManagement = () => {
     }
   };
 
-  // Obtener categorías
-  const fetchCategories = async () => {
+  // Obtener categorías (solo activas para formularios)
+  const fetchCategories = async (activeOnly = true) => {
     try {
-      const response = await productsService.getCategories();
+      const response = await productsService.getCategories(activeOnly);
       if (response.success && response.categories) {
         setCategories(response.categories);
       }

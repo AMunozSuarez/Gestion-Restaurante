@@ -1,19 +1,19 @@
 const categoryModel = require('../models/categoryModel');
+const foodModel = require('../models/foodModel');
 
 // CREATE CATEGORY
 const createCategoryController = async (req, res) => {
     try {
-        const { title, imageUrl } = req.body;
+        const { title } = req.body;
         if (!title) {
             return res.status(400).json({ 
                 success: false,
-                message: 'All Category fields are required' 
+                message: 'Category title is required' 
             });
         }
 
         const newCategory = new categoryModel({
             title,
-            imageUrl,
             restaurant: req.user.restaurant, // Asocia la categoría al restaurante del usuario
         });
 
@@ -48,10 +48,26 @@ const getAllCategoriesController = async (req, res) => {
                 categories: [] 
             });
         }
+
+        // Agregar conteo de productos para cada categoría
+        const categoriesWithProductCount = await Promise.all(
+            categories.map(async (category) => {
+                const productCount = await foodModel.countDocuments({ 
+                    category: category._id,
+                    restaurant: req.user.restaurant
+                });
+                
+                return {
+                    ...category.toObject(),
+                    productCount
+                };
+            })
+        );
+
         res.status(200).json({ 
             success: true,
             totalCategories: categories.length,
-            categories 
+            categories: categoriesWithProductCount
         });
 
     } catch (error) {
@@ -68,11 +84,13 @@ const getAllCategoriesController = async (req, res) => {
 // UPDATE CATEGORY
 const updateCategoryController = async (req, res) => {
     try {
-        const { title, imageUrl } = req.body;
-        if (!title) {
+        const { title, isAvailable } = req.body;
+        
+        // Solo requerir title si no se está actualizando solo la disponibilidad
+        if (!title && isAvailable === undefined) {
             return res.status(400).json({ 
                 success: false,
-                message: 'All Category fields are required' 
+                message: 'Category title is required' 
             });
         }
 
@@ -88,15 +106,49 @@ const updateCategoryController = async (req, res) => {
             });
         }
 
-        category.title = title;
-        category.imageUrl = imageUrl;
-        await category.save();
+        // Si se está desactivando la categoría, desactivar todos los productos de esa categoría
+        if (isAvailable !== undefined && !isAvailable && category.isAvailable) {
+            // Contar productos que serán afectados
+            const affectedProductsCount = await foodModel.countDocuments({
+                category: req.params.id,
+                restaurant: req.user.restaurant,
+                isAvailable: true
+            });
 
-        res.status(200).json({ 
-            success: true,
-            message: 'Category updated successfully',
-            category 
-        });
+            // Desactivar todos los productos de esta categoría
+            await foodModel.updateMany(
+                { 
+                    category: req.params.id,
+                    restaurant: req.user.restaurant
+                },
+                { isAvailable: false }
+            );
+
+            // Actualizar la categoría
+            if (title) category.title = title;
+            category.isAvailable = isAvailable;
+            await category.save();
+
+            res.status(200).json({ 
+                success: true,
+                message: `Category updated successfully. ${affectedProductsCount} products were also disabled.`,
+                category,
+                affectedProductsCount
+            });
+        } else {
+            // Actualización normal sin afectar productos
+            if (title) category.title = title;
+            if (isAvailable !== undefined) {
+                category.isAvailable = isAvailable;
+            }
+            await category.save();
+
+            res.status(200).json({ 
+                success: true,
+                message: 'Category updated successfully',
+                category 
+            });
+        }
 
     } catch (error) {
         res.status(500).json({ 
@@ -111,7 +163,7 @@ const updateCategoryController = async (req, res) => {
 
 const deleteCategoryController = async (req, res) => {
     try {
-        const category = await categoryModel.findOneAndDelete({ 
+        const category = await categoryModel.findOne({ 
             _id: req.params.id, 
             restaurant: req.user.restaurant // Verifica que la categoría pertenezca al restaurante
         });
@@ -122,6 +174,26 @@ const deleteCategoryController = async (req, res) => {
                 message: 'Category not found' 
             });
         }
+
+        // Verificar si hay productos enlazados a esta categoría
+        const linkedProducts = await foodModel.countDocuments({ 
+            category: req.params.id,
+            restaurant: req.user.restaurant
+        });
+
+        if (linkedProducts > 0) {
+            return res.status(400).json({ 
+                success: false,
+                message: `No se puede eliminar la categoría "${category.title}" porque tiene ${linkedProducts} producto(s) enlazado(s). Primero elimine o reasigne los productos a otra categoría.`,
+                linkedProductsCount: linkedProducts
+            });
+        }
+
+        // Si no hay productos enlazados, proceder con la eliminación
+        await categoryModel.findOneAndDelete({ 
+            _id: req.params.id, 
+            restaurant: req.user.restaurant
+        });
 
         res.status(200).json({ 
             success: true,
