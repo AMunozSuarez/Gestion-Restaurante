@@ -1,8 +1,9 @@
 import React from 'react';
 import { useCashRegister } from '../hooks/useCashRegister';
 import { useCashRegisters } from '../hooks/useCashRegisters';
-import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, XMarkIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import VentaDetailModal from '../components/common/VentaDetailModal';
+import printingService from '../services/printingService';
 
 const CashRegister = () => {
   // Estados principales
@@ -180,6 +181,24 @@ const CashRegister = () => {
     
     setSelectedOrder(adaptedOrder);
     setShowOrderDetailModal(true);
+  };
+
+  // Manejar impresión de reporte de caja
+  const handlePrintCashRegisterReport = async (cashRegister) => {
+    try {
+      const result = await printingService.printCashRegisterReport(cashRegister);
+      if (result.success) {
+        setNotification('Reporte de caja impreso exitosamente');
+        setTimeout(() => setNotification(null), 3000);
+      } else {
+        setNotification(`Error al imprimir reporte: ${result.error}`);
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (error) {
+      console.error('Error al imprimir reporte de caja:', error);
+      setNotification('Error al imprimir reporte. Verifique que el servicio de impresión esté funcionando.');
+      setTimeout(() => setNotification(null), 3000);
+    }
   };
 
   // Mostrar loading
@@ -389,12 +408,23 @@ const CashRegister = () => {
             <h3 className="text-professional-subtitle">
               Detalle de Caja
             </h3>
-            <button
-              onClick={() => setSelectedCashRegister(null)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <XMarkIcon className="w-6 h-6" />
-            </button>
+            <div className="flex items-center gap-2">
+              {selectedCashRegister.status === 'Cerrada' && (
+                <button
+                  onClick={() => handlePrintCashRegisterReport(selectedCashRegister)}
+                  className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition-colors"
+                  title="Imprimir reporte de caja"
+                >
+                  <PrinterIcon className="w-5 h-5" />
+                </button>
+              )}
+              <button
+                onClick={() => setSelectedCashRegister(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
           </div>
 
           {/* Información General */}

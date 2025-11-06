@@ -8,9 +8,28 @@ import {
   ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 import { formatChileanCurrency } from '../../utils/dateUtils';
+import { printingService } from '../../services/printingService';
 
 const VentaDetailModal = ({ venta, isOpen, onClose }) => {
   if (!venta) return null;
+
+  // Función para manejar la impresión del ticket de cliente
+  const handlePrintCustomerTicket = async () => {
+    try {
+      // Preparar el objeto del pedido para la impresión
+      const orderForPrint = {
+        ...venta,
+        orderNumber: venta.orderNumber || venta.id,
+        foods: venta.foods || [],
+        items: venta.foods || [] // Para compatibilidad
+      };
+      
+      await printingService.printCustomerTicket(orderForPrint);
+    } catch (error) {
+      console.error('Error al imprimir ticket:', error);
+      alert('Error al imprimir el ticket. Verifique que el servicio de impresión esté funcionando.');
+    }
+  };
 
   // Formatear fecha
   const formatDate = (dateString) => {
@@ -328,12 +347,9 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
           
           <Button
             variant="primary"
-            onClick={() => {
-              // Aquí se podría implementar la funcionalidad de imprimir
-              console.log('Imprimiendo venta:', venta);
-            }}
+            onClick={handlePrintCustomerTicket}
           >
-            Imprimir
+            Imprimir Ticket
           </Button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '../components/ui';
-import { PlusIcon, TruckIcon, TrashIcon, MapIcon, PhoneIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TruckIcon, TrashIcon, MapIcon, PhoneIcon, PencilIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import { useOrders, useRecentOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../hooks/useCashRegister';
@@ -10,6 +10,7 @@ import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import ProductModal from '../components/common/ProductModal';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import AddressModal from '../components/common/AddressModal';
+import printingService from '../services/printingService';
 
 const Delivery = () => {
   // Estado para crear pedido
@@ -1137,6 +1138,24 @@ const Delivery = () => {
     }
   };
 
+  // Función para imprimir ticket de cliente
+  const handlePrintCustomerTicket = async (order) => {
+    try {
+      const result = await printingService.printCustomerTicket(order);
+      if (result.success) {
+        // Mostrar notificación de éxito
+        console.log('Ticket impreso exitosamente');
+        // Aquí podrías agregar una notificación toast si tienes un sistema de notificaciones
+      } else {
+        console.error('Error al imprimir ticket:', result.error);
+        alert(`Error al imprimir ticket: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error al imprimir ticket:', error);
+      alert('Error al imprimir ticket. Verifique que el servicio de impresión esté funcionando.');
+    }
+  };
+
   // Mostrar alerta de caja si no está abierta
   React.useEffect(() => {
     if (!cashLoading && !isCashOpen) {
@@ -1722,12 +1741,22 @@ const Delivery = () => {
             <div className="h-full flex flex-col bg-white rounded-lg shadow-lg border border-blue-200 p-4">
               <h2 className="text-lg font-semibold text-blue-900 mb-3 flex-shrink-0 flex items-center justify-between">
                 <span>Editando Pedido #{selectedOrder.orderNumber}</span>
-                <button
-                  onClick={handleCancelEditOrder}
-                  className="text-gray-500 hover:text-gray-700 text-sm"
-                >
-                  ✕ Cerrar
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePrintCustomerTicket(selectedOrder)}
+                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                    title="Imprimir ticket de cliente"
+                  >
+                    <PrinterIcon className="w-4 h-4" />
+                    
+                  </button>
+                  <button
+                    onClick={handleCancelEditOrder}
+                    className="text-gray-500 hover:text-gray-700 text-sm"
+                  >
+                    ✕ Cerrar
+                  </button>
+                </div>
               </h2>
               
               {/* Formulario de edición con scroll independiente */}
@@ -2103,12 +2132,22 @@ const Delivery = () => {
                     {selectedCompletedOrder.status}
                   </span>
                 </span>
-                <button
-                  onClick={handleCancelViewCompletedOrder}
-                  className="text-gray-500 hover:text-gray-700 text-sm"
-                >
-                  ✕ Cerrar
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePrintCustomerTicket(selectedCompletedOrder)}
+                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                    title="Imprimir ticket de cliente"
+                  >
+                    <PrinterIcon className="w-4 h-4" />
+                    Ticket
+                  </button>
+                  <button
+                    onClick={handleCancelViewCompletedOrder}
+                    className="text-gray-500 hover:text-gray-700 text-sm"
+                  >
+                    ✕ Cerrar
+                  </button>
+                </div>
               </h2>
               
               {/* Contenido de solo lectura con scroll independiente */}

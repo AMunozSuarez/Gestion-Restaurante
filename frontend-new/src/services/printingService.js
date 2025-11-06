@@ -130,7 +130,7 @@ funcionando correctamente.
     console.log('Generando comanda para pedido:', order);
     
     const date = new Date();
-    const orderNumber = order.id || order._id || 'N/A';
+    const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
     
     // Extraer nombre del cliente desde diferentes posibles campos
     let customer = 'Cliente';
@@ -244,6 +244,360 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
   // Imprimir comanda de cocina automáticamente
   async printKitchenOrder(order) {
     const content = this.generateKitchenOrder(order);
+    return this.printWithDefault(content, 1);
+  },
+
+  // Generar ticket de cliente
+  generateCustomerTicket(order) {
+    console.log('Generando ticket de cliente para pedido:', order);
+    
+    const date = new Date();
+    const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
+    
+    // Extraer nombre del cliente
+    let customer = 'Cliente';
+    if (order.buyer && typeof order.buyer === 'object' && order.buyer.name) {
+      customer = order.buyer.name || order.name;
+    } else if (order.name) {
+      customer = order.name;
+    } else if (order.customer_name) {
+      customer = order.customer_name;
+    } else if (order.customerName) {
+      customer = order.customerName;
+    }
+
+    // Extraer teléfono del cliente
+    let phone = '';
+    if (order.buyer && typeof order.buyer === 'object' && order.buyer.phone) {
+      phone = order.buyer.phone || order.phone;
+    } else if (order.phone) {
+      phone = order.phone;
+    } else if (order.customer_phone) {
+      phone = order.customer_phone;
+    } else if (order.customerPhone) {
+      phone = order.customerPhone;
+    }
+
+    // Extraer dirección (para todos los tipos de pedido)
+    let address = '';
+    if (order.selectedAddress) {
+      // selectedAddress puede ser string o objeto
+      if (typeof order.selectedAddress === 'string') {
+        address = order.selectedAddress;
+      } else if (typeof order.selectedAddress === 'object') {
+        const addr = order.selectedAddress;
+        address = `${addr.street || ''} ${addr.number || ''}, ${addr.neighborhood || ''}`.trim();
+        if (addr.reference) {
+          address += `\nRef: ${addr.reference}`;
+        }
+      }
+    } else if (order.address && typeof order.address === 'object') {
+      const addr = order.address;
+      address = `${addr.street || ''} ${addr.number || ''}, ${addr.neighborhood || ''}`.trim();
+      if (addr.reference) {
+        address += `\nRef: ${addr.reference}`;
+      }
+    } else if (order.address_text) {
+      address = order.address_text;
+    } else if (order.addressText) {
+      address = order.addressText;
+    }
+
+    const orderType = order.section || order.order_type || order.orderType || 'Mostrador';
+    
+    let content = `
+=================================
+        TICKET CLIENTE
+=================================
+
+No. Orden: #${orderNumber}
+Fecha: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
+Cliente: ${customer}`;
+
+    if (phone) {
+      content += `\nTeléfono: ${phone}`;
+    }
+
+    if (address) {
+      content += `\nDirección: ${address}`;
+    }
+
+    // Agregar método de pago
+    const paymentMethod = order.payment_method || order.paymentMethod || 'No especificado';
+    content += `\nMétodo de pago: ${paymentMethod}`;
+
+    // Agregar comentarios generales si existen
+    const orderNotes = order.comment || order.notes || '';
+    if (orderNotes && orderNotes.trim()) {
+      content += `\nComentarios: ${orderNotes.trim()}`;
+    }
+
+    content += `
+
+=================================
+           PRODUCTOS
+=================================
+
+`;
+
+    // Agregar productos y calcular total
+    let items = [];
+    let subtotal = 0;
+    
+    if (order.foods && Array.isArray(order.foods)) {
+      items = order.foods.map(item => ({
+        product_name: item.food?.title || item.food?.name || 'Producto',
+        quantity: item.quantity || 1,
+        price: item.food?.price || 0,
+        notes: item.comment || ''
+      }));
+    } else if (order.items && Array.isArray(order.items)) {
+      items = order.items.map(item => ({
+        product_name: item.product_name || item.name || item.title || 'Producto',
+        quantity: item.quantity || 1,
+        price: item.price || 0,
+        notes: item.notes || item.comment || ''
+      }));
+    } else if (order.order_items && Array.isArray(order.order_items)) {
+      items = order.order_items.map(item => ({
+        product_name: item.product_name || item.name || item.title || 'Producto',
+        quantity: item.quantity || 1,
+        price: item.price || 0,
+        notes: item.notes || item.comment || ''
+      }));
+    }
+
+    // Agregar cada producto al contenido
+    items.forEach(item => {
+      const itemTotal = item.quantity * item.price;
+      subtotal += itemTotal;
+      
+      // Formato chileno para el precio total del producto
+      const formattedTotal = new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        minimumFractionDigits: 0
+      }).format(itemTotal);
+      
+      // Crear línea del producto con precio alineado a la derecha
+      const productLine = `${item.quantity}x ${item.product_name}`;
+      const lineWidth = 33; // Ancho total de la línea (para tickets de 40 caracteres)
+      const paddingLength = Math.max(1, lineWidth - productLine.length - formattedTotal.length);
+      const padding = ' '.repeat(paddingLength);
+      
+      content += `${productLine}${padding}${formattedTotal}\n`;
+      
+      if (item.notes && item.notes.trim()) {
+        const noteLines = item.notes.trim().split('\n');
+        noteLines.forEach((line, index) => {
+          if (index === 0) {
+            content += `   Nota: ${line}\n`;
+          } else {
+            content += `         ${line}\n`;
+          }
+        });
+      }
+      content += '\n';
+    });
+
+    // Calcular costos adicionales
+    const deliveryCost = (order.section === 'delivery' || order.order_type === 'delivery') 
+      ? (order.delivery_cost || order.deliveryCost || 0) : 0;
+    
+    const total = subtotal + deliveryCost;
+
+    // Formatear precios en formato chileno
+    const formattedSubtotal = new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(subtotal);
+
+    const formattedTotal = new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(total);
+
+    content += `=================================
+RESUMEN
+=================================
+
+`;
+
+    // Alinear subtotal a la derecha
+    const subtotalLine = "Subtotal:";
+    const subtotalPadding = ' '.repeat(Math.max(1, 33 - subtotalLine.length - formattedSubtotal.length));
+    content += `${subtotalLine}${subtotalPadding}${formattedSubtotal}`;
+
+    if (deliveryCost > 0) {
+      const formattedDeliveryCost = new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        minimumFractionDigits: 0
+      }).format(deliveryCost);
+      
+      // Alinear costo de envío a la derecha
+      const deliveryLine = "\nCosto de envío:";
+      const deliveryPadding = ' '.repeat(Math.max(1, 33 - deliveryLine.length + 1 - formattedDeliveryCost.length));
+      content += `${deliveryLine}${deliveryPadding}${formattedDeliveryCost}`;
+    }
+
+    // Alinear total a la derecha
+    const totalLine = "\nTOTAL:";
+    const totalPadding = ' '.repeat(Math.max(1, 33 - totalLine.length + 1 - formattedTotal.length));
+    content += `${totalLine}${totalPadding}${formattedTotal}`;
+
+    content += `
+
+=================================
+    ¡Gracias por su compra!
+=================================
+
+
+
+
+`;
+
+    console.log('Contenido de ticket de cliente generado:', content);
+    return content.trim();
+  },
+
+  // Imprimir ticket de cliente automáticamente
+  async printCustomerTicket(order) {
+    const content = this.generateCustomerTicket(order);
+    return this.printWithDefault(content, 1);
+  },
+
+  // Generar reporte de caja cerrada
+  generateCashRegisterReport(cashRegister) {
+    console.log('Generando reporte de caja para:', cashRegister);
+    
+    const date = new Date();
+    
+    // Calcular totales
+    const systemTotal = cashRegister.orders?.reduce((total, order) => total + (order.total || 0), 0) || 0;
+    const officialTotal = Object.values(cashRegister.officialIncome || {}).reduce((total, amount) => total + (parseFloat(amount) || 0), 0);
+    const difference = officialTotal - systemTotal;
+    
+    // Calcular totales por método de pago del sistema
+    const systemTotalsByPayment = cashRegister.orders?.reduce((totals, order) => {
+      const method = order.paymentMethod || 'Sin especificar';
+      totals[method] = (totals[method] || 0) + (order.total || 0);
+      return totals;
+    }, {}) || {};
+    
+    // Formatear fechas
+    const formatDate = (dateString) => {
+      if (!dateString) return 'N/A';
+      return new Intl.DateTimeFormat('es-CL', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(new Date(dateString));
+    };
+    
+    // Formatear moneda
+    const formatCurrency = (amount) => {
+      return new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        minimumFractionDigits: 0
+      }).format(amount || 0);
+    };
+    
+    let content = `
+=================================
+       REPORTE DE CAJA
+=================================
+
+Fecha del reporte: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
+Estado: ${cashRegister.status}
+
+=================================
+      INFORMACIÓN GENERAL
+=================================
+
+Fecha de apertura: ${formatDate(cashRegister.dateOpened)}
+Fecha de cierre: ${formatDate(cashRegister.dateClosed)}
+Monto inicial: ${formatCurrency(cashRegister.initialBalance)}
+
+=================================
+        RESUMEN VENTAS
+=================================
+
+Total de pedidos: ${cashRegister.orders?.length || 0}
+Total del sistema: ${formatCurrency(systemTotal)}
+Total oficial: ${formatCurrency(officialTotal)}
+Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
+
+=================================
+   VENTAS POR MÉTODO DE PAGO
+=================================
+
+`;
+
+    // Agregar totales del sistema por método de pago
+    Object.entries(systemTotalsByPayment).forEach(([method, amount]) => {
+      const methodLine = `${method}:`;
+      const lineWidth = 33;
+      const formattedAmount = formatCurrency(amount);
+      const paddingLength = Math.max(1, lineWidth - methodLine.length - formattedAmount.length);
+      const padding = ' '.repeat(paddingLength);
+      content += `${methodLine}${padding}${formattedAmount}\n`;
+    });
+
+    content += `
+=================================
+  INGRESOS OFICIALES DECLARADOS
+=================================
+
+`;
+
+    // Agregar ingresos oficiales
+    if (cashRegister.officialIncome) {
+      Object.entries(cashRegister.officialIncome).forEach(([method, amount]) => {
+        const methodLine = `${method}:`;
+        const lineWidth = 33;
+        const formattedAmount = formatCurrency(amount);
+        const paddingLength = Math.max(1, lineWidth - methodLine.length - formattedAmount.length);
+        const padding = ' '.repeat(paddingLength);
+        content += `${methodLine}${padding}${formattedAmount}\n`;
+      });
+    }
+
+    // Agregar comentarios si existen
+    if (cashRegister.comment && cashRegister.comment.trim()) {
+      content += `
+=================================
+        COMENTARIOS
+=================================
+
+${cashRegister.comment.trim()}
+
+`;
+    }
+
+    content += `
+
+=================================
+     Gestión Restaurante
+=================================
+
+
+
+
+`;
+
+    console.log('Contenido de reporte de caja generado:', content);
+    return content.trim();
+  },
+
+  // Imprimir reporte de caja automáticamente
+  async printCashRegisterReport(cashRegister) {
+    const content = this.generateCashRegisterReport(cashRegister);
     return this.printWithDefault(content, 1);
   }
 };
