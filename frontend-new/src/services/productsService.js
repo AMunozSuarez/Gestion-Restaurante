@@ -5,6 +5,21 @@ export const productsService = {
   getProducts: async (filters = {}) => {
     try {
       const response = await api.get('/food/getAll');
+      
+      if (response.data.success && response.data.foods) {
+        let products = response.data.foods;
+        
+        // Si se especifica filtrar solo disponibles (para crear pedidos)
+        if (filters.availableOnly || filters.available) {
+          products = products.filter(product => product.isAvailable);
+        }
+        
+        return {
+          ...response.data,
+          foods: products
+        };
+      }
+      
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener productos');
@@ -18,10 +33,12 @@ export const productsService = {
       const response = await api.get('/food/getAll');
       
       if (response.data.success && response.data.foods) {
-        // Filtrar productos por nombre en el frontend
+        // Filtrar productos por nombre Y que estén disponibles
         const filteredProducts = response.data.foods.filter(product => 
-          product.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+          product.isAvailable && ( // Solo productos disponibles
+            product.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+          )
         );
         
         return {
@@ -33,8 +50,7 @@ export const productsService = {
             price: food.price,
             category: food.category,
             isAvailable: food.isAvailable,
-            imageUrl: food.imageUrl,
-            foodTags: food.foodTags
+            imageUrl: food.imageUrl
           }))
         };
       }
@@ -52,6 +68,36 @@ export const productsService = {
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener producto');
+    }
+  },
+
+  // Crear nuevo producto
+  createProduct: async (productData) => {
+    try {
+      const response = await api.post('/food/create', productData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al crear producto');
+    }
+  },
+
+  // Actualizar producto
+  updateProduct: async (id, productData) => {
+    try {
+      const response = await api.put(`/food/update/${id}`, productData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al actualizar producto');
+    }
+  },
+
+  // Cambiar disponibilidad del producto (activar/desactivar)
+  toggleProductAvailability: async (id, isAvailable) => {
+    try {
+      const response = await api.put(`/food/update/${id}`, { isAvailable });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al cambiar disponibilidad del producto');
     }
   },
 

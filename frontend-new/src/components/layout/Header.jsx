@@ -8,7 +8,8 @@ import {
   UserIcon,
   ArrowRightEndOnRectangleIcon,
   CurrencyDollarIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  TagIcon
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -19,6 +20,7 @@ const Header = () => {
   const navigationItems = [
     { name: 'Mostrador', href: '/mostrador', icon: HomeIcon },
     { name: 'Delivery', href: '/delivery', icon: TruckIcon },
+    { name: 'Productos', href: '/productos', icon: TagIcon },
     { name: 'Ventas', href: '/ventas', icon: ChartBarIcon },
     { name: 'Cajas', href: '/cajas', icon: CurrencyDollarIcon },
     { name: 'Admin', href: '/admin', icon: CogIcon },

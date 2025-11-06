@@ -22,8 +22,7 @@ export const useProducts = (filters = {}) => {
           price: food.price,
           category: food.category,
           isAvailable: food.isAvailable,
-          imageUrl: food.imageUrl,
-          foodTags: food.foodTags
+          imageUrl: food.imageUrl
         }));
         setProducts(mappedProducts);
       } else {

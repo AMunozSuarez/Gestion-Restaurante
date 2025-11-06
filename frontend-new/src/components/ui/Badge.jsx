@@ -21,6 +21,7 @@ const Badge = ({
     preparing: 'bg-orange-100 text-orange-800 border border-orange-200',
     completed: 'bg-green-100 text-green-800 border border-green-200',
     cancelled: 'bg-red-100 text-red-800 border border-red-200',
+    outline: 'bg-transparent text-gray-600 border border-gray-300',
   };
   
   const sizes = {
