@@ -12,15 +12,18 @@ export const AuthProvider = ({ children }) => {
 
   // Verificar autenticación al cargar la app
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuth = () => {
       try {
-        const token = localStorage.getItem('token');
-        if (token) {
-          // Verificar si el token es válido
-          await authService.verifyToken();
+        // Usar verificación local en lugar de llamada al servidor
+        if (authService.isAuthenticated()) {
           const currentUser = authService.getCurrentUser();
           setUser(currentUser);
           setIsAuthenticated(true);
+        } else {
+          // Token expirado o no existe, limpiar
+          authService.logout();
+          setUser(null);
+          setIsAuthenticated(false);
         }
       } catch (error) {
         // Token inválido, limpiar
