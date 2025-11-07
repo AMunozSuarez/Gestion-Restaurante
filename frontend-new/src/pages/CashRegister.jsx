@@ -28,6 +28,9 @@ const CashRegister = () => {
   const [comment, setComment] = React.useState('');
   const [isClosing, setIsClosing] = React.useState(false);
 
+  // Estados para colapsar paneles
+  const [currentCashCollapsed, setCurrentCashCollapsed] = React.useState(false);
+
   // Hooks
   const { 
     cashRegister: currentCashRegister, 
@@ -214,30 +217,30 @@ const CashRegister = () => {
   }
 
   return (
-    <div className="h-full bg-professional flex gap-4 p-4 overflow-hidden">
+    <div className="h-full bg-professional flex gap-4 p-2 lg:p-4 overflow-hidden">
       {/* Contenido Principal */}
-      <div className={`${selectedCashRegister ? 'w-2/3' : 'w-full'} flex flex-col gap-4 transition-all duration-300`}>
-        {/* Header */}
-        <div className="card-professional p-6 flex-shrink-0">
-          <div className="flex justify-between items-center">
+      <div className={`${selectedCashRegister ? 'w-2/3' : 'w-full'} flex flex-col gap-2 lg:gap-4 transition-all duration-300`}>
+        {/* Header - Más compacto */}
+        <div className="card-professional p-3 lg:p-6 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <div>
-              <h1 className="text-professional-title">Gestión de Cajas</h1>
-              <p className="text-professional-body mt-1">Administra las cajas registradoras del restaurante</p>
+              <h1 className="text-lg lg:text-xl font-bold text-amber-800">Gestión de Cajas</h1>
+              <p className="text-sm text-gray-600 mt-1 hidden lg:block">Administra las cajas registradoras del restaurante</p>
             </div>
             <div className="flex gap-3">
               {!isOpen && (
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="btn-professional-secondary flex items-center gap-2"
+                  className="btn-professional-secondary flex items-center gap-2 text-sm px-3 py-2"
                 >
-                  <PlusIcon className="w-5 h-5" />
+                  <PlusIcon className="w-4 h-4 lg:w-5 lg:h-5" />
                   Abrir Caja
                 </button>
               )}
               {isOpen && (
                 <button
                   onClick={() => setSelectedCashRegister(currentCashRegister)}
-                  className="btn-professional-primary flex items-center gap-2"
+                  className="btn-professional-primary flex items-center gap-2 text-sm px-3 py-2"
                 >
                   Cerrar Caja
                 </button>
@@ -246,45 +249,49 @@ const CashRegister = () => {
           </div>
         </div>
 
-        {/* Caja Actual */}
+        {/* Caja Actual - Colapsable */}
         {isOpen && currentCashRegister && (
-          <div className="card-professional p-4 flex-shrink-0">
-            <h2 className="text-professional-subtitle mb-3">Caja Actual</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-              <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
-                <p className="text-xs text-green-700 font-medium">Estado</p>
-                <p className="text-sm font-bold text-green-800">Abierta</p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
-                <p className="text-xs text-blue-700 font-medium">Monto Inicial</p>
-                <p className="text-sm font-bold text-blue-800">{formatCurrency(currentCashRegister.initialBalance)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200">
-                <p className="text-xs text-purple-700 font-medium">Fecha de Apertura</p>
-                <p className="text-sm font-bold text-purple-800">{formatDate(currentCashRegister.dateOpened)}</p>
-              </div>
-              <div className="total-highlight p-3">
-                <p className="text-xs font-medium">Total del Sistema</p>
-                <p className="text-sm font-bold">
-                  {formatCurrency(calculateSystemTotal(currentCashRegister.orders))}
-                </p>
-                <p className="text-xs mt-1">
-                  {currentCashRegister.orders?.length || 0} pedidos
-                </p>
-              </div>
+          <div className="card-professional p-2 lg:p-4 flex-shrink-0">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm lg:text-base font-semibold text-amber-800">Caja Actual</h2>
+              <button
+                onClick={() => setCurrentCashCollapsed(!currentCashCollapsed)}
+                className="text-sm w-6 h-6 flex items-center justify-center rounded border border-amber-300 text-amber-700 hover:bg-amber-50 font-mono"
+              >
+                {currentCashCollapsed ? '+' : '−'}
+              </button>
             </div>
+            
+            {!currentCashCollapsed && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-2 rounded border border-green-200">
+                  <p className="text-xs text-green-700 font-medium">Estado</p>
+                  <p className="text-xs lg:text-sm font-bold text-green-800">Abierta</p>
+                </div>
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-2 rounded border border-blue-200">
+                  <p className="text-xs text-blue-700 font-medium">Monto Inicial</p>
+                  <p className="text-xs lg:text-sm font-bold text-blue-800">{formatCurrency(currentCashRegister.initialBalance)}</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded border border-purple-200">
+                  <p className="text-xs text-purple-700 font-medium">Fecha Apertura</p>
+                  <p className="text-xs lg:text-sm font-bold text-purple-800">{formatDate(currentCashRegister.dateOpened)}</p>
+                </div>
+                <div className="total-highlight p-2">
+                  <p className="text-xs font-medium">Total Sistema</p>
+                  <p className="text-xs lg:text-sm font-bold">
+                    {formatCurrency(calculateSystemTotal(currentCashRegister.orders))}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* Historial de Cajas */}
         <div className="card-professional flex-1 flex flex-col overflow-hidden">
-          <div className="p-6 border-b border-opacity-20 border-amber-300 flex-shrink-0">
-            <h2 className="text-professional-subtitle">Historial de Cajas</h2>
-            <p className="text-professional-body mt-1">Registro de todas las cajas registradoras</p>
-          </div>
           
           {historyError && (
-            <div className="p-6 text-center">
+            <div className="p-3 lg:p-6 text-center">
               <p className="text-red-600">Error al cargar el historial: {historyError}</p>
               <button 
                 onClick={refetch}
@@ -296,106 +303,184 @@ const CashRegister = () => {
           )}
 
           {!historyError && cashRegisters.length === 0 && (
-            <div className="p-6 text-center">
+            <div className="p-3 lg:p-6 text-center">
               <p className="text-professional-body">No hay cajas registradas</p>
             </div>
           )}
 
           {!historyError && cashRegisters.length > 0 && (
             <div className="flex-1 overflow-auto scrollbar-professional">
-              <table className="min-w-full">
-                <thead className="bg-gradient-to-r from-amber-50 to-orange-50 sticky top-0">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                      Estado
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                      Fecha Apertura
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                      Fecha Cierre
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                      Monto Inicial
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                      Total Sistema
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                      Total Oficial
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                      Diferencia
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white bg-opacity-50 divide-y divide-amber-100">
-                  {[...cashRegisters]
-                    .sort((a, b) => new Date(b.dateOpened) - new Date(a.dateOpened))
-                    .map((cashRegister) => {
-                    const systemTotal = calculateSystemTotal(cashRegister.orders);
-                    const officialTotal = calculateOfficialTotal(cashRegister.officialIncome);
-                    const difference = getDifference(systemTotal, officialTotal);
-                    
-                    return (
-                      <tr 
-                        key={cashRegister._id} 
-                        className={`hover:bg-amber-50 hover:bg-opacity-50 transition-colors cursor-pointer ${
-                          selectedCashRegister?._id === cashRegister._id ? 'bg-amber-100 bg-opacity-70' : ''
-                        }`}
-                        onClick={() => handleViewDetail(cashRegister)}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+              {/* Vista de tabla para pantallas grandes */}
+              <div className="hidden lg:block">
+                <table className="min-w-full">
+                  <thead className="bg-gradient-to-r from-amber-50 to-orange-50 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                        Estado
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                        Fecha Apertura
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                        Fecha Cierre
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                        Monto Inicial
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                        Total Sistema
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                        Total Oficial
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                        Diferencia
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white bg-opacity-50 divide-y divide-amber-100">
+                    {[...cashRegisters]
+                      .sort((a, b) => new Date(b.dateOpened) - new Date(a.dateOpened))
+                      .map((cashRegister) => {
+                      const systemTotal = calculateSystemTotal(cashRegister.orders);
+                      const officialTotal = calculateOfficialTotal(cashRegister.officialIncome);
+                      const difference = getDifference(systemTotal, officialTotal);
+                      
+                      return (
+                        <tr 
+                          key={cashRegister._id} 
+                          className={`hover:bg-amber-50 hover:bg-opacity-50 transition-colors cursor-pointer ${
+                            selectedCashRegister?._id === cashRegister._id ? 'bg-amber-100 bg-opacity-70' : ''
+                          }`}
+                          onClick={() => handleViewDetail(cashRegister)}
+                        >
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              cashRegister.status === 'Abierta' 
+                                ? 'bg-green-100 text-green-800 border border-green-200' 
+                                : 'bg-gray-100 text-gray-700 border border-gray-200'
+                            }`}>
+                              {cashRegister.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {formatDate(cashRegister.dateOpened)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                            {formatDate(cashRegister.dateClosed)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                            {formatCurrency(cashRegister.initialBalance)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                            {formatCurrency(systemTotal)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                            {formatCurrency(officialTotal)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            <span className={`font-bold ${
+                              difference > 0 ? 'text-green-700' : 
+                              difference < 0 ? 'text-red-700' : 'text-gray-600'
+                            }`}>
+                              {difference > 0 ? '+' : ''}{formatCurrency(difference)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewDetail(cashRegister);
+                              }}
+                              className="text-amber-600 hover:text-amber-800 font-medium"
+                            >
+                              {selectedCashRegister?._id === cashRegister._id ? 'Ocultar' : 'Ver Detalle'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Vista de tarjetas para pantallas medianas y pequeñas */}
+              <div className="lg:hidden space-y-3 p-3">
+                {[...cashRegisters]
+                  .sort((a, b) => new Date(b.dateOpened) - new Date(a.dateOpened))
+                  .map((cashRegister) => {
+                  const systemTotal = calculateSystemTotal(cashRegister.orders);
+                  const officialTotal = calculateOfficialTotal(cashRegister.officialIncome);
+                  const difference = getDifference(systemTotal, officialTotal);
+                  
+                  return (
+                    <div 
+                      key={cashRegister._id} 
+                      className={`bg-white bg-opacity-80 rounded-lg border border-amber-200 p-3 hover:bg-opacity-100 transition-all cursor-pointer shadow-sm ${
+                        selectedCashRegister?._id === cashRegister._id ? 'bg-amber-50 border-amber-300' : ''
+                      }`}
+                      onClick={() => handleViewDetail(cashRegister)}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             cashRegister.status === 'Abierta' 
-                              ? 'bg-green-100 text-green-800 border border-green-200' 
-                              : 'bg-gray-100 text-gray-700 border border-gray-200'
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-gray-100 text-gray-700'
                           }`}>
                             {cashRegister.status}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-professional-body">
-                          {formatDate(cashRegister.dateOpened)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-professional-body">
-                          {formatDate(cashRegister.dateClosed)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-professional-body font-medium">
-                          {formatCurrency(cashRegister.initialBalance)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-professional-body font-medium">
-                          {formatCurrency(systemTotal)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-professional-body font-medium">
-                          {formatCurrency(officialTotal)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`font-bold ${
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatDate(cashRegister.dateOpened)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-600">Sistema:</p>
+                          <p className="font-semibold text-amber-700">
+                            {formatCurrency(systemTotal)}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <p className="text-xs text-gray-600">Inicial:</p>
+                          <p className="text-sm font-medium">{formatCurrency(cashRegister.initialBalance)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Oficial:</p>
+                          <p className="text-sm font-medium">{formatCurrency(officialTotal)}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-xs text-gray-600">Diferencia:</p>
+                          <span className={`text-sm font-bold ${
                             difference > 0 ? 'text-green-700' : 
                             difference < 0 ? 'text-red-700' : 'text-gray-600'
                           }`}>
                             {difference > 0 ? '+' : ''}{formatCurrency(difference)}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewDetail(cashRegister);
-                            }}
-                            className="text-amber-600 hover:text-amber-800 font-medium"
-                          >
-                            {selectedCashRegister?._id === cashRegister._id ? 'Ocultar' : 'Ver Detalle'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </div>
+                        
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewDetail(cashRegister);
+                          }}
+                          className="text-xs text-amber-600 hover:text-amber-800 font-medium bg-amber-50 px-2 py-1 rounded"
+                        >
+                          {selectedCashRegister?._id === cashRegister._id ? 'Ocultar' : 'Ver Detalle'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -403,9 +488,9 @@ const CashRegister = () => {
 
       {/* Panel de Detalle Lateral */}
       {selectedCashRegister && (
-        <div className="w-1/3 card-professional p-6 overflow-y-auto scrollbar-professional">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-professional-subtitle">
+        <div className="w-1/3 card-professional p-3 lg:p-6 overflow-y-auto scrollbar-professional">
+          <div className="flex justify-between items-center mb-4 lg:mb-6">
+            <h3 className="text-sm lg:text-base font-semibold text-amber-800">
               Detalle de Caja
             </h3>
             <div className="flex items-center gap-2">
@@ -415,53 +500,53 @@ const CashRegister = () => {
                   className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50 transition-colors"
                   title="Imprimir reporte de caja"
                 >
-                  <PrinterIcon className="w-5 h-5" />
+                  <PrinterIcon className="w-4 h-4 lg:w-5 lg:h-5" />
                 </button>
               )}
               <button
                 onClick={() => setSelectedCashRegister(null)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <XMarkIcon className="w-6 h-6" />
+                <XMarkIcon className="w-5 h-5 lg:w-6 lg:h-6" />
               </button>
             </div>
           </div>
 
           {/* Información General */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-lg border border-gray-200">
+          <div className="grid grid-cols-2 gap-2 lg:gap-3 mb-4 lg:mb-6">
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 lg:p-3 rounded-lg border border-gray-200">
               <p className="text-xs text-gray-700 font-medium">Estado</p>
               <p className="text-sm font-bold text-gray-800">{selectedCashRegister.status}</p>
             </div>
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-lg border border-gray-200">
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 lg:p-3 rounded-lg border border-gray-200">
               <p className="text-xs text-gray-700 font-medium">Monto Inicial</p>
               <p className="text-sm font-bold text-gray-800">{formatCurrency(selectedCashRegister.initialBalance)}</p>
             </div>
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-lg border border-gray-200 col-span-2">
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 lg:p-3 rounded-lg border border-gray-200 col-span-2">
               <p className="text-xs text-gray-700 font-medium">Fecha Apertura</p>
               <p className="text-sm font-bold text-gray-800">{formatDate(selectedCashRegister.dateOpened)}</p>
             </div>
           </div>
 
           {selectedCashRegister.status === 'Cerrada' && (
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-lg border border-gray-200 col-span-2">
+            <div className="grid grid-cols-2 gap-2 lg:gap-3 mb-4 lg:mb-6">
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 lg:p-3 rounded-lg border border-gray-200 col-span-2">
                 <p className="text-xs text-gray-700 font-medium">Fecha Cierre</p>
                 <p className="text-sm font-bold text-gray-800">{formatDate(selectedCashRegister.dateClosed)}</p>
               </div>
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-lg border border-gray-200">
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 lg:p-3 rounded-lg border border-gray-200">
                 <p className="text-xs text-gray-700 font-medium">Total Sistema</p>
                 <p className="text-sm font-bold text-gray-800">
                   {formatCurrency(calculateSystemTotal(selectedCashRegister.orders))}
                 </p>
               </div>
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-lg border border-gray-200">
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 lg:p-3 rounded-lg border border-gray-200">
                 <p className="text-xs text-gray-700 font-medium">Total Oficial</p>
                 <p className="text-sm font-bold text-gray-800">
                   {formatCurrency(calculateOfficialTotal(selectedCashRegister.officialIncome))}
                 </p>
               </div>
-              <div className={`p-3 rounded-lg border col-span-2 bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200`}>
+              <div className={`p-2 lg:p-3 rounded-lg border col-span-2 bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200`}>
                 <p className="text-xs text-gray-700 font-medium">
                   Diferencia
                 </p>
