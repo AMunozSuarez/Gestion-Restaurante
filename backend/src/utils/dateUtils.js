@@ -59,14 +59,24 @@ const getChileDayRange = (dateString) => {
   // Parseamos la fecha como YYYY-MM-DD
   const [year, month, day] = dateString.split('-').map(Number);
   
-  // Crear fecha en zona horaria de Chile usando el constructor específico
-  // Esto evita problemas de interpretación UTC
-  const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0);
-  const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
+  // Chile está en UTC-3, por lo que:
+  // - Cuando en Chile es 00:00 del día X, en UTC son las 03:00 del día X
+  // - Cuando en Chile es 23:59 del día X, en UTC son las 02:59 del día X+1
+  
+  const startOfDay = new Date(Date.UTC(year, month - 1, day, 3, 0, 0, 0)); // 00:00 Chile = 03:00 UTC
+  const endOfDay = new Date(Date.UTC(year, month - 1, day + 1, 2, 59, 59, 999)); // 23:59 Chile = 02:59 UTC día siguiente
+  
+  // Verificar que las fechas sean válidas
+  if (isNaN(startOfDay.getTime()) || isNaN(endOfDay.getTime())) {
+    console.error('Error: fechas inválidas generadas');
+    return null;
+  }
   
   console.log(`Rango para fecha ${dateString}:`);
-  console.log(`- Inicio: ${startOfDay.toISOString()} (${formatChileDate(startOfDay)})`);
-  console.log(`- Fin: ${endOfDay.toISOString()} (${formatChileDate(endOfDay)})`);
+  console.log(`- Inicio UTC: ${startOfDay.toISOString()}`);
+  console.log(`- Inicio Chile: ${formatChileDate(startOfDay)}`);
+  console.log(`- Fin UTC: ${endOfDay.toISOString()}`);
+  console.log(`- Fin Chile: ${formatChileDate(endOfDay)}`);
   
   return {
     start: startOfDay,
