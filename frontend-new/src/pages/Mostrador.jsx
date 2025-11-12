@@ -562,13 +562,11 @@ const Mostrador = () => {
           if (cashResult.success) {
           } else {
             console.error('Error al agregar pedido a la caja:', cashResult.error);
-            setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
-            setTimeout(() => setAddedProductNotification(null), 4000);
+            // No mostrar alerta para evitar interrumpir el flujo
           }
         } catch (error) {
           console.error('Error al agregar pedido a la caja registradora:', error);
-          setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
-          setTimeout(() => setAddedProductNotification(null), 4000);
+          // No mostrar alerta para evitar interrumpir el flujo
         }
       }
       

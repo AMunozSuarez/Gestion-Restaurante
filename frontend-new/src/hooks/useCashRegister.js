@@ -73,7 +73,10 @@ export const useCashRegister = () => {
       const response = await cashRegisterService.addOrderToCashRegister(orderData);
       
       if (response.success) {
-        await checkCashRegisterStatus(); // Refrescar estado
+        // Actualizar el cashRegister localmente sin disparar loading
+        if (response.cashRegister) {
+          setCashRegister(response.cashRegister);
+        }
         return { success: true };
       } else {
         return { success: false, error: response.message };

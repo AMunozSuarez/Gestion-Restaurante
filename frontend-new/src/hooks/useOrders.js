@@ -44,7 +44,7 @@ export const useOrders = (filters = {}) => {
 
   useEffect(() => {
     fetchOrders();
-  }, [JSON.stringify(filters)]);
+  }, [filters.status, filters.section, filters.limit, filters.sortBy]);
 
   const updateOrderStatus = async (orderId, status) => {
     try {
@@ -233,7 +233,7 @@ export const useRecentOrders = (filters = {}) => {
 
   useEffect(() => {
     fetchRecentOrders();
-  }, [JSON.stringify(filters)]);
+  }, [filters.limit, filters.status, filters.section, filters.sortBy]);
 
   return { 
     orders, 
