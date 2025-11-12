@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useRestaurant } from '../../hooks/useRestaurant';
 import { 
   HomeIcon, 
   TruckIcon, 
@@ -18,6 +19,7 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { restaurant, isLoading: isRestaurantLoading } = useRestaurant();
   const [openDropdown, setOpenDropdown] = useState(null);
   const headerRef = useRef(null);
 
@@ -91,7 +93,7 @@ const Header = () => {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <h1 className="text-xl font-bold text-brown-900">
-                Gestión Restaurante
+                {isRestaurantLoading ? 'Cargando...' : (restaurant?.name || 'Gestión Restaurante')}
               </h1>
             </div>
           </div>
@@ -195,7 +197,7 @@ const Header = () => {
           <div className="flex items-center space-x-4">
             <div className="flex items-center text-sm text-gray-500">
               <UserIcon className="w-5 h-5 mr-1" />
-              <span>{user?.name || user?.username || 'Usuario'}</span>
+              <span>{user?.name || user?.userName || 'Usuario'}</span>
             </div>
             <button
               onClick={handleLogout}
