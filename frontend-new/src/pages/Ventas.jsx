@@ -50,7 +50,13 @@ const Ventas = () => {
 
       // Filtro por método de pago
       if (paymentMethodFilter !== 'all') {
-        matches = matches && venta.payment === paymentMethodFilter;
+        // Verificar si la venta tiene el método de pago especificado
+        if (venta.paymentMethods && venta.paymentMethods.length > 0) {
+          matches = matches && venta.paymentMethods.some(pm => pm.method === paymentMethodFilter);
+        } else {
+          // Compatibilidad con el campo payment antiguo
+          matches = matches && venta.payment === paymentMethodFilter;
+        }
       }
 
       // Filtro por búsqueda (cliente o ID)
@@ -74,9 +80,36 @@ const Ventas = () => {
     const canceledVentas = ventasFiltradas.filter(v => v.status === 'Cancelado');
     
     const totalMonto = completedVentas.reduce((sum, venta) => sum + (venta.total || 0), 0);
-    const montoEfectivo = completedVentas.filter(v => v.payment === 'Efectivo').reduce((sum, v) => sum + (v.total || 0), 0);
-    const montoTarjeta = completedVentas.filter(v => v.payment === 'Debito').reduce((sum, v) => sum + (v.total || 0), 0);
-    const montoTransferencia = completedVentas.filter(v => v.payment === 'Transferencia').reduce((sum, v) => sum + (v.total || 0), 0);
+    
+    // Calcular montos por método de pago usando la nueva estructura paymentMethods
+    let montoEfectivo = 0;
+    let montoTarjeta = 0;
+    let montoTransferencia = 0;
+    
+    completedVentas.forEach(venta => {
+      if (venta.paymentMethods && venta.paymentMethods.length > 0) {
+        // Nueva estructura con múltiples métodos de pago
+        venta.paymentMethods.forEach(pm => {
+          if (pm.method === 'Efectivo') {
+            montoEfectivo += pm.amount || 0;
+          } else if (pm.method === 'Debito') {
+            montoTarjeta += pm.amount || 0;
+          } else if (pm.method === 'Transferencia') {
+            montoTransferencia += pm.amount || 0;
+          }
+        });
+      } else if (venta.payment) {
+        // Compatibilidad con estructura antigua
+        const amount = venta.total || 0;
+        if (venta.payment === 'Efectivo') {
+          montoEfectivo += amount;
+        } else if (venta.payment === 'Debito') {
+          montoTarjeta += amount;
+        } else if (venta.payment === 'Transferencia') {
+          montoTransferencia += amount;
+        }
+      }
+    });
 
     return {
       totalVentas: ventasFiltradas.length,
@@ -109,6 +142,63 @@ const Ventas = () => {
   // Formatear moneda chilena
   const formatCurrency = (amount) => {
     return formatChileanCurrency(amount);
+  };
+
+  // Renderizar métodos de pago
+  const renderPaymentMethods = (venta) => {
+    if (venta.paymentMethods && venta.paymentMethods.length > 0) {
+      if (venta.paymentMethods.length === 1) {
+        // Un solo método de pago
+        const pm = venta.paymentMethods[0];
+        return (
+          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+            pm.method === 'Efectivo'
+              ? 'bg-green-100 text-green-800 border border-green-200'
+              : pm.method === 'Debito'
+              ? 'bg-blue-100 text-blue-800 border border-blue-200'
+              : 'bg-amber-100 text-amber-800 border border-amber-200'
+          }`}>
+            {pm.method === 'Debito' ? 'Débito' : pm.method}
+          </span>
+        );
+      } else {
+        // Múltiples métodos de pago
+        return (
+          <div className="flex flex-wrap gap-1">
+            {venta.paymentMethods.map((pm, index) => (
+              <span key={pm._id || index} className={`inline-flex px-1 py-0.5 text-xs font-semibold rounded ${
+                pm.method === 'Efectivo'
+                  ? 'bg-green-100 text-green-800'
+                  : pm.method === 'Debito'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
+                {pm.method === 'Debito' ? 'Déb' : pm.method.slice(0, 3)}
+              </span>
+            ))}
+          </div>
+        );
+      }
+    } else if (venta.payment) {
+      // Compatibilidad con estructura antigua
+      return (
+        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+          venta.payment === 'Efectivo'
+            ? 'bg-green-100 text-green-800 border border-green-200'
+            : venta.payment === 'Debito'
+            ? 'bg-blue-100 text-blue-800 border border-blue-200'
+            : 'bg-amber-100 text-amber-800 border border-amber-200'
+        }`}>
+          {venta.payment === 'Debito' ? 'Débito' : venta.payment}
+        </span>
+      );
+    } else {
+      return (
+        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+          Sin especificar
+        </span>
+      );
+    }
   };
 
   // Abrir modal de detalle
@@ -396,15 +486,7 @@ const Ventas = () => {
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            venta.payment === 'Efectivo'
-                              ? 'bg-green-100 text-green-800 border border-green-200'
-                              : venta.payment === 'Debito'
-                              ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                              : 'bg-amber-100 text-amber-800 border border-amber-200'
-                          }`}>
-                            {venta.payment === 'Debito' ? 'Débito' : venta.payment}
-                          </span>
+                          {renderPaymentMethods(venta)}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {formatCurrency(venta.total)}
@@ -464,15 +546,7 @@ const Ventas = () => {
                           {venta.status === 'Preparacion' ? 'Prep.' : venta.status}
                         </span>
                         
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          venta.payment === 'Efectivo'
-                            ? 'bg-green-100 text-green-800'
-                            : venta.payment === 'Debito'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {venta.payment === 'Debito' ? 'Débito' : venta.payment}
-                        </span>
+                        {renderPaymentMethods(venta)}
                       </div>
                       
                       <button

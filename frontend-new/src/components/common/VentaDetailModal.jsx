@@ -21,7 +21,10 @@ import ProductModal from './ProductModal';
 const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [], productsLoading = false }) => {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [editingData, setEditingData] = useState({});
+  const [editingData, setEditingData] = useState({
+    paymentMethods: [],
+    foods: []
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [notification, setNotification] = useState(null);
   const [showProductModal, setShowProductModal] = useState(false);
@@ -36,20 +39,28 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
         name: venta.name || venta.buyer?.name || '',
         phone: venta.buyer?.phone || '',
         status: venta.status || 'Preparacion',
-        payment: venta.payment || 'Efectivo',
+        paymentMethods: (venta.paymentMethods && Array.isArray(venta.paymentMethods)) 
+          ? venta.paymentMethods.map(pm => ({
+              method: pm.method,
+              amount: pm.amount,
+              _id: pm._id
+            }))
+          : [{ method: venta.payment || 'Efectivo', amount: venta.total || 0 }],
         section: venta.section || 'mostrador',
         comment: venta.comment || '',
         deliveryCost: venta.deliveryCost || 0,
         selectedAddress: (typeof venta.selectedAddress === 'object' && venta.selectedAddress !== null)
           ? `${venta.selectedAddress.street || ''} ${venta.selectedAddress.number || ''}, ${venta.selectedAddress.city || ''}`.trim()
           : venta.selectedAddress || '',
-        foods: venta.foods?.map(item => ({
-          id: item.food?._id || item.food,
-          title: typeof item.food === 'object' ? item.food.title : `Producto`,
-          quantity: item.quantity || 1,
-          comment: item.comment || '',
-          price: typeof item.food === 'object' ? item.food.price : 0
-        })) || []
+        foods: (venta.foods && Array.isArray(venta.foods))
+          ? venta.foods.map(item => ({
+              id: item.food?._id || item.food,
+              title: typeof item.food === 'object' ? item.food.title : `Producto`,
+              quantity: item.quantity || 1,
+              comment: item.comment || '',
+              price: typeof item.food === 'object' ? item.food.price : 0
+            }))
+          : []
       });
     }
   }, [isEditing, venta]);
@@ -79,7 +90,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
   const handleFoodChange = (index, field, value) => {
     setEditingData(prev => ({
       ...prev,
-      foods: prev.foods.map((food, i) => 
+      foods: (prev.foods && Array.isArray(prev.foods) ? prev.foods : []).map((food, i) => 
         i === index ? { ...food, [field]: value } : food
       )
     }));
@@ -92,16 +103,17 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
 
   // Función para agregar producto desde modal
   const handleAddProductFromModal = (product) => {
-    const existingIndex = editingData.foods.findIndex(food => food.id === product.id);
+    const foods = editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : [];
+    const existingIndex = foods.findIndex(food => food.id === product.id);
     
     if (existingIndex >= 0) {
       // Si ya existe, aumentar cantidad
-      handleFoodChange(existingIndex, 'quantity', editingData.foods[existingIndex].quantity + 1);
+      handleFoodChange(existingIndex, 'quantity', foods[existingIndex].quantity + 1);
     } else {
       // Si no existe, agregarlo
       setEditingData(prev => ({
         ...prev,
-        foods: [...prev.foods, {
+        foods: [...(prev.foods && Array.isArray(prev.foods) ? prev.foods : []), {
           id: product.id,
           title: product.title || product.name,
           quantity: 1,
@@ -115,14 +127,20 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
 
   // Función para incrementar cantidad
   const handleIncreaseQuantity = (index) => {
-    handleFoodChange(index, 'quantity', editingData.foods[index].quantity + 1);
+    const foods = editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : [];
+    if (foods[index]) {
+      handleFoodChange(index, 'quantity', foods[index].quantity + 1);
+    }
   };
 
   // Función para decrementar cantidad
   const handleDecreaseQuantity = (index) => {
-    const currentQuantity = editingData.foods[index].quantity;
-    if (currentQuantity > 1) {
-      handleFoodChange(index, 'quantity', currentQuantity - 1);
+    const foods = editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : [];
+    if (foods[index]) {
+      const currentQuantity = foods[index].quantity;
+      if (currentQuantity > 1) {
+        handleFoodChange(index, 'quantity', currentQuantity - 1);
+      }
     }
   };
 
@@ -130,8 +148,37 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
   const handleRemoveFood = (index) => {
     setEditingData(prev => ({
       ...prev,
-      foods: prev.foods.filter((_, i) => i !== index)
+      foods: (prev.foods && Array.isArray(prev.foods) ? prev.foods : []).filter((_, i) => i !== index)
     }));
+  };
+
+  // Funciones para manejar métodos de pago
+  const handlePaymentMethodChange = (index, field, value) => {
+    setEditingData(prev => ({
+      ...prev,
+      paymentMethods: (prev.paymentMethods && Array.isArray(prev.paymentMethods) ? prev.paymentMethods : []).map((pm, i) => 
+        i === index ? { 
+          ...pm, 
+          [field]: field === 'amount' ? (value === '' ? 0 : Number(value) || 0) : value 
+        } : pm
+      )
+    }));
+  };
+
+  const handleAddPaymentMethod = () => {
+    setEditingData(prev => ({
+      ...prev,
+      paymentMethods: [...(prev.paymentMethods && Array.isArray(prev.paymentMethods) ? prev.paymentMethods : []), { method: 'Efectivo', amount: 0 }]
+    }));
+  };
+
+  const handleRemovePaymentMethod = (index) => {
+    if (editingData.paymentMethods && editingData.paymentMethods.length > 1) {
+      setEditingData(prev => ({
+        ...prev,
+        paymentMethods: (prev.paymentMethods && Array.isArray(prev.paymentMethods) ? prev.paymentMethods : []).filter((_, i) => i !== index)
+      }));
+    }
   };
 
   // Función para guardar los cambios
@@ -145,15 +192,16 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
       const updateData = {
         buyer: {
           name: editingData.name,
-          phone: editingData.phone
+          phone: editingData.phone,
+          addresses: venta.buyer?.addresses || []
         },
         status: editingData.status,
-        payment: editingData.payment,
+        paymentMethods: (editingData.paymentMethods && Array.isArray(editingData.paymentMethods) ? editingData.paymentMethods : []).filter(pm => pm.method && pm.amount > 0),
         section: editingData.section,
         comment: editingData.comment,
         deliveryCost: Number(editingData.deliveryCost) || 0,
         selectedAddress: editingData.selectedAddress,
-        foods: editingData.foods.filter(food => food.title && food.title !== '').map(food => ({
+        foods: (editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : []).filter(food => food.title && food.title !== '').map(food => ({
           food: food.id || food.title, // Si no hay ID, usar el título
           quantity: Number(food.quantity) || 1,
           comment: food.comment || ''
@@ -239,7 +287,36 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
     return <Badge variant={config.variant}>{config.text}</Badge>;
   };
 
-  // Obtener badge de método de pago
+  // Obtener badges de métodos de pago múltiples
+  const getPaymentMethodsBadges = (paymentMethods) => {
+    if (!paymentMethods || paymentMethods.length === 0) {
+      return <Badge variant="default">Sin método especificado</Badge>;
+    }
+
+    const methodConfig = {
+      Efectivo: { variant: 'success', text: 'Efectivo' },
+      Debito: { variant: 'info', text: 'Débito' },
+      Transferencia: { variant: 'warning', text: 'Transferencia' }
+    };
+
+    return (
+      <div className="flex flex-wrap gap-2">
+        {paymentMethods.map((pm, index) => {
+          const config = methodConfig[pm.method] || { variant: 'default', text: pm.method };
+          return (
+            <div key={pm._id || index} className="flex items-center gap-1">
+              <Badge variant={config.variant}>{config.text}</Badge>
+              <span className="text-sm font-medium text-gray-700">
+                {formatCurrency(pm.amount)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Función auxiliar para compatibilidad con payment simple
   const getPaymentMethodBadge = (method) => {
     const methodConfig = {
       Efectivo: { variant: 'success', text: 'Efectivo' },
@@ -387,25 +464,63 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <div className="p-2 bg-amber-100 rounded-lg">
                 <CurrencyDollarIcon className="h-5 w-5 text-amber-600" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600">Método de Pago</p>
-                <div className="mt-1">
-                  {isEditing ? (
-                    <select
-                      value={editingData.payment}
-                      onChange={(e) => handleInputChange('payment', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-gray-600">Métodos de Pago</p>
+                  {isEditing && (
+                    <button
+                      onClick={handleAddPaymentMethod}
+                      className="text-xs bg-amber-50 text-amber-600 hover:bg-amber-100 px-2 py-1 rounded border border-amber-300 flex items-center gap-1"
                     >
-                      <option value="Efectivo">Efectivo</option>
-                      <option value="Debito">Débito</option>
-                      <option value="Transferencia">Transferencia</option>
-                    </select>
+                      <PlusIcon className="h-3 w-3" />
+                      Agregar
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {isEditing ? (
+                    (editingData.paymentMethods && Array.isArray(editingData.paymentMethods) ? editingData.paymentMethods : []).map((pm, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded border">
+                        <select
+                          value={pm.method || 'Efectivo'}
+                          onChange={(e) => handlePaymentMethodChange(index, 'method', e.target.value)}
+                          className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="Efectivo">Efectivo</option>
+                          <option value="Debito">Débito</option>
+                          <option value="Transferencia">Transferencia</option>
+                        </select>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={pm.amount === 0 ? '' : pm.amount || ''}
+                          onChange={(e) => handlePaymentMethodChange(index, 'amount', e.target.value)}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Monto"
+                        />
+                        {(editingData.paymentMethods && editingData.paymentMethods.length > 1) && (
+                          <button
+                            onClick={() => handleRemovePaymentMethod(index)}
+                            className="text-red-500 hover:bg-red-50 p-1 rounded"
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))
                   ) : (
-                    getPaymentMethodBadge(venta.payment)
+                    <div>
+                      {venta.paymentMethods && venta.paymentMethods.length > 0 ? (
+                        getPaymentMethodsBadges(venta.paymentMethods)
+                      ) : (
+                        getPaymentMethodBadge(venta.payment)
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -481,9 +596,9 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
             )}
           </div>
           
-          {(isEditing ? editingData.foods : venta.foods) && (isEditing ? editingData.foods : venta.foods).length > 0 ? (
+          {(isEditing ? (editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : []) : (venta.foods && Array.isArray(venta.foods) ? venta.foods : [])).length > 0 ? (
             <div className="space-y-3">
-              {(isEditing ? editingData.foods : venta.foods).map((item, index) => {
+              {(isEditing ? (editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : []) : (venta.foods && Array.isArray(venta.foods) ? venta.foods : [])).map((item, index) => {
                 // Calcular precio unitario estimado desde el total del pedido
                 const estimatedUnitPrice = !isEditing && venta.total && venta.foods.length === 1 ? 
                   venta.total / item.quantity : 
@@ -639,7 +754,6 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                     <div>
                       <p className="text-lg font-medium text-gray-700">Total del pedido</p>
                       <div className="flex items-center gap-2 mt-1">
-                        {getPaymentMethodBadge(venta.payment)}
                         {getStatusBadge(venta.status)}
                       </div>
                     </div>
@@ -656,7 +770,6 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                 <div>
                   <p className="text-lg font-medium text-gray-700">Total del pedido</p>
                   <div className="flex items-center gap-2 mt-1">
-                    {getPaymentMethodBadge(venta.payment)}
                     {getStatusBadge(venta.status)}
                   </div>
                 </div>

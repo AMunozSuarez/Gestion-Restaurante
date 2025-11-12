@@ -357,20 +357,25 @@ const updateOrderController = async (req, res) => {
                     customer.name = buyer.name;
                     customer.comment = buyer.comment || customer.comment;
 
-                    customer.addresses.forEach((addr) => {
-                        if (addr.address === selectedAddress) {
-                            addr.deliveryCost = buyer.addresses.find((newAddr) => newAddr.address === selectedAddress).deliveryCost;
-                        }
-                    });
+                    if (buyer.addresses && Array.isArray(buyer.addresses)) {
+                        customer.addresses.forEach((addr) => {
+                            if (addr.address === selectedAddress) {
+                                const newAddr = buyer.addresses.find((newAddr) => newAddr.address === selectedAddress);
+                                if (newAddr) {
+                                    addr.deliveryCost = newAddr.deliveryCost;
+                                }
+                            }
+                        });
 
-                    buyer.addresses.forEach((newAddress) => {
-                        const existingAddress = customer.addresses.find(
-                            (addr) => addr.address === newAddress.address
-                        );
-                        if (!existingAddress) {
-                            customer.addresses.push(newAddress);
-                        }
-                    });
+                        buyer.addresses.forEach((newAddress) => {
+                            const existingAddress = customer.addresses.find(
+                                (addr) => addr.address === newAddress.address
+                            );
+                            if (!existingAddress) {
+                                customer.addresses.push(newAddress);
+                            }
+                        });
+                    }
 
                     await customer.save();
                 }
