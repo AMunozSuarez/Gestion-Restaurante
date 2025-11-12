@@ -144,7 +144,7 @@ const getCashMovements = async (req, res) => {
 // Add completed order to current cash register
 const addOrderToCashRegister = async (req, res) => {
     try {
-        const { orderId, total, paymentMethod, items } = req.body;
+        const { orderId, total, paymentMethod, paymentMethods, items } = req.body;
 
         // Buscar la caja activa
         const activeCashRegister = await cashRegisterModel.findOne({
@@ -161,6 +161,7 @@ const addOrderToCashRegister = async (req, res) => {
             orderId,
             total: parseFloat(total) || 0,
             paymentMethod,
+            paymentMethods: paymentMethods || [],
             items,
             date: new Date(),
         };
@@ -189,7 +190,7 @@ const addOrderToCashRegister = async (req, res) => {
 // Close an order
 const closeOrder = async (req, res) => {
     try {
-        const { total, paymentMethod, items } = req.body;
+        const { total, paymentMethod, paymentMethods, items } = req.body;
 
         // Buscar la caja activa
         const activeCashRegister = await cashRegisterModel.findOne({
@@ -205,6 +206,7 @@ const closeOrder = async (req, res) => {
         const newOrder = {
             total,
             paymentMethod,
+            paymentMethods: paymentMethods || [],
             items,
             date: new Date(),
         };

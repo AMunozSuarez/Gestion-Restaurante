@@ -83,8 +83,17 @@ const CashRegister = () => {
   const calculateSystemTotalsByPaymentMethod = (orders) => {
     if (!orders || !Array.isArray(orders)) return {};
     return orders.reduce((totals, order) => {
-      const method = order.paymentMethod || 'Sin especificar';
-      totals[method] = (totals[method] || 0) + (order.total || 0);
+      // Si el pedido tiene múltiples métodos de pago, sumar cada uno por separado
+      if (order.paymentMethods && order.paymentMethods.length > 0) {
+        order.paymentMethods.forEach(payment => {
+          const method = payment.method || 'Sin especificar';
+          totals[method] = (totals[method] || 0) + (payment.amount || 0);
+        });
+      } else {
+        // Método de pago único (compatibilidad con pedidos antiguos)
+        const method = order.paymentMethod || 'Sin especificar';
+        totals[method] = (totals[method] || 0) + (order.total || 0);
+      }
       return totals;
     }, {});
   };
@@ -721,9 +730,20 @@ const CashRegister = () => {
                       <span className="text-sm text-professional-body font-medium">
                         {formatCurrency(order.total)}
                       </span>
-                      <span className="text-xs text-professional-body">
-                        {order.paymentMethod}
-                      </span>
+                      <div className="text-xs text-professional-body text-right">
+                        {order.paymentMethods && order.paymentMethods.length > 1 ? (
+                          <div className="space-y-1">
+                            {order.paymentMethods.map((payment, idx) => (
+                              <div key={idx} className="flex items-center gap-1">
+                                <span>{payment.method}:</span>
+                                <span className="font-medium">{formatCurrency(payment.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          order.paymentMethod
+                        )}
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-professional-body">

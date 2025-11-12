@@ -8,7 +8,7 @@ const { getChileDate, getChileTimestamp, formatChileDate, getChileDayRange } = r
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, buyer, section, status, selectedAddress, comment } = req.body;
+        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment } = req.body;
         
                 let customer = null;
         let deliveryCost = 0;
@@ -100,6 +100,7 @@ const createOrderController = async (req, res) => {
             orderNumber,
             foods,
             payment: payment || null, // Hacer payment opcional
+            paymentMethods: paymentMethods || [], // Agregar array de métodos de pago
             total,
             deliveryCost,
             name: !customer ? (buyer?.name || null) : null,
@@ -285,7 +286,7 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, section, status, selectedAddress, comment } = req.body;
+        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment } = req.body;
         console.log('Datos recibidos en el backend:', req.body);
         
         // Buscar la orden existente
@@ -307,6 +308,10 @@ const updateOrderController = async (req, res) => {
         // Si solo se está actualizando el método de pago (o status u otro campo simple)
         if (payment !== undefined) {
             updateData.payment = payment;
+        }
+        
+        if (paymentMethods !== undefined) {
+            updateData.paymentMethods = paymentMethods;
         }
         
         if (status !== undefined) {

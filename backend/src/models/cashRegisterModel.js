@@ -12,6 +12,10 @@ const cashRegisterSchema = new mongoose.Schema({
             orderId: { type: String }, // ID del pedido original
             total: { type: Number, required: true },
             paymentMethod: { type: String, required: true },
+            paymentMethods: [{
+                method: { type: String },
+                amount: { type: Number }
+            }], // Métodos de pago múltiples
             items: [{ type: Object }], // Detalles de los productos del pedido
             date: { type: Date, default: Date.now },
         },

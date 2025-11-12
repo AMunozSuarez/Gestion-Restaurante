@@ -18,7 +18,7 @@ const Mostrador = () => {
   // Estados del formulario de pedido
   const [customerName, setCustomerName] = React.useState('');
   const [comments, setComments] = React.useState('');
-  const [paymentMethod, setPaymentMethod] = React.useState('');
+  const [paymentMethods, setPaymentMethods] = React.useState([{ method: '', amount: 0 }]);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [cart, setCart] = React.useState([]);
   const [addedProductNotification, setAddedProductNotification] = React.useState(null);
@@ -31,7 +31,7 @@ const Mostrador = () => {
   const [selectedOrder, setSelectedOrder] = React.useState(null);
   const [editCustomerName, setEditCustomerName] = React.useState('');
   const [editComments, setEditComments] = React.useState('');
-  const [editPaymentMethod, setEditPaymentMethod] = React.useState('');
+  const [editPaymentMethods, setEditPaymentMethods] = React.useState([{ method: '', amount: 0 }]);
   const [editSearchTerm, setEditSearchTerm] = React.useState('');
   const [editCart, setEditCart] = React.useState([]);
   const [editCommentingProduct, setEditCommentingProduct] = React.useState(null);
@@ -249,6 +249,84 @@ const Mostrador = () => {
     return editCart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
+  // Funciones para manejo de métodos de pago múltiples
+  const addPaymentMethod = () => {
+    const total = calculateTotal();
+    const newPayment = { method: '', amount: paymentMethods.length === 0 ? total : 0 };
+    setPaymentMethods(prev => [...prev, newPayment]);
+  };
+
+  const removePaymentMethod = (index) => {
+    setPaymentMethods(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updatePaymentMethod = (index, field, value) => {
+    setPaymentMethods(prev => 
+      prev.map((payment, i) => 
+        i === index ? { ...payment, [field]: value } : payment
+      )
+    );
+  };
+
+  const addEditPaymentMethod = () => {
+    const total = calculateEditTotal();
+    const newPayment = { method: '', amount: editPaymentMethods.length === 0 ? total : 0 };
+    setEditPaymentMethods(prev => [...prev, newPayment]);
+  };
+
+  const removeEditPaymentMethod = (index) => {
+    setEditPaymentMethods(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateEditPaymentMethod = (index, field, value) => {
+    setEditPaymentMethods(prev => 
+      prev.map((payment, i) => 
+        i === index ? { ...payment, [field]: value } : payment
+      )
+    );
+  };
+
+  const getTotalPaymentAmount = (payments) => {
+    return payments.reduce((total, payment) => total + (parseFloat(payment.amount) || 0), 0);
+  };
+
+  // Función para calcular la diferencia de pago
+  const getPaymentDifference = (totalPaid, orderTotal) => {
+    return totalPaid - orderTotal;
+  };
+
+  // Función para obtener el texto de diferencia de pago
+  const getPaymentDifferenceText = (difference) => {
+    if (Math.abs(difference) < 0.01) {
+      return null; // No mostrar nada si están exactamente iguales
+    }
+    if (difference < 0) {
+      return `Falta pagar: ${formatChileanCurrency(Math.abs(difference))}`;
+    } else {
+      return `Vuelto: ${formatChileanCurrency(difference)}`;
+    }
+  };
+
+  // Actualizar el monto del primer método de pago cuando cambia el total del carrito
+  React.useEffect(() => {
+    if (paymentMethods.length === 1 && cart.length > 0) {
+      const total = calculateTotal();
+      if (paymentMethods[0].amount === 0 || paymentMethods[0].amount !== total) {
+        setPaymentMethods([{ ...paymentMethods[0], amount: total }]);
+      }
+    }
+  }, [cart, paymentMethods.length]);
+
+  // Actualizar el monto del primer método de pago cuando cambia el total del carrito en edición
+  React.useEffect(() => {
+    if (editPaymentMethods.length === 1 && editCart.length > 0) {
+      const total = calculateEditTotal();
+      if (editPaymentMethods[0].amount === 0 || editPaymentMethods[0].amount !== total) {
+        setEditPaymentMethods([{ ...editPaymentMethods[0], amount: total }]);
+      }
+    }
+  }, [editCart, editPaymentMethods.length]);
+
   // Funciones para búsqueda de productos
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -269,7 +347,7 @@ const Mostrador = () => {
   const clearForm = () => {
     setCustomerName('');
     setComments('');
-    setPaymentMethod('');
+    setPaymentMethods([{ method: '', amount: 0 }]);
     setSearchTerm('');
     setCart([]);
     setCommentingProduct(null);
@@ -280,7 +358,7 @@ const Mostrador = () => {
   const clearEditForm = () => {
     setEditCustomerName('');
     setEditComments('');
-    setEditPaymentMethod('');
+    setEditPaymentMethods([{ method: '', amount: 0 }]);
     setEditSearchTerm('');
     setEditCart([]);
     setEditCommentingProduct(null);
@@ -324,6 +402,10 @@ const Mostrador = () => {
 
   // Función para seleccionar pedido para editar
   const handleSelectOrderToEdit = (order) => {
+    console.log('🔍 DEBUG: Pedido seleccionado para editar:', order);
+    console.log('🔍 DEBUG: paymentMethods del pedido:', order.paymentMethods);
+    console.log('🔍 DEBUG: payment del pedido:', order.payment);
+    
     setSelectedOrder(order);
     setIsEditingOrder(true);
     
@@ -341,7 +423,21 @@ const Mostrador = () => {
     // Cargar datos del pedido en el formulario de edición
     setEditCustomerName(getCustomerName(order));
     setEditComments(order.comment || '');
-    setEditPaymentMethod(order.payment || '');
+    
+    // Cargar métodos de pago - priorizar paymentMethods si existe
+    if (order.paymentMethods && Array.isArray(order.paymentMethods) && order.paymentMethods.length > 0) {
+      // Si tiene múltiples métodos de pago, cargar el array completo
+      console.log('✅ DEBUG: Cargando múltiples métodos de pago:', order.paymentMethods);
+      setEditPaymentMethods(order.paymentMethods);
+    } else if (order.payment && order.payment !== '' && order.payment !== 'Pendiente') {
+      // Si solo tiene un método de pago tradicional válido, convertir a formato array
+      console.log('✅ DEBUG: Convirtiendo método único a array:', order.payment);
+      setEditPaymentMethods([{ method: order.payment, amount: order.total || 0 }]);
+    } else {
+      // Si no tiene métodos de pago, inicializar con un método vacío
+      console.log('⚠️ DEBUG: No hay métodos de pago, inicializando vacío');
+      setEditPaymentMethods([{ method: '', amount: 0 }]);
+    }
     
     // Cargar productos del pedido en el carrito de edición
     const orderProducts = order.foods?.map(food => {
@@ -386,6 +482,27 @@ const Mostrador = () => {
     try {
       setIsCreatingOrderRequest(true);
       
+      // Validar que todos los métodos de pago tengan método seleccionado
+      const invalidPayments = paymentMethods.filter(p => !p.method || p.method.trim() === '' || p.method === 'Método' || p.method === 'Pendiente');
+      if (invalidPayments.length > 0) {
+        alert('⚠️ Todos los métodos de pago deben tener un método seleccionado. Por favor, complete todos los campos o elimine los métodos vacíos.');
+        return;
+      }
+      
+      // Validar métodos de pago (opcional)
+      const validPayments = paymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Método' && p.method !== 'Pendiente');
+      
+      // Solo validar montos si hay métodos de pago especificados
+      if (validPayments.length > 0) {
+        const totalPaymentAmount = getTotalPaymentAmount(validPayments);
+        const orderTotal = calculateTotal();
+        
+        if (Math.abs(totalPaymentAmount - orderTotal) > 0.01) {
+          alert(`⚠️ El total de los pagos (${formatChileanCurrency(totalPaymentAmount)}) no coincide con el total del pedido (${formatChileanCurrency(orderTotal)})`);
+          return;
+        }
+      }
+
       // Preparar los datos del pedido
       const orderData = {
         foods: cart.map(item => ({
@@ -393,7 +510,8 @@ const Mostrador = () => {
           quantity: item.quantity,
           comment: item.comments || ''
         })),
-        payment: paymentMethod,
+        payment: validPayments.length === 0 ? 'Pendiente' : (validPayments.length === 1 ? validPayments[0].method : 'Múltiple'),
+        paymentMethods: validPayments.length > 0 ? validPayments : [],
         buyer: {
           name: customerName,
           phone: '', // En mostrador no necesariamente hay teléfono
@@ -435,6 +553,9 @@ const Mostrador = () => {
     try {
       setIsUpdatingOrderRequest(true);
       
+      // Preparar métodos de pago para actualizar (sin validaciones estrictas)
+      const validEditPayments = editPaymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Pendiente');
+
       // Preparar los datos del pedido actualizado
       const orderData = {
         foods: editCart.map(item => {
@@ -444,7 +565,8 @@ const Mostrador = () => {
             comment: item.comments || ''
           };
         }),
-        payment: editPaymentMethod,
+        payment: validEditPayments.length === 0 ? 'Pendiente' : (validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple'),
+        paymentMethods: validEditPayments,
         buyer: {
           name: editCustomerName,
           phone: getCustomerPhone(selectedOrder),
@@ -509,8 +631,25 @@ const Mostrador = () => {
       return;
     }
     
-    if (!editPaymentMethod || editPaymentMethod.trim() === '') {
-      alert('⚠️ Debe seleccionar un método de pago');
+    // Validar que todos los métodos de pago tengan método seleccionado
+    const invalidPayments = editPaymentMethods.filter(p => !p.method || p.method.trim() === '' || p.method === 'Método' || p.method === 'Pendiente');
+    if (invalidPayments.length > 0) {
+      alert('⚠️ Todos los métodos de pago deben tener un método seleccionado. Por favor, complete todos los campos o elimine los métodos vacíos.');
+      return;
+    }
+    
+    // Validar métodos de pago
+    const validEditPayments = editPaymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Método' && p.method !== 'Pendiente');
+    if (validEditPayments.length === 0) {
+      alert('⚠️ Debe agregar al menos un método de pago');
+      return;
+    }
+
+    const totalEditPaymentAmount = getTotalPaymentAmount(validEditPayments);
+    const editOrderTotal = calculateEditTotal();
+    
+    if (Math.abs(totalEditPaymentAmount - editOrderTotal) > 0.01) {
+      alert(`⚠️ El total de los pagos (${formatChileanCurrency(totalEditPaymentAmount)}) no coincide con el total del pedido (${formatChileanCurrency(editOrderTotal)})`);
       return;
     }
     
@@ -521,7 +660,8 @@ const Mostrador = () => {
         quantity: item.quantity,
         comment: item.comments || ''
       })),
-      payment: editPaymentMethod,
+      payment: validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple',
+      paymentMethods: validEditPayments,
       buyer: {
         name: editCustomerName,
         phone: getCustomerPhone(selectedOrder),
@@ -549,7 +689,8 @@ const Mostrador = () => {
           const orderData = {
             orderId: orderId,
             total: total,
-            paymentMethod: editPaymentMethod,
+            paymentMethod: validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple',
+            paymentMethods: validEditPayments,
             items: editCart.map(item => ({
               name: item.name,
               quantity: item.quantity,
@@ -859,19 +1000,73 @@ const Mostrador = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-professional-body mb-1">
-                      Método de Pago
+                    <label className="flex items-center justify-between text-sm font-medium text-professional-body mb-1">
+                      Métodos de Pago
+                      <button
+                        type="button"
+                        onClick={addPaymentMethod}
+                        className="bg-green-600 hover:bg-green-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                        title="Agregar método de pago"
+                      >
+                        +
+                      </button>
                     </label>
-                    <select 
-                      className="input-professional"
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                    >
-                      <option value="">Seleccionar método</option>
-                      <option value="Efectivo">Efectivo</option>
-                      <option value="Debito">Débito</option>
-                      <option value="Transferencia">Transferencia</option>
-                    </select>
+                    <div className="space-y-2">
+                      {paymentMethods.map((payment, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <select 
+                            className="input-professional flex-1"
+                            value={payment.method}
+                            onChange={(e) => updatePaymentMethod(index, 'method', e.target.value)}
+                          >
+                            <option value="">Método</option>
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Debito">Débito</option>
+                            <option value="Transferencia">Transferencia</option>
+                          </select>
+                          <input
+                            type="number"
+                            className="input-professional flex-1"
+                            placeholder="Monto"
+                            value={payment.amount || ''}
+                            onChange={(e) => updatePaymentMethod(index, 'amount', parseFloat(e.target.value) || 0)}
+                            min="0"
+                            step="0.01"
+                          />
+                          {paymentMethods.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removePaymentMethod(index)}
+                              className="bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                              title="Eliminar método de pago"
+                            >
+                              -
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {paymentMethods.length > 0 && (
+                        <div className="text-xs mt-1 space-y-1">
+                          <div className="text-gray-600">
+                            Total pagado: {formatChileanCurrency(getTotalPaymentAmount(paymentMethods))}
+                          </div>
+                          {(() => {
+                            const totalPaid = getTotalPaymentAmount(paymentMethods);
+                            const orderTotal = calculateTotal();
+                            const difference = getPaymentDifference(totalPaid, orderTotal);
+                            const differenceText = getPaymentDifferenceText(difference);
+                            
+                            return differenceText && (
+                              <div className={`font-medium ${
+                                difference < 0 ? 'text-red-600' : 'text-green-600'
+                              }`}>
+                                {differenceText}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="total-highlight">
@@ -1211,19 +1406,73 @@ const Mostrador = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-professional-body mb-1">
-                      Método de Pago
+                    <label className="flex items-center justify-between text-sm font-medium text-professional-body mb-1">
+                      Métodos de Pago
+                      <button
+                        type="button"
+                        onClick={addEditPaymentMethod}
+                        className="bg-green-600 hover:bg-green-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                        title="Agregar método de pago"
+                      >
+                        +
+                      </button>
                     </label>
-                    <select 
-                      className="input-professional"
-                      value={editPaymentMethod}
-                      onChange={(e) => setEditPaymentMethod(e.target.value)}
-                    >
-                      <option value="">Seleccionar método</option>
-                      <option value="Efectivo">Efectivo</option>
-                      <option value="Debito">Débito</option>
-                      <option value="Transferencia">Transferencia</option>
-                    </select>
+                    <div className="space-y-2">
+                      {editPaymentMethods.map((payment, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <select 
+                            className="input-professional flex-1"
+                            value={payment.method}
+                            onChange={(e) => updateEditPaymentMethod(index, 'method', e.target.value)}
+                          >
+                            <option value="">Método</option>
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Debito">Débito</option>
+                            <option value="Transferencia">Transferencia</option>
+                          </select>
+                          <input
+                            type="number"
+                            className="input-professional flex-1"
+                            placeholder="Monto"
+                            value={payment.amount || ''}
+                            onChange={(e) => updateEditPaymentMethod(index, 'amount', parseFloat(e.target.value) || 0)}
+                            min="0"
+                            step="0.01"
+                          />
+                          {editPaymentMethods.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeEditPaymentMethod(index)}
+                              className="bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                              title="Eliminar método de pago"
+                            >
+                              -
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {editPaymentMethods.length > 0 && (
+                        <div className="text-xs mt-1 space-y-1">
+                          <div className="text-gray-600">
+                            Total pagado: {formatChileanCurrency(getTotalPaymentAmount(editPaymentMethods))}
+                          </div>
+                          {(() => {
+                            const totalPaid = getTotalPaymentAmount(editPaymentMethods);
+                            const orderTotal = calculateEditTotal();
+                            const difference = getPaymentDifference(totalPaid, orderTotal);
+                            const differenceText = getPaymentDifferenceText(difference);
+                            
+                            return differenceText && (
+                              <div className={`font-medium ${
+                                difference < 0 ? 'text-red-600' : 'text-green-600'
+                              }`}>
+                                {differenceText}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="total-highlight">
@@ -1393,7 +1642,18 @@ const Mostrador = () => {
                       Método de Pago
                     </label>
                     <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700">
-                      {selectedCompletedOrder.payment || 'No especificado'}
+                      {selectedCompletedOrder.paymentMethods && selectedCompletedOrder.paymentMethods.length > 1 ? (
+                        <div className="space-y-1">
+                          {selectedCompletedOrder.paymentMethods.map((payment, index) => (
+                            <div key={index} className="flex justify-between">
+                              <span>{payment.method}</span>
+                              <span className="font-medium">{formatChileanCurrency(payment.amount)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        selectedCompletedOrder.payment || 'No especificado'
+                      )}
                     </div>
                   </div>
 
