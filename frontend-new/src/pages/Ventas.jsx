@@ -5,6 +5,7 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { useSales } from '../hooks/useSales';
+import { useProducts } from '../hooks/useProducts';
 import VentaDetailModal from '../components/common/VentaDetailModal';
 import { getChileToday, formatChileDateTime, formatChileanCurrency } from '../utils/dateUtils';
 
@@ -35,6 +36,9 @@ const Ventas = () => {
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined
   });
+
+  // Hook para obtener productos
+  const { products, isLoading: productsLoading } = useProducts();
 
   // Filtrar ventas según criterios usando useMemo para optimización
   const ventasFiltradas = useMemo(() => {
@@ -498,6 +502,13 @@ const Ventas = () => {
             setShowDetailModal(false);
             setSelectedVenta(null);
           }}
+          onVentaUpdated={(updatedVenta) => {
+            // Actualizar la venta en la lista local
+            fetchSales();
+            setSelectedVenta(updatedVenta);
+          }}
+          products={products}
+          productsLoading={productsLoading}
         />
       )}
     </div>

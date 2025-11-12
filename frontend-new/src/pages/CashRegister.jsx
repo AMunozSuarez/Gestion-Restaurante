@@ -4,6 +4,7 @@ import { useCashRegisters } from '../hooks/useCashRegisters';
 import { PlusIcon, XMarkIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import VentaDetailModal from '../components/common/VentaDetailModal';
 import printingService from '../services/printingService';
+import { useProducts } from '../hooks/useProducts';
 
 const CashRegister = () => {
   // Estados principales
@@ -46,6 +47,9 @@ const CashRegister = () => {
     error: historyError, 
     refetch 
   } = useCashRegisters();
+
+  // Hook para obtener productos
+  const { products, isLoading: productsLoading } = useProducts();
 
   // Funciones de utilidad
   const formatCurrency = (amount) => {
@@ -805,6 +809,13 @@ const CashRegister = () => {
             setShowOrderDetailModal(false);
             setSelectedOrder(null);
           }}
+          onVentaUpdated={(updatedVenta) => {
+            // Actualizar en la lista si es necesario
+            setSelectedOrder(updatedVenta);
+            // Podríamos agregar una función para refrescar la lista de pedidos aquí si fuera necesario
+          }}
+          products={products}
+          productsLoading={productsLoading}
         />
       )}
 

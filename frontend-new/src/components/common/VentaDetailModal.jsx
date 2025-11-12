@@ -1,17 +1,193 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Button, Badge } from '../ui';
 import { 
   XMarkIcon, 
   CalendarDaysIcon,
   CurrencyDollarIcon,
   UserIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  PencilIcon,
+  CheckIcon,
+  XMarkIcon as CancelIcon,
+  PlusIcon,
+  MinusIcon
 } from '@heroicons/react/24/outline';
 import { formatChileanCurrency } from '../../utils/dateUtils';
 import { printingService } from '../../services/printingService';
+import { useAuth } from '../../hooks/useAuth';
+import ordersService from '../../services/ordersService';
+import ProductModal from './ProductModal';
 
-const VentaDetailModal = ({ venta, isOpen, onClose }) => {
+const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [], productsLoading = false }) => {
+  const { user } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingData, setEditingData] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [showProductModal, setShowProductModal] = useState(false);
+
+  // Verificar si el usuario puede editar (owner o super_admin)
+  const canEdit = user && (user.role === 'owner' || user.role === 'super_admin');
+
+  // Inicializar datos de edición cuando se abra el modal en modo edición
+  useEffect(() => {
+    if (isEditing && venta) {
+      setEditingData({
+        name: venta.name || venta.buyer?.name || '',
+        phone: venta.buyer?.phone || '',
+        status: venta.status || 'Preparacion',
+        payment: venta.payment || 'Efectivo',
+        section: venta.section || 'mostrador',
+        comment: venta.comment || '',
+        deliveryCost: venta.deliveryCost || 0,
+        selectedAddress: (typeof venta.selectedAddress === 'object' && venta.selectedAddress !== null)
+          ? `${venta.selectedAddress.street || ''} ${venta.selectedAddress.number || ''}, ${venta.selectedAddress.city || ''}`.trim()
+          : venta.selectedAddress || '',
+        foods: venta.foods?.map(item => ({
+          id: item.food?._id || item.food,
+          title: typeof item.food === 'object' ? item.food.title : `Producto`,
+          quantity: item.quantity || 1,
+          comment: item.comment || '',
+          price: typeof item.food === 'object' ? item.food.price : 0
+        })) || []
+      });
+    }
+  }, [isEditing, venta]);
+
   if (!venta) return null;
+
+  // Función para iniciar la edición
+  const handleStartEdit = () => {
+    setIsEditing(true);
+  };
+
+  // Función para cancelar la edición
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingData({});
+  };
+
+  // Función para manejar cambios en los campos editables
+  const handleInputChange = (field, value) => {
+    setEditingData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Función para manejar cambios en los productos
+  const handleFoodChange = (index, field, value) => {
+    setEditingData(prev => ({
+      ...prev,
+      foods: prev.foods.map((food, i) => 
+        i === index ? { ...food, [field]: value } : food
+      )
+    }));
+  };
+
+  // Función para abrir modal de productos
+  const handleOpenProductModal = () => {
+    setShowProductModal(true);
+  };
+
+  // Función para agregar producto desde modal
+  const handleAddProductFromModal = (product) => {
+    const existingIndex = editingData.foods.findIndex(food => food.id === product.id);
+    
+    if (existingIndex >= 0) {
+      // Si ya existe, aumentar cantidad
+      handleFoodChange(existingIndex, 'quantity', editingData.foods[existingIndex].quantity + 1);
+    } else {
+      // Si no existe, agregarlo
+      setEditingData(prev => ({
+        ...prev,
+        foods: [...prev.foods, {
+          id: product.id,
+          title: product.title || product.name,
+          quantity: 1,
+          comment: '',
+          price: product.price
+        }]
+      }));
+    }
+    setShowProductModal(false);
+  };
+
+  // Función para incrementar cantidad
+  const handleIncreaseQuantity = (index) => {
+    handleFoodChange(index, 'quantity', editingData.foods[index].quantity + 1);
+  };
+
+  // Función para decrementar cantidad
+  const handleDecreaseQuantity = (index) => {
+    const currentQuantity = editingData.foods[index].quantity;
+    if (currentQuantity > 1) {
+      handleFoodChange(index, 'quantity', currentQuantity - 1);
+    }
+  };
+
+  // Función para eliminar un producto
+  const handleRemoveFood = (index) => {
+    setEditingData(prev => ({
+      ...prev,
+      foods: prev.foods.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Función para guardar los cambios
+  const handleSaveChanges = async () => {
+    if (isSaving) return;
+    
+    try {
+      setIsSaving(true);
+      
+      // Preparar los datos para actualizar
+      const updateData = {
+        buyer: {
+          name: editingData.name,
+          phone: editingData.phone
+        },
+        status: editingData.status,
+        payment: editingData.payment,
+        section: editingData.section,
+        comment: editingData.comment,
+        deliveryCost: Number(editingData.deliveryCost) || 0,
+        selectedAddress: editingData.selectedAddress,
+        foods: editingData.foods.filter(food => food.title && food.title !== '').map(food => ({
+          food: food.id || food.title, // Si no hay ID, usar el título
+          quantity: Number(food.quantity) || 1,
+          comment: food.comment || ''
+        }))
+      };
+
+      // Obtener el ID del pedido
+      const orderId = venta._id || venta.id;
+      
+      // Actualizar el pedido
+      const response = await ordersService.updateOrderWithoutPrint(orderId, updateData);
+      
+      if (response.success) {
+        setNotification('Venta actualizada exitosamente');
+        setTimeout(() => setNotification(null), 3000);
+        setIsEditing(false);
+        setEditingData({});
+        
+        // Llamar la función de callback si existe
+        if (onVentaUpdated) {
+          onVentaUpdated(response.order);
+        }
+      } else {
+        setNotification('Error al actualizar la venta: ' + (response.message || 'Error desconocido'));
+        setTimeout(() => setNotification(null), 4000);
+      }
+    } catch (error) {
+      console.error('Error al actualizar la venta:', error);
+      setNotification('Error al actualizar la venta: ' + error.message);
+      setTimeout(() => setNotification(null), 4000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Función para manejar la impresión del ticket de cliente
   const handlePrintCustomerTicket = async () => {
@@ -27,7 +203,8 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
       await printingService.printCustomerTicket(orderForPrint);
     } catch (error) {
       console.error('Error al imprimir ticket:', error);
-      alert('Error al imprimir el ticket. Verifique que el servicio de impresión esté funcionando.');
+      setNotification('Error al imprimir el ticket. Verifique que el servicio de impresión esté funcionando.');
+      setTimeout(() => setNotification(null), 4000);
     }
   };
 
@@ -99,11 +276,21 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
               <div className="p-2 bg-blue-100 rounded-lg">
                 <UserIcon className="h-5 w-5 text-blue-600" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium text-gray-600">Cliente</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {venta.name || venta.buyer?.name || 'Cliente anónimo'}
-                </p>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editingData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nombre del cliente"
+                  />
+                ) : (
+                  <p className="text-lg font-semibold text-gray-900">
+                    {venta.name || venta.buyer?.name || 'Cliente anónimo'}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -123,27 +310,48 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
               <div className="p-2 bg-indigo-100 rounded-lg">
                 <ClipboardDocumentListIcon className="h-5 w-5 text-indigo-600" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium text-gray-600">Sección</p>
-                <p className="text-lg font-semibold text-gray-900 capitalize">
-                  {venta.section || 'No especificada'}
-                </p>
+                {isEditing ? (
+                  <select
+                    value={editingData.section}
+                    onChange={(e) => handleInputChange('section', e.target.value)}
+                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="mostrador">Mostrador</option>
+                    <option value="delivery">Delivery</option>
+                  </select>
+                ) : (
+                  <p className="text-lg font-semibold text-gray-900 capitalize">
+                    {venta.section || 'No especificada'}
+                  </p>
+                )}
               </div>
             </div>
 
-            {venta.section === 'delivery' && venta.selectedAddress && (
+            {(venta.section === 'delivery' || (isEditing && editingData.section === 'delivery')) && (
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-red-100 rounded-lg">
                   <ClipboardDocumentListIcon className="h-5 w-5 text-red-600" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600">Dirección de entrega</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {typeof venta.selectedAddress === 'object' ? 
-                      `${venta.selectedAddress.street || ''} ${venta.selectedAddress.number || ''}, ${venta.selectedAddress.city || ''}`.trim() :
-                      venta.selectedAddress
-                    }
-                  </p>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editingData.selectedAddress}
+                      onChange={(e) => handleInputChange('selectedAddress', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Dirección de entrega"
+                    />
+                  ) : (
+                    <p className="text-lg font-semibold text-gray-900">
+                      {typeof venta.selectedAddress === 'object' ? 
+                        `${venta.selectedAddress.street || ''} ${venta.selectedAddress.number || ''}, ${venta.selectedAddress.city || ''}`.trim() :
+                        venta.selectedAddress
+                      }
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -154,10 +362,27 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
               <div className="p-2 bg-purple-100 rounded-lg">
                 <ClipboardDocumentListIcon className="h-5 w-5 text-purple-600" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium text-gray-600">Estado</p>
                 <div className="mt-1">
-                  {getStatusBadge(venta.status)}
+                  {isEditing ? (
+                    <select
+                      value={editingData.status}
+                      onChange={(e) => handleInputChange('status', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Preparacion">Preparación</option>
+                      {editingData.section === 'delivery' && (
+                        <option value="Enviado">Enviado</option>
+                      )}
+                      {editingData.section === 'mostrador' && (
+                        <option value="Completado">Completado</option>
+                      )}
+                      <option value="Cancelado">Cancelado</option>
+                    </select>
+                  ) : (
+                    getStatusBadge(venta.status)
+                  )}
                 </div>
               </div>
             </div>
@@ -166,38 +391,71 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
               <div className="p-2 bg-amber-100 rounded-lg">
                 <CurrencyDollarIcon className="h-5 w-5 text-amber-600" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium text-gray-600">Método de Pago</p>
                 <div className="mt-1">
-                  {getPaymentMethodBadge(venta.payment)}
+                  {isEditing ? (
+                    <select
+                      value={editingData.payment}
+                      onChange={(e) => handleInputChange('payment', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Efectivo">Efectivo</option>
+                      <option value="Debito">Débito</option>
+                      <option value="Transferencia">Transferencia</option>
+                    </select>
+                  ) : (
+                    getPaymentMethodBadge(venta.payment)
+                  )}
                 </div>
               </div>
             </div>
 
-            {venta.section === 'delivery' && venta.deliveryCost > 0 && (
+            {(venta.section === 'delivery' || (isEditing && editingData.section === 'delivery')) && (
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-orange-100 rounded-lg">
                   <CurrencyDollarIcon className="h-5 w-5 text-orange-600" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600">Costo de Delivery</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {formatCurrency(venta.deliveryCost)}
-                  </p>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      min="0"
+                      value={editingData.deliveryCost}
+                      onChange={(e) => handleInputChange('deliveryCost', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0"
+                    />
+                  ) : (
+                    <p className="text-lg font-semibold text-gray-900">
+                      {formatCurrency(venta.deliveryCost)}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
 
-            {venta.section === 'delivery' && venta.buyer?.phone && (
+            {((venta.section === 'delivery' && venta.buyer?.phone) || (isEditing && editingData.section === 'delivery')) && (
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-teal-100 rounded-lg">
                   <UserIcon className="h-5 w-5 text-teal-600" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600">Teléfono de contacto</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {venta.buyer.phone}
-                  </p>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editingData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Teléfono del cliente"
+                    />
+                  ) : (
+                    <p className="text-lg font-semibold text-gray-900">
+                      {venta.buyer.phone}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -206,17 +464,30 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
 
         {/* Productos del pedido */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Productos ({venta.foods?.length || 0})
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Productos ({isEditing ? editingData.foods?.length || 0 : venta.foods?.length || 0})
+            </h3>
+            {isEditing && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenProductModal}
+                className="flex items-center gap-2"
+              >
+                <PlusIcon className="h-4 w-4" />
+                Agregar producto
+              </Button>
+            )}
+          </div>
           
-          {venta.foods && venta.foods.length > 0 ? (
+          {(isEditing ? editingData.foods : venta.foods) && (isEditing ? editingData.foods : venta.foods).length > 0 ? (
             <div className="space-y-3">
-              {venta.foods.map((item, index) => {
+              {(isEditing ? editingData.foods : venta.foods).map((item, index) => {
                 // Calcular precio unitario estimado desde el total del pedido
-                const estimatedUnitPrice = venta.total && venta.foods.length === 1 ? 
+                const estimatedUnitPrice = !isEditing && venta.total && venta.foods.length === 1 ? 
                   venta.total / item.quantity : 
-                  venta.total / venta.foods.reduce((sum, food) => sum + food.quantity, 0);
+                  !isEditing && venta.total ? venta.total / venta.foods.reduce((sum, food) => sum + food.quantity, 0) : 0;
                 
                 return (
                   <div 
@@ -226,14 +497,35 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <span className="text-lg font-medium text-gray-900">
-                          {typeof item.food === 'object' && item.food?.title ? 
+                          {isEditing ? item.title : (typeof item.food === 'object' && item.food?.title ? 
                             item.food.title : 
                             `Producto ${index + 1}`
-                          }
+                          )}
                         </span>
-                        <span className="text-sm text-gray-500">
-                          x{item.quantity}
-                        </span>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1">
+                            <button
+                              onClick={() => handleDecreaseQuantity(index)}
+                              className="p-1 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              disabled={item.quantity <= 1}
+                            >
+                              <MinusIcon className="h-4 w-4" />
+                            </button>
+                            <span className="text-sm font-medium text-gray-900 min-w-[2rem] text-center">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() => handleIncreaseQuantity(index)}
+                              className="p-1 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                            >
+                              <PlusIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500">
+                            x{item.quantity}
+                          </span>
+                        )}
                       </div>
                       {item.comment && (
                         <p className="text-sm text-gray-600 mt-1">
@@ -241,22 +533,44 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
                         </p>
                       )}
                     </div>
-                    <div className="text-right">
-                      {typeof item.food === 'object' && item.food?.price ? (
-                        <>
-                          <p className="text-lg font-semibold text-gray-900">
-                            {formatCurrency(item.food.price * item.quantity)}
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-lg font-semibold text-gray-900">
-                            {formatCurrency(estimatedUnitPrice * item.quantity)}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {formatCurrency(estimatedUnitPrice)} c/u (estimado)
-                          </p>
-                        </>
+                    <div className="text-right flex items-center gap-3">
+                      <div>
+                        {isEditing ? (
+                          <>
+                            <p className="text-lg font-semibold text-gray-900">
+                              {formatCurrency((item.price || 0) * (item.quantity || 1))}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {formatCurrency(item.price || 0)} c/u
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            {typeof item.food === 'object' && item.food?.price ? (
+                              <p className="text-lg font-semibold text-gray-900">
+                                {formatCurrency(item.food.price * item.quantity)}
+                              </p>
+                            ) : (
+                              <>
+                                <p className="text-lg font-semibold text-gray-900">
+                                  {formatCurrency(estimatedUnitPrice * item.quantity)}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  {formatCurrency(estimatedUnitPrice)} c/u (estimado)
+                                </p>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {isEditing && (
+                        <button
+                          onClick={() => handleRemoveFood(index)}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Eliminar producto"
+                        >
+                          <XMarkIcon className="h-5 w-5" />
+                        </button>
                       )}
                     </div>
                   </div>
@@ -267,18 +581,38 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
             <div className="text-center py-8">
               <ClipboardDocumentListIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-600">No hay productos en este pedido</p>
+              {isEditing && (
+                <Button
+                  variant="outline"
+                  onClick={handleOpenProductModal}
+                  className="mt-4 flex items-center gap-2 mx-auto"
+                >
+                  <PlusIcon className="h-4 w-4" />
+                  Agregar primer producto
+                </Button>
+              )}
             </div>
           )}
         </div>
 
         {/* Comentarios adicionales */}
-        {venta.comment && (
+        {(venta.comment || isEditing) && (
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-3">
               Comentarios del pedido
             </h3>
             <div className="p-4 bg-blue-50 rounded-lg">
-              <p className="text-gray-700">{venta.comment}</p>
+              {isEditing ? (
+                <textarea
+                  value={editingData.comment}
+                  onChange={(e) => handleInputChange('comment', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  rows="3"
+                  placeholder="Comentarios del pedido (opcional)"
+                />
+              ) : (
+                <p className="text-gray-700">{venta.comment}</p>
+              )}
             </div>
           </div>
         )}
@@ -337,21 +671,83 @@ const VentaDetailModal = ({ venta, isOpen, onClose }) => {
         </div>
 
         {/* Botones de acción */}
-        <div className="flex justify-end gap-3 mt-6">
-          <Button
-            variant="outline"
-            onClick={onClose}
-          >
-            Cerrar
-          </Button>
-          
-          <Button
-            variant="primary"
-            onClick={handlePrintCustomerTicket}
-          >
-            Imprimir Ticket
-          </Button>
+        <div className="flex justify-between items-center mt-6">
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={onClose}
+            >
+              Cerrar
+            </Button>
+            
+            <Button
+              variant="primary"
+              onClick={handlePrintCustomerTicket}
+            >
+              Imprimir Ticket
+            </Button>
+          </div>
+
+          {/* Botones de edición solo para owner y super_admin */}
+          {canEdit && (
+            <div className="flex gap-3">
+              {!isEditing ? (
+                <Button
+                  variant="outline"
+                  onClick={handleStartEdit}
+                  className="flex items-center gap-2"
+                >
+                  <PencilIcon className="h-4 w-4" />
+                  Editar
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelEdit}
+                    className="flex items-center gap-2"
+                    disabled={isSaving}
+                  >
+                    <CancelIcon className="h-4 w-4" />
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleSaveChanges}
+                    className="flex items-center gap-2"
+                    disabled={isSaving}
+                  >
+                    <CheckIcon className="h-4 w-4" />
+                    {isSaving ? 'Guardando...' : 'Guardar'}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
         </div>
+
+        {/* Notificación toast */}
+        {notification && (
+          <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {notification}
+            </div>
+          </div>
+        )}
+
+        {/* Modal de productos */}
+        {isEditing && (
+          <ProductModal
+            isOpen={showProductModal}
+            onClose={() => setShowProductModal(false)}
+            products={products}
+            onAddToCart={handleAddProductFromModal}
+            isLoading={productsLoading}
+          />
+        )}
       </div>
     </Modal>
   );
