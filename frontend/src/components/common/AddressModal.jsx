@@ -6,7 +6,8 @@ const AddressModal = ({
   onClose, 
   onSave, 
   address = null, 
-  isLoading = false 
+  isLoading = false,
+  inputRef = null
 }) => {
   const [addressText, setAddressText] = useState(address?.address || '');
   const [deliveryCost, setDeliveryCost] = useState(address?.deliveryCost || 0);
@@ -97,6 +98,7 @@ const AddressModal = ({
                   }`}
                   rows="3"
                   placeholder="Ingrese la dirección completa de entrega..."
+                  ref={inputRef}
                 />
                 {errors.address && (
                   <p className="mt-1 text-sm text-red-600">{errors.address}</p>

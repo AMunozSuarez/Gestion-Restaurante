@@ -41,6 +41,9 @@ const Delivery = () => {
   const [commentingProduct, setCommentingProduct] = React.useState(null);
   const [productComment, setProductComment] = React.useState('');
   const [isCreatingOrderRequest, setIsCreatingOrderRequest] = React.useState(false);
+  
+  // Ref para el input de teléfono del cliente
+  const customerPhoneInputRef = React.useRef(null);
 
   // Estados para editar pedido (incluye campos específicos de delivery)
   const [isEditingOrder, setIsEditingOrder] = React.useState(false);
@@ -77,6 +80,57 @@ const Delivery = () => {
   const [editDeliveryCost, setEditDeliveryCost] = React.useState(0);
   const [showEditCustomerDropdown, setShowEditCustomerDropdown] = React.useState(false);
   const [editSelectedCustomer, setEditSelectedCustomer] = React.useState(null);
+
+  // Ref para textarea de comentario de producto (crear y editar)
+  const productCommentInputRef = React.useRef(null);
+  const editProductCommentInputRef = React.useRef(null);
+  
+  // Refs para las modales de direcciones
+  const addressModalInputRef = React.useRef(null);
+  const editAddressModalInputRef = React.useRef(null);
+
+  // Focus automático al crear pedido - focus en teléfono
+  React.useEffect(() => {
+    if (isCreatingOrder && customerPhoneInputRef.current) {
+      customerPhoneInputRef.current.focus();
+    }
+  }, [isCreatingOrder]);
+
+  // Focus automático al abrir modal de comentario de producto
+  React.useEffect(() => {
+    if (commentingProduct && productCommentInputRef.current) {
+      const textarea = productCommentInputRef.current;
+      textarea.focus();
+      // Posicionar cursor al final del texto
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+  }, [commentingProduct]);
+
+  React.useEffect(() => {
+    if (editCommentingProduct && editProductCommentInputRef.current) {
+      const textarea = editProductCommentInputRef.current;
+      textarea.focus();
+      // Posicionar cursor al final del texto
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+  }, [editCommentingProduct]);
+
+  // Focus automático al abrir modal de dirección (nueva)
+  React.useEffect(() => {
+    if (showAddressModal && addressModalInputRef.current) {
+      addressModalInputRef.current.focus();
+    }
+  }, [showAddressModal]);
+
+  // Focus automático al abrir modal de dirección (editar) - cursor al final
+  React.useEffect(() => {
+    if (showEditAddressModal && editAddressModalInputRef.current) {
+      const textarea = editAddressModalInputRef.current;
+      textarea.focus();
+      // Posicionar cursor al final del texto
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+  }, [showEditAddressModal]);
 
   // Estados para ver detalle de pedidos completados/cancelados
   const [isViewingCompletedOrder, setIsViewingCompletedOrder] = React.useState(false);
@@ -1429,6 +1483,7 @@ const Delivery = () => {
                         value={customerPhone}
                         onChange={selectedCustomer ? undefined : handlePhoneChange}
                         readOnly={!!selectedCustomer}
+                        ref={customerPhoneInputRef}
                         onFocus={() => {
                           if (!selectedCustomer && customerSearchResults.length > 0) {
                             setShowCustomerDropdown(true);
@@ -2624,6 +2679,7 @@ const Delivery = () => {
                     className="input-blue"
                     rows="3"
                     placeholder="Ej: Sin cebolla, extra queso, término 3/4..."
+                    ref={productCommentInputRef}
                   />
                 </div>
               </div>
@@ -2676,6 +2732,7 @@ const Delivery = () => {
                     className="input-blue"
                     rows="3"
                     placeholder="Ej: Sin cebolla, extra queso, término 3/4..."
+                    ref={editProductCommentInputRef}
                   />
                 </div>
               </div>
@@ -2711,6 +2768,7 @@ const Delivery = () => {
           onSave={handleSaveAddress}
           address={currentAddress}
           customer={foundCustomer}
+          inputRef={addressModalInputRef}
         />
       )}
 
@@ -2725,6 +2783,7 @@ const Delivery = () => {
           onSave={handleEditSaveAddress}
           address={editCurrentAddress}
           customer={editFoundCustomer}
+          inputRef={editAddressModalInputRef}
         />
       )}
     </>

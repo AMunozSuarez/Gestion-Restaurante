@@ -35,8 +35,7 @@ const Mostrador = () => {
   const [commentingProduct, setCommentingProduct] = React.useState(null);
   const [productComment, setProductComment] = React.useState('');
   const [isCreatingOrderRequest, setIsCreatingOrderRequest] = React.useState(false);
-
-  // Estados para editar pedido
+  // Estados para editar pedido (declarar antes de los useEffect que los usan)
   const [isEditingOrder, setIsEditingOrder] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState(null);
   const [editCustomerName, setEditCustomerName] = React.useState('');
@@ -47,6 +46,38 @@ const Mostrador = () => {
   const [editCommentingProduct, setEditCommentingProduct] = React.useState(null);
   const [editProductComment, setEditProductComment] = React.useState('');
   const [isUpdatingOrderRequest, setIsUpdatingOrderRequest] = React.useState(false);
+
+  // Ref para el input de nombre del cliente
+  const customerNameInputRef = React.useRef(null);
+  // Hacer focus al input de nombre del cliente al crear pedido
+  React.useEffect(() => {
+    if (isCreatingOrder && customerNameInputRef.current) {
+      customerNameInputRef.current.focus();
+    }
+  }, [isCreatingOrder]);
+
+  // Ref para textarea de comentario de producto (crear y editar)
+  const productCommentInputRef = React.useRef(null);
+  const editProductCommentInputRef = React.useRef(null);
+
+  // Focus automático al abrir modal de comentario de producto
+  React.useEffect(() => {
+    if (commentingProduct && productCommentInputRef.current) {
+      const textarea = productCommentInputRef.current;
+      textarea.focus();
+      // Posicionar cursor al final del texto
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+  }, [commentingProduct]);
+
+  React.useEffect(() => {
+    if (editCommentingProduct && editProductCommentInputRef.current) {
+      const textarea = editProductCommentInputRef.current;
+      textarea.focus();
+      // Posicionar cursor al final del texto
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+  }, [editCommentingProduct]);
 
   // Estados para ver detalle de pedidos completados/cancelados
   const [isViewingCompletedOrder, setIsViewingCompletedOrder] = React.useState(false);
@@ -894,6 +925,7 @@ const Mostrador = () => {
                       placeholder="Ingrese el nombre del cliente"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
+                      ref={customerNameInputRef}
                     />
                   </div>
                   
@@ -1766,6 +1798,7 @@ const Mostrador = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     rows="3"
                     placeholder="Ej: Sin cebolla, extra queso, término 3/4..."
+                    ref={productCommentInputRef}
                   />
                 </div>
               </div>
@@ -1818,6 +1851,7 @@ const Mostrador = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     rows="3"
                     placeholder="Ej: Sin cebolla, extra queso, término 3/4..."
+                    ref={editProductCommentInputRef}
                   />
                 </div>
               </div>
