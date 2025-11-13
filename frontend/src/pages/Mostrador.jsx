@@ -482,13 +482,6 @@ const Mostrador = () => {
     try {
       setIsCreatingOrderRequest(true);
       
-      // Validar que todos los métodos de pago tengan método seleccionado
-      const invalidPayments = paymentMethods.filter(p => !p.method || p.method.trim() === '' || p.method === 'Método' || p.method === 'Pendiente');
-      if (invalidPayments.length > 0) {
-        alert('⚠️ Todos los métodos de pago deben tener un método seleccionado. Por favor, complete todos los campos o elimine los métodos vacíos.');
-        return;
-      }
-      
       // Validar métodos de pago (opcional)
       const validPayments = paymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Método' && p.method !== 'Pendiente');
       

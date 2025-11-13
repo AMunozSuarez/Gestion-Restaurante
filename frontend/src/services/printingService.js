@@ -314,7 +314,15 @@ Cliente: ${customer}`;
     }
 
     // Agregar método de pago
-    const paymentMethod = order.payment_method || order.paymentMethod || 'No especificado';
+    // Usar solo paymentMethods
+    let paymentMethod = 'No especificado';
+    if (Array.isArray(order.paymentMethods) && order.paymentMethods.length > 0) {
+      paymentMethod = order.paymentMethods.map(pm => {
+        const method = pm.method || pm.name || 'Método';
+        const amount = pm.amount ? `(${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(pm.amount)})` : '';
+        return `${method} ${amount}`.trim();
+      }).join(' + ');
+    }
     content += `\nMétodo de pago: ${paymentMethod}`;
 
     // Agregar comentarios generales si existen
