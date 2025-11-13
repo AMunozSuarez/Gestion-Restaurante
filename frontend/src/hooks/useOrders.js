@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import ordersService from '../services/ordersService';
 
 // Hook para obtener pedidos
-export const useOrders = (filters = {}) => {
+export const useOrders = (filters = {}, callbacks = {}) => {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -59,15 +59,24 @@ export const useOrders = (filters = {}) => {
           );
           return filteredOrders;
         });
+        // Ejecutar callback de éxito después de remover el pedido
+        if (callbacks.onOrderRemoved) {
+          callbacks.onOrderRemoved({ id: orderId, status });
+        }
       } else {
+        const updatedOrder = { id: orderId, status, updatedAt: new Date().toISOString() };
         // Actualizar el pedido en el estado local
         setOrders(prevOrders => 
           prevOrders.map(order => 
             (order._id || order.id) === orderId 
-              ? { ...order, status, updatedAt: new Date().toISOString() }
+              ? { ...order, ...updatedOrder }
               : order
           )
         );
+        // Ejecutar callback de éxito después de actualizar el pedido
+        if (callbacks.onOrderUpdated) {
+          callbacks.onOrderUpdated(updatedOrder);
+        }
       }
       
       return { success: true };
@@ -160,12 +169,20 @@ export const useOrders = (filters = {}) => {
               (order._id || order.id) !== orderId
             )
           );
+          // Ejecutar callback de éxito después de remover el pedido
+          if (callbacks.onOrderRemoved) {
+            callbacks.onOrderRemoved(updatedOrder);
+          }
         } else {
           setOrders(prevOrders => 
             prevOrders.map(order => 
               (order._id || order.id) === orderId ? updatedOrder : order
             )
           );
+          // Ejecutar callback de éxito después de actualizar el pedido
+          if (callbacks.onOrderUpdated) {
+            callbacks.onOrderUpdated(updatedOrder);
+          }
         }
         
         return { success: true, order: updatedOrder };

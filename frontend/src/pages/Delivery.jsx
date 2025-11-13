@@ -115,6 +115,21 @@ const Delivery = () => {
     clearResults: clearCustomerResults 
   } = useCustomerSearch();
   
+  // Callbacks para manejar la limpieza del formulario cuando se actualiza un pedido
+  const orderCallbacks = {
+    onOrderRemoved: (order) => {
+      // Limpiar formulario cuando un pedido se remueve de la lista de preparación
+      setIsEditingOrder(false);
+      setSelectedOrder(null);
+      clearEditForm();
+      refetchCompletedOrders();
+    },
+    onOrderUpdated: (order) => {
+      // Callback para cuando se actualiza un pedido pero no se remueve
+      console.log('Pedido actualizado:', order);
+    }
+  };
+
   // Hooks para obtener datos reales
   const { 
     orders, 
@@ -128,7 +143,7 @@ const Delivery = () => {
   } = useOrders({ 
     section: 'delivery', 
     status: 'Preparacion' 
-  });
+  }, orderCallbacks);
 
   const { 
     orders: completedOrders, 
@@ -1084,6 +1099,64 @@ const Delivery = () => {
     }
   };
 
+  // Función para manejar caja registradora y notificaciones al completar pedido
+  const handleCompleteOrderWithCash = async (orderId, orderData, successMessage = 'Pedido enviado exitosamente') => {
+    const response = await updateOrderWithoutPrint(orderId, orderData);
+    
+    if (response.success) {
+      // Agregar pedido a la caja registradora si hay una caja abierta
+      if (isCashOpen) {
+        try {
+          const total = calculateEditTotal();
+          const validEditPayments = editPaymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Método' && p.method !== 'Pendiente');
+          const cashOrderData = {
+            orderId: orderId,
+            total: total,
+            paymentMethod: validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple',
+            items: editCart.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              comment: item.comment || ''
+            }))
+          };
+          
+          const cashResult = await addOrderToCashRegister(cashOrderData);
+          if (cashResult.success) {
+            console.log('Pedido agregado a la caja registradora exitosamente');
+          } else {
+            console.error('Error al agregar pedido a la caja:', cashResult.error);
+            setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
+            setTimeout(() => setAddedProductNotification(null), 4000);
+          }
+        } catch (error) {
+          console.error('Error al agregar pedido a la caja registradora:', error);
+          setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
+          setTimeout(() => setAddedProductNotification(null), 4000);
+        }
+      }
+      
+      // Mostrar notificación de éxito
+      setAddedProductNotification(successMessage);
+      setTimeout(() => setAddedProductNotification(null), 2000);
+    }
+    
+    return response;
+  };
+
+  // Función para manejar notificaciones al cancelar pedido
+  const handleCancelOrderWithNotification = async (orderId) => {
+    const result = await updateOrderStatus(orderId, 'Cancelado');
+    
+    if (result.success) {
+      // Mostrar notificación de éxito
+      setAddedProductNotification('Pedido cancelado exitosamente');
+      setTimeout(() => setAddedProductNotification(null), 2000);
+    }
+    
+    return result;
+  };
+
   const handleCompleteOrder = async (orderId) => {
     if (!orderId) {
       alert('Error: ID del pedido no válido');
@@ -1182,58 +1255,14 @@ const Delivery = () => {
         }
       }
 
-      // Actualizar el pedido con estado completado en una sola operación
+      // Actualizar el pedido con estado completado usando la función wrapper
       const orderId = selectedOrder._id || selectedOrder.id;
-      const response = await updateOrderWithoutPrint(orderId, orderData);
+      const response = await handleCompleteOrderWithCash(orderId, orderData, 'Pedido enviado exitosamente');
       
       if (!response.success) {
         alert('Error al enviar el pedido: ' + (response.error || 'Error desconocido'));
         return;
       }
-
-      
-      // Agregar pedido a la caja registradora si hay una caja abierta
-      if (isCashOpen) {
-        try {
-          const total = calculateEditTotal();
-          const orderData = {
-            orderId: orderId,
-            total: total,
-            paymentMethod: validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple',
-            items: editCart.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              comment: item.comment || ''
-            }))
-          };
-          
-          const cashResult = await addOrderToCashRegister(orderData);
-          if (cashResult.success) {
-            console.log('Pedido agregado a la caja registradora exitosamente');
-          } else {
-            console.error('Error al agregar pedido a la caja:', cashResult.error);
-            setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
-            setTimeout(() => setAddedProductNotification(null), 4000);
-          }
-        } catch (error) {
-          console.error('Error al agregar pedido a la caja registradora:', error);
-          setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
-          setTimeout(() => setAddedProductNotification(null), 4000);
-        }
-      }
-      
-      // Mostrar notificación de éxito
-      setAddedProductNotification('Pedido enviado exitosamente');
-      setTimeout(() => setAddedProductNotification(null), 2000);
-      
-      // Cerrar la edición si el pedido se envió exitosamente
-      setIsEditingOrder(false);
-      setSelectedOrder(null);
-      clearEditForm();
-      
-      // Solo actualizar la lista de pedidos completados (los pedidos en preparación se actualizan automáticamente)
-      refetchCompletedOrders();
     } catch (error) {
       console.error('Error al enviar el pedido:', error);
       alert('Error al enviar el pedido: ' + error.message);
@@ -1247,21 +1276,9 @@ const Delivery = () => {
       return;
     }
     
-    const result = await updateOrderStatus(orderId, 'Cancelado');
+    const result = await handleCancelOrderWithNotification(orderId);
     if (!result.success) {
       alert('Error al cancelar el pedido: ' + result.error);
-    } else {
-      // Mostrar notificación de éxito
-      setAddedProductNotification('Pedido cancelado exitosamente');
-      setTimeout(() => setAddedProductNotification(null), 2000);
-      
-      // Cerrar la edición si el pedido se canceló exitosamente
-      setIsEditingOrder(false);
-      setSelectedOrder(null);
-      clearEditForm();
-      
-      // Solo actualizar la lista de pedidos completados (los pedidos en preparación se actualizan automáticamente)
-      refetchCompletedOrders();
     }
   };
 
