@@ -1,135 +1,128 @@
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import Header from './components/layout/Header';
-// Importar ToastContainer y los estilos CSS
-import { ToastContainer, Flip } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './hooks/useAuth';
+import Layout from './components/layout/Layout';
+import Login from './pages/Login';
+import Mostrador from './pages/Mostrador';
+import Delivery from './pages/Delivery';
+import CashRegister from './pages/CashRegister';
+import Ventas from './pages/Ventas';
+import Productos from './pages/Productos';
+import Categorias from './pages/Categorias';
+import Configuracion from './pages/Configuracion';
 
-// Páginas principales
-import Mostrador from './components/pages/mostrador/mostrador';
-import Delivery from './components/pages/delivery/delivery';
-import Login from './components/pages/login';
-
-// Páginas de detalles de pedidos
-import OrderDetails from './components/pages/mostrador/orderDetails';
-import DeliveryDetails from './components/pages/delivery/deliveryDetails';
-
-// Componentes de administración
-import Productos from './components/admin/productos'; 
-import Categorias from './components/admin/categorias';
-import CashRegister from './components/admin/cashRegister';
-import Reports from './components/admin/reports';
-import SalesList from './components/admin/salesList';
-
-// Panel de Super Administración
-import AdminPanel from './components/admin/AdminPanel';
-import ProtectedAdminRoute from './components/common/ProtectedAdminRoute';
-
-// Páginas de configuración
-import SettingsPage from './components/settings/SettingsPage';
-
-// Componentes de rutas
-import ProtectedRoute from './components/common/ProtectedRoute';
-import DefaultRoute from './components/common/DefaultRoute';
-
-// Layouts
-import MostradorLayout from './components/layout/mostradorLayout';
+// Componente para proteger rutas
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-cream-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-brown-600">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+};
 
 function App() {
   return (
-    <Router>
-      <div>
-        {/* Configuración del ToastContainer con las opciones especificadas */}
-        <ToastContainer
-          position="bottom-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-          transition={Flip}
-        />
-        
-        <Header />
+    <AuthProvider>
+      <Router>
         <Routes>
-          {/* Ruta raíz - redirige según autenticación */}
-          <Route path="/" element={<DefaultRoute />} />
-          
-          {/* Login - solo accesible si no está autenticado */}
+          {/* Ruta de login sin layout */}
           <Route path="/login" element={<Login />} />
           
-          {/* Módulo de Mostrador - Protegido */}
-          <Route path="/mostrador" element={
-            <ProtectedRoute>
-              <MostradorLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Mostrador />} />
-            <Route path=":orderNumber" element={<OrderDetails />} />
-          </Route>
+          {/* Rutas protegidas con layout */}
+          <Route
+            path="/mostrador"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Mostrador />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           
-          {/* Módulo de Delivery - Protegido */}
-          <Route path="/delivery" element={
-            <ProtectedRoute>
-              <MostradorLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Delivery />} />
-            <Route path=":orderNumber" element={<DeliveryDetails />} />
-          </Route>
+          <Route
+            path="/delivery"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Delivery />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           
-          {/* Módulo de Administración - Protegido */}
-          <Route path="/admin/productos" element={
-            <ProtectedRoute>
-              <Productos />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/categorias" element={
-            <ProtectedRoute>
-              <Categorias />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/caja" element={
-            <ProtectedRoute>
-              <CashRegister />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/sales" element={
-            <ProtectedRoute>
-              <SalesList />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/reportes" element={
-            <ProtectedRoute>
-              <Reports />
-            </ProtectedRoute>
-          } />
-
-          {/* Página de Configuración */}
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
-          } />
-
-          {/* Panel de Super Administración - Doblemente protegido */}
-          <Route path="/super-admin" element={
-            <ProtectedRoute>
-              <ProtectedAdminRoute>
-                <AdminPanel />
-              </ProtectedAdminRoute>
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/cajas"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CashRegister />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           
-          {/* Redireccionamiento por defecto */}
-          <Route path="*" element={<DefaultRoute />} />
+          <Route
+            path="/ventas"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Ventas />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/productos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Productos />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/categorias"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Categorias />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/configuracion"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Configuracion />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* Redirección por defecto */}
+          <Route path="/" element={<Navigate to="/mostrador" replace />} />
+          
+          {/* Ruta 404 */}
+          <Route path="*" element={<Navigate to="/mostrador" replace />} />
         </Routes>
-      </div>
-    </Router>
+      </Router>
+    </AuthProvider>
   );
 }
 

@@ -1,26 +1,85 @@
-import { useEffect } from 'react';
-import useAuthStore from '../store/useAuthStore';
+import { useState, useEffect, createContext, useContext } from 'react';
+import authService from '../services/authService';
 
-const useAuth = () => {
-    const { authToken, setAuthToken, clearAuthToken } = useAuthStore();
+// Crear contexto de autenticación
+const AuthContext = createContext();
 
-    // Sincronizar el estado con localStorage al cargar la aplicación
-    useEffect(() => {
-        const token = localStorage.getItem('authToken');
-        if (token) {
-            setAuthToken(token); // Actualiza el estado global con el token
+// Provider de autenticación
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Verificar autenticación al cargar la app
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        // Usar verificación local en lugar de llamada al servidor
+        if (authService.isAuthenticated()) {
+          const currentUser = authService.getCurrentUser();
+          setUser(currentUser);
+          setIsAuthenticated(true);
+        } else {
+          // Token expirado o no existe, limpiar
+          authService.logout();
+          setUser(null);
+          setIsAuthenticated(false);
         }
-    }, [setAuthToken]);
-
-    const isAuthenticated = !!authToken;
-
-    const logout = () => {
-        clearAuthToken();
-        localStorage.removeItem('authToken');
-        window.location.href = '/login'; // Redirige al login
+      } catch (error) {
+        // Token inválido, limpiar
+        authService.logout();
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    return { isAuthenticated, authToken, logout };
+    checkAuth();
+  }, []);
+
+  // Función de login
+  const login = async (credentials) => {
+    try {
+      setIsLoading(true);
+      const { token, user: userData } = await authService.login(credentials);
+      setUser(userData);
+      setIsAuthenticated(true);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Función de logout
+  const logout = () => {
+    authService.logout();
+    setUser(null);
+    setIsAuthenticated(false);
+  };
+
+  const value = {
+    user,
+    isAuthenticated,
+    isLoading,
+    login,
+    logout
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-export default useAuth;
+// Hook para usar el contexto de autenticación
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth debe ser usado dentro de AuthProvider');
+  }
+  return context;
+};

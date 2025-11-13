@@ -1,18 +1,18 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client'; // Importa desde 'react-dom/client' para React 18
-import { QueryClientProvider } from '@tanstack/react-query';
-import queryClient from './services/queryClient';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+import './styles/professional.css';
 import App from './App';
-import axios from 'axios';
+import reportWebVitals from './reportWebVitals';
 
-// Configura la URL base de Axios desde las variables de entorno
-axios.defaults.baseURL = process.env.REACT_APP_API_URL;
-
-// Crea el root para React 18
 const root = ReactDOM.createRoot(document.getElementById('root'));
-
 root.render(
-    <QueryClientProvider client={queryClient}>
-        <App />
-    </QueryClientProvider>
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
 );
+
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
+// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+reportWebVitals();
