@@ -36,9 +36,10 @@ export const ordersService = {
   createOrder: async (orderData) => {
     try {
       const response = await api.post('/order/create', orderData);
-      
-      // Intentar imprimir comanda automáticamente si hay impresora predeterminada
-      if (response.data && response.data.order) {
+
+      // Solo imprimir si hay productos en el carrito
+      const hasProducts = Array.isArray(orderData.foods) && orderData.foods.length > 0;
+      if (response.data && response.data.order && hasProducts) {
         try {
           const defaultPrinter = printingService.getDefaultPrinter();
           if (defaultPrinter) {
@@ -50,7 +51,7 @@ export const ordersService = {
           // Solo logueamos el error de impresión
         }
       }
-      
+
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al crear pedido');
