@@ -10,6 +10,16 @@ import { formatChileanCurrency } from '../utils/dateUtils';
 import printingService from '../services/printingService';
 
 const Mostrador = () => {
+    // Estado para forzar actualización de tiempo cada minuto
+    const [now, setNow] = React.useState(Date.now());
+
+    // Efecto para actualizar el estado 'now' cada minuto
+    React.useEffect(() => {
+      const interval = setInterval(() => {
+        setNow(Date.now());
+      }, 60000); // 1 minuto
+      return () => clearInterval(interval);
+    }, []);
   // Estado para crear pedido
   const [isCreatingOrder, setIsCreatingOrder] = React.useState(false);
   const [showCashAlert, setShowCashAlert] = React.useState(false);
@@ -1140,7 +1150,7 @@ const Mostrador = () => {
                       </div>
                       <div className="text-center">
                         <span className="text-orange-500 font-medium text-xs">
-                          {Math.max(0, Math.floor((new Date() - new Date(order.createdAt)) / 60000))} min
+                          {Math.max(0, Math.floor((now - new Date(order.createdAt)) / 60000))} min
                         </span>
                       </div>
                       <div className="text-center text-gray-800 font-medium text-sm truncate">

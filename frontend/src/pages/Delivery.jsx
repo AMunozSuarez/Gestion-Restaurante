@@ -14,6 +14,16 @@ import printingService from '../services/printingService';
 import '../styles/professional.css';
 
 const Delivery = () => {
+    // Estado para forzar actualización de tiempo cada minuto
+    const [now, setNow] = React.useState(Date.now());
+
+    // Efecto para actualizar el estado 'now' cada minuto
+    React.useEffect(() => {
+      const interval = setInterval(() => {
+        setNow(Date.now());
+      }, 60000); // 1 minuto
+      return () => clearInterval(interval);
+    }, []);
   // Estado para crear pedido
   const [isCreatingOrder, setIsCreatingOrder] = React.useState(false);
   const [showCashAlert, setShowCashAlert] = React.useState(false);
@@ -1809,7 +1819,7 @@ const Delivery = () => {
                       </div>
                       <div className="text-center">
                         <span className="text-blue-500 font-medium text-xs">
-                          {Math.max(0, Math.floor((new Date() - new Date(order.createdAt)) / 60000))} min
+                          {Math.max(0, Math.floor((now - new Date(order.createdAt)) / 60000))} min
                         </span>
                       </div>
                       <div className="text-center text-blue-body font-medium text-sm truncate">
