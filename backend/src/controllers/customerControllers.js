@@ -12,13 +12,16 @@ const searchCustomersController = async (req, res) => {
             });
         }
 
+        // Escapar caracteres especiales de regex para evitar errores con números que empiezan con +
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
         // Buscar clientes cuyo nombre o teléfono coincida parcialmente con el término de búsqueda
         // y que pertenezcan al restaurante del usuario autenticado
         const customers = await Customer.find({
             restaurant: req.user.restaurant,
             $or: [
-                { name: { $regex: query, $options: 'i' } }, // Búsqueda insensible a mayúsculas/minúsculas
-                { phone: { $regex: query, $options: 'i' } },
+                { name: { $regex: escapedQuery, $options: 'i' } }, // Búsqueda insensible a mayúsculas/minúsculas
+                { phone: { $regex: escapedQuery, $options: 'i' } },
             ],
         });
 
