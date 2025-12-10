@@ -58,6 +58,8 @@ const Delivery = () => {
   const [editCommentingProduct, setEditCommentingProduct] = React.useState(null);
   const [editProductComment, setEditProductComment] = React.useState('');
   const [isUpdatingOrderRequest, setIsUpdatingOrderRequest] = React.useState(false);
+  const [isCompletingOrder, setIsCompletingOrder] = React.useState(false);
+  const [isCancelingOrder, setIsCancelingOrder] = React.useState(false);
 
   // Estados para modal de direcciones
   const [showAddressModal, setShowAddressModal] = React.useState(false);
@@ -750,6 +752,8 @@ const Delivery = () => {
     setEditCommentingProduct(null);
     setEditProductComment('');
     setIsUpdatingOrderRequest(false);
+    setIsCompletingOrder(false);
+    setIsCancelingOrder(false);
     setEditFoundCustomer(null);
     setEditCustomerAddresses([]);
     setEditDeliveryCost(0);
@@ -1212,8 +1216,8 @@ const Delivery = () => {
   };
 
   const handleCompleteOrder = async (orderId) => {
-    if (!orderId) {
-      alert('Error: ID del pedido no válido');
+    if (isCompletingOrder || !orderId) {
+      if (!orderId) alert('Error: ID del pedido no válido');
       return;
     }
     
@@ -1285,6 +1289,7 @@ const Delivery = () => {
     };
 
     try {
+      setIsCompletingOrder(true);
       // Primero, intentar guardar/actualizar el cliente si es necesario
       if (editSelectedCustomer) {
         try {
@@ -1309,30 +1314,40 @@ const Delivery = () => {
         }
       }
 
-      // Actualizar el pedido con estado completado usando la función wrapper
-      const orderId = selectedOrder._id || selectedOrder.id;
-      const response = await handleCompleteOrderWithCash(orderId, orderData, 'Pedido enviado exitosamente');
-      
-      if (!response.success) {
-        alert('Error al enviar el pedido: ' + (response.error || 'Error desconocido'));
-        return;
-      }
+        // Actualizar el pedido con estado completado usando la función wrapper
+        const orderId = selectedOrder._id || selectedOrder.id;
+        const response = await handleCompleteOrderWithCash(orderId, orderData, 'Pedido enviado exitosamente');
+        
+        if (!response.success) {
+          alert('Error al enviar el pedido: ' + (response.error || 'Error desconocido'));
+          return;
+        }
     } catch (error) {
       console.error('Error al enviar el pedido:', error);
       alert('Error al enviar el pedido: ' + error.message);
+    } finally {
+      setIsCompletingOrder(false);
     }
   };
 
   const handleCancelOrder = async (orderId) => {
     console.log('Cancelando pedido con ID:', orderId); // Debug log
-    if (!orderId) {
-      alert('Error: ID del pedido no válido');
+    if (isCancelingOrder || !orderId) {
+      if (!orderId) alert('Error: ID del pedido no válido');
       return;
     }
     
-    const result = await handleCancelOrderWithNotification(orderId);
-    if (!result.success) {
-      alert('Error al cancelar el pedido: ' + result.error);
+    try {
+      setIsCancelingOrder(true);
+      const result = await handleCancelOrderWithNotification(orderId);
+      if (!result.success) {
+        alert('Error al cancelar el pedido: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error al cancelar el pedido:', error);
+      alert('Error al cancelar el pedido: ' + error.message);
+    } finally {
+      setIsCancelingOrder(false);
     }
   };
 
@@ -2405,16 +2420,40 @@ const Delivery = () => {
                     
                     <div className="flex gap-2">
                       <button 
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded transition-colors text-sm"
+                        className={`flex-1 py-2 px-4 rounded transition-colors text-sm ${
+                          isCompletingOrder || isUpdatingOrderRequest
+                            ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                            : 'bg-green-600 hover:bg-green-700 text-white'
+                        }`}
+                        disabled={isCompletingOrder || isUpdatingOrderRequest}
                         onClick={() => handleCompleteOrder(selectedOrder._id || selectedOrder.id)}
                       >
-                        Enviar
+                        {isCompletingOrder ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                            Enviando...
+                          </div>
+                        ) : (
+                          'Enviar'
+                        )}
                       </button>
                       <button 
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded transition-colors text-sm"
+                        className={`flex-1 py-2 px-4 rounded transition-colors text-sm ${
+                          isCancelingOrder || isUpdatingOrderRequest
+                            ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                            : 'bg-red-600 hover:bg-red-700 text-white'
+                        }`}
+                        disabled={isCancelingOrder || isUpdatingOrderRequest}
                         onClick={() => handleCancelOrder(selectedOrder._id || selectedOrder.id)}
                       >
-                        Cancelar
+                        {isCancelingOrder ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                            Cancelando...
+                          </div>
+                        ) : (
+                          'Cancelar'
+                        )}
                       </button>
                     </div>
                   </div>

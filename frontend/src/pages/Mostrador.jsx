@@ -46,6 +46,8 @@ const Mostrador = () => {
   const [editCommentingProduct, setEditCommentingProduct] = React.useState(null);
   const [editProductComment, setEditProductComment] = React.useState('');
   const [isUpdatingOrderRequest, setIsUpdatingOrderRequest] = React.useState(false);
+  const [isCompletingOrder, setIsCompletingOrder] = React.useState(false);
+  const [isCancelingOrder, setIsCancelingOrder] = React.useState(false);
 
   // Ref para el input de nombre del cliente
   const customerNameInputRef = React.useRef(null);
@@ -420,6 +422,8 @@ const Mostrador = () => {
     setEditCommentingProduct(null);
     setEditProductComment('');
     setIsUpdatingOrderRequest(false);
+    setIsCompletingOrder(false);
+    setIsCancelingOrder(false);
   };
 
   const handleCancelNewOrder = () => {
@@ -727,10 +731,13 @@ const Mostrador = () => {
   };
 
   const handleCompleteOrder = async (orderId) => {
-    if (!orderId) {
-      alert('Error: ID del pedido no válido');
+    if (isCompletingOrder || !orderId) {
+      if (!orderId) alert('Error: ID del pedido no válido');
       return;
     }
+    
+    try {
+      setIsCompletingOrder(true);
     
     // Validaciones simples
     if (!editCart || editCart.length === 0) {
@@ -778,7 +785,6 @@ const Mostrador = () => {
       comment: editComments
     };
 
-    try {
       // Actualizar el pedido con estado completado usando la función wrapper
       const orderId = selectedOrder._id || selectedOrder.id;
       const response = await handleCompleteOrderWithCash(orderId, orderData, 'Pedido completado exitosamente');
@@ -790,18 +796,28 @@ const Mostrador = () => {
     } catch (error) {
       console.error('Error al completar el pedido:', error);
       alert('Error al completar el pedido: ' + error.message);
+    } finally {
+      setIsCompletingOrder(false);
     }
   };
 
   const handleCancelOrder = async (orderId) => {
-    if (!orderId) {
-      alert('Error: ID del pedido no válido');
+    if (isCancelingOrder || !orderId) {
+      if (!orderId) alert('Error: ID del pedido no válido');
       return;
     }
     
-    const result = await handleCancelOrderWithNotification(orderId);
-    if (!result.success) {
-      alert('Error al cancelar el pedido: ' + result.error);
+    try {
+      setIsCancelingOrder(true);
+      const result = await handleCancelOrderWithNotification(orderId);
+      if (!result.success) {
+        alert('Error al cancelar el pedido: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error al cancelar el pedido:', error);
+      alert('Error al cancelar el pedido: ' + error.message);
+    } finally {
+      setIsCancelingOrder(false);
     }
   };
 
@@ -1555,16 +1571,40 @@ const Mostrador = () => {
                     
                     <div className="flex gap-2">
                       <button 
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded transition-colors text-sm"
+                        className={`flex-1 py-2 px-4 rounded transition-colors text-sm ${
+                          isCompletingOrder || isUpdatingOrderRequest
+                            ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                            : 'bg-green-600 hover:bg-green-700 text-white'
+                        }`}
+                        disabled={isCompletingOrder || isUpdatingOrderRequest}
                         onClick={() => handleCompleteOrder(selectedOrder._id || selectedOrder.id)}
                       >
-                        Completar
+                        {isCompletingOrder ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                            Completando...
+                          </div>
+                        ) : (
+                          'Completar'
+                        )}
                       </button>
                       <button 
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded transition-colors text-sm"
+                        className={`flex-1 py-2 px-4 rounded transition-colors text-sm ${
+                          isCancelingOrder || isUpdatingOrderRequest
+                            ? 'bg-gray-400 cursor-not-allowed text-gray-200'
+                            : 'bg-red-600 hover:bg-red-700 text-white'
+                        }`}
+                        disabled={isCancelingOrder || isUpdatingOrderRequest}
                         onClick={() => handleCancelOrder(selectedOrder._id || selectedOrder.id)}
                       >
-                        Cancelar
+                        {isCancelingOrder ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                            Cancelando...
+                          </div>
+                        ) : (
+                          'Cancelar'
+                        )}
                       </button>
                     </div>
                   </div>
