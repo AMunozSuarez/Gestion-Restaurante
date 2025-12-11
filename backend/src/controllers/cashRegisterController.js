@@ -144,7 +144,7 @@ const getCashMovements = async (req, res) => {
 // Add completed order to current cash register
 const addOrderToCashRegister = async (req, res) => {
     try {
-        const { orderId, total, paymentMethod, paymentMethods, items } = req.body;
+        const { orderId, total, paymentMethod, paymentMethods, items, deliveryCost, section, customerName } = req.body;
 
         // Buscar la caja activa
         const activeCashRegister = await cashRegisterModel.findOne({
@@ -163,6 +163,9 @@ const addOrderToCashRegister = async (req, res) => {
             paymentMethod,
             paymentMethods: paymentMethods || [],
             items,
+            deliveryCost: parseFloat(deliveryCost) || 0,
+            section: section || 'mostrador',
+            customerName: customerName || 'Cliente anónimo',
             date: new Date(),
         };
 

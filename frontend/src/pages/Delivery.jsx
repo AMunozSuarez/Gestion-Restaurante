@@ -1171,6 +1171,9 @@ const Delivery = () => {
             orderId: orderId,
             total: total,
             paymentMethod: validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple',
+            deliveryCost: editDeliveryCost || 0,
+            section: 'delivery',
+            customerName: editCustomerName || 'Cliente anónimo',
             items: editCart.map(item => ({
               name: item.name,
               quantity: item.quantity,

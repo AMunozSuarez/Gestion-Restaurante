@@ -17,6 +17,9 @@ const cashRegisterSchema = new mongoose.Schema({
                 amount: { type: Number }
             }], // Métodos de pago múltiples
             items: [{ type: Object }], // Detalles de los productos del pedido
+            deliveryCost: { type: Number, default: 0 }, // Costo de delivery
+            section: { type: String, enum: ['delivery', 'mostrador'], default: 'mostrador' }, // Sección del pedido
+            customerName: { type: String, default: 'Cliente anónimo' }, // Nombre del cliente
             date: { type: Date, default: Date.now },
         },
     ],

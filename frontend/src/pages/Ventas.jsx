@@ -85,8 +85,14 @@ const Ventas = () => {
     let montoEfectivo = 0;
     let montoTarjeta = 0;
     let montoTransferencia = 0;
+    let montoDelivery = 0;
     
     completedVentas.forEach(venta => {
+      // Calcular monto de delivery
+      if (venta.section === 'delivery' && venta.deliveryCost) {
+        montoDelivery += venta.deliveryCost || 0;
+      }
+      
       if (venta.paymentMethods && venta.paymentMethods.length > 0) {
         // Nueva estructura con múltiples métodos de pago
         venta.paymentMethods.forEach(pm => {
@@ -118,7 +124,8 @@ const Ventas = () => {
       ventasCanceladas: canceledVentas.length,
       montoEfectivo,
       montoTarjeta,
-      montoTransferencia
+      montoTransferencia,
+      montoDelivery
     };
   }, [ventasFiltradas]);
 
@@ -378,7 +385,7 @@ const Ventas = () => {
           </div>
           
           {!summaryCollapsed && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 rounded-lg border border-gray-200 text-center">
                 <p className="text-xs text-gray-700 font-medium">Total</p>
                 <p className="text-sm font-bold text-gray-800">{stats.totalVentas}</p>
@@ -398,6 +405,10 @@ const Ventas = () => {
               <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-2 rounded-lg border border-amber-200 text-center">
                 <p className="text-xs text-amber-700 font-medium">Transfer.</p>
                 <p className="text-sm font-bold text-amber-800">{formatCurrency(stats.montoTransferencia)}</p>
+              </div>
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-2 rounded-lg border border-orange-200 text-center">
+                <p className="text-xs text-orange-700 font-medium">Delivery</p>
+                <p className="text-sm font-bold text-orange-800">{formatCurrency(stats.montoDelivery)}</p>
               </div>
             </div>
           )}

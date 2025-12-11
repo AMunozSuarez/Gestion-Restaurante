@@ -613,6 +613,9 @@ const Mostrador = () => {
             orderId: orderId,
             total: total,
             paymentMethod: validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple',
+            deliveryCost: 0, // Mostrador no tiene delivery cost
+            section: 'mostrador',
+            customerName: editCustomerName || 'Cliente anónimo',
             items: editCart.map(item => ({
               name: item.name,
               quantity: item.quantity,

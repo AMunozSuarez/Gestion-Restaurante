@@ -98,6 +98,16 @@ const CashRegister = () => {
     }, {});
   };
 
+  const calculateDeliveryTotal = (orders) => {
+    if (!orders || !Array.isArray(orders)) return 0;
+    return orders.reduce((total, order) => {
+      if (order.section === 'delivery' && order.deliveryCost) {
+        return total + (order.deliveryCost || 0);
+      }
+      return total;
+    }, 0);
+  };
+
   const getDifference = (systemTotal, officialTotal) => {
     return officialTotal - systemTotal;
   };
@@ -187,12 +197,13 @@ const CashRegister = () => {
         comment: item.comment || ''
       })) || [],
       // Campos adicionales que el modal puede esperar
-      name: 'Cliente anónimo',
+      name: order.customerName || 'Cliente anónimo',
       buyer: {
-        name: 'Cliente anónimo'
+        name: order.customerName || 'Cliente anónimo'
       },
       status: 'Completado',
-      section: 'mostrador'
+      section: order.section || 'mostrador',
+      deliveryCost: order.deliveryCost || 0
     };
     
     setSelectedOrder(adaptedOrder);
@@ -603,6 +614,27 @@ const CashRegister = () => {
             </div>
           </div>
 
+          {/* Monto Total de Delivery */}
+          <div className="mb-6">
+            <h4 className="text-professional-subtitle mb-3">Ingresos por Delivery</h4>
+            <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-orange-700 font-medium">Monto Total de Delivery</p>
+                  <p className="text-sm text-orange-600">Costo de envío total</p>
+                </div>
+                <p className="text-lg font-bold text-orange-800">
+                  {formatCurrency(calculateDeliveryTotal(selectedCashRegister.orders))}
+                </p>
+              </div>
+              {calculateDeliveryTotal(selectedCashRegister.orders) === 0 && (
+                <div className="text-center py-2">
+                  <p className="text-professional-body text-sm">No hay ingresos por delivery</p>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Ingresos Oficiales */}
           {selectedCashRegister.status === 'Cerrada' && selectedCashRegister.officialIncome && (
             <div className="mb-6">
@@ -727,9 +759,16 @@ const CashRegister = () => {
                     onClick={() => handleViewOrderDetail(order)}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm text-professional-body font-medium">
-                        {formatCurrency(order.total)}
-                      </span>
+                      <div>
+                        <span className="text-sm text-professional-body font-medium">
+                          {formatCurrency(order.total)}
+                        </span>
+                        {order.deliveryCost > 0 && (
+                          <span className="text-xs text-orange-600 ml-2">
+                            (+{formatCurrency(order.deliveryCost)} envío)
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-professional-body text-right">
                         {order.paymentMethods && order.paymentMethods.length > 1 ? (
                           <div className="space-y-1">
@@ -745,12 +784,24 @@ const CashRegister = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-1">
                       <span className="text-xs text-professional-body">
                         {formatDate(order.date)}
                       </span>
                       <span className="text-xs text-professional-body">
                         {order.items?.length || 0} productos
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-600">
+                        Cliente: {order.customerName || 'Cliente anónimo'}
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        order.section === 'delivery' 
+                          ? 'bg-blue-100 text-blue-700' 
+                          : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {order.section === 'delivery' ? 'Delivery' : 'Mostrador'}
                       </span>
                     </div>
                   </div>
