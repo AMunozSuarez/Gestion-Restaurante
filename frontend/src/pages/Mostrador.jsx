@@ -1006,9 +1006,9 @@ const Mostrador = () => {
                     <label className="block text-sm font-medium text-professional-body mb-1">
                       Carrito ({cart.length} items)
                     </label>
-                    <div className={`product-list ${cart.length === 0 ? 'min-h-[80px] max-h-[80px]' : 'min-h-[150px] max-h-[200px]'} overflow-y-auto`}>
+                    <div className="product-list">
                       {cart.length === 0 ? (
-                        <div className="flex items-center justify-center h-full">
+                        <div className="flex items-center justify-center py-8">
                           <p className="text-professional-body text-center text-sm">El carrito está vacío</p>
                         </div>
                       ) : (
@@ -1412,9 +1412,9 @@ const Mostrador = () => {
                     <label className="block text-sm font-medium text-professional-body mb-1">
                       Carrito ({editCart.length} items)
                     </label>
-                    <div className={`product-list ${editCart.length === 0 ? 'min-h-[80px] max-h-[80px]' : 'min-h-[150px] max-h-[200px]'} overflow-y-auto`}>
+                    <div className="product-list">
                       {editCart.length === 0 ? (
-                        <div className="flex items-center justify-center h-full">
+                        <div className="flex items-center justify-center py-8">
                           <p className="text-professional-body text-center text-sm">El carrito está vacío</p>
                         </div>
                       ) : (

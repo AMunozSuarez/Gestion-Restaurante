@@ -1683,9 +1683,9 @@ const Delivery = () => {
                     <label className="block text-sm font-medium text-blue-body mb-1">
                       Carrito ({cart.length} items)
                     </label>
-                    <div className={`border border-blue-200 rounded-md p-3 ${cart.length === 0 ? 'min-h-[80px] max-h-[80px]' : 'min-h-[150px] max-h-[200px]'} overflow-y-auto bg-gray-50`}>
+                    <div className="border border-blue-200 rounded-md p-3 bg-gray-50">
                       {cart.length === 0 ? (
-                        <div className="flex items-center justify-center h-full">
+                        <div className="flex items-center justify-center py-8">
                           <p className="text-blue-600 text-center text-sm">El carrito está vacío</p>
                         </div>
                       ) : (
@@ -2251,9 +2251,9 @@ const Delivery = () => {
                     <label className="block text-sm font-medium text-blue-body mb-1">
                       Carrito ({editCart.length} items)
                     </label>
-                    <div className={`border border-blue-200 rounded-md p-3 ${editCart.length === 0 ? 'min-h-[80px] max-h-[80px]' : 'min-h-[150px] max-h-[200px]'} overflow-y-auto bg-gray-50`}>
+                    <div className="border border-blue-200 rounded-md p-3 bg-gray-50">
                       {editCart.length === 0 ? (
-                        <div className="flex items-center justify-center h-full">
+                        <div className="flex items-center justify-center py-8">
                           <p className="text-blue-600 text-center text-sm">El carrito está vacío</p>
                         </div>
                       ) : (
