@@ -69,6 +69,39 @@ const CashRegister = () => {
   // Hook para obtener productos
   const { products, isLoading: productsLoading } = useProducts();
 
+  // Efecto para refrescar ventas cuando se monta el componente
+  React.useEffect(() => {
+    // Refrescar ventas de caja activa si hay una caja abierta
+    if (isOpen) {
+      refetchSales();
+    }
+    // Refrescar ventas de caja seleccionada si hay una seleccionada
+    if (selectedCashRegister) {
+      refetchSelectedSales();
+    }
+  }, []); // Se ejecuta solo al montar el componente
+
+  // Efecto para refrescar cuando la página se hace visible (al cambiar de pestaña)
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // La página se hizo visible, refrescar datos
+        if (isOpen) {
+          refetchSales();
+        }
+        if (selectedCashRegister) {
+          refetchSelectedSales();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isOpen, selectedCashRegister, refetchSales, refetchSelectedSales]);
+
   // Funciones de utilidad
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-CO', {
@@ -76,6 +109,40 @@ const CashRegister = () => {
       currency: 'COP',
       minimumFractionDigits: 0
     }).format(amount || 0);
+  };
+
+  // Función para obtener el total del sistema de una caja específica
+  const getSystemTotalForCashRegister = (cashRegister) => {
+    if (!cashRegister) return 0;
+    
+    // Para la caja actual abierta
+    if (cashRegister.status === 'Abierta' && isOpen && cashRegister._id === currentCashRegister?._id) {
+      // Prioridad 1: Estadísticas en tiempo real del hook
+      if (currentCashStatistics?.systemTotal !== undefined && currentCashStatistics.systemTotal !== null) {
+        return currentCashStatistics.systemTotal;
+      }
+      // Prioridad 2: Calcular desde las ventas directamente
+      if (currentCashSales && currentCashSales.length > 0) {
+        return calculateSystemTotal(currentCashSales);
+      }
+      // Prioridad 3: Usar datos del backend
+      return cashRegister.amountSystem || 0;
+    }
+    
+    // Para la caja seleccionada
+    if (cashRegister._id === selectedCashRegister?._id) {
+      // Prioridad 1: Estadísticas específicas del hook
+      if (selectedCashStatistics?.systemTotal !== undefined && selectedCashStatistics.systemTotal !== null) {
+        return selectedCashStatistics.systemTotal;
+      }
+      // Prioridad 2: Calcular desde las ventas directamente
+      if (selectedCashSales && selectedCashSales.length > 0) {
+        return calculateSystemTotal(selectedCashSales);
+      }
+    }
+    
+    // Para todas las demás cajas, usar datos del backend
+    return cashRegister.amountSystem || 0;
   };
 
   const formatDate = (dateString) => {
@@ -100,20 +167,32 @@ const CashRegister = () => {
 
   const calculateSystemTotalsByPaymentMethod = (orders) => {
     if (!orders || !Array.isArray(orders)) return {};
-    return orders.reduce((totals, order) => {
-      // Si el pedido tiene múltiples métodos de pago, sumar cada uno por separado
-      if (order.paymentMethods && order.paymentMethods.length > 0) {
+    
+    const totals = {};
+    
+    orders.forEach((order) => {
+      const orderTotal = order.total || 0;
+      
+      // PRIORIDAD 1: Usar paymentMethods con montos reales si está disponible
+      if (order.paymentMethods && Array.isArray(order.paymentMethods) && order.paymentMethods.length > 0) {
         order.paymentMethods.forEach(payment => {
           const method = payment.method || 'Sin especificar';
-          totals[method] = (totals[method] || 0) + (payment.amount || 0);
+          const amount = payment.amount || 0;
+          totals[method] = (totals[method] || 0) + amount;
         });
-      } else {
-        // Método de pago único (compatibilidad con pedidos antiguos)
-        const method = order.paymentMethod || 'Sin especificar';
-        totals[method] = (totals[method] || 0) + (order.total || 0);
       }
-      return totals;
-    }, {});
+      // PRIORIDAD 2: Para pedidos antiguos con un solo método, usar el total del pedido
+      else if (order.paymentMethod || order.payment) {
+        const method = order.paymentMethod || order.payment || 'Sin especificar';
+        totals[method] = (totals[method] || 0) + orderTotal;
+      }
+      // PRIORIDAD 3: Si no hay método de pago definido, asumir efectivo
+      else {
+        totals['Efectivo'] = (totals['Efectivo'] || 0) + orderTotal;
+      }
+    });
+    
+    return totals;
   };
 
   const calculateDeliveryTotal = (orders) => {
@@ -308,7 +387,7 @@ const CashRegister = () => {
                 <div className="total-highlight p-2">
                   <p className="text-xs font-medium">Total Sistema</p>
                   <p className="text-xs lg:text-sm font-bold">
-                    {formatCurrency(currentCashStatistics?.systemTotal || currentCashRegister?.amountSystem || 0)}
+                    {formatCurrency(getSystemTotalForCashRegister(currentCashRegister))}
                   </p>
                 </div>
               </div>
@@ -374,7 +453,7 @@ const CashRegister = () => {
                     {[...cashRegisters]
                       .sort((a, b) => new Date(b.dateOpened) - new Date(a.dateOpened))
                       .map((cashRegister) => {
-                      const systemTotal = cashRegister.amountSystem || 0;
+                      const systemTotal = getSystemTotalForCashRegister(cashRegister);
                       const officialTotal = calculateOfficialTotal(cashRegister.officialIncome);
                       const difference = getDifference(systemTotal, officialTotal);
                       
@@ -441,7 +520,7 @@ const CashRegister = () => {
                 {[...cashRegisters]
                   .sort((a, b) => new Date(b.dateOpened) - new Date(a.dateOpened))
                   .map((cashRegister) => {
-                  const systemTotal = cashRegister.amountSystem || 0;
+                  const systemTotal = getSystemTotalForCashRegister(cashRegister);
                   const officialTotal = calculateOfficialTotal(cashRegister.officialIncome);
                   const difference = getDifference(systemTotal, officialTotal);
                   
@@ -566,7 +645,7 @@ const CashRegister = () => {
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 lg:p-3 rounded-lg border border-gray-200">
                 <p className="text-xs text-gray-700 font-medium">Total Sistema</p>
                 <p className="text-sm font-bold text-gray-800">
-                  {formatCurrency(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0)}
+                  {formatCurrency(getSystemTotalForCashRegister(selectedCashRegister))}
                 </p>
               </div>
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 lg:p-3 rounded-lg border border-gray-200">
@@ -580,12 +659,12 @@ const CashRegister = () => {
                   Diferencia
                 </p>
                 <p className={`text-sm font-bold ${
-                  getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(selectedCashRegister.officialIncome)) >= 0
+                  getDifference(getSystemTotalForCashRegister(selectedCashRegister), calculateOfficialTotal(selectedCashRegister.officialIncome)) >= 0
                     ? 'text-green-800'
                     : 'text-red-800'
                 }`}>
-                  {getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(selectedCashRegister.officialIncome)) >= 0 ? '+' : ''}
-                  {formatCurrency(getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(selectedCashRegister.officialIncome)))}
+                  {getDifference(getSystemTotalForCashRegister(selectedCashRegister), calculateOfficialTotal(selectedCashRegister.officialIncome)) >= 0 ? '+' : ''}
+                  {formatCurrency(getDifference(getSystemTotalForCashRegister(selectedCashRegister), calculateOfficialTotal(selectedCashRegister.officialIncome)))}
                 </p>
               </div>
             </div>
@@ -712,12 +791,12 @@ const CashRegister = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-medium text-amber-700">Diferencia:</span>
                   <span className={`text-xs font-bold ${
-                    getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(officialIncome)) >= 0 
+                    getDifference(getSystemTotalForCashRegister(selectedCashRegister), calculateOfficialTotal(officialIncome)) >= 0 
                       ? 'text-green-700' 
                       : 'text-red-700'
                   }`}>
-                    {getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(officialIncome)) >= 0 ? '+' : ''}
-                    {formatCurrency(getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(officialIncome)))}
+                    {getDifference(getSystemTotalForCashRegister(selectedCashRegister), calculateOfficialTotal(officialIncome)) >= 0 ? '+' : ''}
+                    {formatCurrency(getDifference(getSystemTotalForCashRegister(selectedCashRegister), calculateOfficialTotal(officialIncome)))}
                   </span>
                 </div>
               </div>
@@ -884,11 +963,29 @@ const CashRegister = () => {
           onClose={() => {
             setShowOrderDetailModal(false);
             setSelectedOrder(null);
+            
+            // Refrescar datos por si acaso hubo cambios no detectados
+            if (isOpen && selectedCashRegister?.status === 'Abierta') {
+              refetchSales();
+            }
+            if (selectedCashRegister) {
+              refetchSelectedSales();
+            }
           }}
           onVentaUpdated={(updatedVenta) => {
-            // Actualizar en la lista si es necesario
+            // Actualizar la venta seleccionada
             setSelectedOrder(updatedVenta);
-            // Podríamos agregar una función para refrescar la lista de pedidos aquí si fuera necesario
+            
+            // Refrescar las ventas de la caja registradora
+            if (isOpen && selectedCashRegister?.status === 'Abierta') {
+              // Si estamos viendo la caja activa, refrescar ventas de caja activa
+              refetchSales();
+            }
+            
+            if (selectedCashRegister) {
+              // Si hay una caja seleccionada, refrescar sus ventas específicas
+              refetchSelectedSales();
+            }
           }}
           products={products}
           productsLoading={productsLoading}

@@ -40,6 +40,28 @@ const Ventas = () => {
   // Hook para obtener productos
   const { products, isLoading: productsLoading } = useProducts();
 
+  // Efecto para refrescar ventas cuando se monta el componente o se hace visible
+  useEffect(() => {
+    // Refrescar al montar
+    fetchSales();
+  }, []); // Solo al montar
+
+  // Efecto para refrescar cuando la página se hace visible (al cambiar de pestaña)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // La página se hizo visible, refrescar datos
+        fetchSales();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchSales]);
+
   // Filtrar ventas según criterios usando useMemo para optimización
   const ventasFiltradas = useMemo(() => {
     return ventas.filter(venta => {
