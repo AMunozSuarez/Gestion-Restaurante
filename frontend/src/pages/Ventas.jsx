@@ -457,6 +457,9 @@ const Ventas = () => {
                         Fecha
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                        Sección
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
                         Estado
                       </th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
@@ -482,6 +485,15 @@ const Ventas = () => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                           {formatDate(venta.createdAt)}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            venta.section === 'delivery'
+                              ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                              : 'bg-amber-100 text-amber-800 border border-amber-200'
+                          }`}>
+                            {venta.section === 'delivery' ? 'Delivery' : 'Mostrador'}
+                          </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -537,6 +549,15 @@ const Ventas = () => {
                         </p>
                       </div>
                       <div className="text-right">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            venta.section === 'delivery'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {venta.section === 'delivery' ? 'Delivery' : 'Mostrador'}
+                          </span>
+                        </div>
                         <p className="font-semibold text-amber-700">
                           {formatCurrency(venta.total)}
                         </p>
