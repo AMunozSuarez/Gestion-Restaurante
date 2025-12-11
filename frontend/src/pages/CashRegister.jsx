@@ -175,11 +175,27 @@ const CashRegister = () => {
       
       // PRIORIDAD 1: Usar paymentMethods con montos reales si está disponible
       if (order.paymentMethods && Array.isArray(order.paymentMethods) && order.paymentMethods.length > 0) {
-        order.paymentMethods.forEach(payment => {
-          const method = payment.method || 'Sin especificar';
-          const amount = payment.amount || 0;
-          totals[method] = (totals[method] || 0) + amount;
-        });
+        // Verificar si la suma de paymentMethods coincide con el total de la orden
+        const sumPaymentMethods = order.paymentMethods.reduce((sum, p) => sum + (p.amount || 0), 0);
+        const tolerance = 1; // Tolerancia de 1 peso para redondeo
+        
+        // Si hay discrepancia significativa, ajustar proporcionalmente
+        if (Math.abs(sumPaymentMethods - orderTotal) > tolerance) {
+          // Ajustar proporcionalmente cada método de pago al total actual
+          const ratio = orderTotal / (sumPaymentMethods || 1);
+          order.paymentMethods.forEach(payment => {
+            const method = payment.method || 'Sin especificar';
+            const adjustedAmount = (payment.amount || 0) * ratio;
+            totals[method] = (totals[method] || 0) + adjustedAmount;
+          });
+        } else {
+          // No hay discrepancia, usar valores originales
+          order.paymentMethods.forEach(payment => {
+            const method = payment.method || 'Sin especificar';
+            const amount = payment.amount || 0;
+            totals[method] = (totals[method] || 0) + amount;
+          });
+        }
       }
       // PRIORIDAD 2: Para pedidos antiguos con un solo método, usar el total del pedido
       else if (order.paymentMethod || order.payment) {
@@ -960,32 +976,51 @@ const CashRegister = () => {
         <VentaDetailModal
           venta={selectedOrder}
           isOpen={showOrderDetailModal}
-          onClose={() => {
+          onClose={async () => {
             setShowOrderDetailModal(false);
             setSelectedOrder(null);
             
-            // Refrescar datos por si acaso hubo cambios no detectados
-            if (isOpen && selectedCashRegister?.status === 'Abierta') {
-              refetchSales();
+            // Refrescar todas las fuentes de datos al cerrar el modal
+            const promises = [];
+            
+            // Refrescar ventas de caja activa
+            if (isOpen) {
+              promises.push(refetchSales());
             }
+            
+            // Refrescar ventas de caja seleccionada
             if (selectedCashRegister) {
-              refetchSelectedSales();
+              promises.push(refetchSelectedSales());
             }
+            
+            // Refrescar historial de cajas
+            promises.push(refetch());
+            
+            // Esperar a que todas las actualizaciones se completen
+            await Promise.all(promises);
           }}
-          onVentaUpdated={(updatedVenta) => {
+          onVentaUpdated={async (updatedVenta) => {
             // Actualizar la venta seleccionada
             setSelectedOrder(updatedVenta);
             
-            // Refrescar las ventas de la caja registradora
-            if (isOpen && selectedCashRegister?.status === 'Abierta') {
-              // Si estamos viendo la caja activa, refrescar ventas de caja activa
-              refetchSales();
+            // Refrescar inmediatamente todas las fuentes de datos
+            const promises = [];
+            
+            // Refrescar ventas de caja activa si existe
+            if (isOpen) {
+              promises.push(refetchSales());
             }
             
+            // Refrescar ventas de caja seleccionada si existe
             if (selectedCashRegister) {
-              // Si hay una caja seleccionada, refrescar sus ventas específicas
-              refetchSelectedSales();
+              promises.push(refetchSelectedSales());
             }
+            
+            // Refrescar el historial de cajas para actualizar totales en la tabla
+            promises.push(refetch());
+            
+            // Esperar a que todas las actualizaciones se completen
+            await Promise.all(promises);
           }}
           products={products}
           productsLoading={productsLoading}
