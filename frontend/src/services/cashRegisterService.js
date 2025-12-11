@@ -61,13 +61,35 @@ export const cashRegisterService = {
     }
   },
 
-  // Agregar pedido completado a la caja registradora actual
-  addOrderToCashRegister: async (orderData) => {
+  // Obtener ventas de la caja registradora activa actual
+  getCurrentCashRegisterSales: async (filters = {}) => {
     try {
-      const response = await api.post('/cash/add-order', orderData);
+      const params = new URLSearchParams();
+      Object.keys(filters).forEach(key => {
+        if (filters[key]) params.append(key, filters[key]);
+      });
+      
+      const url = `/cash/sales${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await api.get(url);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Error al agregar pedido a la caja');
+      throw new Error(error.response?.data?.message || 'Error al obtener ventas de la caja actual');
+    }
+  },
+
+  // Obtener ventas de una caja registradora específica
+  getCashRegisterSales: async (cashRegisterId, filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      Object.keys(filters).forEach(key => {
+        if (filters[key]) params.append(key, filters[key]);
+      });
+      
+      const url = `/cash/sales/${cashRegisterId}${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al obtener ventas de la caja específica');
     }
   }
 };

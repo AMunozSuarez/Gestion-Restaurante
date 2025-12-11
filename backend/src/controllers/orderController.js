@@ -469,10 +469,16 @@ const deleteOrderController = async (req, res) => {
 const getFilteredOrders = async (req, res) => {
     try {
         const { date, status, paymentMethod } = req.query;
+        const { cashRegisterId } = req.params; // Obtener el ID de la caja registradora desde los parámetros
 
         const filters = {
             restaurant: req.user.restaurant, // Filtrar por el restaurante del usuario autenticado
         };
+
+        // Filtrar por caja registradora si se proporciona
+        if (cashRegisterId) {
+            filters.cashRegister = cashRegisterId;
+        }
 
         // Filtrar por fecha (usando createdAt)
         if (date) {
@@ -496,7 +502,8 @@ const getFilteredOrders = async (req, res) => {
         const orders = await orderModel.find(filters)
             .sort({ createdAt: -1 })
             .populate('foods.food', 'title price') // Incluir los datos de los alimentos
-            .populate('buyer', 'name phone'); // Incluir los datos del cliente
+            .populate('buyer', 'name phone') // Incluir los datos del cliente
+            .populate('cashRegister', 'dateOpened dateClosed status'); // Incluir datos de la caja registradora
         
         res.status(200).json({ success: true, orders });
     } catch (error) {

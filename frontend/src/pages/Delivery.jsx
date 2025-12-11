@@ -143,7 +143,7 @@ const Delivery = () => {
     isOpen: isCashOpen, 
     isLoading: cashLoading, 
     openCashRegister,
-    addOrderToCashRegister 
+    refreshCashRegisterStatus
   } = useCashRegister();
   
   // Hook para customers
@@ -1179,38 +1179,14 @@ const Delivery = () => {
     const response = await updateOrderWithoutPrint(orderId, orderData);
     
     if (response.success) {
-      // Agregar pedido a la caja registradora si hay una caja abierta
+      // Refrescar el estado de la caja registradora si está abierta
+      // (La orden ya se crea automáticamente con el campo cashRegister)
       if (isCashOpen) {
         try {
-          const total = calculateEditTotal();
-          const validEditPayments = editPaymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Método' && p.method !== 'Pendiente');
-          const cashOrderData = {
-            orderId: orderId,
-            total: total,
-            paymentMethod: validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple',
-            deliveryCost: editDeliveryCost || 0,
-            section: 'delivery',
-            customerName: editCustomerName || 'Cliente anónimo',
-            items: editCart.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              comment: item.comment || ''
-            }))
-          };
-          
-          const cashResult = await addOrderToCashRegister(cashOrderData);
-          if (cashResult.success) {
-            console.log('Pedido agregado a la caja registradora exitosamente');
-          } else {
-            console.error('Error al agregar pedido a la caja:', cashResult.error);
-            setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
-            setTimeout(() => setAddedProductNotification(null), 4000);
-          }
+          await refreshCashRegisterStatus();
+          console.log('Estado de caja actualizado después de completar el pedido');
         } catch (error) {
-          console.error('Error al agregar pedido a la caja registradora:', error);
-          setAddedProductNotification('Advertencia: No se pudo agregar el pedido a la caja registradora');
-          setTimeout(() => setAddedProductNotification(null), 4000);
+          console.error('Error al refrescar estado de caja:', error);
         }
       }
       

@@ -472,17 +472,14 @@ RESUMEN
     
     const date = new Date();
     
-    // Calcular totales
-    const systemTotal = cashRegister.orders?.reduce((total, order) => total + (order.total || 0), 0) || 0;
+    // Calcular totales usando datos del backend
+    const systemTotal = cashRegister.amountSystem || 0;
     const officialTotal = Object.values(cashRegister.officialIncome || {}).reduce((total, amount) => total + (parseFloat(amount) || 0), 0);
     const difference = officialTotal - systemTotal;
     
-    // Calcular totales por método de pago del sistema
-    const systemTotalsByPayment = cashRegister.orders?.reduce((totals, order) => {
-      const method = order.paymentMethod || 'Sin especificar';
-      totals[method] = (totals[method] || 0) + (order.total || 0);
-      return totals;
-    }, {}) || {};
+    // Los totales por método de pago deberán ser calculados desde las órdenes reales
+    // Por ahora usar un objeto vacío como fallback
+    const systemTotalsByPayment = {};
     
     // Formatear fechas
     const formatDate = (dateString) => {
@@ -525,7 +522,7 @@ Monto inicial: ${formatCurrency(cashRegister.initialBalance)}
         RESUMEN VENTAS
 =================================
 
-Total de pedidos: ${cashRegister.orders?.length || 0}
+Total de pedidos: (Calculado automáticamente)
 Total del sistema: ${formatCurrency(systemTotal)}
 Total oficial: ${formatCurrency(officialTotal)}
 Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}

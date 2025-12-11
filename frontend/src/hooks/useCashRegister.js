@@ -68,22 +68,36 @@ export const useCashRegister = () => {
     }
   };
 
-  const addOrderToCashRegister = async (orderData) => {
+  const getCashRegisterSales = async (cashRegisterId = null, filters = {}) => {
     try {
-      const response = await cashRegisterService.addOrderToCashRegister(orderData);
+      setError(null);
+      let response;
+      
+      if (cashRegisterId) {
+        response = await cashRegisterService.getCashRegisterSales(cashRegisterId, filters);
+      } else {
+        response = await cashRegisterService.getCurrentCashRegisterSales(filters);
+      }
       
       if (response.success) {
-        // Actualizar el cashRegister localmente sin disparar loading
-        if (response.cashRegister) {
-          setCashRegister(response.cashRegister);
-        }
-        return { success: true };
+        return {
+          success: true,
+          cashRegister: response.cashRegister,
+          orders: response.orders,
+          statistics: response.statistics
+        };
       } else {
         return { success: false, error: response.message };
       }
     } catch (error) {
+      setError(error.message);
       return { success: false, error: error.message };
     }
+  };
+
+  // Función para refrescar los datos después de completar una orden
+  const refreshCashRegisterStatus = async () => {
+    await checkCashRegisterStatus();
   };
 
   return {
@@ -94,6 +108,7 @@ export const useCashRegister = () => {
     checkCashRegisterStatus,
     openCashRegister,
     closeCashRegister,
-    addOrderToCashRegister
+    getCashRegisterSales,
+    refreshCashRegisterStatus
   };
 };

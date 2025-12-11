@@ -1,6 +1,7 @@
 import React from 'react';
 import { useCashRegister } from '../hooks/useCashRegister';
 import { useCashRegisters } from '../hooks/useCashRegisters';
+import { useCashRegisterSales } from '../hooks/useCashRegisterSales';
 import { PlusIcon, XMarkIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import VentaDetailModal from '../components/common/VentaDetailModal';
 import printingService from '../services/printingService';
@@ -47,6 +48,23 @@ const CashRegister = () => {
     error: historyError, 
     refetch 
   } = useCashRegisters();
+
+  // Hook para obtener ventas de la caja activa
+  const {
+    sales: currentCashSales,
+    statistics: currentCashStatistics,
+    isLoading: salesLoading,
+    error: salesError,
+    refetch: refetchSales
+  } = useCashRegisterSales(null, { activeOnly: isOpen });
+
+  // Hook para obtener ventas de caja seleccionada
+  const {
+    sales: selectedCashSales,
+    statistics: selectedCashStatistics,
+    isLoading: selectedSalesLoading,
+    refetch: refetchSelectedSales
+  } = useCashRegisterSales(selectedCashRegister?._id);
 
   // Hook para obtener productos
   const { products, isLoading: productsLoading } = useProducts();
@@ -182,28 +200,15 @@ const CashRegister = () => {
 
   // Manejar detalle de pedido
   const handleViewOrderDetail = (order) => {
-    // Adaptar los datos de la orden para que coincidan con la estructura esperada por VentaDetailModal
+    // Las órdenes ya vienen con la estructura correcta del backend
+    // Solo necesitamos asegurar compatibilidad con el modal si es necesario
     const adaptedOrder = {
       ...order,
-      // Mapear campos para compatibilidad con el modal
-      payment: order.paymentMethod,
-      createdAt: order.date,
-      foods: order.items?.map((item, index) => ({
-        food: {
-          title: item.name || `Producto ${index + 1}`,
-          price: item.price || 0
-        },
-        quantity: item.quantity || 1,
-        comment: item.comment || ''
-      })) || [],
-      // Campos adicionales que el modal puede esperar
-      name: order.customerName || 'Cliente anónimo',
-      buyer: {
-        name: order.customerName || 'Cliente anónimo'
-      },
-      status: 'Completado',
-      section: order.section || 'mostrador',
-      deliveryCost: order.deliveryCost || 0
+      // Asegurar que los campos estén presentes para el modal
+      name: order.name || order.buyer?.name || 'Cliente anónimo',
+      buyer: order.buyer || {
+        name: order.name || 'Cliente anónimo'
+      }
     };
     
     setSelectedOrder(adaptedOrder);
@@ -303,7 +308,7 @@ const CashRegister = () => {
                 <div className="total-highlight p-2">
                   <p className="text-xs font-medium">Total Sistema</p>
                   <p className="text-xs lg:text-sm font-bold">
-                    {formatCurrency(calculateSystemTotal(currentCashRegister.orders))}
+                    {formatCurrency(currentCashStatistics?.systemTotal || currentCashRegister?.amountSystem || 0)}
                   </p>
                 </div>
               </div>
@@ -369,7 +374,7 @@ const CashRegister = () => {
                     {[...cashRegisters]
                       .sort((a, b) => new Date(b.dateOpened) - new Date(a.dateOpened))
                       .map((cashRegister) => {
-                      const systemTotal = calculateSystemTotal(cashRegister.orders);
+                      const systemTotal = cashRegister.amountSystem || 0;
                       const officialTotal = calculateOfficialTotal(cashRegister.officialIncome);
                       const difference = getDifference(systemTotal, officialTotal);
                       
@@ -436,7 +441,7 @@ const CashRegister = () => {
                 {[...cashRegisters]
                   .sort((a, b) => new Date(b.dateOpened) - new Date(a.dateOpened))
                   .map((cashRegister) => {
-                  const systemTotal = calculateSystemTotal(cashRegister.orders);
+                  const systemTotal = cashRegister.amountSystem || 0;
                   const officialTotal = calculateOfficialTotal(cashRegister.officialIncome);
                   const difference = getDifference(systemTotal, officialTotal);
                   
@@ -561,7 +566,7 @@ const CashRegister = () => {
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 lg:p-3 rounded-lg border border-gray-200">
                 <p className="text-xs text-gray-700 font-medium">Total Sistema</p>
                 <p className="text-sm font-bold text-gray-800">
-                  {formatCurrency(calculateSystemTotal(selectedCashRegister.orders))}
+                  {formatCurrency(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0)}
                 </p>
               </div>
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 lg:p-3 rounded-lg border border-gray-200">
@@ -575,12 +580,12 @@ const CashRegister = () => {
                   Diferencia
                 </p>
                 <p className={`text-sm font-bold ${
-                  getDifference(calculateSystemTotal(selectedCashRegister.orders), calculateOfficialTotal(selectedCashRegister.officialIncome)) >= 0
+                  getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(selectedCashRegister.officialIncome)) >= 0
                     ? 'text-green-800'
                     : 'text-red-800'
                 }`}>
-                  {getDifference(calculateSystemTotal(selectedCashRegister.orders), calculateOfficialTotal(selectedCashRegister.officialIncome)) >= 0 ? '+' : ''}
-                  {formatCurrency(getDifference(calculateSystemTotal(selectedCashRegister.orders), calculateOfficialTotal(selectedCashRegister.officialIncome)))}
+                  {getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(selectedCashRegister.officialIncome)) >= 0 ? '+' : ''}
+                  {formatCurrency(getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(selectedCashRegister.officialIncome)))}
                 </p>
               </div>
             </div>
@@ -600,13 +605,13 @@ const CashRegister = () => {
           <div className="mb-6">
             <h4 className="text-professional-subtitle mb-3">Totales del Sistema por Método de Pago</h4>
             <div className="space-y-2">
-              {Object.entries(calculateSystemTotalsByPaymentMethod(selectedCashRegister.orders)).map(([method, amount]) => (
+              {Object.entries(calculateSystemTotalsByPaymentMethod(selectedCashSales || [])).map(([method, amount]) => (
                 <div key={method} className="bg-blue-50 p-2 rounded-lg border border-blue-200">
                   <p className="text-xs text-blue-700 font-medium">{method}</p>
                   <p className="text-sm font-bold text-blue-800">{formatCurrency(amount)}</p>
                 </div>
               ))}
-              {Object.keys(calculateSystemTotalsByPaymentMethod(selectedCashRegister.orders)).length === 0 && (
+              {Object.keys(calculateSystemTotalsByPaymentMethod(selectedCashSales || [])).length === 0 && (
                 <div className="text-center py-4">
                   <p className="text-professional-body text-sm">No hay totales por método de pago</p>
                 </div>
@@ -624,10 +629,10 @@ const CashRegister = () => {
                   <p className="text-sm text-orange-600">Costo de envío total</p>
                 </div>
                 <p className="text-lg font-bold text-orange-800">
-                  {formatCurrency(calculateDeliveryTotal(selectedCashRegister.orders))}
+                  {formatCurrency(calculateDeliveryTotal(selectedCashSales || []))}
                 </p>
               </div>
-              {calculateDeliveryTotal(selectedCashRegister.orders) === 0 && (
+              {calculateDeliveryTotal(selectedCashSales || []) === 0 && (
                 <div className="text-center py-2">
                   <p className="text-professional-body text-sm">No hay ingresos por delivery</p>
                 </div>
@@ -648,19 +653,19 @@ const CashRegister = () => {
                         <p className="text-sm font-bold text-amber-800">{formatCurrency(amount)}</p>
                       </div>
                       {/* Comparación con el sistema */}
-                      {calculateSystemTotalsByPaymentMethod(selectedCashRegister.orders)[method] && (
+                      {calculateSystemTotalsByPaymentMethod(selectedCashSales || [])[method] && (
                         <div className="text-right">
                           <p className="text-xs text-gray-600">Sistema:</p>
                           <p className="text-xs font-medium text-gray-700">
-                            {formatCurrency(calculateSystemTotalsByPaymentMethod(selectedCashRegister.orders)[method])}
+                            {formatCurrency(calculateSystemTotalsByPaymentMethod(selectedCashSales || [])[method])}
                           </p>
                           <p className={`text-xs font-bold ${
-                            (parseFloat(amount) - calculateSystemTotalsByPaymentMethod(selectedCashRegister.orders)[method]) >= 0 
+                            (parseFloat(amount) - calculateSystemTotalsByPaymentMethod(selectedCashSales || [])[method]) >= 0 
                               ? 'text-green-700' 
                               : 'text-red-700'
                           }`}>
-                            {(parseFloat(amount) - calculateSystemTotalsByPaymentMethod(selectedCashRegister.orders)[method]) >= 0 ? '+' : ''}
-                            {formatCurrency(parseFloat(amount) - calculateSystemTotalsByPaymentMethod(selectedCashRegister.orders)[method])}
+                            {(parseFloat(amount) - calculateSystemTotalsByPaymentMethod(selectedCashSales || [])[method]) >= 0 ? '+' : ''}
+                            {formatCurrency(parseFloat(amount) - calculateSystemTotalsByPaymentMethod(selectedCashSales || [])[method])}
                           </p>
                         </div>
                       )}
@@ -707,12 +712,12 @@ const CashRegister = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-medium text-amber-700">Diferencia:</span>
                   <span className={`text-xs font-bold ${
-                    getDifference(calculateSystemTotal(selectedCashRegister.orders), calculateOfficialTotal(officialIncome)) >= 0 
+                    getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(officialIncome)) >= 0 
                       ? 'text-green-700' 
                       : 'text-red-700'
                   }`}>
-                    {getDifference(calculateSystemTotal(selectedCashRegister.orders), calculateOfficialTotal(officialIncome)) >= 0 ? '+' : ''}
-                    {formatCurrency(getDifference(calculateSystemTotal(selectedCashRegister.orders), calculateOfficialTotal(officialIncome)))}
+                    {getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(officialIncome)) >= 0 ? '+' : ''}
+                    {formatCurrency(getDifference(selectedCashStatistics?.systemTotal || selectedCashRegister?.amountSystem || 0, calculateOfficialTotal(officialIncome)))}
                   </span>
                 </div>
               </div>
@@ -747,12 +752,12 @@ const CashRegister = () => {
           {/* Pedidos */}
           <div className="mb-6">
             <h4 className="text-professional-subtitle mb-4">
-              Pedidos ({selectedCashRegister.orders?.length || 0})
+              Pedidos ({selectedCashSales?.length || 0})
             </h4>
             
-            {selectedCashRegister.orders && selectedCashRegister.orders.length > 0 ? (
+            {selectedCashSales && selectedCashSales.length > 0 ? (
               <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-professional">
-                {selectedCashRegister.orders.map((order, index) => (
+                {selectedCashSales.map((order, index) => (
                   <div 
                     key={index} 
                     className="bg-white bg-opacity-50 p-3 rounded-lg border border-amber-200 cursor-pointer hover:bg-amber-50 transition-colors"
@@ -786,15 +791,15 @@ const CashRegister = () => {
                     </div>
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-xs text-professional-body">
-                        {formatDate(order.date)}
+                        {formatDate(order.updatedAt || order.createdAt)}
                       </span>
                       <span className="text-xs text-professional-body">
-                        {order.items?.length || 0} productos
+                        {order.foods?.length || 0} productos
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-600">
-                        Cliente: {order.customerName || 'Cliente anónimo'}
+                        Cliente: {order.name || order.buyer?.name || 'Cliente anónimo'}
                       </span>
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                         order.section === 'delivery' 

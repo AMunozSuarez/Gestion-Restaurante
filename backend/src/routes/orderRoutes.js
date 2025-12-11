@@ -25,6 +25,9 @@ router.delete('/delete/:id', authMiddleware, filterByRestaurant, deleteOrderCont
 // GET FILTERED ORDERS
 router.get('/sales', authMiddleware, filterByRestaurant, getFilteredOrders);
 
+// GET FILTERED ORDERS BY CASH REGISTER
+router.get('/sales/cash/:cashRegisterId', authMiddleware, filterByRestaurant, getFilteredOrders);
+
 // GET RECENT ORDERS (limit, status, section)
 router.get('/recent', authMiddleware, filterByRestaurant, getRecentOrders);
 

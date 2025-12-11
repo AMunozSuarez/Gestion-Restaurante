@@ -27,7 +27,33 @@ const getCurrentCashRegister = async (req, res) => {
         if (!cashRegister) {
             return res.status(404).send({ success: false, message: 'Caja no encontrada' });
         }
-        res.status(200).send({ success: true, cashRegister });
+
+        // Obtener estadísticas actualizadas desde las órdenes reales (solo completadas o enviadas)
+        const orderModel = require('../models/orderModel');
+        const completedOrders = await orderModel.find({
+            restaurant: req.user.restaurant,
+            cashRegister: cashRegister._id,
+            status: { $in: ['Completado', 'Enviado'] },
+            createdAt: { $gte: cashRegister.dateOpened }
+        });
+
+        const systemTotal = completedOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+
+        // Actualizar el amountSystem en la caja para mantenerlo sincronizado
+        if (cashRegister.amountSystem !== systemTotal) {
+            cashRegister.amountSystem = systemTotal;
+            await cashRegister.save();
+        }
+
+        res.status(200).send({ 
+            success: true, 
+            cashRegister,
+            statistics: {
+                totalOrders: completedOrders.length,
+                systemTotal,
+                averageTicket: completedOrders.length > 0 ? systemTotal / completedOrders.length : 0
+            }
+        });
     } catch (error) {
         res.status(500).send({ success: false, message: 'Error al obtener caja', error });
     }
@@ -54,12 +80,32 @@ const closeCashRegister = async (req, res) => {
             });
         }
         
+        // Buscar la caja activa
+        const activeCashRegister = await cashRegisterModel.findOne({
+            restaurant: req.user.restaurant,
+            status: 'Abierta'
+        });
+
+        if (!activeCashRegister) {
+            return res.status(404).send({ success: false, message: 'No hay una caja activa para cerrar' });
+        }
+
+        // Calcular el total del sistema basado en las órdenes reales de esta caja
+        const ordersInCash = await orderModel.find({
+            restaurant: req.user.restaurant,
+            cashRegister: activeCashRegister._id,
+            status: { $in: ['Completado', 'Enviado'] }, // Solo contar órdenes completadas o enviadas
+            createdAt: { $gte: activeCashRegister.dateOpened }
+        });
+
+        const systemTotal = ordersInCash.reduce((sum, order) => sum + (order.total || 0), 0);
         const totalReal = Object.values(officialIncome).reduce((sum, value) => sum + parseFloat(value || 0), 0);
 
-        const cashRegister = await cashRegisterModel.findOneAndUpdate(
-            { restaurant: req.user.restaurant, status: 'Abierta' },
+        // Actualizar y cerrar la caja
+        const cashRegister = await cashRegisterModel.findByIdAndUpdate(
+            activeCashRegister._id,
             {
-                amountSystem: totalReal,
+                amountSystem: systemTotal, // Total calculado desde las órdenes reales
                 officialIncome, // Guardar los ingresos oficiales
                 comment: comment || '', // Guardar el comentario
                 status: 'Cerrada',
@@ -68,12 +114,19 @@ const closeCashRegister = async (req, res) => {
             { new: true }
         );
 
-        if (!cashRegister) {
-            return res.status(404).send({ success: false, message: 'Caja no encontrada' });
-        }
-
-        res.status(200).send({ success: true, message: 'Caja cerrada', cashRegister });
+        res.status(200).send({ 
+            success: true, 
+            message: 'Caja cerrada', 
+            cashRegister,
+            statistics: {
+                totalOrders: ordersInCash.length,
+                systemTotal,
+                officialTotal: totalReal,
+                difference: systemTotal - totalReal
+            }
+        });
     } catch (error) {
+        console.error('Error al cerrar caja:', error);
         res.status(500).send({ success: false, message: 'Error al cerrar caja', error });
     }
 };
@@ -141,60 +194,92 @@ const getCashMovements = async (req, res) => {
 
 
 
-// Add completed order to current cash register
-const addOrderToCashRegister = async (req, res) => {
+// Obtener las ventas (órdenes) de una caja registradora específica
+const getCashRegisterSales = async (req, res) => {
     try {
-        const { orderId, total, paymentMethod, paymentMethods, items, deliveryCost, section, customerName } = req.body;
+        const { cashRegisterId } = req.params;
+        const { status, section, paymentMethod, dateFrom, dateTo } = req.query;
 
-        // Buscar la caja activa
-        const activeCashRegister = await cashRegisterModel.findOne({
+        // Verificar que la caja existe y pertenece al restaurante
+        const cashRegister = await cashRegisterModel.findOne({
+            _id: cashRegisterId,
             restaurant: req.user.restaurant,
-            status: 'Abierta',
         });
 
-        if (!activeCashRegister) {
-            return res.status(400).send({ success: false, message: 'No hay una caja activa.' });
+        if (!cashRegister) {
+            return res.status(404).send({ success: false, message: 'Caja registradora no encontrada' });
         }
 
-        // Crear el registro del pedido para la caja
-        const orderEntry = {
-            orderId,
-            total: parseFloat(total) || 0,
-            paymentMethod,
-            paymentMethods: paymentMethods || [],
-            items,
-            deliveryCost: parseFloat(deliveryCost) || 0,
-            section: section || 'mostrador',
-            customerName: customerName || 'Cliente anónimo',
-            date: new Date(),
+        // Construir filtros para las órdenes
+        const orderModel = require('../models/orderModel');
+        const filters = {
+            restaurant: req.user.restaurant,
+            cashRegister: cashRegisterId,
+            status: { $in: ['Completado', 'Enviado'] } // Solo órdenes completadas o enviadas
         };
 
-        // Agregar el pedido a la caja
-        activeCashRegister.orders.push(orderEntry);
+        // Agregar filtros opcionales (pero mantener restricción de estados válidos)
+        if (status && ['Completado', 'Enviado'].includes(status)) {
+            filters.status = status; // Solo permitir filtrar por estados válidos para caja
+        }
+        if (section) filters.section = section;
+        if (paymentMethod) filters.payment = paymentMethod;
 
-        // Recalcular el total del sistema basado en todos los pedidos
-        const systemTotal = activeCashRegister.orders.reduce((sum, order) => sum + (order.total || 0), 0);
-        activeCashRegister.amountSystem = systemTotal;
+        // Filtros de fecha
+        if (dateFrom || dateTo) {
+            filters.createdAt = {};
+            if (dateFrom) {
+                const startDate = new Date(dateFrom + 'T00:00:00-03:00');
+                filters.createdAt.$gte = startDate;
+            }
+            if (dateTo) {
+                const endDate = new Date(dateTo + 'T23:59:59.999-03:00');
+                filters.createdAt.$lte = endDate;
+            }
+        }
 
-        // Guardar los cambios
-        await activeCashRegister.save();
+        // Si no hay filtros de fecha y la caja está cerrada, filtrar por fechas de apertura y cierre
+        if (!dateFrom && !dateTo && cashRegister.status === 'Cerrada') {
+            filters.createdAt = {
+                $gte: cashRegister.dateOpened,
+                $lte: cashRegister.dateClosed || new Date(),
+            };
+        } else if (!dateFrom && !dateTo && cashRegister.status === 'Abierta') {
+            // Si la caja está abierta, filtrar desde la fecha de apertura
+            filters.createdAt = {
+                $gte: cashRegister.dateOpened,
+            };
+        }
 
-        res.status(200).send({ 
-            success: true, 
-            message: 'Pedido agregado a la caja registradora.', 
-            cashRegister: activeCashRegister 
+        const orders = await orderModel.find(filters)
+            .sort({ updatedAt: -1 })
+            .populate('foods.food', 'title price')
+            .populate('buyer', 'name phone');
+
+        // Calcular estadísticas
+        const totalSales = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+        const totalOrders = orders.length;
+
+        res.status(200).send({
+            success: true,
+            message: 'Ventas de la caja obtenidas correctamente',
+            cashRegister,
+            orders,
+            statistics: {
+                totalSales,
+                totalOrders,
+                averageTicket: totalOrders > 0 ? totalSales / totalOrders : 0,
+            }
         });
     } catch (error) {
-        console.error('Error al agregar pedido a la caja:', error);
-        res.status(500).send({ success: false, message: 'Error al agregar pedido a la caja.', error });
+        console.error('Error al obtener ventas de la caja:', error);
+        res.status(500).send({ success: false, message: 'Error al obtener ventas de la caja', error });
     }
 };
 
-// Close an order
-const closeOrder = async (req, res) => {
+// Obtener las ventas de la caja activa actual
+const getCurrentCashRegisterSales = async (req, res) => {
     try {
-        const { total, paymentMethod, paymentMethods, items } = req.body;
-
         // Buscar la caja activa
         const activeCashRegister = await cashRegisterModel.findOne({
             restaurant: req.user.restaurant,
@@ -202,31 +287,15 @@ const closeOrder = async (req, res) => {
         });
 
         if (!activeCashRegister) {
-            return res.status(400).send({ success: false, message: 'No hay una caja activa.' });
+            return res.status(404).send({ success: false, message: 'No hay una caja activa' });
         }
 
-        // Crear el pedido
-        const newOrder = {
-            total,
-            paymentMethod,
-            paymentMethods: paymentMethods || [],
-            items,
-            date: new Date(),
-        };
-
-        // Guardar el pedido en la colección de pedidos de la caja activa
-        activeCashRegister.orders.push(newOrder);
-
-        // Actualizar el balance de la caja activa
-        activeCashRegister.amountSystem += total;
-
-        // Guardar los cambios en la caja activa
-        await activeCashRegister.save();
-
-        res.status(201).send({ success: true, message: 'Pedido cerrado y registrado en la caja activa.', newOrder });
+        // Redirigir a getCashRegisterSales con el ID de la caja activa
+        req.params.cashRegisterId = activeCashRegister._id.toString();
+        return getCashRegisterSales(req, res);
     } catch (error) {
-        console.error('Error al cerrar el pedido:', error);
-        res.status(500).send({ success: false, message: 'Error al cerrar el pedido.', error });
+        console.error('Error al obtener ventas de la caja activa:', error);
+        res.status(500).send({ success: false, message: 'Error al obtener ventas de la caja activa', error });
     }
 };
 
@@ -240,6 +309,6 @@ module.exports = {
     getCashRegisterById,
     addCashMovement,
     getCashMovements,
-    addOrderToCashRegister,
-    closeOrder,
+    getCashRegisterSales,
+    getCurrentCashRegisterSales,
 };
