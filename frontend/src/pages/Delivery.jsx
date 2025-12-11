@@ -436,9 +436,11 @@ const Delivery = () => {
   };
 
   const updatePaymentMethod = (index, field, value) => {
+    // Si es el campo amount, parsear el valor formateado
+    const processedValue = field === 'amount' ? parsePaymentInput(value) : value;
     setPaymentMethods(prev => 
       prev.map((payment, i) => 
-        i === index ? { ...payment, [field]: value } : payment
+        i === index ? { ...payment, [field]: processedValue } : payment
       )
     );
   };
@@ -454,9 +456,11 @@ const Delivery = () => {
   };
 
   const updateEditPaymentMethod = (index, field, value) => {
+    // Si es el campo amount, parsear el valor formateado
+    const processedValue = field === 'amount' ? parsePaymentInput(value) : value;
     setEditPaymentMethods(prev => 
       prev.map((payment, i) => 
-        i === index ? { ...payment, [field]: value } : payment
+        i === index ? { ...payment, [field]: processedValue } : payment
       )
     );
   };
@@ -468,6 +472,19 @@ const Delivery = () => {
   // Función para calcular la diferencia de pago
   const getPaymentDifference = (totalPaid, orderTotal) => {
     return totalPaid - orderTotal;
+  };
+
+  // Funciones para formatear inputs de pago
+  const formatPaymentInput = (value) => {
+    if (!value || value === 0) return '';
+    return Math.round(value).toLocaleString('es-CL');
+  };
+
+  const parsePaymentInput = (value) => {
+    if (!value) return 0;
+    // Remover separadores de miles y convertir a número
+    const cleanValue = value.toString().replace(/[^\d]/g, '');
+    return parseInt(cleanValue) || 0;
   };
 
   // Función para obtener el texto de diferencia de pago
@@ -1667,7 +1684,7 @@ const Delivery = () => {
                                 <div className="text-xs text-gray-500">{product.category?.title || product.category?.name || 'Sin categoría'}</div>
                               </div>
                               <span className="text-sm font-semibold text-blue-600">
-                                ${product.price?.toFixed(2)}
+                                {formatChileanCurrency(product.price)}
                               </span>
                             </div>
                           </div>
@@ -1699,7 +1716,7 @@ const Delivery = () => {
                                 <div className="flex-1">
                                   <div className="text-sm font-medium">{item.name}</div>
                                   <div className="text-xs text-gray-500">
-                                    ${item.price?.toFixed(2)} c/u
+                                    {formatChileanCurrency(item.price)} c/u
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -1775,13 +1792,17 @@ const Delivery = () => {
                             <option value="Transferencia">Transferencia</option>
                           </select>
                           <input
-                            type="number"
+                            type="text"
                             className="input-blue flex-1"
                             placeholder="Monto"
-                            value={payment.amount || ''}
-                            onChange={(e) => updatePaymentMethod(index, 'amount', parseFloat(e.target.value) || 0)}
-                            min="0"
-                            step="0.01"
+                            value={formatPaymentInput(payment.amount)}
+                            onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
+                            onKeyDown={(e) => {
+                              // Solo permitir números, backspace, delete, tab
+                              if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                                e.preventDefault();
+                              }
+                            }}
                           />
                           {paymentMethods.length > 1 && (
                             <button
@@ -2235,7 +2256,7 @@ const Delivery = () => {
                                 <div className="text-xs text-gray-500">{product.category?.title || product.category?.name || 'Sin categoría'}</div>
                               </div>
                               <span className="text-sm font-semibold text-blue-600">
-                                ${product.price?.toFixed(2)}
+                                {formatChileanCurrency(product.price)}
                               </span>
                             </div>
                           </div>
@@ -2267,7 +2288,7 @@ const Delivery = () => {
                                 <div className="flex-1">
                                   <div className="text-sm font-medium">{item.name}</div>
                                   <div className="text-xs text-gray-500">
-                                    ${item.price?.toFixed(2)} c/u
+                                    {formatChileanCurrency(item.price)} c/u
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -2343,13 +2364,17 @@ const Delivery = () => {
                             <option value="Transferencia">Transferencia</option>
                           </select>
                           <input
-                            type="number"
+                            type="text"
                             className="input-blue flex-1"
                             placeholder="Monto"
-                            value={payment.amount || ''}
-                            onChange={(e) => updateEditPaymentMethod(index, 'amount', parseFloat(e.target.value) || 0)}
-                            min="0"
-                            step="0.01"
+                            value={formatPaymentInput(payment.amount)}
+                            onChange={(e) => updateEditPaymentMethod(index, 'amount', e.target.value)}
+                            onKeyDown={(e) => {
+                              // Solo permitir números, backspace, delete, tab
+                              if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                                e.preventDefault();
+                              }
+                            }}
                           />
                           {editPaymentMethods.length > 1 && (
                             <button
@@ -2574,7 +2599,7 @@ const Delivery = () => {
                                     {food.food?.title || 'Producto'}
                                   </div>
                                   <div className="text-xs text-gray-500">
-                                    ${food.food?.price?.toFixed(2) || '0.00'} c/u
+                                    {formatChileanCurrency(food.food?.price || 0)} c/u
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -2582,7 +2607,7 @@ const Delivery = () => {
                                     Cantidad: {food.quantity || 1}
                                   </span>
                                   <span className="text-sm font-semibold text-gray-800">
-                                    ${((food.food?.price || 0) * (food.quantity || 1)).toFixed(2)}
+                                    {formatChileanCurrency((food.food?.price || 0) * (food.quantity || 1))}
                                   </span>
                                 </div>
                               </div>
@@ -2627,15 +2652,15 @@ const Delivery = () => {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between text-gray-800">
                         <span>Subtotal:</span>
-                        <span>${(selectedCompletedOrder.total - getDeliveryCost(selectedCompletedOrder))?.toFixed(2) || '0.00'}</span>
+                        <span>{formatChileanCurrency((selectedCompletedOrder.total - getDeliveryCost(selectedCompletedOrder)) || 0)}</span>
                       </div>
                       <div className="flex justify-between text-gray-800">
                         <span>Costo de envío:</span>
-                        <span>${getDeliveryCost(selectedCompletedOrder)?.toFixed(2) || '0.00'}</span>
+                        <span>{formatChileanCurrency(getDeliveryCost(selectedCompletedOrder) || 0)}</span>
                       </div>
                       <div className="flex justify-between text-lg font-semibold text-gray-800 border-t border-gray-400 pt-1">
                         <span>Total:</span>
-                        <span>${selectedCompletedOrder.total?.toFixed(2) || '0.00'}</span>
+                        <span>{formatChileanCurrency(selectedCompletedOrder.total || 0)}</span>
                       </div>
                     </div>
                   </div>

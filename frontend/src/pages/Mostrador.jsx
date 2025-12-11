@@ -319,9 +319,11 @@ const Mostrador = () => {
   };
 
   const updatePaymentMethod = (index, field, value) => {
+    // Si es el campo amount, parsear el valor formateado
+    const processedValue = field === 'amount' ? parsePaymentInput(value) : value;
     setPaymentMethods(prev => 
       prev.map((payment, i) => 
-        i === index ? { ...payment, [field]: value } : payment
+        i === index ? { ...payment, [field]: processedValue } : payment
       )
     );
   };
@@ -337,9 +339,11 @@ const Mostrador = () => {
   };
 
   const updateEditPaymentMethod = (index, field, value) => {
+    // Si es el campo amount, parsear el valor formateado
+    const processedValue = field === 'amount' ? parsePaymentInput(value) : value;
     setEditPaymentMethods(prev => 
       prev.map((payment, i) => 
-        i === index ? { ...payment, [field]: value } : payment
+        i === index ? { ...payment, [field]: processedValue } : payment
       )
     );
   };
@@ -351,6 +355,19 @@ const Mostrador = () => {
   // Función para calcular la diferencia de pago
   const getPaymentDifference = (totalPaid, orderTotal) => {
     return totalPaid - orderTotal;
+  };
+
+  // Funciones para formatear inputs de pago
+  const formatPaymentInput = (value) => {
+    if (!value || value === 0) return '';
+    return Math.round(value).toLocaleString('es-CL');
+  };
+
+  const parsePaymentInput = (value) => {
+    if (!value) return 0;
+    // Remover separadores de miles y convertir a número
+    const cleanValue = value.toString().replace(/[^\d]/g, '');
+    return parseInt(cleanValue) || 0;
   };
 
   // Función para obtener el texto de diferencia de pago
@@ -1098,13 +1115,17 @@ const Mostrador = () => {
                             <option value="Transferencia">Transferencia</option>
                           </select>
                           <input
-                            type="number"
+                            type="text"
                             className="input-professional flex-1"
                             placeholder="Monto"
-                            value={payment.amount || ''}
-                            onChange={(e) => updatePaymentMethod(index, 'amount', parseFloat(e.target.value) || 0)}
-                            min="0"
-                            step="0.01"
+                            value={formatPaymentInput(payment.amount)}
+                            onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
+                            onKeyDown={(e) => {
+                              // Solo permitir números, backspace, delete, tab
+                              if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                                e.preventDefault();
+                              }
+                            }}
                           />
                           {paymentMethods.length > 1 && (
                             <button
@@ -1504,13 +1525,17 @@ const Mostrador = () => {
                             <option value="Transferencia">Transferencia</option>
                           </select>
                           <input
-                            type="number"
+                            type="text"
                             className="input-professional flex-1"
                             placeholder="Monto"
-                            value={payment.amount || ''}
-                            onChange={(e) => updateEditPaymentMethod(index, 'amount', parseFloat(e.target.value) || 0)}
-                            min="0"
-                            step="0.01"
+                            value={formatPaymentInput(payment.amount)}
+                            onChange={(e) => updateEditPaymentMethod(index, 'amount', e.target.value)}
+                            onKeyDown={(e) => {
+                              // Solo permitir números, backspace, delete, tab
+                              if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                                e.preventDefault();
+                              }
+                            }}
                           />
                           {editPaymentMethods.length > 1 && (
                             <button
