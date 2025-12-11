@@ -49,14 +49,14 @@ const Configuracion = () => {
         setServiceStatus('offline');
         setMessage({ 
           type: 'error', 
-          text: 'Servicio de impresión no disponible. Asegúrate de que esté ejecutándose en el puerto 8088.' 
+          text: 'Servicio de impresión no disponible. Contacte al administrador del sistema.' 
         });
       }
     } catch (error) {
       setServiceStatus('offline');
       setMessage({ 
         type: 'error', 
-        text: 'Error de conexión con el servicio de impresión' 
+        text: 'No se puede conectar al servicio de impresión. Contacte al administrador.' 
       });
     } finally {
       setLoading(false);
@@ -252,6 +252,39 @@ const Configuracion = () => {
           </div>
         )}
 
+        {/* Estado de impresión automática - Solo mostrar cuando el servicio esté online */}
+        {serviceStatus === 'online' && (
+          <div className={`p-4 rounded-lg border ${
+            defaultPrinter 
+              ? 'bg-green-50 border-green-200' 
+              : 'bg-orange-50 border-orange-200'
+          }`}>
+            <div className="flex items-center">
+              <div className={`w-3 h-3 rounded-full mr-3 ${
+                defaultPrinter ? 'bg-green-500' : 'bg-orange-500'
+              }`}></div>
+              <div>
+                <p className={`font-medium ${
+                  defaultPrinter ? 'text-green-800' : 'text-orange-800'
+                }`}>
+                  {defaultPrinter 
+                    ? 'Impresión automática: ACTIVADA' 
+                    : 'Impresión automática: DESACTIVADA'
+                  }
+                </p>
+                <p className={`text-sm ${
+                  defaultPrinter ? 'text-green-700' : 'text-orange-700'
+                }`}>
+                  {defaultPrinter 
+                    ? `Las comandas se enviarán automáticamente a "${defaultPrinter}" al crear pedidos`
+                    : 'Configure una impresora predeterminada para activar la impresión automática de comandas'
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Sección de Impresoras */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">
@@ -407,58 +440,37 @@ const Configuracion = () => {
               <p className="text-gray-500 mb-4">
                 No se puede conectar al servicio de impresión
               </p>
-              <div className="text-sm text-gray-400 space-y-1">
-                <p>Asegúrate de que el servicio esté ejecutándose en:</p>
-                <code className="bg-gray-100 px-2 py-1 rounded">http://localhost:8088</code>
-              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Es necesario instalar el servicio de impresión para poder usar las impresoras.
+              </p>
+              <a
+                href="https://github.com/AMunozSuarez/Gestion-Restaurante/releases/download/V1.0/RestaurantPrintingServiceInstaller.exe"
+                download="RestaurantPrintingServiceInstaller.exe"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Descargar Servicio de Impresión
+              </a>
+              <p className="text-xs text-gray-400 mt-2">
+                Después de descargar, ejecute el instalador, actualice y listo!
+              </p>
             </div>
           )}
         </div>
 
-        {/* Información adicional */}
+        {/* Información de uso */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start">
             <CogIcon className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
             <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">Información del servicio de impresión:</p>
+              <p className="font-medium mb-1">Cómo usar las impresoras:</p>
               <ul className="list-disc list-inside space-y-1 text-blue-700">
-                <li>El servicio debe estar ejecutándose en el puerto 8088</li>
-                <li><strong>Impresora para pruebas:</strong> Se usa solo para probar conectividad</li>
-                <li><strong>Impresora predeterminada:</strong> Se usa automáticamente para comandas de cocina al crear pedidos</li>
-                <li>Las comandas se imprimen automáticamente cuando hay una impresora predeterminada configurada</li>
-                <li>Puedes probar ambos tipos de impresión con los botones correspondientes</li>
+                <li><strong>Prueba:</strong> Verifica que la impresora funcione correctamente</li>
+                <li><strong>Predeterminada:</strong> Se usará automáticamente para imprimir comandas de cocina</li>
+                <li>Cuando configures una impresora predeterminada, las comandas se imprimirán automáticamente</li>
               </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Estado de impresión automática */}
-        <div className={`p-4 rounded-lg border ${
-          defaultPrinter 
-            ? 'bg-green-50 border-green-200' 
-            : 'bg-orange-50 border-orange-200'
-        }`}>
-          <div className="flex items-center">
-            <div className={`w-3 h-3 rounded-full mr-3 ${
-              defaultPrinter ? 'bg-green-500' : 'bg-orange-500'
-            }`}></div>
-            <div>
-              <p className={`font-medium ${
-                defaultPrinter ? 'text-green-800' : 'text-orange-800'
-              }`}>
-                {defaultPrinter 
-                  ? 'Impresión automática: ACTIVADA' 
-                  : 'Impresión automática: DESACTIVADA'
-                }
-              </p>
-              <p className={`text-sm ${
-                defaultPrinter ? 'text-green-700' : 'text-orange-700'
-              }`}>
-                {defaultPrinter 
-                  ? `Las comandas se enviarán automáticamente a "${defaultPrinter}" al crear pedidos`
-                  : 'Configure una impresora predeterminada para activar la impresión automática de comandas'
-                }
-              </p>
             </div>
           </div>
         </div>
