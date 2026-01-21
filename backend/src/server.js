@@ -3,6 +3,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const { conexion } = require('./bdd/conexion'); // Import the connection function
 const { configureMercadoPago } = require('./services/mercadoPagoService');
+const { checkExpiredSubscriptions, sendExpirationReminders } = require('./scripts/checkExpiredSubscriptions');
 
 require('dotenv').config(); // Load environment variables from the .env file
 
@@ -40,4 +41,21 @@ app.get('/', (req, res) => {
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
+    
+    // Verificar suscripciones vencidas al iniciar el servidor
+    checkExpiredSubscriptions().catch(err => console.error('Error al verificar suscripciones:', err));
+    
+    // Ejecutar verificación diaria de suscripciones (cada 24 horas)
+    const DAILY_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
+    setInterval(() => {
+        checkExpiredSubscriptions().catch(err => console.error('Error en verificación diaria:', err));
+    }, DAILY_CHECK_INTERVAL);
+    
+    // Enviar recordatorios de vencimiento (cada 6 horas)
+    const REMINDER_INTERVAL = 6 * 60 * 60 * 1000; // 6 horas en milisegundos
+    setInterval(() => {
+        sendExpirationReminders().catch(err => console.error('Error al enviar recordatorios:', err));
+    }, REMINDER_INTERVAL);
+    
+    console.log('✅ Sistema de verificación de suscripciones activado');
 });

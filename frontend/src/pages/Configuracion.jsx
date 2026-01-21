@@ -29,6 +29,7 @@ const Configuracion = () => {
   
   // Estados para suscripción
   const [subscription, setSubscription] = useState(null);
+  const [subscriptionData, setSubscriptionData] = useState(null); // Para isInGracePeriod y otros datos
   const [loadingSubscription, setLoadingSubscription] = useState(false);
   const [cancelingSubscription, setCancelingSubscription] = useState(false);
 
@@ -236,8 +237,9 @@ const Configuracion = () => {
     setLoadingSubscription(true);
     try {
       const response = await subscriptionService.getCurrentSubscription();
-      if (response.success) {
-        setSubscription(response.data);
+      if (response.success && response.data && response.data.subscription) {
+        setSubscription(response.data.subscription);
+        setSubscriptionData(response.data); // Guardar toda la data incluyendo isInGracePeriod
       } else {
         setMessage({ 
           type: 'error', 
@@ -309,6 +311,7 @@ const Configuracion = () => {
       expired: { color: 'bg-red-100 text-red-800', text: 'Expirada' },
       cancelled: { color: 'bg-gray-100 text-gray-800', text: 'Cancelada' },
       trial: { color: 'bg-blue-100 text-blue-800', text: 'Prueba' },
+      suspended: { color: 'bg-orange-100 text-orange-800', text: 'Suspendida' },
     };
     return badges[status] || { color: 'bg-gray-100 text-gray-800', text: status };
   };
@@ -623,6 +626,55 @@ const Configuracion = () => {
               </div>
             ) : subscription ? (
               <>
+                {/* Alertas según estado - ARRIBA */}
+                {subscription.status === 'expired' && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-red-600 mr-2 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-red-900 mb-1">
+                          Suscripción Expirada
+                        </h4>
+                        <p className="text-sm text-red-700">
+                          Tu suscripción ha expirado. Renueva ahora para seguir usando el sistema sin interrupciones.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {subscription.status === 'suspended' && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <XCircleIcon className="w-5 h-5 text-red-600 mr-2 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-red-900 mb-1">
+                          Cuenta Suspendida
+                        </h4>
+                        <p className="text-sm text-red-700">
+                          Tu cuenta ha sido suspendida por falta de pago. Renueva tu suscripción para reactivar el servicio.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {subscription.status === 'active' && subscription.plan === 'trial' && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <CheckCircleIcon className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium text-blue-900 mb-1">
+                          Período de Prueba Activo
+                        </h4>
+                        <p className="text-sm text-blue-700">
+                          Estás usando el período de prueba gratuito. Actualiza a un plan de pago para continuar después de {Math.ceil((new Date(subscription.endDate) - new Date()) / (1000 * 60 * 60 * 24))} días.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Card principal de suscripción */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 text-white">
@@ -802,39 +854,6 @@ const Configuracion = () => {
                           ))}
                         </tbody>
                       </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Alertas según estado */}
-                {subscription.status === 'expired' && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-start">
-                      <ExclamationTriangleIcon className="w-5 h-5 text-red-600 mr-2 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium text-red-900 mb-1">
-                          Suscripción Expirada
-                        </h4>
-                        <p className="text-sm text-red-700">
-                          Tu suscripción ha expirado. Renueva ahora para seguir usando el sistema sin interrupciones.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {subscription.status === 'active' && subscription.plan === 'trial' && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start">
-                      <CheckCircleIcon className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium text-blue-900 mb-1">
-                          Período de Prueba Activo
-                        </h4>
-                        <p className="text-sm text-blue-700">
-                          Estás usando el período de prueba gratuito. Actualiza a un plan de pago para continuar después de {Math.ceil((new Date(subscription.endDate) - new Date()) / (1000 * 60 * 60 * 24))} días.
-                        </p>
-                      </div>
                     </div>
                   </div>
                 )}

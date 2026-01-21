@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useRestaurant } from '../../hooks/useRestaurant';
+import { useSubscription } from '../../hooks/useSubscription';
 import { 
   HomeIcon, 
   TruckIcon, 
@@ -21,6 +22,7 @@ const Header = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { restaurant, isLoading: isRestaurantLoading } = useRestaurant();
+  const { hasActiveSubscription, isLoading: isSubscriptionLoading } = useSubscription();
   const [openDropdown, setOpenDropdown] = useState(null);
   const headerRef = useRef(null);
 
@@ -45,9 +47,13 @@ const Header = () => {
 
   const singleItems = [
     { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
-    { name: 'Suscripción', href: '/subscription/plans', icon: CreditCardIcon },
     { name: 'Configuración', href: '/configuracion', icon: WrenchScrewdriverIcon },
   ];
+
+  // Solo agregar el botón de suscripción si NO tiene una suscripción activa
+  if (!isSubscriptionLoading && !hasActiveSubscription) {
+    singleItems.splice(1, 0, { name: 'Suscripción', href: '/subscription/plans', icon: CreditCardIcon });
+  }
 
   const isActive = (href) => location.pathname === href;
 
