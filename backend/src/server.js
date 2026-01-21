@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const { conexion } = require('./bdd/conexion'); // Import the connection function
+const { configureMercadoPago } = require('./services/mercadoPagoService');
 
 require('dotenv').config(); // Load environment variables from the .env file
 
@@ -10,6 +11,7 @@ const app = express();
 const port = process.env.PORT || 3001; // Use the port defined in the environment or 3001 by default
 
 conexion(); // Establish the connection with MongoDB Atlas
+configureMercadoPago(); // Configure MercadoPago with credentials
 
 app.use(morgan('dev')); // Use Morgan for logging
 app.use(cors()); // Use CORS to allow cross-origin requests
@@ -27,6 +29,8 @@ app.use('/api/cash', require('./routes/cashRoutes')); // Use the cash register r
 app.use('/api/customer', require('./routes/customerRoutes')); // Use the customer routes
 app.use('/api/print', require('./routes/printRoutes')); // Use the print routes
 app.use('/api/admin', require('./routes/adminRoutes')); // Use the admin routes
+app.use('/api/subscriptions', require('./routes/subscriptionRoutes')); // Use the subscription routes
+app.use('/api/webhooks', require('./routes/webhookRoutes')); // Use the webhook routes
 
 
 

@@ -10,6 +10,11 @@ import Ventas from './pages/Ventas';
 import Productos from './pages/Productos';
 import Categorias from './pages/Categorias';
 import Configuracion from './pages/Configuracion';
+import SubscriptionPlans from './pages/SubscriptionPlans';
+import SubscriptionSuccess from './pages/SubscriptionSuccess';
+import SubscriptionFailure from './pages/SubscriptionFailure';
+import SubscriptionPending from './pages/SubscriptionPending';
+import SubscriptionAdmin from './pages/SubscriptionAdmin';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
@@ -110,6 +115,62 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Configuracion />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* Rutas de suscripción */}
+          <Route
+            path="/subscription/plans"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SubscriptionPlans />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/subscription/success"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SubscriptionSuccess />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/subscription/failure"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SubscriptionFailure />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/subscription/pending"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SubscriptionPending />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/subscription/admin"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SubscriptionAdmin />
                 </Layout>
               </ProtectedRoute>
             }

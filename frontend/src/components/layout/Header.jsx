@@ -12,7 +12,8 @@ import {
   TagIcon,
   RectangleStackIcon,
   ChevronDownIcon,
-  WrenchScrewdriverIcon
+  WrenchScrewdriverIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -44,6 +45,7 @@ const Header = () => {
 
   const singleItems = [
     { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
+    { name: 'Suscripción', href: '/subscription/plans', icon: CreditCardIcon },
     { name: 'Configuración', href: '/configuracion', icon: WrenchScrewdriverIcon },
   ];
 
