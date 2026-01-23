@@ -812,7 +812,7 @@ const TableManagement = () => {
                                     <option value="">Sin mesero asignado</option>
                                     {waiters.map(waiter => (
                                         <option key={waiter._id} value={waiter._id}>
-                                            {waiter.name} {waiter.email ? `(${waiter.email})` : ''}
+                                            {waiter.userName} 
                                         </option>
                                     ))}
                                 </select>

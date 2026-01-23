@@ -51,6 +51,14 @@ const orderSchema = new mongoose.Schema({
     tableNumber: {
         type: Number, // Número de mesa (para pedidos de sección "mesas")
     },
+    waiter: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // Mesero asignado a la orden
+    },
+    tip: {
+        type: Number,
+        default: 0, // Propina
+    },
     section: {
         type: String,
         enum: ['delivery', 'mostrador', 'mesas'],

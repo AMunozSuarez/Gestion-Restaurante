@@ -188,7 +188,9 @@ const TableDetail = () => {
                 section: 'mesas',
                 status: 'Preparacion',
                 comment: comments,
-                tableNumber: table.tableNumber
+                tableNumber: table.tableNumber,
+                waiter: table.waiter?._id || null,
+                tip: 0  // Sin propina al enviar a cocina
             };
 
             let response;
@@ -324,7 +326,9 @@ const TableDetail = () => {
                 section: 'mesas',
                 status: 'Completado',
                 comment: comments,
-                tableNumber: table.tableNumber
+                tableNumber: table.tableNumber,
+                waiter: table.waiter?._id || null,
+                tip: suggestedTip || 0
             };
 
             const response = await updateOrder(table.currentOrder._id, orderData);

@@ -8,7 +8,7 @@ const { getChileDate, getChileTimestamp, formatChileDate, getChileDayRange } = r
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment } = req.body;
+        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, waiter, tip } = req.body;
         
                 let customer = null;
         let deliveryCost = 0;
@@ -106,6 +106,9 @@ const createOrderController = async (req, res) => {
             name: !customer ? (buyer?.name || null) : null,
             buyer: customer ? customer._id : null,
             selectedAddress: customer ? selectedAddress : null,
+            tableNumber: tableNumber || null,
+            waiter: waiter || null,
+            tip: tip || 0,
             section,
             status: status || 'Preparacion',
             comment: comment || '',
@@ -286,7 +289,7 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber } = req.body;
+        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip } = req.body;
         console.log('Datos recibidos en el backend:', req.body);
         
         // Buscar la orden existente
@@ -321,6 +324,18 @@ const updateOrderController = async (req, res) => {
         if (comment !== undefined) {
             updateData.comment = comment;
         }
+        
+        if (tableNumber !== undefined) {
+            updateData.tableNumber = tableNumber;
+        }
+        
+        if (waiter !== undefined) {
+            updateData.waiter = waiter;
+        }
+        
+        if (tip !== undefined) {
+            updateData.tip = tip;
+        }
 
         // Si se envían foods, validar y actualizar con cálculo completo
         if (foods && Array.isArray(foods)) {
@@ -331,11 +346,11 @@ const updateOrderController = async (req, res) => {
                 });
             }
             
-            const invalidFood = foods.find((item) => !item.food || !item.quantity || item.comment === undefined);
+            const invalidFood = foods.find((item) => !item.food || !item.quantity);
             if (invalidFood) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Todos los elementos de foods deben tener las propiedades food, quantity y comment.',
+                    message: 'Todos los elementos de foods deben tener las propiedades food y quantity.',
                 });
             }
 
@@ -413,7 +428,6 @@ const updateOrderController = async (req, res) => {
             updateData.total = total;
             updateData.deliveryCost = deliveryCost;
             updateData.selectedAddress = customer ? selectedAddress : null;
-            if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
         }
 
         // Actualizar la orden
