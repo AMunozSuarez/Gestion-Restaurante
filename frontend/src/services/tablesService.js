@@ -99,6 +99,17 @@ const tablesService = {
             throw error;
         }
     },
+
+    // Asignar mesero a mesa
+    assignWaiterToTable: async (id, waiterId) => {
+        try {
+            const response = await api.post(`/tables/${id}/assign-waiter`, { waiterId });
+            return response.data;
+        } catch (error) {
+            console.error('Error al asignar mesero a mesa:', error);
+            throw error;
+        }
+    },
 };
 
 export default tablesService;

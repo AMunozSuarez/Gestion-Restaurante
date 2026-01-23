@@ -19,6 +19,7 @@ router.delete('/:id', tableController.deleteTable);
 router.post('/:id/open', tableController.openTable);
 router.post('/:id/close', tableController.closeTable);
 router.post('/:id/assign-order', tableController.assignOrderToTable);
+router.post('/:id/assign-waiter', tableController.assignWaiterToTable);
 router.put('/positions/bulk', tableController.updateTablePositions);
 
 module.exports = router;

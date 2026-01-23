@@ -6,7 +6,7 @@ const getTables = async (req, res) => {
     try {
         const tables = await Table.find({ restaurant: req.restaurantId })
             .populate('currentOrder')
-            .populate('waiter', 'name')
+            .populate('waiter', 'userName email')
             .sort({ tableNumber: 1 });
         
         res.json(tables);
@@ -30,7 +30,7 @@ const getTableById = async (req, res) => {
                     model: 'Food'
                 }
             })
-            .populate('waiter', 'name');
+            .populate('waiter', 'userName email');
         
         if (!table) {
             return res.status(404).json({ message: 'Mesa no encontrada' });
@@ -167,7 +167,7 @@ const openTable = async (req, res) => {
         await table.save();
         
         const populatedTable = await Table.findById(table._id)
-            .populate('waiter', 'name')
+            .populate('waiter', 'userName email')
             .populate('currentOrder');
         
         res.json(populatedTable);
@@ -233,7 +233,7 @@ const updateTablePositions = async (req, res) => {
         
         const updatedTables = await Table.find({ restaurant: req.restaurantId })
             .populate('currentOrder')
-            .populate('waiter', 'name')
+            .populate('waiter', 'userName email')
             .sort({ tableNumber: 1 });
         
         res.json(updatedTables);
@@ -278,12 +278,46 @@ const assignOrderToTable = async (req, res) => {
                     model: 'Food'
                 }
             })
-            .populate('waiter', 'name');
+            .populate('waiter', 'userName email');
         
         res.json(populatedTable);
     } catch (error) {
         console.error('Error al asignar orden:', error);
         res.status(500).json({ message: 'Error al asignar orden', error: error.message });
+    }
+};
+
+// Asignar mesero a mesa
+const assignWaiterToTable = async (req, res) => {
+    try {
+        const { waiterId } = req.body;
+        
+        const table = await Table.findOne({ 
+            _id: req.params.id, 
+            restaurant: req.restaurantId 
+        });
+        
+        if (!table) {
+            return res.status(404).json({ message: 'Mesa no encontrada' });
+        }
+        
+        table.waiter = waiterId || null;
+        await table.save();
+        
+        const populatedTable = await Table.findById(table._id)
+            .populate({
+                path: 'currentOrder',
+                populate: {
+                    path: 'foods.food',
+                    model: 'Food'
+                }
+            })
+            .populate('waiter', 'name email');
+        
+        res.json(populatedTable);
+    } catch (error) {
+        console.error('Error al asignar mesero:', error);
+        res.status(500).json({ message: 'Error al asignar mesero', error: error.message });
     }
 };
 
@@ -297,4 +331,5 @@ module.exports = {
     closeTable,
     updateTablePositions,
     assignOrderToTable,
+    assignWaiterToTable,
 };

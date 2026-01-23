@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTables } from '../hooks/useTables';
 import { useCashRegister } from '../hooks/useCashRegister';
+import { useWaiters } from '../hooks/useUsers';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import { 
     PlusIcon, 
@@ -20,6 +21,7 @@ const TableManagement = () => {
     const navigate = useNavigate();
     const { tables, isLoading, createTable, updateTable, deleteTable, openTable, updateTablePositions } = useTables();
     const { isOpen: isCashOpen, isLoading: cashLoading } = useCashRegister();
+    const { waiters } = useWaiters();
     
     // Estados
     const [showCashAlert, setShowCashAlert] = useState(false);
@@ -35,6 +37,7 @@ const TableManagement = () => {
     const [showOpenTableModal, setShowOpenTableModal] = useState(false);
     const [tableToOpen, setTableToOpen] = useState(null);
     const [guestCount, setGuestCount] = useState(2);
+    const [selectedWaiter, setSelectedWaiter] = useState(null);
     const [draggedTable, setDraggedTable] = useState(null);
     const [dragOverPosition, setDragOverPosition] = useState(null);
     const [currentSection, setCurrentSection] = useState('Salón');
@@ -95,12 +98,20 @@ const TableManagement = () => {
 
     const confirmOpenTable = async () => {
         try {
-            await openTable(tableToOpen._id, { 
-                currentGuests: guestCount 
-            });
+            const openTableData = { 
+                currentGuests: guestCount
+            };
+            
+            // Agregar mesero solo si se seleccionó uno
+            if (selectedWaiter) {
+                openTableData.waiter = selectedWaiter;
+            }
+            
+            await openTable(tableToOpen._id, openTableData);
             setShowOpenTableModal(false);
             setTableToOpen(null);
             setGuestCount(2);
+            setSelectedWaiter(null);
             showNotification('Mesa abierta exitosamente');
         } catch (error) {
             showNotification('Error al abrir mesa: ' + error.message, 'error');
@@ -788,6 +799,24 @@ const TableManagement = () => {
                                     Capacidad máxima: {tableToOpen?.capacity} personas
                                 </p>
                             </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Mesero (Opcional)
+                                </label>
+                                <select
+                                    value={selectedWaiter || ''}
+                                    onChange={(e) => setSelectedWaiter(e.target.value || null)}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                >
+                                    <option value="">Sin mesero asignado</option>
+                                    {waiters.map(waiter => (
+                                        <option key={waiter._id} value={waiter._id}>
+                                            {waiter.name} {waiter.email ? `(${waiter.email})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         <div className="flex gap-3 mt-6">
@@ -796,6 +825,7 @@ const TableManagement = () => {
                                     setShowOpenTableModal(false);
                                     setTableToOpen(null);
                                     setGuestCount(2);
+                                    setSelectedWaiter(null);
                                 }}
                                 variant="outline"
                                 className="flex-1"

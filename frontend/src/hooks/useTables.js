@@ -108,6 +108,19 @@ export const useTables = () => {
         }
     }, []);
 
+    const assignWaiterToTable = useCallback(async (id, waiterId) => {
+        try {
+            const updatedTable = await tablesService.assignWaiterToTable(id, waiterId);
+            setTables(prev => prev.map(table => 
+                table._id === id ? updatedTable : table
+            ));
+            return updatedTable;
+        } catch (err) {
+            setError(err.message);
+            throw err;
+        }
+    }, []);
+
     return {
         tables,
         isLoading,
@@ -120,6 +133,7 @@ export const useTables = () => {
         closeTable,
         assignOrderToTable,
         updateTablePositions,
+        assignWaiterToTable,
     };
 };
 

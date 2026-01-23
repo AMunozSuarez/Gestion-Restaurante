@@ -4,6 +4,7 @@ import { useTable, useTables } from '../hooks/useTables';
 import { useOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../hooks/useCashRegister';
+import { useWaiters } from '../hooks/useUsers';
 import { 
     ArrowLeftIcon, 
     PlusIcon, 
@@ -27,11 +28,12 @@ const TableDetail = () => {
     const { tableId } = useParams();
     const navigate = useNavigate();
     const { table, isLoading: tableLoading, refetch: refetchTable } = useTable(tableId);
-    const { closeTable, assignOrderToTable } = useTables();
+    const { closeTable, assignOrderToTable, assignWaiterToTable } = useTables();
     const { isOpen: isCashOpen, isLoading: cashLoading } = useCashRegister();
     const { products } = useProducts({ available: true });
     const { searchResults, searchProducts } = useProductSearch();
     const { createOrder, updateOrder } = useOrders({ section: 'mesas' });
+    const { waiters } = useWaiters();
 
     // Estados
     const [showCashAlert, setShowCashAlert] = useState(false);
@@ -46,6 +48,8 @@ const TableDetail = () => {
     const [paymentMethods, setPaymentMethods] = useState([{ method: '', amount: 0 }]);
     const [suggestedTip, setSuggestedTip] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [showWaiterModal, setShowWaiterModal] = useState(false);
+    const [selectedWaiter, setSelectedWaiter] = useState(null);
 
     const productCommentInputRef = useRef(null);
 
@@ -77,6 +81,13 @@ const TableDetail = () => {
             setShowCashAlert(true);
         }
     }, [isCashOpen, cashLoading]);
+
+    // Inicializar mesero seleccionado
+    useEffect(() => {
+        if (table?.waiter) {
+            setSelectedWaiter(table.waiter._id);
+        }
+    }, [table]);
 
     // Focus en textarea de comentarios
     useEffect(() => {
@@ -358,6 +369,23 @@ const TableDetail = () => {
         return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
     };
 
+    // Asignar mesero a la mesa
+    const handleAssignWaiter = async () => {
+        if (!selectedWaiter) {
+            showNotification('Selecciona un mesero', 'warning');
+            return;
+        }
+
+        try {
+            await assignWaiterToTable(tableId, selectedWaiter);
+            await refetchTable();
+            setShowWaiterModal(false);
+            showNotification('Mesero asignado exitosamente', 'success');
+        } catch (error) {
+            showNotification('Error al asignar mesero: ' + error.message, 'error');
+        }
+    };
+
     if (tableLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 flex items-center justify-center">
@@ -435,8 +463,14 @@ const TableDetail = () => {
                                             <ClockIcon className="w-4 h-4" />
                                             <span>{getTableDuration()}</span>
                                         </div>
-                                    )}
-                                </div>
+                                    )}                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={() => setShowWaiterModal(true)}
+                                            className="text-teal-600 hover:text-teal-700 font-medium"
+                                        >
+                                            {table.waiter ? `Mesero: ${table.waiter.userName}` : 'Asignar mesero'}
+                                        </button>
+                                    </div>                                </div>
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -618,6 +652,54 @@ const TableDetail = () => {
                                 className="flex-1 bg-teal-600 hover:bg-teal-700"
                             >
                                 Guardar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Asignar Mesero */}
+            {showWaiterModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">
+                            Asignar Mesero a Mesa {table.tableNumber}
+                        </h3>
+                        
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Seleccionar Mesero
+                            </label>
+                            <select
+                                value={selectedWaiter || ''}
+                                onChange={(e) => setSelectedWaiter(e.target.value || null)}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                            >
+                                <option value="">Sin mesero asignado</option>
+                                {waiters.map(waiter => (
+                                    <option key={waiter._id} value={waiter._id}>
+                                        {waiter.userName} 
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Button
+                                onClick={() => {
+                                    setShowWaiterModal(false);
+                                    setSelectedWaiter(table?.waiter?._id || null);
+                                }}
+                                variant="outline"
+                                className="flex-1"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={handleAssignWaiter}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                            >
+                                Asignar
                             </Button>
                         </div>
                     </div>
