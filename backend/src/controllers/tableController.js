@@ -1,0 +1,300 @@
+const Table = require('../models/tableModel');
+const Order = require('../models/orderModel');
+
+// Obtener todas las mesas del restaurante
+const getTables = async (req, res) => {
+    try {
+        const tables = await Table.find({ restaurant: req.restaurantId })
+            .populate('currentOrder')
+            .populate('waiter', 'name')
+            .sort({ tableNumber: 1 });
+        
+        res.json(tables);
+    } catch (error) {
+        console.error('Error al obtener mesas:', error);
+        res.status(500).json({ message: 'Error al obtener mesas', error: error.message });
+    }
+};
+
+// Obtener una mesa específica
+const getTableById = async (req, res) => {
+    try {
+        const table = await Table.findOne({ 
+            _id: req.params.id, 
+            restaurant: req.restaurantId 
+        })
+            .populate({
+                path: 'currentOrder',
+                populate: {
+                    path: 'foods.food',
+                    model: 'Food'
+                }
+            })
+            .populate('waiter', 'name');
+        
+        if (!table) {
+            return res.status(404).json({ message: 'Mesa no encontrada' });
+        }
+        
+        res.json(table);
+    } catch (error) {
+        console.error('Error al obtener mesa:', error);
+        res.status(500).json({ message: 'Error al obtener mesa', error: error.message });
+    }
+};
+
+// Crear una nueva mesa
+const createTable = async (req, res) => {
+    try {
+        const { tableNumber, capacity, position, section } = req.body;
+        
+        // Verificar si ya existe una mesa con ese número
+        const existingTable = await Table.findOne({ 
+            tableNumber, 
+            restaurant: req.restaurantId 
+        });
+        
+        if (existingTable) {
+            return res.status(400).json({ message: 'Ya existe una mesa con ese número' });
+        }
+        
+        const table = new Table({
+            tableNumber,
+            capacity: capacity || 4,
+            position: position || { x: 0, y: 0 },
+            section: section || 'Salón',
+            restaurant: req.restaurantId,
+        });
+        
+        await table.save();
+        res.status(201).json(table);
+    } catch (error) {
+        console.error('Error al crear mesa:', error);
+        res.status(500).json({ message: 'Error al crear mesa', error: error.message });
+    }
+};
+
+// Actualizar mesa
+const updateTable = async (req, res) => {
+    try {
+        const { tableNumber, capacity, status, position, currentGuests, section } = req.body;
+        
+        const table = await Table.findOne({ 
+            _id: req.params.id, 
+            restaurant: req.restaurantId 
+        });
+        
+        if (!table) {
+            return res.status(404).json({ message: 'Mesa no encontrada' });
+        }
+        
+        // Si se cambia el número de mesa, verificar que no exista otra con ese número
+        if (tableNumber && tableNumber !== table.tableNumber) {
+            const existingTable = await Table.findOne({ 
+                tableNumber, 
+                restaurant: req.restaurantId,
+                _id: { $ne: req.params.id }
+            });
+            
+            if (existingTable) {
+                return res.status(400).json({ message: 'Ya existe una mesa con ese número' });
+            }
+            table.tableNumber = tableNumber;
+        }
+        
+        if (capacity !== undefined) table.capacity = capacity;
+        if (status !== undefined) table.status = status;
+        if (position !== undefined) table.position = position;
+        if (currentGuests !== undefined) table.currentGuests = currentGuests;
+        if (section !== undefined) table.section = section;
+        
+        await table.save();
+        res.json(table);
+    } catch (error) {
+        console.error('Error al actualizar mesa:', error);
+        res.status(500).json({ message: 'Error al actualizar mesa', error: error.message });
+    }
+};
+
+// Eliminar mesa
+const deleteTable = async (req, res) => {
+    try {
+        const table = await Table.findOne({ 
+            _id: req.params.id, 
+            restaurant: req.restaurantId 
+        });
+        
+        if (!table) {
+            return res.status(404).json({ message: 'Mesa no encontrada' });
+        }
+        
+        // No permitir eliminar mesas ocupadas
+        if (table.status === 'occupied' && table.currentOrder) {
+            return res.status(400).json({ message: 'No se puede eliminar una mesa ocupada' });
+        }
+        
+        await table.deleteOne();
+        res.json({ message: 'Mesa eliminada exitosamente' });
+    } catch (error) {
+        console.error('Error al eliminar mesa:', error);
+        res.status(500).json({ message: 'Error al eliminar mesa', error: error.message });
+    }
+};
+
+// Abrir mesa
+const openTable = async (req, res) => {
+    try {
+        const { currentGuests, waiter } = req.body;
+        
+        const table = await Table.findOne({ 
+            _id: req.params.id, 
+            restaurant: req.restaurantId 
+        });
+        
+        if (!table) {
+            return res.status(404).json({ message: 'Mesa no encontrada' });
+        }
+        
+        if (table.status === 'occupied') {
+            return res.status(400).json({ message: 'La mesa ya está ocupada' });
+        }
+        
+        table.status = 'occupied';
+        table.currentGuests = currentGuests || 0;
+        table.openedAt = new Date();
+        if (waiter) table.waiter = waiter;
+        
+        await table.save();
+        
+        const populatedTable = await Table.findById(table._id)
+            .populate('waiter', 'name')
+            .populate('currentOrder');
+        
+        res.json(populatedTable);
+    } catch (error) {
+        console.error('Error al abrir mesa:', error);
+        res.status(500).json({ message: 'Error al abrir mesa', error: error.message });
+    }
+};
+
+// Cerrar mesa
+const closeTable = async (req, res) => {
+    try {
+        const table = await Table.findOne({ 
+            _id: req.params.id, 
+            restaurant: req.restaurantId 
+        }).populate('currentOrder');
+        
+        if (!table) {
+            return res.status(404).json({ message: 'Mesa no encontrada' });
+        }
+        
+        // Si hay una orden, completarla primero
+        if (table.currentOrder) {
+            const order = await Order.findById(table.currentOrder._id);
+            if (order && order.status !== 'Completado' && order.status !== 'Cancelado') {
+                order.status = 'Completado';
+                await order.save();
+            }
+        }
+        
+        table.status = 'available';
+        table.currentGuests = 0;
+        table.currentOrder = null;
+        table.openedAt = null;
+        table.waiter = null;
+        
+        await table.save();
+        res.json(table);
+    } catch (error) {
+        console.error('Error al cerrar mesa:', error);
+        res.status(500).json({ message: 'Error al cerrar mesa', error: error.message });
+    }
+};
+
+// Actualizar posiciones de las mesas
+const updateTablePositions = async (req, res) => {
+    try {
+        const { tables } = req.body;
+        
+        if (!Array.isArray(tables)) {
+            return res.status(400).json({ message: 'Se requiere un array de mesas' });
+        }
+        
+        const updatePromises = tables.map(({ id, position }) => 
+            Table.findOneAndUpdate(
+                { _id: id, restaurant: req.restaurantId },
+                { position },
+                { new: true }
+            )
+        );
+        
+        await Promise.all(updatePromises);
+        
+        const updatedTables = await Table.find({ restaurant: req.restaurantId })
+            .populate('currentOrder')
+            .populate('waiter', 'name')
+            .sort({ tableNumber: 1 });
+        
+        res.json(updatedTables);
+    } catch (error) {
+        console.error('Error al actualizar posiciones:', error);
+        res.status(500).json({ message: 'Error al actualizar posiciones', error: error.message });
+    }
+};
+
+// Asignar orden a mesa
+const assignOrderToTable = async (req, res) => {
+    try {
+        const { orderId } = req.body;
+        
+        const table = await Table.findOne({ 
+            _id: req.params.id, 
+            restaurant: req.restaurantId 
+        });
+        
+        if (!table) {
+            return res.status(404).json({ message: 'Mesa no encontrada' });
+        }
+        
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).json({ message: 'Orden no encontrada' });
+        }
+        
+        table.currentOrder = orderId;
+        if (table.status === 'available') {
+            table.status = 'occupied';
+            table.openedAt = new Date();
+        }
+        
+        await table.save();
+        
+        const populatedTable = await Table.findById(table._id)
+            .populate({
+                path: 'currentOrder',
+                populate: {
+                    path: 'foods.food',
+                    model: 'Food'
+                }
+            })
+            .populate('waiter', 'name');
+        
+        res.json(populatedTable);
+    } catch (error) {
+        console.error('Error al asignar orden:', error);
+        res.status(500).json({ message: 'Error al asignar orden', error: error.message });
+    }
+};
+
+module.exports = {
+    getTables,
+    getTableById,
+    createTable,
+    updateTable,
+    deleteTable,
+    openTable,
+    closeTable,
+    updateTablePositions,
+    assignOrderToTable,
+};

@@ -48,9 +48,12 @@ const orderSchema = new mongoose.Schema({
     selectedAddress: {
         type: String, // Almacena la dirección seleccionada del cliente
     },
+    tableNumber: {
+        type: Number, // Número de mesa (para pedidos de sección "mesas")
+    },
     section: {
         type: String,
-        enum: ['delivery', 'mostrador'],
+        enum: ['delivery', 'mostrador', 'mesas'],
         required: true,
     },
     status: {

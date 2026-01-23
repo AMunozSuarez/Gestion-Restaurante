@@ -5,6 +5,8 @@ import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Mostrador from './pages/Mostrador';
 import Delivery from './pages/Delivery';
+import TableManagement from './pages/TableManagement';
+import TableDetail from './pages/TableDetail';
 import CashRegister from './pages/CashRegister';
 import Ventas from './pages/Ventas';
 import Productos from './pages/Productos';
@@ -73,6 +75,28 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Delivery />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/mesas"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <TableManagement />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/mesas/:tableId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <TableDetail />
                 </Layout>
               </ProtectedRoute>
             }

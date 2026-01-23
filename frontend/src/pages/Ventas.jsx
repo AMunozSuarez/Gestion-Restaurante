@@ -372,6 +372,7 @@ const Ventas = () => {
                   <option value="all">Todas</option>
                   <option value="mostrador">Mostrador</option>
                   <option value="delivery">Delivery</option>
+                  <option value="mesas">Mesas</option>
                 </select>
               </div>
 
@@ -512,9 +513,11 @@ const Ventas = () => {
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             venta.section === 'delivery'
                               ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                              : venta.section === 'mesas'
+                              ? 'bg-teal-100 text-teal-800 border border-teal-200'
                               : 'bg-amber-100 text-amber-800 border border-amber-200'
                           }`}>
-                            {venta.section === 'delivery' ? 'Delivery' : 'Mostrador'}
+                            {venta.section === 'delivery' ? 'Delivery' : venta.section === 'mesas' ? 'Mesas' : 'Mostrador'}
                           </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -575,9 +578,11 @@ const Ventas = () => {
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             venta.section === 'delivery'
                               ? 'bg-blue-100 text-blue-800'
+                              : venta.section === 'mesas'
+                              ? 'bg-teal-100 text-teal-800'
                               : 'bg-amber-100 text-amber-800'
                           }`}>
-                            {venta.section === 'delivery' ? 'Delivery' : 'Mostrador'}
+                            {venta.section === 'delivery' ? 'Delivery' : venta.section === 'mesas' ? 'Mesas' : 'Mostrador'}
                           </span>
                         </div>
                         <p className="font-semibold text-amber-700">

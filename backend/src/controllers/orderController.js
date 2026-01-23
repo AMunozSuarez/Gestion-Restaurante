@@ -286,7 +286,7 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment } = req.body;
+        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber } = req.body;
         console.log('Datos recibidos en el backend:', req.body);
         
         // Buscar la orden existente
@@ -406,13 +406,14 @@ const updateOrderController = async (req, res) => {
             }, 0) + deliveryCost;
 
             // Actualizar datos relacionados con foods
-            updateData.name = !customer ? buyer.name : null;
+            updateData.name = !customer && buyer ? buyer.name : null;
             updateData.buyer = customer ? customer._id : null;
             updateData.foods = foods;
             if (section !== undefined) updateData.section = section;
             updateData.total = total;
             updateData.deliveryCost = deliveryCost;
             updateData.selectedAddress = customer ? selectedAddress : null;
+            if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
         }
 
         // Actualizar la orden

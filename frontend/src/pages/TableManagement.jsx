@@ -1,0 +1,910 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTables } from '../hooks/useTables';
+import { useCashRegister } from '../hooks/useCashRegister';
+import CashRegisterAlert from '../components/common/CashRegisterAlert';
+import { 
+    PlusIcon, 
+    PencilIcon, 
+    TrashIcon, 
+    UserGroupIcon,
+    Squares2X2Icon,
+    ClockIcon,
+    XMarkIcon,
+    CheckIcon,
+    ExclamationTriangleIcon
+} from '@heroicons/react/24/outline';
+import { Button } from '../components/ui';
+
+const TableManagement = () => {
+    const navigate = useNavigate();
+    const { tables, isLoading, createTable, updateTable, deleteTable, openTable, updateTablePositions } = useTables();
+    const { isOpen: isCashOpen, isLoading: cashLoading } = useCashRegister();
+    
+    // Estados
+    const [showCashAlert, setShowCashAlert] = useState(false);
+    const [notification, setNotification] = useState(null);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [showAddTableModal, setShowAddTableModal] = useState(false);
+    const [showEditTableModal, setShowEditTableModal] = useState(false);
+    const [selectedTable, setSelectedTable] = useState(null);
+    const [newTable, setNewTable] = useState({ tableNumber: '', capacity: 4 });
+    const [editTableData, setEditTableData] = useState({ tableNumber: '', capacity: 4 });
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [tableToDelete, setTableToDelete] = useState(null);
+    const [showOpenTableModal, setShowOpenTableModal] = useState(false);
+    const [tableToOpen, setTableToOpen] = useState(null);
+    const [guestCount, setGuestCount] = useState(2);
+    const [draggedTable, setDraggedTable] = useState(null);
+    const [dragOverPosition, setDragOverPosition] = useState(null);
+    const [currentSection, setCurrentSection] = useState('Salón');
+    const [showSectionModal, setShowSectionModal] = useState(false);
+    const [newSectionName, setNewSectionName] = useState('');
+    const [editingSectionName, setEditingSectionName] = useState(null);
+    const [sectionToEdit, setSectionToEdit] = useState('');
+    const [customSections, setCustomSections] = useState(['Salón']);
+
+    // Cargar secciones personalizadas desde localStorage al montar
+    useEffect(() => {
+        const savedSections = localStorage.getItem('tableSections');
+        if (savedSections) {
+            try {
+                const parsed = JSON.parse(savedSections);
+                setCustomSections(parsed);
+            } catch (error) {
+                console.error('Error loading sections:', error);
+            }
+        }
+    }, []);
+
+    // Guardar secciones personalizadas en localStorage cuando cambien
+    useEffect(() => {
+        localStorage.setItem('tableSections', JSON.stringify(customSections));
+    }, [customSections]);
+
+    // Obtener secciones únicas combinando las que tienen mesas y las creadas manualmente
+    const tableSections = [...new Set(tables.map(t => t.section || 'Salón'))];
+    const sections = [...new Set([...customSections, ...tableSections])].sort();
+    
+    // Filtrar mesas por sección actual
+    const filteredTables = tables.filter(t => (t.section || 'Salón') === currentSection);
+
+    // Función para mostrar notificación
+    const showNotification = (message, type = 'success', duration = 3000) => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), duration);
+    };
+
+    // Verificar caja al montar - solo cuando termine de cargar
+    useEffect(() => {
+        if (!cashLoading && !isCashOpen) {
+            setShowCashAlert(true);
+        }
+    }, [isCashOpen, cashLoading]);
+
+    // Función para abrir mesa
+    const handleOpenTable = async (table) => {
+        if (!isCashOpen) {
+            setShowCashAlert(true);
+            return;
+        }
+        setTableToOpen(table);
+        setGuestCount(table.capacity || 2);
+        setShowOpenTableModal(true);
+    };
+
+    const confirmOpenTable = async () => {
+        try {
+            await openTable(tableToOpen._id, { 
+                currentGuests: guestCount 
+            });
+            setShowOpenTableModal(false);
+            setTableToOpen(null);
+            setGuestCount(2);
+            showNotification('Mesa abierta exitosamente');
+        } catch (error) {
+            showNotification('Error al abrir mesa: ' + error.message, 'error');
+        }
+    };
+
+    // Función para ir al detalle de la mesa
+    const handleTableClick = (table) => {
+        if (table.status === 'occupied') {
+            navigate(`/mesas/${table._id}`);
+        } else if (!isEditMode) {
+            handleOpenTable(table);
+        }
+    };
+
+    // Funciones para crear mesa
+    const handleAddTable = async () => {
+        try {
+            const nextNumber = tables.length > 0 
+                ? Math.max(...tables.map(t => t.tableNumber)) + 1 
+                : 1;
+            
+            // Encontrar la primera posición disponible en la sección actual
+            let availablePosition = { x: 0, y: 0 };
+            const cols = 8;
+            const rows = 6;
+            
+            outerLoop:
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const occupied = filteredTables.some(t => 
+                        t.position?.x === x && t.position?.y === y
+                    );
+                    if (!occupied) {
+                        availablePosition = { x, y };
+                        break outerLoop;
+                    }
+                }
+            }
+            
+            await createTable({
+                tableNumber: parseInt(newTable.tableNumber) || nextNumber,
+                capacity: parseInt(newTable.capacity) || 4,
+                position: availablePosition,
+                section: currentSection
+            });
+            setShowAddTableModal(false);
+            setNewTable({ tableNumber: '', capacity: 4 });
+            showNotification('Mesa creada exitosamente');
+        } catch (error) {
+            showNotification('Error al crear mesa: ' + error.message, 'error');
+        }
+    };
+
+    // Funciones para editar mesa
+    const handleEditTable = (table, e) => {
+        e.stopPropagation();
+        setSelectedTable(table);
+        setEditTableData({
+            tableNumber: table.tableNumber,
+            capacity: table.capacity
+        });
+        setShowEditTableModal(true);
+    };
+
+    const handleUpdateTable = async () => {
+        try {
+            await updateTable(selectedTable._id, {
+                tableNumber: parseInt(editTableData.tableNumber),
+                capacity: parseInt(editTableData.capacity)
+            });
+            setShowEditTableModal(false);
+            setSelectedTable(null);
+            showNotification('Mesa actualizada exitosamente');
+        } catch (error) {
+            showNotification('Error al actualizar mesa: ' + error.message, 'error');
+        }
+    };
+
+    // Funciones para eliminar mesa
+    const handleDeleteTable = (table, e) => {
+        e.stopPropagation();
+        if (table.status === 'occupied') {
+            showNotification('No se puede eliminar una mesa ocupada', 'warning');
+            return;
+        }
+        setTableToDelete(table);
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDeleteTable = async () => {
+        try {
+            await deleteTable(tableToDelete._id);
+            setShowDeleteConfirm(false);
+            setTableToDelete(null);
+            showNotification('Mesa eliminada exitosamente');
+        } catch (error) {
+            showNotification('Error al eliminar mesa: ' + error.message, 'error');
+        }
+    };
+
+    // Funciones para drag and drop
+    const handleDragStart = (e, table) => {
+        setDraggedTable(table);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDragOver = (e, position) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDragOverPosition(position);
+    };
+
+    const handleDragLeave = () => {
+        setDragOverPosition(null);
+    };
+
+    const handleDrop = async (e, newPosition) => {
+        e.preventDefault();
+        setDragOverPosition(null);
+        
+        if (!draggedTable) return;
+
+        // Verificar si hay otra mesa en la posición destino
+        const tableInPosition = tables.find(t => 
+            t._id !== draggedTable._id && 
+            t.position?.x === newPosition.x && 
+            t.position?.y === newPosition.y
+        );
+
+        try {
+            if (tableInPosition) {
+                // Intercambiar posiciones
+                await Promise.all([
+                    updateTable(draggedTable._id, {
+                        position: { x: newPosition.x, y: newPosition.y }
+                    }),
+                    updateTable(tableInPosition._id, {
+                        position: { x: draggedTable.position?.x || 0, y: draggedTable.position?.y || 0 }
+                    })
+                ]);
+            } else {
+                // Mover a posición vacía
+                await updateTable(draggedTable._id, {
+                    position: { x: newPosition.x, y: newPosition.y }
+                });
+            }
+        } catch (error) {
+            showNotification('Error al mover mesa: ' + error.message, 'error');
+        }
+        
+        setDraggedTable(null);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedTable(null);
+        setDragOverPosition(null);
+    };
+
+    // Funciones para manejar secciones
+    const handleCreateSection = () => {
+        if (!newSectionName.trim()) {
+            showNotification('Ingresa un nombre para la sección', 'warning');
+            return;
+        }
+        
+        if (sections.includes(newSectionName.trim())) {
+            showNotification('Ya existe una sección con ese nombre', 'warning');
+            return;
+        }
+        
+        setCustomSections(prev => [...prev, newSectionName.trim()]);
+        setCurrentSection(newSectionName.trim());
+        setNewSectionName('');
+        setShowSectionModal(false);
+        showNotification('Sección creada exitosamente');
+    };
+
+    const handleEditSectionName = async () => {
+        if (!sectionToEdit.trim()) {
+            showNotification('Ingresa un nombre para la sección', 'warning');
+            return;
+        }
+        
+        if (sections.includes(sectionToEdit.trim()) && sectionToEdit.trim() !== editingSectionName) {
+            showNotification('Ya existe una sección con ese nombre', 'warning');
+            return;
+        }
+        
+        // Verificar si hay mesas ocupadas en esta sección
+        const occupiedTablesInSection = tables.filter(
+            t => (t.section || 'Salón') === editingSectionName && t.status === 'occupied'
+        );
+        
+        if (occupiedTablesInSection.length > 0) {
+            showNotification('No puedes renombrar una sección con mesas ocupadas', 'warning');
+            return;
+        }
+        
+        try {
+            // Actualizar todas las mesas de esta sección
+            const tablesToUpdate = tables.filter(t => (t.section || 'Salón') === editingSectionName);
+            await Promise.all(
+                tablesToUpdate.map(table => 
+                    updateTable(table._id, { section: sectionToEdit.trim() })
+                )
+            );
+            
+            // Actualizar customSections
+            setCustomSections(prev => 
+                prev.map(s => s === editingSectionName ? sectionToEdit.trim() : s)
+            );
+            
+            setCurrentSection(sectionToEdit.trim());
+            setEditingSectionName(null);
+            setSectionToEdit('');
+            showNotification('Sección renombrada exitosamente');
+        } catch (error) {
+            showNotification('Error al renombrar sección: ' + error.message, 'error');
+        }
+    };
+
+    const handleDeleteSection = async (sectionName) => {
+        // No permitir eliminar si hay mesas
+        const tablesInSection = tables.filter(t => (t.section || 'Salón') === sectionName);
+        
+        if (tablesInSection.length > 0) {
+            showNotification('No puedes eliminar una sección con mesas. Elimina primero todas las mesas.', 'warning');
+            return;
+        }
+        
+        // Eliminar de customSections
+        setCustomSections(prev => prev.filter(s => s !== sectionName));
+        
+        // Si es la sección actual, cambiar a otra
+        if (currentSection === sectionName) {
+            const otherSection = sections.find(s => s !== sectionName);
+            setCurrentSection(otherSection || 'Salón');
+        }
+        
+        showNotification('Sección eliminada exitosamente');
+    };
+
+    // Crear cuadrícula de posiciones
+    const createGrid = () => {
+        const cols = 8;
+        const rows = 6;
+        const grid = [];
+        
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                const position = { x, y };
+                const table = filteredTables.find(t => 
+                    t.position?.x === x && t.position?.y === y
+                );
+                grid.push({ position, table });
+            }
+        }
+        
+        return grid;
+    };
+
+    // Obtener color de estado de mesa
+    const getTableStatusColor = (table) => {
+        if (table.status === 'occupied') {
+            return 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg';
+        } else if (table.status === 'reserved') {
+            return 'bg-gradient-to-br from-blue-400 to-blue-600 text-white';
+        } else if (table.status === 'inactive') {
+            return 'bg-gray-300 text-gray-600';
+        }
+        return 'bg-gradient-to-br from-teal-400 to-teal-600 text-white hover:from-teal-500 hover:to-teal-700';
+    };
+
+    // Calcular tiempo desde que se abrió la mesa
+    const getTableDuration = (openedAt) => {
+        if (!openedAt) return null;
+        const now = new Date();
+        const opened = new Date(openedAt);
+        const diffMs = now - opened;
+        const diffMins = Math.floor(diffMs / 60000);
+        const hours = Math.floor(diffMins / 60);
+        const mins = diffMins % 60;
+        return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    };
+
+    if (isLoading) {
+        return (
+            <div className="h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+                    <p className="text-teal-700">Cargando mesas...</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-full bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 overflow-y-auto">
+            {/* Alert de caja */}
+            {showCashAlert && (
+                <CashRegisterAlert 
+                    isOpen={!isCashOpen}
+                    onClose={() => setShowCashAlert(false)}
+                />
+            )}
+
+            {/* Notificación toast */}
+            {notification && (
+                <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg animate-fade-in ${
+                    notification.type === 'error' ? 'bg-red-600' : 
+                    notification.type === 'warning' ? 'bg-orange-500' : 
+                    'bg-teal-600'
+                } text-white`}>
+                    <div className="flex items-center gap-2">
+                        {notification.type === 'error' ? (
+                            <XMarkIcon className="w-5 h-5" />
+                        ) : notification.type === 'warning' ? (
+                            <ExclamationTriangleIcon className="w-5 h-5" />
+                        ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                        )}
+                        {notification.message}
+                    </div>
+                </div>
+            )}
+
+            {/* Header */}
+            <div className="bg-white shadow-sm border-b border-gray-200">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h1 className="text-3xl font-bold text-teal-900">Gestión de Mesas</h1>
+                            <p className="text-gray-600 mt-1">
+                                {tables.filter(t => t.status === 'occupied').length} de {tables.length} mesas ocupadas
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <Button
+                                onClick={() => setIsEditMode(!isEditMode)}
+                                variant={isEditMode ? 'primary' : 'outline'}
+                                className={isEditMode ? 'bg-teal-600 hover:bg-teal-700' : ''}
+                            >
+                                <Squares2X2Icon className="w-5 h-5 mr-2" />
+                                {isEditMode ? 'Terminar edición' : 'Editar mesas'}
+                            </Button>
+                            <Button
+                                onClick={() => setShowAddTableModal(true)}
+                                className="bg-teal-600 hover:bg-teal-700"
+                            >
+                                <PlusIcon className="w-5 h-5 mr-2" />
+                                Nueva Mesa
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Tabs de secciones */}
+                    <div className="mt-6 flex items-center gap-3 flex-wrap">
+                        <div className="flex gap-2 flex-wrap">
+                            {sections.map(section => (
+                                <div key={section} className="relative group">
+                                    <button
+                                        onClick={() => setCurrentSection(section)}
+                                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                            currentSection === section
+                                                ? 'bg-teal-600 text-white shadow-md'
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        {section}
+                                        {filteredTables.filter(t => (t.section || 'Salón') === section && t.status === 'occupied').length > 0 && currentSection === section && (
+                                            <span className="ml-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                                {filteredTables.filter(t => (t.section || 'Salón') === section && t.status === 'occupied').length}
+                                            </span>
+                                        )}
+                                    </button>
+                                    {isEditMode && (
+                                        <div className="absolute top-0 right-0 -mt-2 -mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEditingSectionName(section);
+                                                    setSectionToEdit(section);
+                                                }}
+                                                className="p-1 bg-white rounded-full shadow-md hover:bg-gray-100"
+                                                title="Editar nombre"
+                                            >
+                                                <PencilIcon className="w-3 h-3 text-teal-600" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        {isEditMode && (
+                            <Button
+                                onClick={() => setShowSectionModal(true)}
+                                variant="outline"
+                                className="border-dashed"
+                            >
+                                <PlusIcon className="w-4 h-4 mr-1" />
+                                Nueva Sección
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Grid de mesas */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {filteredTables.length === 0 ? (
+                    <div className="text-center py-12">
+                        <Squares2X2Icon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-xl font-semibold text-gray-700 mb-2">No hay mesas configuradas</h3>
+                        <p className="text-gray-500 mb-4">Comienza agregando tu primera mesa</p>
+                        <Button
+                            onClick={() => setShowAddTableModal(true)}
+                            className="bg-teal-600 hover:bg-teal-700"
+                        >
+                            <PlusIcon className="w-5 h-5 mr-2" />
+                            Crear Primera Mesa
+                        </Button>
+                    </div>
+                ) : (
+                    // Vista de cuadrícula mostrando el layout configurado
+                    <div>
+                        {isEditMode && (
+                            <div className="mb-4 text-center">
+                                <p className="text-sm text-gray-600">Arrastra las mesas para cambiar su posición</p>
+                            </div>
+                        )}
+                        <div className={`grid grid-cols-8 gap-2 p-4 rounded-xl ${
+                            isEditMode 
+                                ? 'bg-gray-100' 
+                                : 'bg-gradient-to-br from-teal-50/30 to-cyan-50/30 border-2 border-teal-100/50'
+                        }`}>
+                            {createGrid().map(({ position, table }) => (
+                                <div
+                                    key={`${position.x}-${position.y}`}
+                                    onDragOver={isEditMode ? (e) => handleDragOver(e, position) : undefined}
+                                    onDragLeave={isEditMode ? handleDragLeave : undefined}
+                                    onDrop={isEditMode ? (e) => handleDrop(e, position) : undefined}
+                                    className={`
+                                        aspect-square rounded-lg transition-all
+                                        ${isEditMode ? 'border-2 border-dashed' : !table ? 'border border-teal-200/40 bg-white/50' : ''}
+                                        ${isEditMode && dragOverPosition?.x === position.x && dragOverPosition?.y === position.y
+                                            ? 'border-teal-500 bg-teal-50'
+                                            : isEditMode ? 'border-gray-300 bg-white' : ''
+                                        }
+                                        ${isEditMode && table ? '' : isEditMode ? 'hover:border-gray-400' : ''}
+                                    `}
+                                >
+                                    {table ? (
+                                        <div
+                                            draggable={isEditMode}
+                                            onDragStart={isEditMode ? (e) => handleDragStart(e, table) : undefined}
+                                            onDragEnd={isEditMode ? handleDragEnd : undefined}
+                                            onClick={() => handleTableClick(table)}
+                                            className={`
+                                                w-full h-full rounded-lg transition-all relative
+                                                ${getTableStatusColor(table)}
+                                                ${draggedTable?._id === table._id ? 'opacity-50' : 'opacity-100'}
+                                                ${isEditMode ? 'cursor-move' : table.status === 'occupied' ? 'cursor-pointer hover:shadow-xl hover:scale-105' : 'cursor-pointer hover:shadow-lg'}
+                                            `}
+                                        >
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
+                                                <div className={`font-bold ${
+                                                    isEditMode ? 'text-xl' : 'text-2xl'
+                                                }`}>
+                                                    {table.tableNumber}
+                                                </div>
+                                                <div className={`flex items-center gap-1 ${
+                                                    isEditMode ? 'text-xs' : 'text-sm'
+                                                }`}>
+                                                    <UserGroupIcon className={isEditMode ? 'w-3 h-3' : 'w-4 h-4'} />
+                                                    <span>
+                                                        {!isEditMode && table.status === 'occupied' && table.currentGuests 
+                                                            ? `${table.currentGuests}/${table.capacity}`
+                                                            : table.capacity
+                                                        }
+                                                    </span>
+                                                </div>
+                                                
+                                                {/* Tiempo activo - solo en vista normal */}
+                                                {!isEditMode && table.status === 'occupied' && table.openedAt && (
+                                                    <div className="flex items-center gap-1 text-xs bg-black bg-opacity-20 rounded-full px-2 py-1 mt-1">
+                                                        <ClockIcon className="w-3 h-3" />
+                                                        <span>{getTableDuration(table.openedAt)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Botones de edición - solo en modo edición */}
+                                            {isEditMode && (
+                                                <div className="absolute top-1 right-1 flex gap-1">
+                                                    <button
+                                                        onClick={(e) => handleEditTable(table, e)}
+                                                        className="p-1 bg-white bg-opacity-90 hover:bg-opacity-100 rounded transition-all"
+                                                    >
+                                                        <PencilIcon className="w-3 h-3 text-teal-600" />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleDeleteTable(table, e)}
+                                                        className="p-1 bg-white bg-opacity-90 hover:bg-opacity-100 rounded transition-all"
+                                                    >
+                                                        <TrashIcon className="w-3 h-3 text-red-600" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Modal: Agregar mesa */}
+            {showAddTableModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">Nueva Mesa</h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Número de Mesa
+                                </label>
+                                <input
+                                    type="number"
+                                    value={newTable.tableNumber}
+                                    onChange={(e) => setNewTable({...newTable, tableNumber: e.target.value})}
+                                    placeholder="Automático"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Capacidad
+                                </label>
+                                <input
+                                    type="number"
+                                    value={newTable.capacity}
+                                    onChange={(e) => setNewTable({...newTable, capacity: e.target.value})}
+                                    min="1"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <Button
+                                onClick={() => {
+                                    setShowAddTableModal(false);
+                                    setNewTable({ tableNumber: '', capacity: 4 });
+                                }}
+                                variant="outline"
+                                className="flex-1"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={handleAddTable}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                            >
+                                Crear Mesa
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Editar mesa */}
+            {showEditTableModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">Editar Mesa {selectedTable?.tableNumber}</h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Número de Mesa
+                                </label>
+                                <input
+                                    type="number"
+                                    value={editTableData.tableNumber}
+                                    onChange={(e) => setEditTableData({...editTableData, tableNumber: e.target.value})}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Capacidad
+                                </label>
+                                <input
+                                    type="number"
+                                    value={editTableData.capacity}
+                                    onChange={(e) => setEditTableData({...editTableData, capacity: e.target.value})}
+                                    min="1"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <Button
+                                onClick={() => {
+                                    setShowEditTableModal(false);
+                                    setSelectedTable(null);
+                                }}
+                                variant="outline"
+                                className="flex-1"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={handleUpdateTable}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                            >
+                                Guardar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Confirmar eliminación */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">Confirmar Eliminación</h3>
+                        <p className="text-gray-600 mb-6">
+                            ¿Estás seguro de que deseas eliminar la Mesa {tableToDelete?.tableNumber}?
+                            Esta acción no se puede deshacer.
+                        </p>
+                        <div className="flex gap-3">
+                            <Button
+                                onClick={() => {
+                                    setShowDeleteConfirm(false);
+                                    setTableToDelete(null);
+                                }}
+                                variant="outline"
+                                className="flex-1"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={confirmDeleteTable}
+                                className="flex-1 bg-red-600 hover:bg-red-700"
+                            >
+                                Eliminar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Abrir mesa */}
+            {showOpenTableModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">
+                            Abrir Mesa {tableToOpen?.tableNumber}
+                        </h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Número de Comensales
+                                </label>
+                                <input
+                                    type="number"
+                                    value={guestCount}
+                                    onChange={(e) => setGuestCount(parseInt(e.target.value) || 0)}
+                                    min="1"
+                                    max={tableToOpen?.capacity || 10}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                />
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Capacidad máxima: {tableToOpen?.capacity} personas
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <Button
+                                onClick={() => {
+                                    setShowOpenTableModal(false);
+                                    setTableToOpen(null);
+                                    setGuestCount(2);
+                                }}
+                                variant="outline"
+                                className="flex-1"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={confirmOpenTable}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                            >
+                                Abrir Mesa
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Nueva sección */}
+            {showSectionModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">Nueva Sección</h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Nombre de la Sección
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newSectionName}
+                                    onChange={(e) => setNewSectionName(e.target.value)}
+                                    placeholder="Ej: Terraza, Salón 2..."
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                    onKeyPress={(e) => e.key === 'Enter' && handleCreateSection()}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <Button
+                                onClick={() => {
+                                    setShowSectionModal(false);
+                                    setNewSectionName('');
+                                }}
+                                variant="outline"
+                                className="flex-1"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={handleCreateSection}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                            >
+                                Crear Sección
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Editar nombre de sección */}
+            {editingSectionName && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">Renombrar Sección</h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Nuevo Nombre
+                                </label>
+                                <input
+                                    type="text"
+                                    value={sectionToEdit}
+                                    onChange={(e) => setSectionToEdit(e.target.value)}
+                                    placeholder="Nuevo nombre de la sección"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                    onKeyPress={(e) => e.key === 'Enter' && handleEditSectionName()}
+                                />
+                                <p className="text-sm text-gray-500 mt-2">
+                                    Nombre actual: <strong>{editingSectionName}</strong>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <Button
+                                onClick={() => {
+                                    setEditingSectionName(null);
+                                    setSectionToEdit('');
+                                }}
+                                variant="outline"
+                                className="flex-1"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={handleEditSectionName}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                            >
+                                Guardar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default TableManagement;

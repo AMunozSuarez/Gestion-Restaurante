@@ -15,7 +15,8 @@ import {
   ChevronDownIcon,
   WrenchScrewdriverIcon,
   CreditCardIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  Squares2X2Icon
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -48,6 +49,7 @@ const Header = () => {
 
   const singleItems = [
     { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
+    { name: 'Mesas', href: '/mesas', icon: Squares2X2Icon },
     { name: 'Configuración', href: '/configuracion', icon: WrenchScrewdriverIcon },
   ];
 
@@ -78,6 +80,11 @@ const Header = () => {
   // Check if we're in a punto de venta page
   const isPuntoDeVentaPage = () => {
     return location.pathname === '/mostrador' || location.pathname === '/delivery';
+  };
+
+  // Check if we're in mesas page
+  const isMesasPage = () => {
+    return location.pathname === '/mesas' || location.pathname.startsWith('/mesas/');
   };
 
   // Close dropdown when clicking outside
@@ -114,15 +121,19 @@ const Header = () => {
 
           {/* Navigation */}
           <nav className="hidden md:flex space-x-6">
-            {/* Single navigation items - Punto de Venta first */}
-            {singleItems.filter(item => item.name === 'Punto de Venta').map((item) => {
+            {/* Single navigation items - Punto de Venta and Mesas first */}
+            {singleItems.filter(item => item.name === 'Punto de Venta' || item.name === 'Mesas').map((item) => {
               const Icon = item.icon;
+              const isActiveItem = item.name === 'Punto de Venta' 
+                ? (isPuntoDeVentaActive(item.href) || isActive(item.href))
+                : (item.name === 'Mesas' ? (isMesasPage() || isActive(item.href)) : isActive(item.href));
+              
               return (
                 <button
                   key={item.name}
                   onClick={() => navigate(item.href)}
                   className={`inline-flex items-center px-3 py-2 border-b-2 text-sm font-medium transition-colors duration-200 ${
-                    isPuntoDeVentaActive(item.href) || isActive(item.href)
+                    isActiveItem
                       ? 'border-green-500 text-green-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
@@ -188,7 +199,7 @@ const Header = () => {
             })}
             
             {/* Other single navigation items */}
-            {singleItems.filter(item => item.name !== 'Punto de Venta').map((item) => {
+            {singleItems.filter(item => item.name !== 'Punto de Venta' && item.name !== 'Mesas').map((item) => {
               const Icon = item.icon;
               return (
                 <button
@@ -227,15 +238,19 @@ const Header = () => {
       {/* Mobile navigation */}
       <div className="md:hidden border-t border-gray-200">
         <div className="px-2 py-3 space-y-1">
-          {/* Mobile Punto de Venta first */}
-          {singleItems.filter(item => item.name === 'Punto de Venta').map((item) => {
+          {/* Mobile Punto de Venta and Mesas first */}
+          {singleItems.filter(item => item.name === 'Punto de Venta' || item.name === 'Mesas').map((item) => {
             const Icon = item.icon;
+            const isActiveItem = item.name === 'Punto de Venta' 
+              ? (isPuntoDeVentaActive(item.href) || isActive(item.href))
+              : (item.name === 'Mesas' ? (isMesasPage() || isActive(item.href)) : isActive(item.href));
+            
             return (
               <button
                 key={item.name}
                 onClick={() => navigate(item.href)}
                 className={`w-full flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
-                  isPuntoDeVentaActive(item.href) || isActive(item.href)
+                  isActiveItem
                     ? 'bg-green-50 text-green-600'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
@@ -273,7 +288,7 @@ const Header = () => {
           ))}
           
           {/* Other mobile single items */}
-          {singleItems.filter(item => item.name !== 'Punto de Venta').map((item) => {
+          {singleItems.filter(item => item.name !== 'Punto de Venta' && item.name !== 'Mesas').map((item) => {
             const Icon = item.icon;
             return (
               <button

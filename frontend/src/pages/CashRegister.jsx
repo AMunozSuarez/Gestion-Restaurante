@@ -905,10 +905,12 @@ const CashRegister = () => {
                       </span>
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                         order.section === 'delivery' 
-                          ? 'bg-blue-100 text-blue-700' 
+                          ? 'bg-blue-100 text-blue-700'
+                          : order.section === 'mesas'
+                          ? 'bg-teal-100 text-teal-700'
                           : 'bg-gray-100 text-gray-700'
                       }`}>
-                        {order.section === 'delivery' ? 'Delivery' : 'Mostrador'}
+                        {order.section === 'delivery' ? 'Delivery' : order.section === 'mesas' ? 'Mesas' : 'Mostrador'}
                       </span>
                     </div>
                   </div>
