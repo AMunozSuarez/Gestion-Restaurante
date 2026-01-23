@@ -161,6 +161,88 @@ const deleteUserController = async (req, res) => {
     }
 }
 
+// GET ALL USERS BY RESTAURANT
+const getUsersByRestaurantController = async (req, res) => {
+    try {
+        const restaurantId = req.user.restaurant;
+        
+        if (!restaurantId) {
+            return res.status(400).send({
+                success: false,
+                message: 'Restaurant not found'
+            });
+        }
+
+        const users = await userModel
+            .find({ restaurant: restaurantId })
+            .select('-password')
+            .sort({ createdAt: -1 });
+
+        res.status(200).send({
+            success: true,
+            message: 'Users found',
+            users
+        });
+    } catch (error) {
+        console.error('Error getting users by restaurant:', error);
+        res.status(500).send({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+// UPDATE EMPLOYEE
+const updateEmployeeController = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userName, email, phone, password } = req.body;
+        const restaurantId = req.user.restaurant;
+
+        // Verificar que el usuario pertenece al mismo restaurante
+        const user = await userModel.findOne({ _id: id, restaurant: restaurantId });
+        
+        if (!user) {
+            return res.status(404).send({
+                success: false,
+                message: 'Usuario no encontrado'
+            });
+        }
+
+        // Actualizar campos
+        if (userName) user.userName = userName;
+        if (email) user.email = email;
+        if (phone !== undefined) user.phone = phone;
+
+        // Si se proporciona una nueva contraseña, encriptarla
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(password, salt);
+        }
+
+        await user.save();
+
+        res.status(200).send({
+            success: true,
+            message: 'Usuario actualizado exitosamente',
+            user: {
+                _id: user._id,
+                userName: user.userName,
+                email: user.email,
+                phone: user.phone,
+                role: user.role,
+                restaurant: user.restaurant
+            }
+        });
+    } catch (error) {
+        console.error('Error al actualizar empleado:', error);
+        res.status(500).send({
+            success: false,
+            message: 'Error interno del servidor'
+        });
+    }
+};
+
 const createEmployeeController = async (req, res) => {
     try {
         const { userName, email, password, phone } = req.body;
@@ -213,4 +295,13 @@ const createEmployeeController = async (req, res) => {
     }
 };
 
-module.exports = { getUserController, updateUserController, updatePasswordController, resetPasswordController, deleteUserController, createEmployeeController }; // Export the controllers
+module.exports = { 
+    getUserController, 
+    updateUserController, 
+    updatePasswordController, 
+    resetPasswordController, 
+    deleteUserController, 
+    createEmployeeController,
+    getUsersByRestaurantController,
+    updateEmployeeController
+}; // Export the controllers

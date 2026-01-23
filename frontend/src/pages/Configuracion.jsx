@@ -8,15 +8,25 @@ import {
   CreditCardIcon,
   ShieldCheckIcon,
   CalendarIcon,
-  XCircleIcon
+  XCircleIcon,
+  UsersIcon,
+  PlusIcon,
+  PencilIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import printingService from '../services/printingService';
 import * as subscriptionService from '../services/subscriptionService';
+import usersService from '../services/usersService';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
 const Configuracion = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('printers'); // 'printers' o 'subscription'
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('printers'); // 'printers', 'subscription' o 'users'
+  
+  // Verificar si el usuario es propietario o super admin
+  const isOwnerOrAdmin = user && (user.role === 'owner' || user.role === 'super_admin');
   
   // Estados para impresoras
   const [printers, setPrinters] = useState([]);
@@ -33,15 +43,36 @@ const Configuracion = () => {
   const [loadingSubscription, setLoadingSubscription] = useState(false);
   const [cancelingSubscription, setCancelingSubscription] = useState(false);
 
+  // Estados para usuarios
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [userFormData, setUserFormData] = useState({
+    userName: '',
+    email: '',
+    password: '',
+    phone: ''
+  });
+
+  // Redirigir empleados si intentan acceder a pestañas restringidas
+  useEffect(() => {
+    if (!isOwnerOrAdmin && (activeTab === 'subscription' || activeTab === 'users')) {
+      setActiveTab('printers');
+    }
+  }, [activeTab, isOwnerOrAdmin]);
+
   // Cargar estado inicial
   useEffect(() => {
     if (activeTab === 'printers') {
       checkServiceAndLoadPrinters();
       loadSavedPrinters();
-    } else if (activeTab === 'subscription') {
+    } else if (activeTab === 'subscription' && isOwnerOrAdmin) {
       loadSubscription();
+    } else if (activeTab === 'users' && isOwnerOrAdmin) {
+      loadUsers();
     }
-  }, [activeTab]);
+  }, [activeTab, isOwnerOrAdmin]);
 
   // Verificar servicio y cargar impresoras
   const checkServiceAndLoadPrinters = async () => {
@@ -315,6 +346,176 @@ const Configuracion = () => {
     };
     return badges[status] || { color: 'bg-gray-100 text-gray-800', text: status };
   };
+
+  // ============ FUNCIONES PARA USUARIOS ============
+
+  // Cargar usuarios del restaurante
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await usersService.getUsersByRestaurant();
+      if (response.success) {
+        setUsers(response.data);
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: response.message || 'Error al cargar usuarios' 
+        });
+      }
+    } catch (error) {
+      console.error('Error al cargar usuarios:', error);
+      setMessage({ 
+        type: 'error', 
+        text: 'Error al cargar usuarios' 
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Abrir modal para crear usuario
+  const handleCreateUser = () => {
+    setEditingUser(null);
+    setUserFormData({
+      userName: '',
+      email: '',
+      password: '',
+      phone: ''
+    });
+    setShowUserModal(true);
+  };
+
+  // Abrir modal para editar usuario
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setUserFormData({
+      userName: user.userName,
+      email: user.email,
+      password: '', // No mostramos la contraseña
+      phone: user.phone || ''
+    });
+    setShowUserModal(true);
+  };
+
+  // Cerrar modal
+  const handleCloseModal = () => {
+    setShowUserModal(false);
+    setEditingUser(null);
+    setUserFormData({
+      userName: '',
+      email: '',
+      password: '',
+      phone: ''
+    });
+  };
+
+  // Guardar usuario (crear o editar)
+  const handleSaveUser = async (e) => {
+    e.preventDefault();
+    
+    // Validaciones
+    if (!userFormData.userName || !userFormData.email) {
+      setMessage({ 
+        type: 'error', 
+        text: 'El nombre y correo son obligatorios' 
+      });
+      return;
+    }
+
+    if (!editingUser && !userFormData.password) {
+      setMessage({ 
+        type: 'error', 
+        text: 'La contraseña es obligatoria para nuevos usuarios' 
+      });
+      return;
+    }
+
+    setLoadingUsers(true);
+
+    try {
+      let response;
+      if (editingUser) {
+        // Editar usuario existente
+        const updateData = {
+          userName: userFormData.userName,
+          email: userFormData.email,
+          phone: userFormData.phone
+        };
+        // Solo incluir password si se proporcionó uno nuevo
+        if (userFormData.password) {
+          updateData.password = userFormData.password;
+        }
+        response = await usersService.updateEmployee(editingUser._id, updateData);
+      } else {
+        // Crear nuevo usuario
+        response = await usersService.createEmployee(userFormData);
+      }
+
+      if (response.success) {
+        setMessage({ 
+          type: 'success', 
+          text: response.message 
+        });
+        handleCloseModal();
+        loadUsers();
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: response.message 
+        });
+      }
+    } catch (error) {
+      console.error('Error al guardar usuario:', error);
+      setMessage({ 
+        type: 'error', 
+        text: 'Error al guardar usuario' 
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Eliminar usuario
+  const handleDeleteUser = async (userId, userName) => {
+    if (!window.confirm(`¿Estás seguro de eliminar al usuario "${userName}"?`)) {
+      return;
+    }
+
+    setLoadingUsers(true);
+    try {
+      const response = await usersService.deleteEmployee(userId);
+      if (response.success) {
+        setMessage({ 
+          type: 'success', 
+          text: response.message 
+        });
+        loadUsers();
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: response.message 
+        });
+      }
+    } catch (error) {
+      console.error('Error al eliminar usuario:', error);
+      setMessage({ 
+        type: 'error', 
+        text: 'Error al eliminar usuario' 
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Manejar cambios en formulario
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setUserFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
   // Limpiar mensaje después de 5 segundos
   useEffect(() => {
     if (message.text) {
@@ -354,19 +555,36 @@ const Configuracion = () => {
                 Impresoras
               </div>
             </button>
-            <button
-              onClick={() => setActiveTab('subscription')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'subscription'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center">
-                <CreditCardIcon className="w-5 h-5 mr-2" />
-                Suscripción
-              </div>
-            </button>
+            {isOwnerOrAdmin && (
+              <button
+                onClick={() => setActiveTab('subscription')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'subscription'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center">
+                  <CreditCardIcon className="w-5 h-5 mr-2" />
+                  Suscripción
+                </div>
+              </button>
+            )}
+            {isOwnerOrAdmin && (
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'users'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center">
+                  <UsersIcon className="w-5 h-5 mr-2" />
+                  Usuarios
+                </div>
+              </button>
+            )}
           </nav>
         </div>
 
@@ -876,6 +1094,224 @@ const Configuracion = () => {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Contenido de Usuarios */}
+        {activeTab === 'users' && (
+          <div className="space-y-6">
+            {/* Header con botón crear */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-brown-900">
+                  Gestión de Usuarios
+                </h2>
+                <p className="text-brown-600">
+                  Administra los empleados de tu restaurante
+                </p>
+              </div>
+              <button
+                onClick={handleCreateUser}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+              >
+                <PlusIcon className="w-5 h-5 mr-2" />
+                Nuevo Usuario
+              </button>
+            </div>
+
+            {/* Tabla de usuarios */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {loadingUsers ? (
+                <div className="text-center py-12">
+                  <ArrowPathIcon className="w-12 h-12 text-green-600 mx-auto mb-4 animate-spin" />
+                  <p className="text-gray-600">Cargando usuarios...</p>
+                </div>
+              ) : users.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Usuario
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Correo
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Teléfono
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Rol
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {users.map((user) => (
+                        <tr key={user._id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10">
+                                <img
+                                  className="h-10 w-10 rounded-full"
+                                  src={user.avatar || 'https://cdn-icons-png.flaticon.com/512/1144/1144760.png'}
+                                  alt=""
+                                />
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {user.userName}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{user.email}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{user.phone || 'N/A'}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              user.role === 'owner' 
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {user.role === 'owner' ? 'Propietario' : 'Empleado'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              onClick={() => handleEditUser(user)}
+                              className="text-blue-600 hover:text-blue-900 mr-4"
+                              title="Editar"
+                            >
+                              <PencilIcon className="w-5 h-5" />
+                            </button>
+                            {user.role !== 'owner' && (
+                              <button
+                                onClick={() => handleDeleteUser(user._id, user.userName)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Eliminar"
+                              >
+                                <TrashIcon className="w-5 h-5" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <UsersIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    No hay usuarios registrados
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Comienza agregando empleados a tu restaurante
+                  </p>
+                  <button
+                    onClick={handleCreateUser}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                  >
+                    <PlusIcon className="w-5 h-5 mr-2" />
+                    Crear Primer Usuario
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Modal de crear/editar usuario */}
+        {showUserModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
+                </h3>
+              </div>
+              
+              <form onSubmit={handleSaveUser} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre completo *
+                  </label>
+                  <input
+                    type="text"
+                    name="userName"
+                    value={userFormData.userName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Correo electrónico *
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={userFormData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    required
+                    disabled={editingUser !== null}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contraseña {editingUser ? '(dejar vacío para no cambiar)' : '*'}
+                  </label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={userFormData.password}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    required={!editingUser}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Teléfono
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={userFormData.phone}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loadingUsers}
+                    className="px-4 py-2 border border-transparent rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors disabled:opacity-50"
+                  >
+                    {loadingUsers ? 'Guardando...' : editingUser ? 'Actualizar' : 'Crear'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </div>
