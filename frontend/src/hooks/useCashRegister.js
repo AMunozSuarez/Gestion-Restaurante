@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import cashRegisterService from '../services/cashRegisterService';
+import { getCurrentSubscription } from '../services/subscriptionService';
 
 export const useCashRegister = () => {
   const [cashRegister, setCashRegister] = useState(null);
@@ -35,6 +36,41 @@ export const useCashRegister = () => {
 
   const openCashRegister = async (initialAmount) => {
     try {
+      // Primero verificar si hay una suscripción activa
+      const subscriptionResponse = await getCurrentSubscription();
+      
+      // Si no hay suscripción o no es exitosa
+      if (!subscriptionResponse.success || !subscriptionResponse.data?.subscription) {
+        return { 
+          success: false, 
+          error: 'No tienes una suscripción activa. Por favor suscríbete para poder abrir caja.',
+          requiresSubscription: true 
+        };
+      }
+      
+      const subscription = subscriptionResponse.data.subscription;
+      
+      // Verificar que la suscripción esté activa o en trial
+      if (subscription.status !== 'active' && subscription.status !== 'trial') {
+        return { 
+          success: false, 
+          error: 'Tu suscripción ha expirado. Por favor renueva tu plan para continuar.',
+          requiresSubscription: true 
+        };
+      }
+      
+      // Verificar que no esté vencida
+      const now = new Date();
+      const endDate = new Date(subscription.endDate);
+      if (endDate < now) {
+        return { 
+          success: false, 
+          error: 'Tu suscripción ha expirado. Por favor renueva tu plan para continuar.',
+          requiresSubscription: true 
+        };
+      }
+      
+      // Si la suscripción está activa, proceder a abrir la caja
       const response = await cashRegisterService.openCashRegister({
         initialBalance: parseFloat(initialAmount) || 0
       });
@@ -46,6 +82,16 @@ export const useCashRegister = () => {
         return { success: false, error: response.message };
       }
     } catch (error) {
+      // Manejar errores específicos de suscripción
+      if (error.message?.includes('suscripción') || 
+          error.message?.includes('subscription') ||
+          error.response?.data?.requiresSubscription) {
+        return { 
+          success: false, 
+          error: error.response?.data?.message || error.message || 'No tienes una suscripción activa',
+          requiresSubscription: true 
+        };
+      }
       return { success: false, error: error.message };
     }
   };

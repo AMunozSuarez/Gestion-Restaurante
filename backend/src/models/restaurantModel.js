@@ -25,11 +25,6 @@ const restaurantSchema = new mongoose.Schema({
         default: 'trial',
         index: true,
     },
-    subscriptionPlan: {
-        type: String,
-        enum: ['trial', 'basic', 'premium', 'enterprise'],
-        default: 'trial',
-    },
     subscriptionStartDate: {
         type: Date,
     },

@@ -21,6 +21,15 @@ export const getCurrentSubscription = async () => {
     const response = await api.get('/subscriptions/current');
     return response.data;
   } catch (error) {
+    // Si es 404, significa que no hay suscripción, no es un error crítico
+    if (error.response?.status === 404) {
+      console.log('No se encontró suscripción activa');
+      return {
+        success: false,
+        message: 'No se encontró suscripción activa',
+        data: null
+      };
+    }
     console.error('Error al obtener suscripción actual:', error);
     throw error;
   }

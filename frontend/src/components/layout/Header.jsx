@@ -14,7 +14,8 @@ import {
   RectangleStackIcon,
   ChevronDownIcon,
   WrenchScrewdriverIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -53,6 +54,11 @@ const Header = () => {
   // Solo agregar el botón de suscripción si NO tiene una suscripción activa
   if (!isSubscriptionLoading && !hasActiveSubscription) {
     singleItems.splice(1, 0, { name: 'Suscripción', href: '/subscription/plans', icon: CreditCardIcon });
+  }
+
+  // Agregar el botón de Admin Dashboard si es super_admin
+  if (user?.role === 'super_admin') {
+    singleItems.push({ name: 'Admin Dashboard', href: '/admin', icon: ShieldCheckIcon });
   }
 
   const isActive = (href) => location.pathname === href;

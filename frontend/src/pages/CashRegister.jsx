@@ -2,7 +2,7 @@ import React from 'react';
 import { useCashRegister } from '../hooks/useCashRegister';
 import { useCashRegisters } from '../hooks/useCashRegisters';
 import { useCashRegisterSales } from '../hooks/useCashRegisterSales';
-import { PlusIcon, XMarkIcon, PrinterIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, XMarkIcon, PrinterIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import VentaDetailModal from '../components/common/VentaDetailModal';
 import printingService from '../services/printingService';
 import { useProducts } from '../hooks/useProducts';
@@ -12,6 +12,7 @@ const CashRegister = () => {
   const [showCreateModal, setShowCreateModal] = React.useState(false);
   const [selectedCashRegister, setSelectedCashRegister] = React.useState(null);
   const [notification, setNotification] = React.useState(null);
+  const [showSubscriptionAlert, setShowSubscriptionAlert] = React.useState(false);
   
   // Estados para modal de detalle de pedido
   const [selectedOrder, setSelectedOrder] = React.useState(null);
@@ -244,8 +245,14 @@ const CashRegister = () => {
         setNotification('Caja abierta exitosamente');
         setTimeout(() => setNotification(null), 3000);
       } else {
-        setNotification(result.error || 'Error al abrir la caja');
-        setTimeout(() => setNotification(null), 3000);
+        // Si requiere suscripción, mostrar modal de alerta especial
+        if (result.requiresSubscription) {
+          setShowCreateModal(false);
+          setShowSubscriptionAlert(true);
+        } else {
+          setNotification(result.error || 'Error al abrir la caja');
+          setTimeout(() => setNotification(null), 3000);
+        }
       }
     } catch (error) {
       setNotification('Error al abrir la caja');
@@ -1035,6 +1042,58 @@ const CashRegister = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             {notification}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de alerta de suscripción */}
+      {showSubscriptionAlert && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            {/* Header con gradiente */}
+            <div className="bg-gradient-to-r from-red-500 to-orange-500 p-6 text-white text-center">
+              <ExclamationTriangleIcon className="w-16 h-16 mx-auto mb-3 animate-bounce" />
+              <h2 className="text-2xl font-bold">⚠️ Suscripción Requerida</h2>
+            </div>
+            
+            {/* Contenido */}
+            <div className="p-6">
+              <div className="bg-red-50 rounded-lg p-4 mb-5 border-2 border-red-200">
+                <p className="text-red-800 font-semibold mb-3 text-center">
+                  No tienes una suscripción activa
+                </p>
+                <p className="text-sm text-gray-700 mb-3">
+                  Para poder abrir caja y procesar pedidos, necesitas una suscripción activa.
+                </p>
+                <div className="bg-white rounded-md p-3 border border-red-200">
+                  <p className="text-xs font-semibold text-gray-700 mb-2">Sin suscripción no podrás:</p>
+                  <ul className="text-xs text-gray-600 space-y-1">
+                    <li>✗ Abrir caja registradora</li>
+                    <li>✗ Crear nuevos pedidos</li>
+                    <li>✗ Procesar ventas</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    setShowSubscriptionAlert(false);
+                    window.location.href = '/subscription/plans';
+                  }}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 px-6 rounded-lg font-bold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                >
+                  🎯 Ver Planes de Suscripción
+                </button>
+                <button
+                  onClick={() => setShowSubscriptionAlert(false)}
+                  className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-6 rounded-lg font-medium transition-colors"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

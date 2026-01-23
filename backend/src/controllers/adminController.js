@@ -222,7 +222,7 @@ const deleteUser = async (req, res) => {
 // Obtener todos los restaurantes
 const getAllRestaurants = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search, subscriptionPlan, isActive } = req.query;
+        const { page = 1, limit = 10, search, isActive } = req.query;
         
         let filter = {};
         
@@ -233,10 +233,6 @@ const getAllRestaurants = async (req, res) => {
             ];
         }
         
-        if (subscriptionPlan && subscriptionPlan !== 'all') {
-            filter.subscriptionPlan = subscriptionPlan;
-        }
-        
         if (isActive !== undefined && isActive !== 'all') {
             filter.isActive = isActive === 'true';
         }
@@ -244,6 +240,7 @@ const getAllRestaurants = async (req, res) => {
         const restaurants = await restaurantModel
             .find(filter)
             .populate('owner', 'userName email')
+            .populate('currentSubscription')
             .limit(limit * 1)
             .skip((page - 1) * limit)
             .sort({ createdAt: -1 });
@@ -276,8 +273,7 @@ const createRestaurant = async (req, res) => {
     try {
         const { 
             restaurantName, 
-            address, 
-            subscriptionPlan = 'Basic',
+            address,
             ownerName,
             ownerEmail,
             ownerPassword,
@@ -305,7 +301,6 @@ const createRestaurant = async (req, res) => {
         const newRestaurant = new restaurantModel({
             name: restaurantName,
             address,
-            subscriptionPlan,
             isActive: true
         });
 
@@ -336,7 +331,8 @@ const createRestaurant = async (req, res) => {
         // Obtener datos completos para respuesta
         const restaurantWithOwner = await restaurantModel
             .findById(savedRestaurant._id)
-            .populate('owner', 'userName email phone');
+            .populate('owner', 'userName email phone')
+            .populate('currentSubscription');
 
         res.status(201).json({
             success: true,
@@ -359,7 +355,7 @@ const createRestaurant = async (req, res) => {
 const updateRestaurant = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, address, subscriptionPlan, isActive } = req.body;
+        const { name, address, isActive } = req.body;
 
         const restaurant = await restaurantModel.findById(id);
         if (!restaurant) {
@@ -372,12 +368,12 @@ const updateRestaurant = async (req, res) => {
         const updateData = {};
         if (name) updateData.name = name;
         if (address) updateData.address = address;
-        if (subscriptionPlan) updateData.subscriptionPlan = subscriptionPlan;
         if (isActive !== undefined) updateData.isActive = isActive;
 
         const updatedRestaurant = await restaurantModel
             .findByIdAndUpdate(id, updateData, { new: true })
-            .populate('owner', 'userName email');
+            .populate('owner', 'userName email')
+            .populate('currentSubscription');
 
         res.status(200).json({
             success: true,
@@ -455,11 +451,25 @@ const getSystemStats = async (req, res) => {
             }
         ]);
 
-        // Restaurantes por plan de suscripción
+        // Restaurantes por plan de suscripción (desde currentSubscription)
         const restaurantsByPlan = await restaurantModel.aggregate([
             {
+                $lookup: {
+                    from: 'subscriptions',
+                    localField: 'currentSubscription',
+                    foreignField: '_id',
+                    as: 'subscription'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$subscription',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
                 $group: {
-                    _id: '$subscriptionPlan',
+                    _id: { $ifNull: ['$subscription.plan', 'sin_suscripcion'] },
                     count: { $sum: 1 }
                 }
             }

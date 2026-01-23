@@ -1,10 +1,27 @@
 const cashRegisterModel = require('../models/cashRegisterModel');
+const subscriptionModel = require('../models/subscriptionModel');
 
 
 // Create a new cash register
 const createCashRegister = async (req, res) => {
     try {
         const { initialBalance } = req.body;
+        
+        // Verificar suscripción activa antes de permitir abrir caja
+        const activeSubscription = await subscriptionModel.findOne({
+            restaurant: req.user.restaurant,
+            status: { $in: ['active', 'trial'] },
+            endDate: { $gte: new Date() }
+        });
+
+        if (!activeSubscription) {
+            return res.status(403).send({ 
+                success: false, 
+                message: 'No tienes una suscripción activa. Por favor suscríbete para poder abrir caja.',
+                requiresSubscription: true
+            });
+        }
+
         const newCashRegister = new cashRegisterModel({
             restaurant: req.user.restaurant,
             initialBalance,

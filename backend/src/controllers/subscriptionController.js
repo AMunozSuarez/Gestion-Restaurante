@@ -19,7 +19,19 @@ const {
  */
 const getPlans = async (req, res) => {
     try {
-        const plans = [
+        const restaurantId = req.user?.restaurant;
+        let hasUsedTrial = false;
+
+        // Si el usuario está autenticado, verificar si ya usó el trial
+        if (restaurantId) {
+            const trialSubscription = await Subscription.findOne({
+                restaurant: restaurantId,
+                plan: 'trial',
+            });
+            hasUsedTrial = !!trialSubscription;
+        }
+
+        const allPlans = [
             {
                 id: 'trial',
                 ...Subscription.schema.statics.getPlanConfig('trial'),
@@ -28,19 +40,26 @@ const getPlans = async (req, res) => {
                 id: 'monthly',
                 ...Subscription.schema.statics.getPlanConfig('monthly'),
             },
-            {
-                id: 'quarterly',
-                ...Subscription.schema.statics.getPlanConfig('quarterly'),
-            },
-            {
-                id: 'yearly',
-                ...Subscription.schema.statics.getPlanConfig('yearly'),
-            },
+            // Planes quarterly y yearly comentados - solo mostrar trial y monthly
+            // {
+            //     id: 'quarterly',
+            //     ...Subscription.schema.statics.getPlanConfig('quarterly'),
+            // },
+            // {
+            //     id: 'yearly',
+            //     ...Subscription.schema.statics.getPlanConfig('yearly'),
+            // },
         ];
+
+        // Filtrar el plan trial si el usuario ya lo usó
+        const plans = hasUsedTrial 
+            ? allPlans.filter(plan => plan.id !== 'trial')
+            : allPlans;
 
         res.status(200).json({
             success: true,
             data: plans,
+            hasUsedTrial,
         });
     } catch (error) {
         console.error('Error al obtener planes:', error);
@@ -123,6 +142,21 @@ const createSubscription = async (req, res) => {
                 success: false,
                 message: 'Plan no válido',
             });
+        }
+
+        // Si es un plan trial, verificar que no lo haya usado antes
+        if (plan === 'trial') {
+            const previousTrial = await Subscription.findOne({
+                restaurant: restaurantId,
+                plan: 'trial',
+            });
+
+            if (previousTrial) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Ya has usado tu período de prueba gratuito. Por favor, selecciona un plan de pago.',
+                });
+            }
         }
 
         // Verificar si ya tiene una suscripción activa

@@ -20,7 +20,6 @@ const createRestaurantWithUser = async (req, res) => {
         const newRestaurant = new Restaurant({
             name: restaurantName,
             address,
-            subscriptionPlan: 'Basic', // Plan por defecto
         });
 
         const savedRestaurant = await newRestaurant.save({ session });

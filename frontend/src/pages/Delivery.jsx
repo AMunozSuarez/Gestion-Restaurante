@@ -1376,6 +1376,9 @@ const Delivery = () => {
     const result = await openCashRegister(initialAmount);
     if (result.success) {
       setShowCashAlert(false);
+    } else if (result.requiresSubscription) {
+      // NO cerrar el modal, dejar que CashRegisterAlert maneje la vista de suscripción
+      // El modal se quedará abierto mostrando la alerta de suscripción
     }
     return result;
   };

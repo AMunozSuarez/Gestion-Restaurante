@@ -30,7 +30,6 @@ const createSuperAdmin = async () => {
             defaultRestaurant = new restaurantModel({
                 name: 'Sistema Administración',
                 address: 'Oficina Central',
-                subscriptionPlan: 'Enterprise',
                 isActive: true
             });
             await defaultRestaurant.save();
@@ -72,7 +71,7 @@ const createSuperAdmin = async () => {
         console.log(`   🏢 Restaurante: ${defaultRestaurant.name}`);
         console.log('');
         console.log('⚠️  IMPORTANTE: Cambia la contraseña después del primer login');
-        console.log('🔗 Accede al panel en: http://localhost:3000/super-admin');
+        console.log('🔗 Accede al panel en: http://localhost:3000/admin');
 
     } catch (error) {
         console.error('❌ Error creando super administrador:', error);
