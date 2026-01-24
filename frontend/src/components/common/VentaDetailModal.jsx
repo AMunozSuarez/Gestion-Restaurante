@@ -777,6 +777,29 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                   <p className="text-3xl font-bold text-amber-700">
                     {formatCurrency(venta.total)}
                   </p>
+                  
+                  {/* Mostrar propina si existe */}
+                  {venta.tip && venta.tip > 0 && (
+                    <div className="mt-2 text-sm">
+                      <span className="text-green-600 font-medium">
+                        Propina: {formatCurrency(venta.tip)}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Mostrar mesero si existe */}
+                  {venta.waiter && (
+                    <div className="mt-1 text-sm text-gray-600">
+                      <span className="font-medium">Mesero:</span> {typeof venta.waiter === 'string' ? venta.waiter : venta.waiter.userName || venta.waiter.name || 'N/A'}
+                    </div>
+                  )}
+                  
+                  {/* Mostrar mesa si existe */}
+                  {venta.tableNumber && (
+                    <div className="mt-1 text-sm text-gray-600">
+                      <span className="font-medium">Mesa:</span> #{venta.tableNumber}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

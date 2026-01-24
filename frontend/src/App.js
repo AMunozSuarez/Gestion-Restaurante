@@ -9,6 +9,7 @@ import TableManagement from './pages/TableManagement';
 import TableDetail from './pages/TableDetail';
 import CashRegister from './pages/CashRegister';
 import Ventas from './pages/Ventas';
+import Propinas from './pages/Propinas';
 import Productos from './pages/Productos';
 import Categorias from './pages/Categorias';
 import Configuracion from './pages/Configuracion';
@@ -119,6 +120,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Ventas />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/propinas"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Propinas />
                 </Layout>
               </ProtectedRoute>
             }

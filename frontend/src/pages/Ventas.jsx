@@ -5,6 +5,7 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { useSales } from '../hooks/useSales';
+import { useTips } from '../hooks/useTips';
 import { useProducts } from '../hooks/useProducts';
 import VentaDetailModal from '../components/common/VentaDetailModal';
 import { getChileToday, formatChileDateTime, formatChileanCurrency } from '../utils/dateUtils';
@@ -40,10 +41,22 @@ const Ventas = () => {
   // Hook para obtener productos
   const { products, isLoading: productsLoading } = useProducts();
 
+  // Hook para obtener propinas con los mismos filtros de fecha
+  const { 
+    statistics: tipsStatistics, 
+    refetch: refetchTips 
+  } = useTips({
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    status: statusFilter === 'all' ? undefined : statusFilter,
+    section: sectionFilter === 'all' ? undefined : sectionFilter
+  });
+
   // Efecto para refrescar ventas cuando se monta el componente o se hace visible
   useEffect(() => {
     // Refrescar al montar
     fetchSales();
+    refetchTips();
   }, []); // Solo al montar
 
   // Efecto para refrescar cuando la página se hace visible (al cambiar de pestaña)
@@ -52,6 +65,7 @@ const Ventas = () => {
       if (!document.hidden) {
         // La página se hizo visible, refrescar datos
         fetchSales();
+        refetchTips();
       }
     };
 
@@ -60,7 +74,7 @@ const Ventas = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [fetchSales]);
+  }, [fetchSales, refetchTips]);
 
   // Filtrar ventas según criterios usando useMemo para optimización
   const ventasFiltradas = useMemo(() => {
@@ -408,32 +422,61 @@ const Ventas = () => {
           </div>
           
           {!summaryCollapsed && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 rounded-lg border border-gray-200 text-center">
-                <p className="text-xs text-gray-700 font-medium">Total</p>
-                <p className="text-sm font-bold text-gray-800">{stats.totalVentas}</p>
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-2">
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 rounded-lg border border-gray-200 text-center">
+                  <p className="text-xs text-gray-700 font-medium">Total</p>
+                  <p className="text-sm font-bold text-gray-800">{stats.totalVentas}</p>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-2 rounded-lg border border-green-200 text-center">
+                  <p className="text-xs text-green-700 font-medium">Monto</p>
+                  <p className="text-sm font-bold text-green-800">{formatCurrency(stats.totalMonto)}</p>
+                </div>
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-2 rounded-lg border border-blue-200 text-center">
+                  <p className="text-xs text-blue-700 font-medium">Efectivo</p>
+                  <p className="text-sm font-bold text-blue-800">{formatCurrency(stats.montoEfectivo)}</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded-lg border border-purple-200 text-center">
+                  <p className="text-xs text-purple-700 font-medium">Débito</p>
+                  <p className="text-sm font-bold text-purple-800">{formatCurrency(stats.montoTarjeta)}</p>
+                </div>
+                <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-2 rounded-lg border border-amber-200 text-center">
+                  <p className="text-xs text-amber-700 font-medium">Transfer.</p>
+                  <p className="text-sm font-bold text-amber-800">{formatCurrency(stats.montoTransferencia)}</p>
+                </div>
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-2 rounded-lg border border-orange-200 text-center">
+                  <p className="text-xs text-orange-700 font-medium">Delivery</p>
+                  <p className="text-sm font-bold text-orange-800">{formatCurrency(stats.montoDelivery)}</p>
+                </div>
               </div>
-              <div className="bg-gradient-to-br from-green-50 to-green-100 p-2 rounded-lg border border-green-200 text-center">
-                <p className="text-xs text-green-700 font-medium">Monto</p>
-                <p className="text-sm font-bold text-green-800">{formatCurrency(stats.totalMonto)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-2 rounded-lg border border-blue-200 text-center">
-                <p className="text-xs text-blue-700 font-medium">Efectivo</p>
-                <p className="text-sm font-bold text-blue-800">{formatCurrency(stats.montoEfectivo)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded-lg border border-purple-200 text-center">
-                <p className="text-xs text-purple-700 font-medium">Débito</p>
-                <p className="text-sm font-bold text-purple-800">{formatCurrency(stats.montoTarjeta)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-2 rounded-lg border border-amber-200 text-center">
-                <p className="text-xs text-amber-700 font-medium">Transfer.</p>
-                <p className="text-sm font-bold text-amber-800">{formatCurrency(stats.montoTransferencia)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-2 rounded-lg border border-orange-200 text-center">
-                <p className="text-xs text-orange-700 font-medium">Delivery</p>
-                <p className="text-sm font-bold text-orange-800">{formatCurrency(stats.montoDelivery)}</p>
-              </div>
-            </div>
+              
+              {/* Tarjeta de Propinas */}
+              {tipsStatistics && tipsStatistics.totalTips > 0 && (
+                <div className="bg-gradient-to-br from-teal-50 to-emerald-100 p-3 rounded-lg border border-teal-200">
+                  <h4 className="text-xs font-semibold text-teal-800 mb-2">Propinas del Período</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div className="text-center">
+                      <p className="text-xs text-teal-700">Total Propinas</p>
+                      <p className="text-sm font-bold text-teal-900">
+                        {formatCurrency(tipsStatistics.totalTips || 0)}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-teal-700">Órdenes con Propina</p>
+                      <p className="text-sm font-bold text-teal-900">
+                        {tipsStatistics.totalOrders || 0}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-teal-700">Promedio</p>
+                      <p className="text-sm font-bold text-teal-900">
+                        {formatCurrency(tipsStatistics.averageTip || 0)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 

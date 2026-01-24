@@ -122,6 +122,7 @@ const createOrderController = async (req, res) => {
         const populatedOrder = await orderModel.findById(order._id)
             .populate('foods.food', 'title price')
             .populate('buyer', 'name phone')
+            .populate('waiter', 'userName name')
             .lean();
 
         res.status(201).json({
@@ -181,7 +182,8 @@ const getAllOrdersController = async (req, res) => {
             .find(filters)
             .sort({ [validSortBy]: -1 }) // Ordenar descendente (más nuevos/recientes primero)
             .populate('foods.food') // Incluir los datos de los alimentos
-            .populate('buyer'); // Incluir los datos del cliente
+            .populate('buyer') // Incluir los datos del cliente
+            .populate('waiter', 'userName name'); // Incluir los datos del mesero
 
         // Aplicar límite si se especifica
         if (limit) {
@@ -214,7 +216,8 @@ const getOrderByIdController = async (req, res) => {
         const order = await orderModel
             .findOne({ _id: req.params.id, restaurant: req.user.restaurant })
             .populate('foods.food') // Incluir los datos de los alimentos
-            .populate('buyer'); // Incluir los datos del cliente
+            .populate('buyer') // Incluir los datos del cliente
+            .populate('waiter', 'userName name'); // Incluir los datos del mesero
 
         if (!order) {
             return res.status(404).json({
@@ -262,7 +265,8 @@ const getOrderByNumberController = async (req, res) => {
                 cashRegister: currentCashRegister._id 
             })
             .populate('foods.food') // Incluir los datos de los alimentos
-            .populate('buyer'); // Incluir los datos del cliente
+            .populate('buyer') // Incluir los datos del cliente
+            .populate('waiter', 'userName name'); // Incluir los datos del mesero
 
         if (!order) {
             return res.status(404).send({
@@ -441,6 +445,7 @@ const updateOrderController = async (req, res) => {
         const populatedOrder = await orderModel.findById(updatedOrder._id)
             .populate('foods.food', 'title price')
             .populate('buyer', 'name phone')
+            .populate('waiter', 'userName name')
             .lean();
 
         res.status(200).json({
@@ -517,6 +522,7 @@ const getFilteredOrders = async (req, res) => {
         const orders = await orderModel.find(filters)
             .sort({ createdAt: -1 })
             .populate('foods.food', 'title price') // Incluir los datos de los alimentos
+            .populate('waiter', 'userName name') // Incluir los datos del mesero
             .populate('buyer', 'name phone') // Incluir los datos del cliente
             .populate('cashRegister', 'dateOpened dateClosed status'); // Incluir datos de la caja registradora
         
@@ -614,24 +620,22 @@ const getAllSalesController = async (req, res) => {
                 // Obtener inicio del día en Chile para la fecha 'desde'
                 const fromRange = getChileDayRange(dateFrom);
                 filters.createdAt.$gte = fromRange.start;
-                console.log('Filtro desde (Chile):', formatChileDate(fromRange.start));
             }
             
             if (dateTo) {
                 // Obtener fin del día en Chile para la fecha 'hasta'
                 const toRange = getChileDayRange(dateTo);
                 filters.createdAt.$lte = toRange.end;
-                console.log('Filtro hasta (Chile):', formatChileDate(toRange.end));
             }
         }
 
-        console.log('Filtros aplicados:', JSON.stringify(filters, null, 2));
 
         let query = orderModel
             .find(filters)
             .sort({ [validSortBy]: -1 }) // Ordenar descendente (más nuevos/recientes primero)
             .populate('foods.food') // Incluir los datos de los alimentos
-            .populate('buyer'); // Incluir los datos del cliente
+            .populate('buyer') // Incluir los datos del cliente
+            .populate('waiter', 'userName name'); // Incluir los datos del mesero
 
         // Aplicar límite si se especifica
         if (limit) {
@@ -640,7 +644,6 @@ const getAllSalesController = async (req, res) => {
 
         const orders = await query;
 
-        console.log(`Ventas encontradas: ${orders.length}`);
 
         res.status(200).send({
             success: true,
@@ -659,6 +662,131 @@ const getAllSalesController = async (req, res) => {
     }
 };
 
+// GET TIPS WITH FILTERS
+const getTipsController = async (req, res) => {
+    try {
+        const { cashRegisterId, waiterId, dateFrom, dateTo, activeOnly } = req.query;
+
+        console.log('🔍 Obteniendo propinas con filtros:', { cashRegisterId, waiterId, dateFrom, dateTo, activeOnly });
+
+        // Construir filtros
+        const filters = {
+            restaurant: req.user.restaurant,
+            tip: { $gt: 0 }, // Solo órdenes con propina
+            status: { $in: ['Completado', 'Enviado'] } // Solo órdenes completadas
+        };
+
+        // Filtro por caja específica o caja activa
+        if (activeOnly === 'true') {
+            const activeCashRegister = await cashRegisterModel.findOne({
+                restaurant: req.user.restaurant,
+                status: 'Abierta'
+            });
+            if (activeCashRegister) {
+                filters.cashRegister = activeCashRegister._id;
+                console.log('📦 Filtrando por caja activa:', activeCashRegister._id);
+            } else {
+                console.log('⚠️ No hay caja activa, devolviendo vacío');
+                // Si no hay caja activa, devolver vacío
+                return res.status(200).json({
+                    success: true,
+                    tips: [],
+                    statistics: {
+                        totalTips: 0,
+                        totalOrders: 0,
+                        averageTip: 0,
+                        tipsByWaiter: []
+                    }
+                });
+            }
+        } else if (cashRegisterId) {
+            filters.cashRegister = cashRegisterId;
+            console.log('📦 Filtrando por caja específica:', cashRegisterId);
+        } else {
+            console.log('📦 Sin filtro de caja, buscando en todas las cajas');
+        }
+
+        // Filtro por mesero
+        if (waiterId && waiterId !== 'all') {
+            filters.waiter = waiterId;
+            console.log('👤 Filtrando por mesero:', waiterId);
+        }
+
+        // Filtro por rango de fechas usando la zona horaria de Chile
+        if (dateFrom || dateTo) {
+            filters.createdAt = {};
+            if (dateFrom) {
+                // Inicio del día en Chile (00:00:00)
+                const startDate = new Date(dateFrom + 'T00:00:00.000-03:00');
+                filters.createdAt.$gte = startDate;
+                console.log('📅 Fecha desde:', startDate);
+            }
+            if (dateTo) {
+                // Fin del día en Chile (23:59:59.999)
+                const endDate = new Date(dateTo + 'T23:59:59.999-03:00');
+                filters.createdAt.$lte = endDate;
+                console.log('📅 Fecha hasta:', endDate);
+            }
+        }
+
+        console.log('🔎 Filtros aplicados:', JSON.stringify(filters, null, 2));
+
+        // Obtener órdenes con propinas
+        const tips = await orderModel.find(filters)
+            .populate('waiter', 'userName name')
+            .populate('buyer', 'name')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        console.log(`✅ Se encontraron ${tips.length} órdenes con propinas`);
+
+        // Calcular estadísticas
+        const totalTips = tips.reduce((sum, order) => sum + (order.tip || 0), 0);
+        const totalOrders = tips.length;
+        const averageTip = totalOrders > 0 ? totalTips / totalOrders : 0;
+
+        // Agrupar propinas por mesero
+        const tipsByWaiterMap = {};
+        tips.forEach(order => {
+            if (order.waiter) {
+                const waiterId = order.waiter._id.toString();
+                if (!tipsByWaiterMap[waiterId]) {
+                    tipsByWaiterMap[waiterId] = {
+                        waiter: order.waiter,
+                        totalTips: 0,
+                        orderCount: 0
+                    };
+                }
+                tipsByWaiterMap[waiterId].totalTips += order.tip || 0;
+                tipsByWaiterMap[waiterId].orderCount += 1;
+            }
+        });
+
+        const tipsByWaiter = Object.values(tipsByWaiterMap);
+
+        console.log('💰 Total propinas:', totalTips, '| Promedio:', averageTip);
+
+        res.status(200).json({
+            success: true,
+            tips,
+            statistics: {
+                totalTips,
+                totalOrders,
+                averageTip,
+                tipsByWaiter
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Error al obtener propinas:', error);
+        res.status(500).send({
+            success: false,
+            message: 'Error al obtener las propinas',
+            error: error.message,
+        });
+    }
+};
+
 module.exports = {
     createOrderController,
     getAllOrdersController,
@@ -668,5 +796,6 @@ module.exports = {
     getOrderByNumberController,
     getFilteredOrders,
     getRecentOrders,
-    getAllSalesController
+    getAllSalesController,
+    getTipsController
 };

@@ -72,11 +72,6 @@ const getChileDayRange = (dateString) => {
     return null;
   }
   
-  console.log(`Rango para fecha ${dateString}:`);
-  console.log(`- Inicio UTC: ${startOfDay.toISOString()}`);
-  console.log(`- Inicio Chile: ${formatChileDate(startOfDay)}`);
-  console.log(`- Fin UTC: ${endOfDay.toISOString()}`);
-  console.log(`- Fin Chile: ${formatChileDate(endOfDay)}`);
   
   return {
     start: startOfDay,

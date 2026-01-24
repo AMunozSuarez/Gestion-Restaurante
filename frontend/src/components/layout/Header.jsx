@@ -35,6 +35,7 @@ const Header = () => {
       items: [
         { name: 'Cajas', href: '/cajas', icon: CurrencyDollarIcon },
         { name: 'Ventas', href: '/ventas', icon: ChartBarIcon },
+        { name: 'Propinas', href: '/propinas', icon: CurrencyDollarIcon },
       ]
     },
     {

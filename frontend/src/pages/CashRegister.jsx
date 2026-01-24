@@ -2,6 +2,7 @@ import React from 'react';
 import { useCashRegister } from '../hooks/useCashRegister';
 import { useCashRegisters } from '../hooks/useCashRegisters';
 import { useCashRegisterSales } from '../hooks/useCashRegisterSales';
+import { useTips } from '../hooks/useTips';
 import { PlusIcon, XMarkIcon, PrinterIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import VentaDetailModal from '../components/common/VentaDetailModal';
 import printingService from '../services/printingService';
@@ -70,15 +71,29 @@ const CashRegister = () => {
   // Hook para obtener productos
   const { products, isLoading: productsLoading } = useProducts();
 
+  // Hook para obtener propinas de la caja activa
+  const {
+    statistics: currentTipsStatistics,
+    refetch: refetchTips
+  } = useTips({ activeOnly: isOpen });
+
+  // Hook para obtener propinas de caja seleccionada
+  const {
+    statistics: selectedTipsStatistics,
+    refetch: refetchSelectedTips
+  } = useTips({ cashRegisterId: selectedCashRegister?._id });
+
   // Efecto para refrescar ventas cuando se monta el componente
   React.useEffect(() => {
     // Refrescar ventas de caja activa si hay una caja abierta
     if (isOpen) {
       refetchSales();
+      refetchTips();
     }
     // Refrescar ventas de caja seleccionada si hay una seleccionada
     if (selectedCashRegister) {
       refetchSelectedSales();
+      refetchSelectedTips();
     }
   }, []); // Se ejecuta solo al montar el componente
 
@@ -89,9 +104,11 @@ const CashRegister = () => {
         // La página se hizo visible, refrescar datos
         if (isOpen) {
           refetchSales();
+          refetchTips();
         }
         if (selectedCashRegister) {
           refetchSelectedSales();
+          refetchSelectedTips();
         }
       }
     };
@@ -394,17 +411,17 @@ const CashRegister = () => {
             </div>
             
             {!currentCashCollapsed && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-2">
                 <div className="bg-gradient-to-br from-green-50 to-green-100 p-2 rounded border border-green-200">
                   <p className="text-xs text-green-700 font-medium">Estado</p>
                   <p className="text-xs lg:text-sm font-bold text-green-800">Abierta</p>
                 </div>
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-2 rounded border border-blue-200">
-                  <p className="text-xs text-blue-700 font-medium">Monto Inicial</p>
+                  <p className="text-xs text-blue-700 font-medium">Inicial</p>
                   <p className="text-xs lg:text-sm font-bold text-blue-800">{formatCurrency(currentCashRegister.initialBalance)}</p>
                 </div>
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded border border-purple-200">
-                  <p className="text-xs text-purple-700 font-medium">Fecha Apertura</p>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded border border-purple-200 col-span-2">
+                  <p className="text-xs text-purple-700 font-medium">Apertura</p>
                   <p className="text-xs lg:text-sm font-bold text-purple-800">{formatDate(currentCashRegister.dateOpened)}</p>
                 </div>
                 <div className="total-highlight p-2">
@@ -413,6 +430,30 @@ const CashRegister = () => {
                     {formatCurrency(getSystemTotalForCashRegister(currentCashRegister))}
                   </p>
                 </div>
+                
+                {/* Propinas integradas */}
+                {currentTipsStatistics && currentTipsStatistics.totalTips > 0 && (
+                  <>
+                    <div className="bg-gradient-to-br from-teal-50 to-teal-100 p-2 rounded border border-teal-200">
+                      <p className="text-xs text-teal-700 font-medium">Propinas</p>
+                      <p className="text-xs lg:text-sm font-bold text-teal-800">
+                        {formatCurrency(currentTipsStatistics.totalTips || 0)}
+                      </p>
+                    </div>
+                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-2 rounded border border-emerald-200">
+                      <p className="text-xs text-emerald-700 font-medium">Órdenes</p>
+                      <p className="text-xs lg:text-sm font-bold text-emerald-800">
+                        {currentTipsStatistics.totalOrders || 0}
+                      </p>
+                    </div>
+                    <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 p-2 rounded border border-cyan-200">
+                      <p className="text-xs text-cyan-700 font-medium">Promedio</p>
+                      <p className="text-xs lg:text-sm font-bold text-cyan-800">
+                        {formatCurrency(currentTipsStatistics.averageTip || 0)}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -721,7 +762,7 @@ const CashRegister = () => {
             </div>
           </div>
 
-          {/* Monto Total de Delivery */}
+          {/* Ingresos por Delivery */}
           <div className="mb-6">
             <h4 className="text-professional-subtitle mb-3">Ingresos por Delivery</h4>
             <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
@@ -741,6 +782,46 @@ const CashRegister = () => {
               )}
             </div>
           </div>
+
+          {/* Propinas */}
+          {selectedTipsStatistics && selectedTipsStatistics.totalTips > 0 && (
+            <div className="mb-6">
+              <h4 className="text-professional-subtitle mb-3">Propinas</h4>
+              <div className="bg-gradient-to-br from-teal-50 to-emerald-100 p-3 rounded-lg border border-teal-200">
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="text-center">
+                    <p className="text-xs text-teal-700 font-medium">Total Propinas</p>
+                    <p className="text-sm font-bold text-teal-900">
+                      {formatCurrency(selectedTipsStatistics.totalTips || 0)}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-teal-700 font-medium">Órdenes</p>
+                    <p className="text-sm font-bold text-teal-900">
+                      {selectedTipsStatistics.totalOrders || 0}
+                    </p>
+                  </div>
+                </div>
+                {selectedTipsStatistics.tipsByWaiter && selectedTipsStatistics.tipsByWaiter.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-teal-700 font-medium mb-1">Por Mesero:</p>
+                    {selectedTipsStatistics.tipsByWaiter.map((item, index) => (
+                      <div key={index} className="bg-white bg-opacity-60 p-2 rounded border border-teal-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-700">
+                            {typeof item.waiter === 'string' ? item.waiter : item.waiter?.userName || item.waiter?.name || 'Sin mesero'}
+                          </span>
+                          <span className="text-xs font-bold text-teal-800">
+                            {formatCurrency(item.totalTips || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Ingresos Oficiales */}
           {selectedCashRegister.status === 'Cerrada' && selectedCashRegister.officialIncome && (
@@ -985,28 +1066,9 @@ const CashRegister = () => {
         <VentaDetailModal
           venta={selectedOrder}
           isOpen={showOrderDetailModal}
-          onClose={async () => {
+          onClose={() => {
             setShowOrderDetailModal(false);
             setSelectedOrder(null);
-            
-            // Refrescar todas las fuentes de datos al cerrar el modal
-            const promises = [];
-            
-            // Refrescar ventas de caja activa
-            if (isOpen) {
-              promises.push(refetchSales());
-            }
-            
-            // Refrescar ventas de caja seleccionada
-            if (selectedCashRegister) {
-              promises.push(refetchSelectedSales());
-            }
-            
-            // Refrescar historial de cajas
-            promises.push(refetch());
-            
-            // Esperar a que todas las actualizaciones se completen
-            await Promise.all(promises);
           }}
           onVentaUpdated={async (updatedVenta) => {
             // Actualizar la venta seleccionada

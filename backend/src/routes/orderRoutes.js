@@ -1,6 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
-const { createOrderController, getAllOrdersController, updateOrderController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders, getRecentOrders, getAllSalesController } = require('../controllers/orderController');
+const { createOrderController, getAllOrdersController, updateOrderController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders, getRecentOrders, getAllSalesController, getTipsController } = require('../controllers/orderController');
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
 const router = express.Router();
 
@@ -21,6 +21,9 @@ router.put('/update/:id', authMiddleware, filterByRestaurant, updateOrderControl
 
 // DELETE AN ORDER
 router.delete('/delete/:id', authMiddleware, filterByRestaurant, deleteOrderController);
+
+// GET TIPS WITH FILTERS (debe ir antes de rutas genéricas)
+router.get('/tips', authMiddleware, filterByRestaurant, getTipsController);
 
 // GET FILTERED ORDERS
 router.get('/sales', authMiddleware, filterByRestaurant, getFilteredOrders);
