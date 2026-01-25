@@ -64,26 +64,44 @@ const handleStripeWebhook = async (req, res) => {
  */
 const handleMercadoPagoWebhook = async (req, res) => {
     try {
-        // MercadoPago envía notificaciones con parámetros de query
-        const { type, id, topic, 'data.id': dataId } = req.query;
+        // MercadoPago puede enviar notificaciones por GET o POST
+        // Por query params (GET): ?type=payment&id=123
+        // Por body (POST): { action, data: { id }, type }
+        const queryParams = req.query || {};
+        const bodyParams = req.body || {};
+        
+        // Intentar obtener datos de query o body
+        const type = queryParams.type || bodyParams.type || bodyParams.action;
+        const id = queryParams.id || queryParams['data.id'] || bodyParams.data?.id;
+        const topic = queryParams.topic;
         
         const notificationType = type || topic;
-        const resourceId = id || dataId;
+        const resourceId = id;
 
-        console.log('MercadoPago webhook recibido:', { notificationType, resourceId });
+        console.log('MercadoPago webhook recibido:', { 
+            method: req.method,
+            notificationType, 
+            resourceId,
+            query: req.query,
+            body: req.body 
+        });
 
         // Responder rápidamente a MercadoPago (importante)
         res.status(200).json({ success: true });
 
         // Procesar la notificación de forma asíncrona
         if (!notificationType || !resourceId) {
-            console.log('Notificación sin tipo o ID');
+            console.log('⚠️ Notificación sin tipo o ID - ignorando');
             return;
         }
 
-        // Procesar según el tipo
-        switch (notificationType) {
+        // Procesar según el tipo (eliminar "payment." prefix si existe)
+        const cleanType = notificationType.replace('payment.', '');
+        
+        switch (cleanType) {
             case 'payment':
+            case 'updated':
+            case 'created':
                 await handleMercadoPagoPayment(resourceId);
                 break;
 
@@ -101,7 +119,7 @@ const handleMercadoPagoWebhook = async (req, res) => {
                 console.log(`Tipo no manejado: ${notificationType}`);
         }
     } catch (error) {
-        console.error('Error en webhook de MercadoPago:', error);
+        console.error('❌ Error en webhook de MercadoPago:', error);
         // No enviar error al cliente, ya respondimos antes
     }
 };

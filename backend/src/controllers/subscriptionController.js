@@ -457,6 +457,46 @@ const initiateCheckout = async (req, res) => {
             userName,
         });
 
+        // Si es un plan gratuito, activarlo directamente
+        if (preference.isFree) {
+            // Buscar o crear suscripción
+            let subscription = await Subscription.findOne({ restaurant: restaurantId });
+            
+            if (!subscription) {
+                subscription = new Subscription({
+                    restaurant: restaurantId,
+                    plan,
+                    status: 'active',
+                    paymentStatus: 'paid',
+                    startDate: new Date(),
+                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
+                });
+            } else {
+                subscription.plan = plan;
+                subscription.status = 'active';
+                subscription.paymentStatus = 'paid';
+                subscription.startDate = new Date();
+                subscription.endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            }
+
+            await subscription.save();
+
+            return res.status(200).json({
+                success: true,
+                message: 'Plan gratuito activado exitosamente',
+                data: {
+                    isFree: true,
+                    subscription: {
+                        id: subscription._id,
+                        plan: planConfig.name,
+                        status: 'active',
+                        startDate: subscription.startDate,
+                        endDate: subscription.endDate,
+                    }
+                },
+            });
+        }
+
         const checkoutData = {
             restaurantId,
             plan: planConfig.name,

@@ -15,10 +15,12 @@ const router = express.Router();
 router.post('/stripe', express.raw({ type: 'application/json' }), handleStripeWebhook);
 
 /**
- * POST /api/webhooks/mercadopago
+ * POST/GET /api/webhooks/mercadopago
  * Webhook para recibir notificaciones de MercadoPago
+ * MercadoPago puede enviar notificaciones tanto por POST como por GET
  */
 router.post('/mercadopago', handleMercadoPagoWebhook);
+router.get('/mercadopago', handleMercadoPagoWebhook);
 
 /**
  * POST /api/webhooks/paypal

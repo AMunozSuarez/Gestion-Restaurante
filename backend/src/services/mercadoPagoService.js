@@ -40,6 +40,17 @@ const createSubscriptionPreference = async (data) => {
     const { restaurantId, plan, planConfig, userEmail, userName } = data;
 
     try {
+        // Si el precio es 0 (plan gratuito), no crear preferencia de MercadoPago
+        if (planConfig.price === 0) {
+            console.log('💡 Plan gratuito detectado - no se requiere pago en MercadoPago');
+            return {
+                isFree: true,
+                plan,
+                restaurantId,
+                message: 'Plan gratuito - activación directa sin pago'
+            };
+        }
+
         const preference = new Preference(getClient());
         
         // Asegurar que las URLs no tengan barra final
