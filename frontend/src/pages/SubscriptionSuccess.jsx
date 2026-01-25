@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { verifyPayment } from '../services/subscriptionService';
 
@@ -8,9 +8,14 @@ const SubscriptionSuccess = () => {
   const [status, setStatus] = useState('verifying'); // verifying, success, error
   const [message, setMessage] = useState('');
   const [subscriptionData, setSubscriptionData] = useState(null);
+  const hasVerified = useRef(false); // ⚠️ Prevenir múltiples verificaciones
 
   useEffect(() => {
-    verifyPaymentStatus();
+    // Solo verificar una vez, incluso si el componente se re-renderiza
+    if (!hasVerified.current) {
+      hasVerified.current = true;
+      verifyPaymentStatus();
+    }
   }, []);
 
   const verifyPaymentStatus = async () => {

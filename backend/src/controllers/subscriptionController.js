@@ -624,6 +624,55 @@ const verifyMercadoPagoPayment = async (req, res) => {
             });
         }
 
+        // ⚠️ VERIFICAR SI YA EXISTE UNA SUSCRIPCIÓN CON ESTE PAGO
+        const existingByPayment = await Subscription.findOne({ 
+            paymentId: paymentInfo.id.toString() 
+        });
+        
+        if (existingByPayment) {
+            console.log('Pago ya procesado anteriormente - devolviendo suscripción existente');
+            return res.status(200).json({
+                success: true,
+                message: 'Suscripción ya activada previamente',
+                data: {
+                    subscription: existingByPayment,
+                    payment: paymentInfo,
+                    alreadyProcessed: true,
+                },
+            });
+        }
+
+        // Verificar si ya tiene una suscripción activa (evitar duplicados)
+        const existingActive = await Subscription.findOne({
+            restaurant: restaurantId,
+            status: { $in: ['active', 'trial'] },
+        });
+
+        if (existingActive) {
+            console.log('Ya existe una suscripción activa - actualizando en lugar de duplicar');
+            // Actualizar la existente en lugar de crear una nueva
+            existingActive.plan = plan;
+            existingActive.paymentId = paymentInfo.id.toString();
+            existingActive.lastPaymentDate = new Date(paymentInfo.date_approved);
+            existingActive.paymentHistory.push({
+                date: new Date(paymentInfo.date_approved),
+                amount: paymentInfo.amount,
+                status: 'success',
+                paymentId: paymentInfo.id.toString(),
+            });
+            await existingActive.save();
+            
+            return res.status(200).json({
+                success: true,
+                message: 'Pago verificado y suscripción actualizada',
+                data: {
+                    subscription: existingActive,
+                    payment: paymentInfo,
+                    updated: true,
+                },
+            });
+        }
+
         // Crear o actualizar la suscripción
         const planConfig = Subscription.schema.statics.getPlanConfig(plan);
         const startDate = new Date();
