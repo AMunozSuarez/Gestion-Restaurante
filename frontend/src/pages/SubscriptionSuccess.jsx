@@ -207,7 +207,6 @@ const SubscriptionSuccess = () => {
               </p>
             )}
           </div>
-          </div>
         </div>
       </div>
     );
