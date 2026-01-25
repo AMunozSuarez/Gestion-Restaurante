@@ -83,7 +83,13 @@ const SubscriptionPlans = () => {
       const response = await initiateCheckout(restaurantId, planId);
       
       if (response.success) {
-        // Redirigir a MercadoPago
+        // Si es un plan gratuito (trial), redirigir a página de éxito
+        if (response.data.isFree) {
+          navigate('/subscription/success?trial=true');
+          return;
+        }
+        
+        // Si es plan de pago, redirigir a MercadoPago
         const initPoint = response.data.mercadoPago?.initPoint;
         if (initPoint) {
           window.location.href = initPoint;

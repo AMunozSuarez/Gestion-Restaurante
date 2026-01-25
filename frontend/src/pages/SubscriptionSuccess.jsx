@@ -15,6 +15,22 @@ const SubscriptionSuccess = () => {
 
   const verifyPaymentStatus = async () => {
     try {
+      // Verificar si es activación de plan trial (gratuito)
+      const isTrial = searchParams.get('trial') === 'true';
+      
+      if (isTrial) {
+        setStatus('success');
+        setMessage('¡Tu período de prueba gratuito ha sido activado exitosamente!');
+        setSubscriptionData({
+          subscription: {
+            plan: 'trial',
+            status: 'active'
+          },
+          isTrial: true
+        });
+        return;
+      }
+
       // MercadoPago envía estos parámetros automáticamente:
       // payment_id, status, external_reference, merchant_order_id
       const paymentId = searchParams.get('payment_id') || searchParams.get('collection_id');
@@ -101,16 +117,18 @@ const SubscriptionSuccess = () => {
           {/* Success Message */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              ¡Pago Exitoso!
+              {subscriptionData?.isTrial ? '¡Prueba Gratuita Activada!' : '¡Pago Exitoso!'}
             </h1>
             <p className="text-xl text-gray-600 mb-2">{message}</p>
             <p className="text-gray-500">
-              Ya puedes disfrutar de todas las funcionalidades de tu plan
+              {subscriptionData?.isTrial 
+                ? 'Tienes 7 días para probar todas las funcionalidades sin costo'
+                : 'Ya puedes disfrutar de todas las funcionalidades de tu plan'}
             </p>
           </div>
 
           {/* Subscription Details */}
-          {subscriptionData && (
+          {subscriptionData && !subscriptionData.isTrial && (
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Detalles de tu suscripción
@@ -160,21 +178,35 @@ const SubscriptionSuccess = () => {
               onClick={handleContinue}
               className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
             >
-              Ir al sistema
+              {subscriptionData?.isTrial ? 'Comenzar a usar el sistema' : 'Ir al sistema'}
             </button>
-            <button
-              onClick={() => navigate('/subscription/plans')}
-              className="flex-1 bg-white text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-200 border-2 border-gray-300"
-            >
-              Ver planes
-            </button>
+            {!subscriptionData?.isTrial && (
+              <button
+                onClick={() => navigate('/subscription/plans')}
+                className="flex-1 bg-white text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-200 border-2 border-gray-300"
+              >
+                Ver planes
+              </button>
+            )}
           </div>
 
-          {/* Email Confirmation Note */}
+          {/* Email Confirmation Note or Trial Info */}
           <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-gray-600 text-center">
-              📧 Te hemos enviado un correo de confirmación con los detalles de tu suscripción
-            </p>
+            {subscriptionData?.isTrial ? (
+              <div className="text-sm text-gray-700">
+                <p className="font-semibold mb-2 text-center">🎉 ¡Bienvenido a tu prueba gratuita!</p>
+                <ul className="space-y-1 text-left">
+                  <li>✓ Acceso completo a todas las funcionalidades por 7 días</li>
+                  <li>✓ Sin necesidad de tarjeta de crédito</li>
+                  <li>✓ Podrás actualizar a un plan de pago cuando lo desees</li>
+                </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600 text-center">
+                📧 Te hemos enviado un correo de confirmación con los detalles de tu suscripción
+              </p>
+            )}
+          </div>
           </div>
         </div>
       </div>

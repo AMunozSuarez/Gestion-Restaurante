@@ -462,6 +462,9 @@ const initiateCheckout = async (req, res) => {
             // Buscar o crear suscripción
             let subscription = await Subscription.findOne({ restaurant: restaurantId });
             
+            // Calcular fecha de finalización según la duración del plan
+            const endDate = new Date(Date.now() + planConfig.duration * 24 * 60 * 60 * 1000);
+            
             if (!subscription) {
                 subscription = new Subscription({
                     restaurant: restaurantId,
@@ -469,29 +472,41 @@ const initiateCheckout = async (req, res) => {
                     status: 'active',
                     paymentStatus: 'paid',
                     startDate: new Date(),
-                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
+                    endDate: endDate,
+                    amount: 0,
+                    currency: 'CLP',
+                    paymentProvider: 'manual',
+                    paymentHistory: [{
+                        date: new Date(),
+                        amount: 0,
+                        status: 'success',
+                        paymentId: `trial-${Date.now()}`
+                    }]
                 });
             } else {
                 subscription.plan = plan;
                 subscription.status = 'active';
                 subscription.paymentStatus = 'paid';
                 subscription.startDate = new Date();
-                subscription.endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                subscription.endDate = endDate;
+                subscription.amount = 0;
             }
 
             await subscription.save();
 
             return res.status(200).json({
                 success: true,
-                message: 'Plan gratuito activado exitosamente',
+                message: 'Plan de prueba gratuito activado exitosamente',
                 data: {
                     isFree: true,
                     subscription: {
                         id: subscription._id,
                         plan: planConfig.name,
+                        planId: plan,
                         status: 'active',
                         startDate: subscription.startDate,
                         endDate: subscription.endDate,
+                        duration: planConfig.duration
                     }
                 },
             });
