@@ -332,10 +332,10 @@ const SubscriptionPlans = () => {
                       Volver al Sistema
                     </button>
                     <button
-                      onClick={() => setShowPlans(true)}
+                      onClick={() => navigate('/configuracion')}
                       className="flex-1 bg-white text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-200 border-2 border-gray-300"
                     >
-                      {currentSubscription.plan === 'trial' ? 'Actualizar a Plan de Pago' : 'Ver Otros Planes'}
+                      Ver Configuración
                     </button>
                   </div>
                 </div>
@@ -354,8 +354,9 @@ const SubscriptionPlans = () => {
                       Información importante
                     </h4>
                     <ul className="text-sm text-blue-800 space-y-1">
-                      <li>• Tu suscripción se renovará automáticamente al vencer</li>
-                      <li>• Puedes cambiar de plan o cancelar en cualquier momento desde Configuración</li>
+                      <li>• Tu suscripción estará activa hasta el {formatDate(currentSubscription.endDate)}</li>
+                      <li>• Puedes cancelar en cualquier momento desde Configuración</li>
+                      <li>• Para renovar o cambiar de plan, espera a que expire tu suscripción actual</li>
                       <li>• Para soporte, contáctanos en cualquier momento</li>
                     </ul>
                   </div>
@@ -365,25 +366,43 @@ const SubscriptionPlans = () => {
           </>
         ) : (
           <>
-            {/* Vista de planes disponibles (cuando no hay suscripción activa o se quiere cambiar) */}
-            {currentSubscription && (
-              <div className="max-w-4xl mx-auto mb-8">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-                  <div className="flex items-center">
-                    <svg className="w-6 h-6 text-blue-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                    <div>
-                      <p className="font-semibold text-blue-900">Tienes una suscripción activa</p>
-                      <p className="text-sm text-blue-700">Plan {getPlanName(currentSubscription.plan)} - Vence el {formatDate(currentSubscription.endDate)}</p>
-                    </div>
-                  </div>
+            {/* Vista de planes disponibles (solo si NO hay suscripción activa) */}
+            {currentSubscription && currentSubscription.status === 'active' ? (
+              // Si tiene suscripción activa, mostrar mensaje y redirigir
+              <div className="max-w-2xl mx-auto text-center py-12">
+                <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-blue-200">
+                  <svg className="w-20 h-20 text-blue-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                    Ya tienes una suscripción activa
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    Tu plan {getPlanName(currentSubscription.plan)} está activo hasta el {formatDate(currentSubscription.endDate)}
+                  </p>
                   <button
                     onClick={() => setShowPlans(false)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-8 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg"
                   >
                     Ver Mi Suscripción
                   </button>
+                </div>
+              </div>
+            ) : (
+              <>
+            {/* Alerta informativa si tenía suscripción pero expiró o está cancelada */}
+            {currentSubscription && currentSubscription.status !== 'active' && (
+              <div className="max-w-4xl mx-auto mb-8">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-center justify-between">
+                  <div className="flex items-center">
+                    <svg className="w-6 h-6 text-orange-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="font-semibold text-orange-900">Tu suscripción anterior ha expirado</p>
+                      <p className="text-sm text-orange-700">Plan {getPlanName(currentSubscription.plan)} - Venció el {formatDate(currentSubscription.endDate)}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -574,6 +593,8 @@ const SubscriptionPlans = () => {
             </div>
           </div>
         </div>
+              </>
+            )}
           </>
         )}
       </div>

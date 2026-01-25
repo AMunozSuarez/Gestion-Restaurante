@@ -19,6 +19,13 @@ app.use(cors()); // Use CORS to allow cross-origin requests
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Importar el controlador de webhook de MercadoPago para rutas especiales
+const { handleMercadoPagoWebhook } = require('./controllers/webhookController');
+
+// MercadoPago prueba diferentes URLs - capturarlas todas
+app.post('/mercadopago', handleMercadoPagoWebhook);
+app.get('/mercadopago', handleMercadoPagoWebhook);
+
 app.use('/api/auth', require('./routes/authRoutes')); // Use the auth routes
 app.use('/api/user', require('./routes/userRoutes')); // Use the user routes
 app.use('/api/restaurant', require('./routes/restaurantRoutes')); // Use the restaurant routes

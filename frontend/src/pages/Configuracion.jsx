@@ -991,7 +991,7 @@ const Configuracion = () => {
                             className="flex-1 min-w-[200px] inline-flex justify-center items-center px-4 py-2 border border-green-600 text-sm font-medium rounded-md text-green-600 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
                           >
                             <CreditCardIcon className="w-4 h-4 mr-2" />
-                            Cambiar Plan
+                            Ver Plan
                           </button>
                           
                           <button
@@ -1045,31 +1045,41 @@ const Configuracion = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {subscription.paymentHistory.slice(0, 5).map((payment, index) => (
-                            <tr key={index}>
-                              <td className="px-4 py-3 text-sm text-gray-900">
-                                {formatDate(payment.date)}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">
-                                ${payment.amount?.toLocaleString('es-CL')} CLP
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">
-                                {payment.method === 'mercadopago' ? 'MercadoPago' : payment.method}
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                  payment.status === 'approved' 
-                                    ? 'bg-green-100 text-green-800'
-                                    : payment.status === 'pending'
-                                    ? 'bg-yellow-100 text-yellow-800'
-                                    : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {payment.status === 'approved' ? 'Aprobado' : 
-                                   payment.status === 'pending' ? 'Pendiente' : 'Rechazado'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
+                          {subscription.paymentHistory.slice(0, 5).map((payment, index) => {
+                            // El método de pago viene del paymentProvider de la suscripción principal
+                            const paymentMethod = subscription.paymentProvider || 'manual';
+                            const displayMethod = paymentMethod === 'mercadopago' ? 'MercadoPago' :
+                                                 paymentMethod === 'stripe' ? 'Stripe' :
+                                                 paymentMethod === 'paypal' ? 'PayPal' :
+                                                 'Manual';
+                            
+                            return (
+                              <tr key={index}>
+                                <td className="px-4 py-3 text-sm text-gray-900">
+                                  {formatDate(payment.date)}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-900">
+                                  ${payment.amount?.toLocaleString('es-CL')} CLP
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-900">
+                                  {displayMethod}
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                    payment.status === 'success' 
+                                      ? 'bg-green-100 text-green-800'
+                                      : payment.status === 'failed'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    {payment.status === 'success' ? 'Aprobado' : 
+                                     payment.status === 'failed' ? 'Rechazado' : 
+                                     payment.status === 'refunded' ? 'Reembolsado' : payment.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

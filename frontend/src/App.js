@@ -169,46 +169,29 @@ function App() {
             }
           />
           
-          {/* Rutas de suscripción */}
+          {/* Rutas de suscripción - Success/Failure/Pending sin protección para permitir retorno desde MercadoPago */}
+          <Route
+            path="/subscription/success"
+            element={<SubscriptionSuccess />}
+          />
+          
+          <Route
+            path="/subscription/failure"
+            element={<SubscriptionFailure />}
+          />
+          
+          <Route
+            path="/subscription/pending"
+            element={<SubscriptionPending />}
+          />
+          
+          {/* Ruta de planes protegida */}
           <Route
             path="/subscription/plans"
             element={
               <ProtectedRoute>
                 <Layout>
                   <SubscriptionPlans />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/subscription/success"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <SubscriptionSuccess />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/subscription/failure"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <SubscriptionFailure />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/subscription/pending"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <SubscriptionPending />
                 </Layout>
               </ProtectedRoute>
             }

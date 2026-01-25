@@ -23,13 +23,6 @@ router.post('/mercadopago', handleMercadoPagoWebhook);
 router.get('/mercadopago', handleMercadoPagoWebhook);
 
 /**
- * POST/GET en raíz (para pruebas de MercadoPago)
- * Las pruebas de MercadoPago a veces envían a la raíz del dominio
- */
-router.post('/', handleMercadoPagoWebhook);
-router.get('/', handleMercadoPagoWebhook);
-
-/**
  * POST /api/webhooks/paypal
  * Webhook para recibir notificaciones de PayPal
  */
