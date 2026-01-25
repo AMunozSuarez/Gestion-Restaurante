@@ -71,35 +71,42 @@ const SubscriptionPlans = () => {
   const handleSelectPlan = async (planId) => {
     try {
       setSelectedPlan(planId);
+      setError(''); // Limpiar errores previos
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const restaurantId = user.restaurant;
 
       if (!restaurantId) {
         setError('No se encontró información del restaurante');
+        setSelectedPlan(null);
         return;
       }
 
       // Iniciar proceso de checkout
       const response = await initiateCheckout(restaurantId, planId);
       
-      if (response.success) {
-        // Si es un plan gratuito (trial), redirigir a página de éxito
-        if (response.data.isFree) {
-          navigate('/subscription/success?trial=true');
-          return;
-        }
-        
-        // Si es plan de pago, redirigir a MercadoPago
-        const initPoint = response.data.mercadoPago?.initPoint;
-        if (initPoint) {
-          window.location.href = initPoint;
-        } else {
-          setError('No se pudo iniciar el proceso de pago');
-        }
+      if (!response.success) {
+        setError(response.message || 'Error al procesar la solicitud');
+        setSelectedPlan(null);
+        return;
+      }
+
+      // Si es un plan gratuito (trial), redirigir a página de éxito
+      if (response.data?.isFree) {
+        navigate('/subscription/success?trial=true');
+        return;
+      }
+      
+      // Si es plan de pago, redirigir a MercadoPago
+      const initPoint = response.data?.mercadoPago?.initPoint;
+      if (initPoint) {
+        window.location.href = initPoint;
+      } else {
+        setError('No se pudo iniciar el proceso de pago. Intenta de nuevo.');
+        setSelectedPlan(null);
       }
     } catch (error) {
-      setError('Error al iniciar el pago');
-      console.error(error);
+      console.error('Error al seleccionar plan:', error);
+      setError(error.message || 'Error al iniciar el pago');
       setSelectedPlan(null);
     }
   };
@@ -155,7 +162,8 @@ const SubscriptionPlans = () => {
     const now = new Date();
     const end = new Date(endDate);
     const diffTime = end - now;
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Usar Math.floor en lugar de Math.ceil para no redondear hacia arriba
+    return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
   };
 
   const getStatusBadge = (status) => {
