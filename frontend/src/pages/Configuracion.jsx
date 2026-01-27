@@ -967,10 +967,10 @@ const Configuracion = () => {
                           <CheckCircleIcon className="w-4 h-4 text-green-500 mr-2" />
                           Gestión de productos
                         </li>
-                        <li className="flex items-center text-sm text-gray-700">
+                        {/* <li className="flex items-center text-sm text-gray-700">
                           <CheckCircleIcon className="w-4 h-4 text-green-500 mr-2" />
                           Reportes y estadísticas
-                        </li>
+                        </li> */}
                         <li className="flex items-center text-sm text-gray-700">
                           <CheckCircleIcon className="w-4 h-4 text-green-500 mr-2" />
                           Gestión de cajas

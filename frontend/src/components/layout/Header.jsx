@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useRestaurant } from '../../hooks/useRestaurant';
 import { useSubscription } from '../../hooks/useSubscription';
+import logo from '../../assets/logo.png';
 import { 
   HomeIcon, 
   TruckIcon, 
@@ -114,9 +115,7 @@ const Header = () => {
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <h1 className="text-xl font-bold text-brown-900">
-                {isRestaurantLoading ? 'Cargando...' : (restaurant?.name || 'Gestión Restaurante')}
-              </h1>
+              <img src={logo} alt="Orden+" className="h-10 w-auto" />
             </div>
           </div>
 
@@ -221,9 +220,8 @@ const Header = () => {
 
           {/* User menu */}
           <div className="flex items-center space-x-4">
-            <div className="flex items-center text-sm text-gray-500">
-              <UserIcon className="w-5 h-5 mr-1" />
-              <span>{user?.name || user?.userName || 'Usuario'}</span>
+            <div className="text-sm font-medium text-gray-700">
+              {isRestaurantLoading ? 'Cargando...' : (restaurant?.name || 'Gestión Restaurante')}
             </div>
             <button
               onClick={handleLogout}

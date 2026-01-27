@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Input } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
+import logo from '../assets/logo.png';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -37,6 +38,9 @@ const Login = () => {
       <div className="max-w-md w-full">
         <Card className="p-8">
           <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <img src={logo} alt="Orden+" className="h-16 w-auto" />
+            </div>
             <h1 className="text-2xl font-bold text-brown-900">
               Gestión Restaurante
             </h1>

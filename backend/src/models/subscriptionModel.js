@@ -171,7 +171,7 @@ subscriptionSchema.statics.getPlanConfig = function(planName) {
         monthly: {
             name: '1 Mes',
             duration: 30, // días
-            price: 20000,
+            price: 25000,
             features: {
                 maxLocations: 1,
                 advancedReports: true,
