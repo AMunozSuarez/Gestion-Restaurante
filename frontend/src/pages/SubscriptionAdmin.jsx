@@ -59,7 +59,7 @@ const SubscriptionAdmin = () => {
 
     try {
       const response = await confirmManualPayment(subscriptionId, {
-        amount: 25000,
+        amount: 20000,
         invoiceUrl: '',
         notes: 'Pago manual confirmado por admin',
       });
@@ -356,7 +356,7 @@ const SubscriptionAdmin = () => {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="trial">Trial (7 días)</option>
-                        <option value="monthly">Mensual ($25.000)</option>
+                        <option value="monthly">Mensual ($20.000)</option>
                         <option value="quarterly">Trimestral ($50.000)</option>
                         <option value="yearly">Anual ($180.000)</option>
                       </select>
