@@ -1022,7 +1022,15 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
       });
     } else {
       // Crear restaurante con propietario
-      onSave(formData);
+      onSave({
+        restaurantName: formData.name,
+        address: formData.address,
+        isActive: formData.isActive,
+        ownerName: formData.ownerName,
+        ownerEmail: formData.ownerEmail,
+        ownerPassword: formData.ownerPassword,
+        ownerPhone: formData.ownerPhone,
+      });
     }
   };
 
