@@ -114,6 +114,16 @@ const adminService = {
       throw new Error(error.response?.data?.message || 'Error al enviar recordatorios');
     }
   },
+
+  // Asignar suscripción a un restaurante
+  assignSubscription: async (data) => {
+    try {
+      const response = await api.post('/admin/subscriptions/assign', data);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al asignar suscripción');
+    }
+  },
 };
 
 export default adminService;

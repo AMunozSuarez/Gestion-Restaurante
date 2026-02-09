@@ -1,5 +1,6 @@
 const userModel = require('../models/userModel');
 const restaurantModel = require('../models/restaurantModel');
+const Subscription = require('../models/subscriptionModel');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 
@@ -511,6 +512,98 @@ const getSystemStats = async (req, res) => {
     }
 };
 
+// =================== ASIGNAR SUSCRIPCIÓN ===================
+
+// Asignar suscripción a un restaurante (Super Admin)
+const assignSubscription = async (req, res) => {
+    try {
+        const { restaurantId, plan, startDate, endDate, notes } = req.body;
+
+        // Validaciones
+        if (!restaurantId || !plan || !startDate || !endDate) {
+            return res.status(400).json({
+                success: false,
+                message: 'Restaurante, plan, fecha de inicio y fecha de fin son obligatorios'
+            });
+        }
+
+        // Verificar que el restaurante existe
+        const restaurant = await restaurantModel.findById(restaurantId);
+        if (!restaurant) {
+            return res.status(404).json({
+                success: false,
+                message: 'Restaurante no encontrado'
+            });
+        }
+
+        // Obtener configuración del plan
+        const planConfig = Subscription.schema.statics.getPlanConfig(plan);
+
+        const parsedStartDate = new Date(startDate);
+        const parsedEndDate = new Date(endDate);
+
+        if (parsedEndDate <= parsedStartDate) {
+            return res.status(400).json({
+                success: false,
+                message: 'La fecha de fin debe ser posterior a la fecha de inicio'
+            });
+        }
+
+        // Desactivar suscripción anterior si existe
+        if (restaurant.currentSubscription) {
+            await Subscription.findByIdAndUpdate(restaurant.currentSubscription, {
+                status: 'cancelled',
+                cancelledAt: new Date(),
+                cancelReason: 'Reemplazada por asignación manual de super admin'
+            });
+        }
+
+        // Crear nueva suscripción
+        const newSubscription = new Subscription({
+            restaurant: restaurantId,
+            plan,
+            status: 'active',
+            startDate: parsedStartDate,
+            endDate: parsedEndDate,
+            amount: planConfig.price,
+            currency: 'CLP',
+            paymentProvider: 'manual',
+            autoRenew: false,
+            features: planConfig.features,
+            paymentHistory: [{
+                date: new Date(),
+                amount: planConfig.price,
+                status: 'success',
+                paymentId: `manual-admin-${Date.now()}`,
+                invoiceUrl: '',
+            }],
+        });
+
+        await newSubscription.save();
+
+        // Actualizar el restaurante con la nueva suscripción
+        restaurant.currentSubscription = newSubscription._id;
+        restaurant.subscriptionStatus = 'active';
+        restaurant.subscriptionStartDate = parsedStartDate;
+        restaurant.subscriptionEndDate = parsedEndDate;
+        restaurant.isActive = true;
+        await restaurant.save();
+
+        res.status(201).json({
+            success: true,
+            message: `Suscripción "${planConfig.name}" asignada exitosamente a ${restaurant.name}`,
+            subscription: newSubscription
+        });
+    } catch (error) {
+        console.error('Error al asignar suscripción:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     // Usuarios
     getAllUsers,
@@ -525,5 +618,8 @@ module.exports = {
     deleteRestaurant,
     
     // Estadísticas
-    getSystemStats
+    getSystemStats,
+
+    // Suscripciones
+    assignSubscription
 };

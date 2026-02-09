@@ -44,6 +44,7 @@ const SuperAdminDashboard = () => {
   // Estados para suscripciones
   const [subscriptions, setSubscriptions] = useState([]);
   const [subscriptionStats, setSubscriptionStats] = useState(null);
+  const [showAssignSubscriptionModal, setShowAssignSubscriptionModal] = useState(false);
 
   // Mostrar notificación
   const showNotification = (message, type = 'success') => {
@@ -154,6 +155,24 @@ const SuperAdminDashboard = () => {
       }
     } catch (error) {
       console.error('Error al cargar estadísticas de suscripciones:', error);
+    }
+  };
+
+  // =================== FUNCIONES DE SUSCRIPCIONES ===================
+  const handleAssignSubscription = async (data) => {
+    try {
+      setLoading(true);
+      const response = await adminService.assignSubscription(data);
+      if (response.success) {
+        showNotification(response.message || 'Suscripción asignada exitosamente', 'success');
+        setShowAssignSubscriptionModal(false);
+        loadSubscriptions();
+        loadSubscriptionStats();
+      }
+    } catch (error) {
+      showNotification('Error al asignar suscripción: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -672,6 +691,21 @@ const SuperAdminDashboard = () => {
           </div>
         )}
 
+        {/* Botón asignar suscripción */}
+        <div className="flex justify-end">
+          <button
+            onClick={() => {
+              setShowAssignSubscriptionModal(true);
+              // Asegurar que la lista de restaurantes esté cargada
+              if (restaurants.length === 0) loadRestaurants();
+            }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <PlusIcon className="w-5 h-5" />
+            Asignar Suscripción
+          </button>
+        </div>
+
         {/* Lista de suscripciones */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
@@ -827,6 +861,15 @@ const SuperAdminDashboard = () => {
             setEditingUser(null);
           }}
           onSave={editingUser ? handleUpdateUser : handleCreateUser}
+        />
+      )}
+
+      {/* Modal de Asignar Suscripción */}
+      {showAssignSubscriptionModal && (
+        <AssignSubscriptionModal
+          restaurants={restaurants}
+          onClose={() => setShowAssignSubscriptionModal(false)}
+          onSave={handleAssignSubscription}
         />
       )}
 
@@ -1146,6 +1189,251 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
               className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
             >
               {restaurant ? 'Actualizar' : 'Crear'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// =================== COMPONENTE MODAL DE ASIGNAR SUSCRIPCIÓN ===================
+const AssignSubscriptionModal = ({ restaurants, onClose, onSave }) => {
+  const planOptions = [
+    { value: 'trial', label: 'Trial (7 días)', duration: 7, price: 0 },
+    { value: 'monthly', label: 'Mensual ($20.000)', duration: 30, price: 20000 },
+    { value: 'quarterly', label: 'Trimestral ($50.000)', duration: 90, price: 50000 },
+    { value: 'yearly', label: 'Anual ($180.000)', duration: 365, price: 180000 },
+    { value: 'custom', label: 'Personalizado (fechas manuales)', duration: 0, price: 0 },
+  ];
+
+  const [formData, setFormData] = useState({
+    restaurantId: '',
+    plan: 'monthly',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: '',
+    useCustomDates: false,
+  });
+
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Auto-calcular fecha fin cuando cambia plan o fecha inicio
+  useEffect(() => {
+    if (!formData.useCustomDates && formData.plan !== 'custom') {
+      const selected = planOptions.find(p => p.value === formData.plan);
+      if (selected && formData.startDate) {
+        const start = new Date(formData.startDate);
+        start.setDate(start.getDate() + selected.duration);
+        setFormData(prev => ({ ...prev, endDate: start.toISOString().split('T')[0] }));
+      }
+    }
+  }, [formData.plan, formData.startDate, formData.useCustomDates]);
+
+  // Cuando se elige "custom", activar fechas manuales
+  useEffect(() => {
+    if (formData.plan === 'custom') {
+      setFormData(prev => ({ ...prev, useCustomDates: true }));
+    } else {
+      setFormData(prev => ({ ...prev, useCustomDates: false }));
+    }
+  }, [formData.plan]);
+
+  const filteredRestaurants = restaurants.filter(r =>
+    r.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.address?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const selectedPlan = planOptions.find(p => p.value === formData.plan);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.restaurantId) {
+      alert('Debes seleccionar un restaurante');
+      return;
+    }
+    if (!formData.startDate || !formData.endDate) {
+      alert('Debes definir las fechas de inicio y fin');
+      return;
+    }
+
+    const planToSend = formData.plan === 'custom' ? 'monthly' : formData.plan;
+
+    onSave({
+      restaurantId: formData.restaurantId,
+      plan: planToSend,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+    });
+  };
+
+  const selectedRestaurant = restaurants.find(r => r._id === formData.restaurantId);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+          <h2 className="text-xl font-bold text-gray-900">Asignar Suscripción</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XMarkIcon className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Selección de restaurante */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Restaurante</label>
+            {selectedRestaurant ? (
+              <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-indigo-900">{selectedRestaurant.name}</p>
+                  <p className="text-xs text-indigo-600">{selectedRestaurant.address}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, restaurantId: '' })}
+                  className="text-indigo-400 hover:text-indigo-600"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="relative mb-2">
+                  <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar restaurante..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  />
+                </div>
+                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
+                  {filteredRestaurants.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-3">No se encontraron restaurantes</p>
+                  ) : (
+                    filteredRestaurants.map((rest) => (
+                      <button
+                        key={rest._id}
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, restaurantId: rest._id });
+                          setSearchTerm('');
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-indigo-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                      >
+                        <p className="text-sm font-medium text-gray-900">{rest.name}</p>
+                        <p className="text-xs text-gray-500">{rest.address}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Selección de plan */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Plan de Suscripción</label>
+            <select
+              value={formData.plan}
+              onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            >
+              {planOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Info del plan seleccionado */}
+          {selectedPlan && formData.plan !== 'custom' && (
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Duración:</span>
+                <span className="font-medium text-gray-900">{selectedPlan.duration} días</span>
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-gray-600">Precio:</span>
+                <span className="font-medium text-gray-900">${selectedPlan.price.toLocaleString('es-CL')}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Toggle para fechas personalizadas (si no es custom) */}
+          {formData.plan !== 'custom' && (
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="useCustomDates"
+                checked={formData.useCustomDates}
+                onChange={(e) => setFormData({ ...formData, useCustomDates: e.target.checked })}
+                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              />
+              <label htmlFor="useCustomDates" className="ml-2 text-sm font-medium text-gray-700">
+                Personalizar fechas manualmente
+              </label>
+            </div>
+          )}
+
+          {/* Fecha de inicio */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
+            <input
+              type="date"
+              required
+              value={formData.startDate}
+              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Fecha de fin */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Fecha de Fin
+              {!formData.useCustomDates && formData.plan !== 'custom' && (
+                <span className="text-xs text-gray-400 ml-1">(calculada automáticamente)</span>
+              )}
+            </label>
+            <input
+              type="date"
+              required
+              value={formData.endDate}
+              onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+              readOnly={!formData.useCustomDates && formData.plan !== 'custom'}
+              className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                !formData.useCustomDates && formData.plan !== 'custom' ? 'bg-gray-100 cursor-not-allowed' : ''
+              }`}
+            />
+          </div>
+
+          {/* Resumen */}
+          {formData.restaurantId && formData.startDate && formData.endDate && (
+            <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+              <h4 className="text-sm font-semibold text-indigo-900 mb-2">Resumen de asignación</h4>
+              <div className="space-y-1 text-sm text-indigo-700">
+                <p><span className="font-medium">Restaurante:</span> {selectedRestaurant?.name}</p>
+                <p><span className="font-medium">Plan:</span> {formData.plan === 'custom' ? 'Personalizado' : selectedPlan?.label}</p>
+                <p><span className="font-medium">Desde:</span> {new Date(formData.startDate + 'T00:00:00').toLocaleDateString('es-CL')}</p>
+                <p><span className="font-medium">Hasta:</span> {new Date(formData.endDate + 'T00:00:00').toLocaleDateString('es-CL')}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+            >
+              Asignar Suscripción
             </button>
           </div>
         </form>

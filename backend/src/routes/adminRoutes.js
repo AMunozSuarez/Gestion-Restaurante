@@ -8,7 +8,8 @@ const {
     createRestaurant,
     updateRestaurant,
     deleteRestaurant,
-    getSystemStats
+    getSystemStats,
+    assignSubscription
 } = require('../controllers/adminController');
 
 const { checkExpiredSubscriptions, sendExpirationReminders } = require('../scripts/checkExpiredSubscriptions');
@@ -50,6 +51,10 @@ router.delete('/restaurants/:id', deleteRestaurant);
 // =================== RUTAS DE ESTADÍSTICAS ===================
 // Obtener estadísticas del sistema
 router.get('/stats', getSystemStats);
+
+// =================== RUTAS DE SUSCRIPCIONES ===================
+// Asignar suscripción a un restaurante
+router.post('/subscriptions/assign', assignSubscription);
 
 // =================== RUTAS DE MANTENIMIENTO ===================
 // Ejecutar verificación manual de suscripciones expiradas
