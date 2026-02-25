@@ -567,8 +567,8 @@ const Mostrador = () => {
         const totalPaymentAmount = getTotalPaymentAmount(validPayments);
         const orderTotal = calculateTotal();
         
-        if (Math.abs(totalPaymentAmount - orderTotal) > 0.01) {
-          alert(`⚠️ El total de los pagos (${formatChileanCurrency(totalPaymentAmount)}) no coincide con el total del pedido (${formatChileanCurrency(orderTotal)})`);
+        if (totalPaymentAmount < orderTotal - 0.01) {
+          alert(`⚠️ El monto pagado (${formatChileanCurrency(totalPaymentAmount)}) es menor al total del pedido (${formatChileanCurrency(orderTotal)})`);
           return;
         }
       }
@@ -758,8 +758,8 @@ const Mostrador = () => {
     const totalEditPaymentAmount = getTotalPaymentAmount(validEditPayments);
     const editOrderTotal = calculateEditTotal();
     
-    if (Math.abs(totalEditPaymentAmount - editOrderTotal) > 0.01) {
-      alert(`⚠️ El total de los pagos (${formatChileanCurrency(totalEditPaymentAmount)}) no coincide con el total del pedido (${formatChileanCurrency(editOrderTotal)})`);
+    if (totalEditPaymentAmount < editOrderTotal - 0.01) {
+      alert(`⚠️ El monto pagado (${formatChileanCurrency(totalEditPaymentAmount)}) es menor al total del pedido (${formatChileanCurrency(editOrderTotal)})`);
       return;
     }
     

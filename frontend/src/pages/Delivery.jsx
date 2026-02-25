@@ -1240,8 +1240,8 @@ const Delivery = () => {
     const totalEditPaymentAmount = getTotalPaymentAmount(validEditPayments);
     const editOrderTotal = calculateEditTotal();
     
-    if (Math.abs(totalEditPaymentAmount - editOrderTotal) > 0.01) {
-      alert(`⚠️ El total de los pagos (${formatChileanCurrency(totalEditPaymentAmount)}) no coincide con el total del pedido (${formatChileanCurrency(editOrderTotal)})`);
+    if (totalEditPaymentAmount < editOrderTotal - 0.01) {
+      alert(`⚠️ El monto pagado (${formatChileanCurrency(totalEditPaymentAmount)}) es menor al total del pedido (${formatChileanCurrency(editOrderTotal)})`);
       return;
     }
 
