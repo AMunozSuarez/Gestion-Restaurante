@@ -95,7 +95,7 @@ const Mostrador = () => {
   
   // Hooks para productos
   const { products, isLoading: productsLoading } = useProducts({ available: true });
-  const { searchResults, isSearching, searchProducts } = useProductSearch();
+  const { searchResults, searchProducts } = useProductSearch();
   
   // Callbacks para manejar la limpieza del formulario cuando se actualiza un pedido
   const orderCallbacks = {
@@ -121,7 +121,6 @@ const Mostrador = () => {
     createOrder,
     updateOrder,
     updateOrderWithoutPrint,
-    refetch: refetchOrders
   } = useOrders({ 
     section: 'mostrador', 
     status: 'Preparacion' 
@@ -129,7 +128,6 @@ const Mostrador = () => {
 
   const { 
     orders: completedOrders, 
-    isLoading: completedLoading,
     refetch: refetchCompletedOrders 
   } = useRecentOrders({ 
     limit: 10, 
@@ -390,6 +388,7 @@ const Mostrador = () => {
         setPaymentMethods([{ ...paymentMethods[0], amount: total }]);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart, paymentMethods.length]);
 
   // Actualizar el monto del primer método de pago cuando cambia el total del carrito en edición
@@ -400,6 +399,7 @@ const Mostrador = () => {
         setEditPaymentMethods([{ ...editPaymentMethods[0], amount: total }]);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editCart, editPaymentMethods.length]);
 
   // Funciones para búsqueda de productos

@@ -19,6 +19,7 @@ import SubscriptionFailure from './pages/SubscriptionFailure';
 import SubscriptionPending from './pages/SubscriptionPending';
 import SubscriptionAdmin from './pages/SubscriptionAdmin';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import Reportes from './pages/Reportes';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
@@ -164,6 +165,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Configuracion />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/reportes"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Reportes />
                 </Layout>
               </ProtectedRoute>
             }

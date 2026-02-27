@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '../components/ui';
-import { PlusIcon, MinusIcon, TruckIcon, TrashIcon, MapIcon, PhoneIcon, PencilIcon, PrinterIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MinusIcon, TruckIcon, TrashIcon, MapIcon, PhoneIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import { useOrders, useRecentOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../hooks/useCashRegister';
@@ -68,7 +68,7 @@ const Delivery = () => {
   const [editCurrentAddress, setEditCurrentAddress] = React.useState(null);
   
   // Estados para customer search y addresses - crear
-  const [isCustomerLoading, setIsCustomerLoading] = React.useState(false);
+  const [, setIsCustomerLoading] = React.useState(false);
   const [foundCustomer, setFoundCustomer] = React.useState(null);
   const [customerAddresses, setCustomerAddresses] = React.useState([]);
   const [deliveryCost, setDeliveryCost] = React.useState(0);
@@ -76,7 +76,7 @@ const Delivery = () => {
   const [selectedCustomer, setSelectedCustomer] = React.useState(null);
   
   // Estados para customer search y addresses - editar
-  const [isEditCustomerLoading, setIsEditCustomerLoading] = React.useState(false);
+  const [, setIsEditCustomerLoading] = React.useState(false);
   const [editFoundCustomer, setEditFoundCustomer] = React.useState(null);
   const [editCustomerAddresses, setEditCustomerAddresses] = React.useState([]);
   const [editDeliveryCost, setEditDeliveryCost] = React.useState(0);
@@ -148,9 +148,6 @@ const Delivery = () => {
   
   // Hook para customers
   const {
-    customer,
-    isLoading: customerLoading,
-    error: customerError,
     searchCustomerByPhone,
     saveCustomer,
     updateCustomer,
@@ -161,7 +158,7 @@ const Delivery = () => {
   
   // Hooks para productos
   const { products, isLoading: productsLoading } = useProducts({ available: true });
-  const { searchResults, isSearching, searchProducts } = useProductSearch();
+  const { searchResults, searchProducts } = useProductSearch();
   
   // Hooks para búsqueda de clientes
   const { 
@@ -195,7 +192,6 @@ const Delivery = () => {
     createOrder,
     updateOrder,
     updateOrderWithoutPrint,
-    refetch: refetchOrders
   } = useOrders({ 
     section: 'delivery', 
     status: 'Preparacion' 
@@ -203,7 +199,6 @@ const Delivery = () => {
 
   const { 
     orders: completedOrders, 
-    isLoading: completedLoading,
     refetch: refetchCompletedOrders 
   } = useRecentOrders({ 
     limit: 10, 
@@ -507,6 +502,7 @@ const Delivery = () => {
         prev.map((payment, i) => i === 0 ? { ...payment, amount: total } : payment)
       );
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart, paymentMethods.length]);
 
   // Actualizar el monto del primer método de pago cuando cambia el total del carrito en edición
@@ -517,6 +513,7 @@ const Delivery = () => {
         prev.map((payment, i) => i === 0 ? { ...payment, amount: total } : payment)
       );
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editCart, editPaymentMethods.length]);
 
   // Funciones para búsqueda de productos
@@ -641,14 +638,6 @@ const Delivery = () => {
   const handleAddAddress = () => {
     setCurrentAddress(null);
     setShowAddressModal(true);
-  };
-
-  const handleEditAddress = () => {
-    const address = getSelectedAddress();
-    if (address) {
-      setCurrentAddress(address);
-      setShowAddressModal(true);
-    }
   };
 
   const handleSaveAddress = async (addressData) => {

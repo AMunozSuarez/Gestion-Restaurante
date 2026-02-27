@@ -1,12 +1,25 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
-
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
-const { getSalesReport } = require('../controllers/reportController');
+const {
+    getSalesReport,
+    getProductsReport,
+    getCustomersReport,
+    getDashboardReport,
+} = require('../controllers/reportController');
+
 const router = express.Router();
 
+// Dashboard resumen rápido
+router.get('/dashboard', authMiddleware, filterByRestaurant, getDashboardReport);
 
-// Get sales report routes
+// Reporte de ventas detallado
 router.get('/sales', authMiddleware, filterByRestaurant, getSalesReport);
 
-module.exports = router; // Export the router
+// Reporte de productos (más vendidos, menos vendidos, por categoría)
+router.get('/products', authMiddleware, filterByRestaurant, getProductsReport);
+
+// Reporte de clientes
+router.get('/customers', authMiddleware, filterByRestaurant, getCustomersReport);
+
+module.exports = router;

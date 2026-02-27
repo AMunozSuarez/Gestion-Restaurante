@@ -7,7 +7,6 @@ import logo from '../../assets/logo.png';
 import { 
   HomeIcon, 
   TruckIcon, 
-  UserIcon,
   ArrowRightEndOnRectangleIcon,
   CurrencyDollarIcon,
   ChartBarIcon,
@@ -17,7 +16,8 @@ import {
   WrenchScrewdriverIcon,
   CreditCardIcon,
   ShieldCheckIcon,
-  Squares2X2Icon
+  Squares2X2Icon,
+  PresentationChartBarIcon
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -52,6 +52,7 @@ const Header = () => {
   const singleItems = [
     { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
     { name: 'Mesas', href: '/mesas', icon: Squares2X2Icon },
+    { name: 'Reportes', href: '/reportes', icon: PresentationChartBarIcon },
     { name: 'Configuración', href: '/configuracion', icon: WrenchScrewdriverIcon },
   ];
 
