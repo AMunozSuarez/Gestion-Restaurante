@@ -27,6 +27,7 @@ namespace PrintingService
 
         public List<PrinterInfo> GetAvailablePrinters()
         {
+            DiscoverPrinters();
             return printers;
         }
 

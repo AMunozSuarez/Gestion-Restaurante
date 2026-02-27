@@ -5,9 +5,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("Restaurant Print Service")]
 [assembly: AssemblyDescription("Lightweight background service for managing restaurant print jobs")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Your Company")]
+[assembly: AssemblyCompany("Tu Empresa S.L.")]
 [assembly: AssemblyProduct("Restaurant Print Service")]
-[assembly: AssemblyCopyright("Copyright © 2025")]
+[assembly: AssemblyCopyright("Copyright © 2025 Tu Empresa S.L.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
