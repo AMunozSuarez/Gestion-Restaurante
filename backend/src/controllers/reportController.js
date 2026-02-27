@@ -554,9 +554,131 @@ const getDashboardReport = async (req, res) => {
 };
 
 
+// ─── 5. Detalle de ventas por producto específico ─────────────────────────────
+
+const getProductDetailReport = async (req, res) => {
+    try {
+        const { foodId, startDate, endDate } = req.query;
+        const restaurantId = new mongoose.Types.ObjectId(req.user.restaurant);
+
+        if (!foodId) {
+            return res.status(400).json({ success: false, message: 'Se requiere el parámetro foodId' });
+        }
+
+        const foodObjectId = new mongoose.Types.ObjectId(foodId);
+
+        const matchStage = {
+            restaurant: restaurantId,
+            status: { $in: ['Completado', 'Enviado'] },
+            'foods.food': foodObjectId,
+        };
+
+        const dateFilter = buildDateFilter(startDate, endDate);
+        if (dateFilter) matchStage.createdAt = dateFilter;
+
+        // Resumen global del producto
+        const summary = await orderModel.aggregate([
+            { $match: matchStage },
+            { $unwind: '$foods' },
+            { $match: { 'foods.food': foodObjectId } },
+            {
+                $lookup: {
+                    from: 'foods',
+                    localField: 'foods.food',
+                    foreignField: '_id',
+                    as: 'foodDetail'
+                }
+            },
+            { $unwind: '$foodDetail' },
+            {
+                $group: {
+                    _id: null,
+                    totalQuantity: { $sum: '$foods.quantity' },
+                    totalRevenue: { $sum: { $multiply: ['$foods.quantity', '$foodDetail.price'] } },
+                    orderCount: { $sum: 1 },
+                }
+            },
+        ]);
+
+        // Ventas por día (para gráfico de tendencia)
+        const salesByDay = await orderModel.aggregate([
+            { $match: matchStage },
+            { $unwind: '$foods' },
+            { $match: { 'foods.food': foodObjectId } },
+            {
+                $lookup: {
+                    from: 'foods',
+                    localField: 'foods.food',
+                    foreignField: '_id',
+                    as: 'foodDetail'
+                }
+            },
+            { $unwind: '$foodDetail' },
+            {
+                $group: {
+                    _id: {
+                        $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'America/Santiago' }
+                    },
+                    quantity: { $sum: '$foods.quantity' },
+                    revenue: { $sum: { $multiply: ['$foods.quantity', '$foodDetail.price'] } },
+                    orders: { $sum: 1 },
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Ventas por sección (mostrador / delivery / mesa)
+        const salesBySection = await orderModel.aggregate([
+            { $match: matchStage },
+            { $unwind: '$foods' },
+            { $match: { 'foods.food': foodObjectId } },
+            {
+                $lookup: {
+                    from: 'foods',
+                    localField: 'foods.food',
+                    foreignField: '_id',
+                    as: 'foodDetail'
+                }
+            },
+            { $unwind: '$foodDetail' },
+            {
+                $group: {
+                    _id: '$section',
+                    quantity: { $sum: '$foods.quantity' },
+                    revenue: { $sum: { $multiply: ['$foods.quantity', '$foodDetail.price'] } },
+                }
+            },
+            { $sort: { quantity: -1 } }
+        ]);
+
+        // Info del producto
+        const productInfo = await foodModel
+            .findById(foodObjectId)
+            .populate('category', 'title')
+            .select('title price code category')
+            .lean();
+
+        const s = summary[0] || { totalQuantity: 0, totalRevenue: 0, orderCount: 0 };
+        const avgPerOrder = s.orderCount > 0 ? (s.totalQuantity / s.orderCount).toFixed(2) : 0;
+
+        res.status(200).json({
+            success: true,
+            product: productInfo,
+            summary: { ...s, avgPerOrder: parseFloat(avgPerOrder) },
+            salesByDay,
+            salesBySection,
+        });
+    } catch (error) {
+        console.error('Error en getProductDetailReport:', error);
+        res.status(500).json({ success: false, message: 'Error al generar reporte de producto', error: error.message });
+    }
+};
+
+
 module.exports = {
     getSalesReport,
     getProductsReport,
     getCustomersReport,
     getDashboardReport,
+    getProductDetailReport,
 };

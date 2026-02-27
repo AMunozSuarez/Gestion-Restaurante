@@ -17,7 +17,8 @@ import {
   CreditCardIcon,
   ShieldCheckIcon,
   Squares2X2Icon,
-  PresentationChartBarIcon
+  PresentationChartBarIcon,
+  BuildingStorefrontIcon,
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -29,6 +30,7 @@ const Header = () => {
   const [openDropdown, setOpenDropdown] = useState(null);
   const headerRef = useRef(null);
 
+  // Core operational nav (center)
   const navigationSections = [
     {
       name: 'Caja',
@@ -49,31 +51,30 @@ const Header = () => {
     }
   ];
 
-  const singleItems = [
+  // Main nav single items (center)
+  const mainNavItems = [
     { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
     { name: 'Mesas', href: '/mesas', icon: Squares2X2Icon },
     { name: 'Reportes', href: '/reportes', icon: PresentationChartBarIcon },
+  ];
+
+  // User/settings dropdown items (right side)
+  const userMenuItems = [
     { name: 'Configuración', href: '/configuracion', icon: WrenchScrewdriverIcon },
   ];
 
-  // Solo agregar el botón de suscripción si NO tiene una suscripción activa
   if (!isSubscriptionLoading && !hasActiveSubscription) {
-    singleItems.splice(1, 0, { name: 'Suscripción', href: '/subscription/plans', icon: CreditCardIcon });
+    userMenuItems.unshift({ name: 'Suscripción', href: '/subscription/plans', icon: CreditCardIcon });
   }
 
-  // Agregar el botón de Admin Dashboard si es super_admin
   if (user?.role === 'super_admin') {
-    singleItems.push({ name: 'Admin Dashboard', href: '/admin', icon: ShieldCheckIcon });
+    userMenuItems.push({ name: 'Admin Dashboard', href: '/admin', icon: ShieldCheckIcon });
   }
 
   const isActive = (href) => location.pathname === href;
 
   const isAnyItemActive = (items) => {
     return items.some(item => isActive(item.href));
-  };
-
-  const isPuntoDeVentaActive = (href) => {
-    return href === '/mostrador' && isPuntoDeVentaPage();
   };
 
   const toggleDropdown = (sectionName) => {
@@ -121,14 +122,17 @@ const Header = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="hidden md:flex space-x-6">
-            {/* Single navigation items - Punto de Venta and Mesas first */}
-            {singleItems.filter(item => item.name === 'Punto de Venta' || item.name === 'Mesas').map((item) => {
+          <nav className="hidden md:flex items-center space-x-1">
+            {/* Main single nav items */}
+            {mainNavItems.map((item) => {
               const Icon = item.icon;
-              const isActiveItem = item.name === 'Punto de Venta' 
-                ? (isPuntoDeVentaActive(item.href) || isActive(item.href))
-                : (item.name === 'Mesas' ? (isMesasPage() || isActive(item.href)) : isActive(item.href));
-              
+              const isActiveItem =
+                item.name === 'Punto de Venta'
+                  ? isPuntoDeVentaPage() || isActive(item.href)
+                  : item.name === 'Mesas'
+                  ? isMesasPage() || isActive(item.href)
+                  : isActive(item.href);
+
               return (
                 <button
                   key={item.name}
@@ -139,18 +143,18 @@ const Header = () => {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <Icon className="w-5 h-5 mr-1.5" />
+                  <Icon className="w-4 h-4 mr-1.5" />
                   {item.name}
                 </button>
               );
             })}
-            
-            {/* Navigation sections with dropdowns */}
+
+            {/* Dropdown sections: Caja, Productos */}
             {navigationSections.map((section) => {
               const SectionIcon = section.icon;
               const isDropdownOpen = openDropdown === section.name;
               const hasActiveItem = isAnyItemActive(section.items);
-              
+
               return (
                 <div key={section.name} className="relative">
                   <button
@@ -161,16 +165,17 @@ const Header = () => {
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <SectionIcon className="w-5 h-5 mr-1.5" />
+                    <SectionIcon className="w-4 h-4 mr-1.5" />
                     {section.name}
-                    <ChevronDownIcon className={`w-4 h-4 ml-1 transition-transform duration-200 ${
-                      isDropdownOpen ? 'transform rotate-180' : ''
-                    }`} />
+                    <ChevronDownIcon
+                      className={`w-3.5 h-3.5 ml-1 transition-transform duration-200 ${
+                        isDropdownOpen ? 'rotate-180' : ''
+                      }`}
+                    />
                   </button>
-                  
-                  {/* Dropdown */}
+
                   {isDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                    <div className="absolute top-full left-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                       <div className="py-1">
                         {section.items.map((item) => {
                           const ItemIcon = item.icon;
@@ -182,9 +187,7 @@ const Header = () => {
                                 setOpenDropdown(null);
                               }}
                               className={`w-full flex items-center px-4 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 ${
-                                isActive(item.href)
-                                  ? 'text-green-600 bg-green-50'
-                                  : 'text-gray-700'
+                                isActive(item.href) ? 'text-green-600 bg-green-50' : 'text-gray-700'
                               }`}
                             >
                               <ItemIcon className="w-4 h-4 mr-3" />
@@ -198,39 +201,76 @@ const Header = () => {
                 </div>
               );
             })}
-            
-            {/* Other single navigation items */}
-            {singleItems.filter(item => item.name !== 'Punto de Venta' && item.name !== 'Mesas').map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.name}
-                  onClick={() => navigate(item.href)}
-                  className={`inline-flex items-center px-3 py-2 border-b-2 text-sm font-medium transition-colors duration-200 ${
-                    isActive(item.href)
-                      ? 'border-green-500 text-green-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Icon className="w-5 h-5 mr-1.5" />
-                  {item.name}
-                </button>
-              );
-            })}
           </nav>
 
-          {/* User menu */}
-          <div className="flex items-center space-x-4">
-            <div className="text-sm font-medium text-gray-700">
-              {isRestaurantLoading ? 'Cargando...' : (restaurant?.name || 'Gestión Restaurante')}
-            </div>
+          {/* User / settings menu */}
+          <div className="relative flex items-center">
             <button
-              onClick={handleLogout}
-              className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors duration-200"
+              onClick={() => toggleDropdown('user')}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                openDropdown === 'user'
+                  ? 'bg-gray-100 text-gray-900'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
             >
-              <ArrowRightEndOnRectangleIcon className="w-5 h-5 mr-1.5" />
-              Salir
+              <BuildingStorefrontIcon className="w-5 h-5 text-green-600 flex-shrink-0" />
+              <span className="hidden lg:block max-w-[140px] truncate">
+                {isRestaurantLoading ? 'Cargando...' : (restaurant?.name || 'Restaurante')}
+              </span>
+              <ChevronDownIcon
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  openDropdown === 'user' ? 'rotate-180' : ''
+                }`}
+              />
             </button>
+
+            {openDropdown === 'user' && (
+              <div className="absolute top-full right-0 mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                {/* Restaurant name header */}
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-xs text-gray-500">Sesión activa</p>
+                  <p className="text-sm font-semibold text-gray-800 truncate">
+                    {restaurant?.name || 'Restaurante'}
+                  </p>
+                  {user?.email && (
+                    <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                  )}
+                </div>
+
+                {/* Settings & extra items */}
+                <div className="py-1">
+                  {userMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.name}
+                        onClick={() => {
+                          navigate(item.href);
+                          setOpenDropdown(null);
+                        }}
+                        className={`w-full flex items-center px-4 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 ${
+                          isActive(item.href) ? 'text-green-600 bg-green-50' : 'text-gray-700'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 mr-3" />
+                        {item.name}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Logout */}
+                <div className="border-t border-gray-100 py-1">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200"
+                  >
+                    <ArrowRightEndOnRectangleIcon className="w-4 h-4 mr-3" />
+                    Cerrar sesión
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -238,13 +278,16 @@ const Header = () => {
       {/* Mobile navigation */}
       <div className="md:hidden border-t border-gray-200">
         <div className="px-2 py-3 space-y-1">
-          {/* Mobile Punto de Venta and Mesas first */}
-          {singleItems.filter(item => item.name === 'Punto de Venta' || item.name === 'Mesas').map((item) => {
+          {/* Main nav items */}
+          {mainNavItems.map((item) => {
             const Icon = item.icon;
-            const isActiveItem = item.name === 'Punto de Venta' 
-              ? (isPuntoDeVentaActive(item.href) || isActive(item.href))
-              : (item.name === 'Mesas' ? (isMesasPage() || isActive(item.href)) : isActive(item.href));
-            
+            const isActiveItem =
+              item.name === 'Punto de Venta'
+                ? isPuntoDeVentaPage() || isActive(item.href)
+                : item.name === 'Mesas'
+                ? isMesasPage() || isActive(item.href)
+                : isActive(item.href);
+
             return (
               <button
                 key={item.name}
@@ -260,7 +303,7 @@ const Header = () => {
               </button>
             );
           })}
-          
+
           {/* Mobile navigation sections */}
           {navigationSections.map((section) => (
             <div key={section.name}>
@@ -286,25 +329,37 @@ const Header = () => {
               })}
             </div>
           ))}
-          
-          {/* Other mobile single items */}
-          {singleItems.filter(item => item.name !== 'Punto de Venta' && item.name !== 'Mesas').map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.name}
-                onClick={() => navigate(item.href)}
-                className={`w-full flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
-                  isActive(item.href)
-                    ? 'bg-green-50 text-green-600'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <Icon className="w-5 h-5 mr-3" />
-                {item.name}
-              </button>
-            );
-          })}
+
+          {/* User menu items (Configuración, Suscripción, Admin) */}
+          <div className="pt-2 border-t border-gray-200">
+            <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Cuenta
+            </div>
+            {userMenuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => navigate(item.href)}
+                  className={`w-full flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
+                    isActive(item.href)
+                      ? 'bg-green-50 text-green-600'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <Icon className="w-5 h-5 mr-3" />
+                  {item.name}
+                </button>
+              );
+            })}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 transition-colors duration-200"
+            >
+              <ArrowRightEndOnRectangleIcon className="w-5 h-5 mr-3" />
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       </div>
 

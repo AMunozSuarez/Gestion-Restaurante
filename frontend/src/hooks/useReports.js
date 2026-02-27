@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import reportService from '../services/reportService';
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
@@ -99,4 +99,56 @@ export const useReportCustomers = () => {
     }, []);
 
     return { data, isLoading, error, fetch };
+};
+
+// ─── Detalle de producto específico ───────────────────────────────────────────
+
+export const useReportProductDetail = () => {
+    const [data, setData] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const fetch = useCallback(async (filters = {}) => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const result = await reportService.getProductDetailReport(filters);
+            if (result.success) {
+                setData(result);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Error al cargar detalle del producto');
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    return { data, isLoading, error, fetch };
+};
+
+// ─── Lista de productos del restaurante ───────────────────────────────────────
+
+export const useAllFoods = () => {
+    const [foods, setFoods] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const load = async () => {
+            setIsLoading(true);
+            try {
+                const result = await reportService.getAllFoods();
+                // El endpoint devuelve un array directo o { foods: [...] }
+                const list = Array.isArray(result) ? result : (result.foods || result.data || []);
+                setFoods(list);
+            } catch (err) {
+                setError(err.response?.data?.message || 'Error al cargar productos');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        load();
+    }, []);
+
+    return { foods, isLoading, error };
 };

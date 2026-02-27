@@ -6,6 +6,7 @@ const {
     getProductsReport,
     getCustomersReport,
     getDashboardReport,
+    getProductDetailReport,
 } = require('../controllers/reportController');
 
 const router = express.Router();
@@ -21,5 +22,8 @@ router.get('/products', authMiddleware, filterByRestaurant, getProductsReport);
 
 // Reporte de clientes
 router.get('/customers', authMiddleware, filterByRestaurant, getCustomersReport);
+
+// Detalle de ventas de un producto específico
+router.get('/product-detail', authMiddleware, filterByRestaurant, getProductDetailReport);
 
 module.exports = router;

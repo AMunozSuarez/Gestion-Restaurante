@@ -35,6 +35,22 @@ const reportService = {
         const response = await api.get('/report/customers', { params });
         return response.data;
     },
+
+    // Detalle de ventas de un producto específico
+    getProductDetailReport: async ({ foodId, startDate, endDate } = {}) => {
+        const params = {};
+        if (foodId) params.foodId = foodId;
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
+        const response = await api.get('/report/product-detail', { params });
+        return response.data;
+    },
+
+    // Listar todos los productos del restaurante
+    getAllFoods: async () => {
+        const response = await api.get('/food/getAll');
+        return response.data;
+    },
 };
 
 export default reportService;
