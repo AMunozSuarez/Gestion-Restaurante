@@ -133,7 +133,14 @@ const CashRegister = () => {
   const getSystemTotalForCashRegister = (cashRegister) => {
     if (!cashRegister) return 0;
     
-    // Para la caja actual abierta
+    // Para cajas cerradas: siempre usar el valor almacenado en el momento del cierre.
+    // Recalcular desde las ventas puede dar un total diferente (por propinas, delivery, etc.)
+    // lo que provoca que el total cambie visualmente al seleccionar la caja.
+    if (cashRegister.status === 'Cerrada') {
+      return cashRegister.amountSystem || 0;
+    }
+
+    // Para la caja actual abierta: usar cálculo en tiempo real
     if (cashRegister.status === 'Abierta' && isOpen && cashRegister._id === currentCashRegister?._id) {
       // Prioridad 1: Estadísticas en tiempo real del hook
       if (currentCashStatistics?.systemTotal !== undefined && currentCashStatistics.systemTotal !== null) {
@@ -147,19 +154,16 @@ const CashRegister = () => {
       return cashRegister.amountSystem || 0;
     }
     
-    // Para la caja seleccionada
+    // Para cualquier otra caja abierta seleccionada
     if (cashRegister._id === selectedCashRegister?._id) {
-      // Prioridad 1: Estadísticas específicas del hook
       if (selectedCashStatistics?.systemTotal !== undefined && selectedCashStatistics.systemTotal !== null) {
         return selectedCashStatistics.systemTotal;
       }
-      // Prioridad 2: Calcular desde las ventas directamente
       if (selectedCashSales && selectedCashSales.length > 0) {
         return calculateSystemTotal(selectedCashSales);
       }
     }
     
-    // Para todas las demás cajas, usar datos del backend
     return cashRegister.amountSystem || 0;
   };
 
@@ -337,7 +341,9 @@ const CashRegister = () => {
   // Manejar impresión de reporte de caja
   const handlePrintCashRegisterReport = async (cashRegister) => {
     try {
-      const result = await printingService.printCashRegisterReport(cashRegister);
+      // Calcular totales por método de pago desde las ventas reales de la caja seleccionada
+      const systemTotalsByPayment = calculateSystemTotalsByPaymentMethod(selectedCashSales || []);
+      const result = await printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment);
       if (result.success) {
         setNotification('Reporte de caja impreso exitosamente');
         setTimeout(() => setNotification(null), 3000);

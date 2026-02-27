@@ -546,7 +546,7 @@ RESUMEN
   },
 
   // Generar reporte de caja cerrada
-  generateCashRegisterReport(cashRegister) {
+  generateCashRegisterReport(cashRegister, systemTotalsByPayment = {}) {
     
     const date = new Date();
     
@@ -554,10 +554,6 @@ RESUMEN
     const systemTotal = cashRegister.amountSystem || 0;
     const officialTotal = Object.values(cashRegister.officialIncome || {}).reduce((total, amount) => total + (parseFloat(amount) || 0), 0);
     const difference = officialTotal - systemTotal;
-    
-    // Los totales por metodo de pago deberan ser calculados desde las ordenes reales
-    // Por ahora usar un objeto vacio como fallback
-    const systemTotalsByPayment = {};
     
     // Formatear fechas
     const formatDate = (dateString) => {
@@ -669,8 +665,8 @@ ${cashRegister.comment.trim()}
   },
 
   // Imprimir reporte de caja automaticamente
-  async printCashRegisterReport(cashRegister) {
-    const content = this.generateCashRegisterReport(cashRegister);
+  async printCashRegisterReport(cashRegister, systemTotalsByPayment = {}) {
+    const content = this.generateCashRegisterReport(cashRegister, systemTotalsByPayment);
     return this.printWithDefault(content, 1);
   }
 };
