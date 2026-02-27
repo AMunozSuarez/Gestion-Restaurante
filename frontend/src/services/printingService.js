@@ -74,9 +74,9 @@ export const printingService = {
   // Imprimir página de prueba
   async printTest(printerName) {
     const testContent = `
-=================================
+================================
         PÁGINA DE PRUEBA
-=================================
+================================
 
 Fecha: ${new Date().toLocaleString()}
 Impresora: ${printerName}
@@ -85,9 +85,9 @@ Esta es una página de prueba para
 verificar que la impresora está
 funcionando correctamente.
 
-=================================
+================================
     Gestión Restaurante
-=================================
+================================
 
 
 
@@ -151,9 +151,9 @@ funcionando correctamente.
     const orderType = order.section || order.order_type || order.orderType || 'Mostrador';
     
     let content = `
-=================================
+================================
          COMANDA COCINA
-=================================
+================================
 
 No. Orden: #${orderNumber}
 Cliente: ${customer}
@@ -172,9 +172,9 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
     }
 
     content += `
-=================================
+================================
            PRODUCTOS
-=================================
+================================
 
 `;
 
@@ -223,7 +223,7 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
       content += '\n';
     });
 
-    content += `=================================
+    content += `================================
 
 
 
@@ -297,9 +297,9 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
     const orderType = order.section || order.order_type || order.orderType || 'Mostrador';
     
     let content = `
-=================================
+================================
         TICKET CLIENTE
-=================================
+================================
 
 No. Orden: #${orderNumber}
 Fecha: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
@@ -333,9 +333,9 @@ Cliente: ${customer}`;
 
     content += `
 
-=================================
+================================
            PRODUCTOS
-=================================
+================================
 
 `;
 
@@ -380,7 +380,7 @@ Cliente: ${customer}`;
       
       // Crear línea del producto con precio alineado a la derecha
       const productLine = `${item.quantity}x ${item.product_name}`;
-      const lineWidth = 33; // Ancho total de la línea (para tickets de 40 caracteres)
+      const lineWidth = 32; // Ancho total de la línea (32 CPL mínimo garantizado)
       const paddingLength = Math.max(1, lineWidth - productLine.length - formattedTotal.length);
       const padding = ' '.repeat(paddingLength);
       
@@ -418,15 +418,15 @@ Cliente: ${customer}`;
       minimumFractionDigits: 0
     }).format(total);
 
-    content += `=================================
+    content += `================================
 RESUMEN
-=================================
+================================
 
 `;
 
     // Alinear subtotal a la derecha
     const subtotalLine = "Subtotal:";
-    const subtotalPadding = ' '.repeat(Math.max(1, 33 - subtotalLine.length - formattedSubtotal.length));
+    const subtotalPadding = ' '.repeat(Math.max(1, 32 - subtotalLine.length - formattedSubtotal.length));
     content += `${subtotalLine}${subtotalPadding}${formattedSubtotal}`;
 
     if (deliveryCost > 0) {
@@ -438,20 +438,20 @@ RESUMEN
       
       // Alinear costo de envío a la derecha
       const deliveryLine = "\nCosto de envío:";
-      const deliveryPadding = ' '.repeat(Math.max(1, 33 - deliveryLine.length + 1 - formattedDeliveryCost.length));
+      const deliveryPadding = ' '.repeat(Math.max(1, 32 - deliveryLine.length + 1 - formattedDeliveryCost.length));
       content += `${deliveryLine}${deliveryPadding}${formattedDeliveryCost}`;
     }
 
     // Alinear total a la derecha
     const totalLine = "\nTOTAL:";
-    const totalPadding = ' '.repeat(Math.max(1, 33 - totalLine.length + 1 - formattedTotal.length));
+    const totalPadding = ' '.repeat(Math.max(1, 32 - totalLine.length + 1 - formattedTotal.length));
     content += `${totalLine}${totalPadding}${formattedTotal}`;
 
     content += `
 
-=================================
+================================
     ¡Gracias por su compra!
-=================================
+================================
 
 
 
@@ -503,40 +503,40 @@ RESUMEN
     };
     
     let content = `
-=================================
+================================
        REPORTE DE CAJA
-=================================
+================================
 
 Fecha del reporte: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
 Estado: ${cashRegister.status}
 
-=================================
+================================
       INFORMACIÓN GENERAL
-=================================
+================================
 
 Fecha de apertura: ${formatDate(cashRegister.dateOpened)}
 Fecha de cierre: ${formatDate(cashRegister.dateClosed)}
 Monto inicial: ${formatCurrency(cashRegister.initialBalance)}
 
-=================================
+================================
         RESUMEN VENTAS
-=================================
+================================
 
 Total de pedidos: (Calculado automáticamente)
 Total del sistema: ${formatCurrency(systemTotal)}
 Total oficial: ${formatCurrency(officialTotal)}
 Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
 
-=================================
+================================
    VENTAS POR MÉTODO DE PAGO
-=================================
+================================
 
 `;
 
     // Agregar totales del sistema por método de pago
     Object.entries(systemTotalsByPayment).forEach(([method, amount]) => {
       const methodLine = `${method}:`;
-      const lineWidth = 33;
+      const lineWidth = 32;
       const formattedAmount = formatCurrency(amount);
       const paddingLength = Math.max(1, lineWidth - methodLine.length - formattedAmount.length);
       const padding = ' '.repeat(paddingLength);
@@ -544,9 +544,9 @@ Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
     });
 
     content += `
-=================================
+================================
   INGRESOS OFICIALES DECLARADOS
-=================================
+================================
 
 `;
 
@@ -554,7 +554,7 @@ Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
     if (cashRegister.officialIncome) {
       Object.entries(cashRegister.officialIncome).forEach(([method, amount]) => {
         const methodLine = `${method}:`;
-        const lineWidth = 33;
+        const lineWidth = 32;
         const formattedAmount = formatCurrency(amount);
         const paddingLength = Math.max(1, lineWidth - methodLine.length - formattedAmount.length);
         const padding = ' '.repeat(paddingLength);
@@ -565,9 +565,9 @@ Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
     // Agregar comentarios si existen
     if (cashRegister.comment && cashRegister.comment.trim()) {
       content += `
-=================================
+================================
         COMENTARIOS
-=================================
+================================
 
 ${cashRegister.comment.trim()}
 
@@ -576,9 +576,9 @@ ${cashRegister.comment.trim()}
 
     content += `
 
-=================================
+================================
      Gestión Restaurante
-=================================
+================================
 
 
 

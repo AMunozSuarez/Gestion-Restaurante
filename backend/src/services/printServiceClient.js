@@ -60,7 +60,7 @@ class PrintServiceClient {
    */
   formatOrderTicket(order, restaurant, options = {}) {
     const { printOrderNumber = true } = options;
-    const width = 38; // Ancho para impresora térmica de 58mm (máximo horizontal)
+    const width = 32; // Ancho para impresora térmica de 58mm (32 CPL mínimo garantizado)
     const line = '='.repeat(width);
     const dash = '-'.repeat(width);
 
@@ -234,7 +234,7 @@ class PrintServiceClient {
    * Formatea un ticket de cocina
    */
   formatKitchenTicket(order, restaurant) {
-    const width = 38; // Ancho para impresora térmica de 58mm (máximo horizontal)
+    const width = 32; // Ancho para impresora térmica de 58mm (32 CPL mínimo garantizado)
     const line = '='.repeat(width);
     const dash = '-'.repeat(width);
 
