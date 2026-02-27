@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing.Printing;
 using System.Linq;
+using Microsoft.Win32;
 using PrintingService.Models;
 
 namespace PrintingService
@@ -19,9 +19,20 @@ namespace PrintingService
         public void DiscoverPrinters()
         {
             printers.Clear();
-            foreach (string printer in PrinterSettings.InstalledPrinters)
+            try
             {
-                printers.Add(new PrinterInfo { PrinterName = printer, Status = "Available" });
+                using var key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\Print\Printers");
+                if (key != null)
+                {
+                    foreach (var name in key.GetSubKeyNames())
+                    {
+                        printers.Add(new PrinterInfo { PrinterName = name, Status = "Available" });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error enumerating printers: {ex.Message}");
             }
         }
 
@@ -38,7 +49,7 @@ namespace PrintingService
 
         public void AddPrinter(PrinterInfo printer)
         {
-            if (!printers.Exists(p => p.PrinterName == printer.PrinterName))
+            if (printers.Find(p => p.PrinterName == printer.PrinterName) == null)
             {
                 printers.Add(printer);
             }

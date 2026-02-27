@@ -103,6 +103,15 @@ namespace PrintingService
                             SendError(response, 405, "Method not allowed");
                         break;
 
+                    case "/settings":
+                        if (request.HttpMethod == "GET")
+                            await HandleGetSettings(response);
+                        else if (request.HttpMethod == "POST")
+                            await HandleSaveSettings(request, response);
+                        else
+                            SendError(response, 405, "Method not allowed");
+                        break;
+
                     default:
                         SendError(response, 404, "Endpoint not found");
                         break;
@@ -127,6 +136,32 @@ namespace PrintingService
             await SendJsonResponse(response, new { printers });
         }
 
+        private async Task HandleGetSettings(HttpListenerResponse response)
+        {
+            var settings = _printService.GetSettingsManager().GetSettings();
+            await SendJsonResponse(response, settings);
+        }
+
+        private async Task HandleSaveSettings(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            using var reader = new StreamReader(request.InputStream, request.ContentEncoding);
+            var body = await reader.ReadToEndAsync();
+
+            var settings = JsonSerializer.Deserialize<PrintSettings>(body, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (settings == null)
+            {
+                SendError(response, 400, "Invalid settings");
+                return;
+            }
+
+            _printService.GetSettingsManager().SaveSettings(settings);
+            await SendJsonResponse(response, new { success = true, message = "Settings saved" });
+        }
+
         private async Task HandlePrint(HttpListenerRequest request, HttpListenerResponse response)
         {
             using var reader = new StreamReader(request.InputStream, request.ContentEncoding);
@@ -143,15 +178,15 @@ namespace PrintingService
                 return;
             }
 
-            var success = await _printService.PrintAsync(printJob);
-
-            if (success)
+            try
             {
+                var success = await _printService.PrintAsync(printJob);
                 await SendJsonResponse(response, new { success = true, message = "Print job sent successfully" });
             }
-            else
+            catch (Exception ex)
             {
-                SendError(response, 500, "Failed to print");
+                Console.WriteLine($"[HandlePrint] Error: {ex.Message}");
+                SendError(response, 500, ex.Message);
             }
         }
 
@@ -160,7 +195,7 @@ namespace PrintingService
             response.ContentType = "application/json";
             response.StatusCode = 200;
 
-            var json = JsonSerializer.Serialize(data);
+            var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
             var buffer = Encoding.UTF8.GetBytes(json);
 
             response.ContentLength64 = buffer.Length;

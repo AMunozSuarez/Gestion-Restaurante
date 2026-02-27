@@ -208,11 +208,6 @@ const TableDetail = () => {
             }
 
             if (response.success) {
-                // Imprimir comanda de cocina
-                if (response.order) {
-                    await printingService.printKitchenOrder(response.order);
-                }
-                
                 setAddedProductNotification('Comanda enviada a cocina');
                 setTimeout(() => setAddedProductNotification(null), 3000);
                 

@@ -36,6 +36,9 @@ const Configuracion = () => {
   const [loading, setLoading] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [fontSettings, setFontSettings] = useState(() => printingService.getLocalFontSettings());
+  const [savingFont, setSavingFont] = useState(false);
+  const [testingFont, setTestingFont] = useState(false);
   
   // Estados para suscripción
   const [subscription, setSubscription] = useState(null);
@@ -67,6 +70,7 @@ const Configuracion = () => {
     if (activeTab === 'printers') {
       checkServiceAndLoadPrinters();
       loadSavedPrinters();
+      loadFontSettings();
     } else if (activeTab === 'subscription' && isOwnerOrAdmin) {
       loadSubscription();
     } else if (activeTab === 'users' && isOwnerOrAdmin) {
@@ -124,6 +128,48 @@ const Configuracion = () => {
     }
     if (defaultSaved) {
       setDefaultPrinter(defaultSaved);
+    }
+  };
+
+  // Cargar configuración de fuente
+  // Sincroniza las settings locales al servicio C# (p.ej. tras reinicio del servicio)
+  const loadFontSettings = async () => {
+    const localSettings = printingService.getLocalFontSettings();
+    await printingService.saveSettings(localSettings);
+  };
+
+  // Guardar configuración de fuente
+  const handleSaveFontSettings = async (newSettings) => {
+    setSavingFont(true);
+    setFontSettings(newSettings);
+    const result = await printingService.saveSettings(newSettings);
+    setSavingFont(false);
+    if (result.success) {
+      setMessage({ type: 'success', text: 'Configuración de fuente guardada. Se aplicará al siguiente ticket impreso.' });
+    } else {
+      setMessage({ type: 'error', text: 'Error al guardar configuración de fuente. Verifique que el servicio esté activo.' });
+    }
+  };
+
+  // Imprimir prueba de fuente
+  const handleFontTestPrint = async () => {
+    if (!defaultPrinter) {
+      setMessage({ type: 'error', text: 'Establece una impresora predeterminada primero para probar la fuente.' });
+      return;
+    }
+    setTestingFont(true);
+    setMessage({ type: 'info', text: `Enviando prueba de fuente a ${defaultPrinter}...` });
+    try {
+      const result = await printingService.printFontTest(defaultPrinter);
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Prueba de fuente enviada correctamente.' });
+      } else {
+        setMessage({ type: 'error', text: 'Error al imprimir prueba: ' + result.error });
+      }
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Error al imprimir prueba de fuente.' });
+    } finally {
+      setTestingFont(false);
     }
   };
 
@@ -694,10 +740,10 @@ const Configuracion = () => {
                 {printers.length > 0 ? (
                   <div className="grid gap-3">
                     {printers.map((printer) => {
-                      // Manejar tanto el formato string como objeto
-                      const printerName = typeof printer === 'string' ? printer : printer.PrinterName;
-                      const printerStatus = typeof printer === 'object' ? printer.Status : 'Available';
-                      const isSystemDefault = typeof printer === 'object' ? printer.IsDefault : false;
+                      // Manejar tanto el formato string como objeto (camelCase desde la API)
+                      const printerName = typeof printer === 'string' ? printer : (printer.printerName || printer.PrinterName);
+                      const printerStatus = typeof printer === 'object' ? (printer.status || printer.Status || 'Available') : 'Available';
+                      const isSystemDefault = typeof printer === 'object' ? (printer.isDefault || printer.IsDefault || false) : false;
                       const isAppDefault = defaultPrinter === printerName;
                       
                       return (
@@ -815,6 +861,83 @@ const Configuracion = () => {
               </p>
             </div>
           )}
+        </div>
+
+        {/* Configuración de fuente */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center mb-4">
+            <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
+            <h2 className="text-xl font-semibold text-brown-900">Letra en comandas de cocina</h2>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Configura si las comandas de cocina se imprimen en <strong>negrita</strong>. Los tickets de cliente siempre usan fuente normal.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Opción Normal */}
+            <button
+              onClick={() => handleSaveFontSettings({ fontSize: 9, bold: false })}
+              disabled={savingFont}
+              className={`p-4 rounded-lg border-2 text-left transition-all ${
+                !fontSettings.bold
+                  ? 'border-green-500 bg-green-50'
+                  : 'border-gray-200 bg-white hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold text-gray-800">Normal</span>
+                {!fontSettings.bold && (
+                  <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                )}
+              </div>
+            <p className="text-xs text-gray-500">Fuente 9pt • Regular • ~32 car/línea</p>
+              <p className="mt-2 font-mono text-xs text-gray-700 border rounded p-1 bg-gray-50">
+                2x Producto         $1.200
+              </p>
+            </button>
+
+            {/* Opción Grande */}
+            <button
+              onClick={() => handleSaveFontSettings({ fontSize: 10, bold: true })}
+              disabled={savingFont}
+              className={`p-4 rounded-lg border-2 text-left transition-all ${
+                fontSettings.bold
+                  ? 'border-green-500 bg-green-50'
+                  : 'border-gray-200 bg-white hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold text-gray-800">Grande</span>
+                {fontSettings.bold && (
+                  <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                )}
+              </div>
+            <p className="text-xs text-gray-500">Negrita • Solo en comandas de cocina</p>
+              <p className="mt-2 font-mono text-xs font-bold text-gray-700 border rounded p-1 bg-gray-50">
+                2x Producto     $1.200
+              </p>
+            </button>
+          </div>
+          {savingFont && (
+            <p className="mt-3 text-sm text-gray-500 flex items-center">
+              <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" /> Guardando...
+            </p>
+          )}
+
+          <div className="mt-4 border-t pt-4">
+            <button
+              onClick={handleFontTestPrint}
+              disabled={testingFont || !defaultPrinter}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            >
+              <PrinterIcon className="w-4 h-4 mr-2" />
+              {testingFont ? 'Imprimiendo...' : 'Imprimir prueba de fuente'}
+            </button>
+            <p className="text-xs text-gray-400 mt-1">
+              {defaultPrinter
+                ? `Imprime en: ${defaultPrinter}`
+                : 'Requiere impresora predeterminada configurada arriba'}
+            </p>
+          </div>
         </div>
 
         {/* Información de uso */}

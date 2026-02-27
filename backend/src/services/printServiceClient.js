@@ -38,13 +38,14 @@ class PrintServiceClient {
   /**
    * Envía un trabajo de impresión al servicio local
    */
-  async print(content, printerName = null, copies = 1) {
+  async print(content, printerName = null, copies = 1, isKitchen = false) {
     try {
       const response = await axios.post(`${PRINT_SERVICE_URL}/print`, {
         printerName,
         content,
         contentType: 'text',
-        copies
+        copies,
+        isKitchen
       }, {
         timeout: 10000 // 10 segundos para imprimir
       });

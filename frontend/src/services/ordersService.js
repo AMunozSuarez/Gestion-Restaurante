@@ -63,8 +63,9 @@ export const ordersService = {
     try {
       const response = await api.put(`/order/update/${id}`, updateData);
       
-      // Intentar imprimir comanda automáticamente si hay impresora predeterminada
-      if (response.data && response.data.order) {
+      // Solo imprimir comanda de cocina si el pedido NO está siendo completado
+      const isCompleting = updateData.status === 'Completado' || updateData.status === 'completed';
+      if (!isCompleting && response.data && response.data.order) {
         try {
           const defaultPrinter = printingService.getDefaultPrinter();
           if (defaultPrinter) {
@@ -72,8 +73,6 @@ export const ordersService = {
           }
         } catch (printError) {
           console.error('Error al imprimir comanda actualizada automáticamente:', printError);
-          // No lanzamos el error porque el pedido se actualizó exitosamente
-          // Solo logueamos el error de impresión
         }
       }
       

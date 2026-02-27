@@ -132,7 +132,7 @@ const printKitchenTicket = async (req, res) => {
     }
 
     const ticketContent = printServiceClient.formatKitchenTicket(order, restaurant);
-    const result = await printServiceClient.print(ticketContent, printerName, copies);
+    const result = await printServiceClient.print(ticketContent, printerName, copies, true);
 
     res.json({
       success: true,

@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-// Configuración base para el servicio de impresión
+// Configuracion base para el servicio de impresion
 const PRINTING_SERVICE_URL = process.env.REACT_APP_PRINTING_SERVICE_URL || 'http://localhost:8088';
 
-// Crear instancia específica para el servicio de impresión
+// Crear instancia especifica para el servicio de impresion
 const printingApi = axios.create({
   baseURL: PRINTING_SERVICE_URL,
   headers: {
@@ -12,9 +12,9 @@ const printingApi = axios.create({
   timeout: 10000, // 10 segundos de timeout
 });
 
-// Servicio de impresión
+// Servicio de impresion
 export const printingService = {
-  // Verificar el estado del servicio de impresión
+  // Verificar el estado del servicio de impresion
   async checkHealth() {
     try {
       const response = await printingApi.get('/health');
@@ -26,7 +26,7 @@ export const printingService = {
       console.error('Error checking printing service health:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Servicio de impresión no disponible'
+        error: error.response?.data?.message || 'Servicio de impresion no disponible'
       };
     }
   },
@@ -51,12 +51,13 @@ export const printingService = {
   },
 
   // Imprimir contenido
-  async print(printerName, content, copies = 1) {
+  async print(printerName, content, copies = 1, isKitchen = false) {
     try {
       const response = await printingApi.post('/print', {
         printerName,
         content,
-        copies
+        copies,
+        isKitchen
       });
       return {
         success: true,
@@ -66,12 +67,12 @@ export const printingService = {
       console.error('Error printing:', error);
       return {
         success: false,
-        error: error.response?.data?.message || 'Error al imprimir'
+        error: error.response?.data?.error || error.response?.data?.message || error.message || 'Error al imprimir'
       };
     }
   },
 
-  // Imprimir página de prueba
+  // Imprimir pagina de prueba
   async printTest(printerName) {
     const testContent = `
 ================================
@@ -81,12 +82,12 @@ export const printingService = {
 Fecha: ${new Date().toLocaleString()}
 Impresora: ${printerName}
 
-Esta es una página de prueba para
-verificar que la impresora está
+Esta es una pagina de prueba para
+verificar que la impresora esta
 funcionando correctamente.
 
 ================================
-    Gestión Restaurante
+    Gestion Restaurante
 ================================
 
 
@@ -95,6 +96,42 @@ funcionando correctamente.
     `;
 
     return this.print(printerName, testContent.trim(), 1);
+  },
+
+  // Imprimir prueba de fuente (verifica tamaño y negrita)
+  async printFontTest(printerName) {
+    const settings = this.getLocalFontSettings();
+    const modeName = settings.bold ? 'Grande' : 'NORMAL';
+    const testContent = `
+================================
+         PRUEBA DE FUENTE
+================================
+
+Modo activo: ${modeName}
+Fecha: ${new Date().toLocaleString()}
+
+================================
+           PRODUCTOS
+================================
+
+[BOLD]1x Producto nombre largo
+   Nota: sin cebolla
+
+2x Otro producto largo aqui
+3x Bebida
+[/BOLD]
+================================
+
+Si los PRODUCTOS se ven en negrita
+y el encabezado en normal,
+la fuente esta configurada bien.
+
+================================
+
+
+
+    `;
+    return this.print(printerName, testContent.trim(), 1, true); // isKitchen=true para probar negrita
   },
 
   // Obtener impresora predeterminada
@@ -113,7 +150,7 @@ funcionando correctamente.
   },
 
   // Imprimir con impresora predeterminada
-  async printWithDefault(content, copies = 1) {
+  async printWithDefault(content, copies = 1, isKitchen = false) {
     const defaultPrinter = this.getDefaultPrinter();
     if (!defaultPrinter) {
       return {
@@ -122,7 +159,43 @@ funcionando correctamente.
       };
     }
 
-    return this.print(defaultPrinter, content, copies);
+    return this.print(defaultPrinter, content, copies, isKitchen);
+  },
+
+  // Obtener configuracion de fuente del servicio C#
+  async getSettings() {
+    try {
+      const response = await printingApi.get('/settings');
+      // Sincronizar con localStorage
+      localStorage.setItem('printFontSettings', JSON.stringify(response.data));
+      return { success: true, data: response.data };
+    } catch (error) {
+      // Fallback a localStorage si el servicio no esta disponible
+      const local = this.getLocalFontSettings();
+      return { success: false, data: local };
+    }
+  },
+
+  // Guardar configuracion de fuente en el servicio C# y localStorage
+  async saveSettings(settings) {
+    try {
+      localStorage.setItem('printFontSettings', JSON.stringify(settings));
+      const response = await printingApi.post('/settings', settings);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error saving font settings:', error);
+      return { success: false, error: 'Error al guardar configuracion' };
+    }
+  },
+
+  // Obtener configuracion de fuente desde localStorage (sincrono)
+  getLocalFontSettings() {
+    try {
+      const saved = localStorage.getItem('printFontSettings');
+      return saved ? JSON.parse(saved) : { fontSize: 9, bold: false };
+    } catch {
+      return { fontSize: 9, bold: false };
+    }
   },
 
   // Generar comanda de cocina
@@ -157,13 +230,13 @@ funcionando correctamente.
 
 No. Orden: #${orderNumber}
 Cliente: ${customer}
-Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
+Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
 `;
 
     // Agregar notas generales del pedido si existen (antes de productos)
     const orderNotes = order.comment || order.notes || '';
     if (orderNotes && orderNotes.trim()) {
-      // Manejar notas generales con saltos de línea
+      // Manejar notas generales con saltos de linea
       const noteLines = orderNotes.trim().split('\n');
       content += `COMENTARIO GENERAL:\n`;
       noteLines.forEach(line => {
@@ -206,11 +279,12 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
       }));
     }
 
-    // Agregar cada producto al contenido
+    // Agregar cada producto al contenido (marcado para negrita si esta configurado)
+    content += `[BOLD]`;
     items.forEach(item => {
       content += `${item.quantity}x ${item.product_name}\n`;
       if (item.notes && item.notes.trim()) {
-        // Manejar comentarios con saltos de línea
+        // Manejar comentarios con saltos de linea
         const noteLines = item.notes.trim().split('\n');
         noteLines.forEach((line, index) => {
           if (index === 0) {
@@ -222,21 +296,17 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
       }
       content += '\n';
     });
+    content += `[/BOLD]`;
 
-    content += `================================
-
-
-
-
-=`;
+    content += `================================`;
 
     return content.trim();
   },
 
-  // Imprimir comanda de cocina automáticamente
+  // Imprimir comanda de cocina automaticamente
   async printKitchenOrder(order) {
     const content = this.generateKitchenOrder(order);
-    return this.printWithDefault(content, 1);
+    return this.printWithDefault(content, 1, true); // isKitchen=true para aplicar negrita si esta configurado
   },
 
   // Generar ticket de cliente
@@ -257,7 +327,7 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
       customer = order.customerName;
     }
 
-    // Extraer teléfono del cliente
+    // Extraer telefono del cliente
     let phone = '';
     if (order.buyer && typeof order.buyer === 'object' && order.buyer.phone) {
       phone = order.buyer.phone || order.phone;
@@ -269,7 +339,7 @@ Sección: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
       phone = order.customerPhone;
     }
 
-    // Extraer dirección (para todos los tipos de pedido)
+    // Extraer direccion (para todos los tipos de pedido)
     let address = '';
     if (order.selectedAddress) {
       // selectedAddress puede ser string o objeto
@@ -306,24 +376,24 @@ Fecha: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
 Cliente: ${customer}`;
 
     if (phone) {
-      content += `\nTeléfono: ${phone}`;
+      content += `\nTelefono: ${phone}`;
     }
 
     if (address) {
-      content += `\nDirección: ${address}`;
+      content += `\nDireccion: ${address}`;
     }
 
-    // Agregar método de pago
+    // Agregar metodo de pago
     // Usar solo paymentMethods
     let paymentMethod = 'No especificado';
     if (Array.isArray(order.paymentMethods) && order.paymentMethods.length > 0) {
       paymentMethod = order.paymentMethods.map(pm => {
-        const method = pm.method || pm.name || 'Método';
+        const method = pm.method || pm.name || 'Metodo';
         const amount = pm.amount ? `(${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(pm.amount)})` : '';
         return `${method} ${amount}`.trim();
       }).join(' + ');
     }
-    content += `\nMétodo de pago: ${paymentMethod}`;
+    content += `\nMetodo de pago: ${paymentMethod}`;
 
     // Agregar comentarios generales si existen
     const orderNotes = order.comment || order.notes || '';
@@ -378,13 +448,19 @@ Cliente: ${customer}`;
         minimumFractionDigits: 0
       }).format(itemTotal);
       
-      // Crear línea del producto con precio alineado a la derecha
+      // Crear linea del producto con precio alineado a la derecha
       const productLine = `${item.quantity}x ${item.product_name}`;
-      const lineWidth = 32; // Ancho total de la línea (32 CPL mínimo garantizado)
-      const paddingLength = Math.max(1, lineWidth - productLine.length - formattedTotal.length);
+      const fontSettings = this.getLocalFontSettings();
+      const lineWidth = fontSettings.bold ? 26 : 32;
+      // Truncar nombre si excede el espacio disponible
+      const maxNameLen = lineWidth - formattedTotal.length - 2;
+      const displayLine = productLine.length > maxNameLen
+        ? productLine.substring(0, maxNameLen)
+        : productLine;
+      const paddingLength = Math.max(1, lineWidth - displayLine.length - formattedTotal.length);
       const padding = ' '.repeat(paddingLength);
       
-      content += `${productLine}${padding}${formattedTotal}\n`;
+      content += `${displayLine}${padding}${formattedTotal}\n`;
       
       if (item.notes && item.notes.trim()) {
         const noteLines = item.notes.trim().split('\n');
@@ -425,8 +501,10 @@ RESUMEN
 `;
 
     // Alinear subtotal a la derecha
+    const fontSettings = this.getLocalFontSettings();
+    const alignWidth = fontSettings.bold ? 26 : 32;
     const subtotalLine = "Subtotal:";
-    const subtotalPadding = ' '.repeat(Math.max(1, 32 - subtotalLine.length - formattedSubtotal.length));
+    const subtotalPadding = ' '.repeat(Math.max(1, alignWidth - subtotalLine.length - formattedSubtotal.length));
     content += `${subtotalLine}${subtotalPadding}${formattedSubtotal}`;
 
     if (deliveryCost > 0) {
@@ -436,21 +514,21 @@ RESUMEN
         minimumFractionDigits: 0
       }).format(deliveryCost);
       
-      // Alinear costo de envío a la derecha
-      const deliveryLine = "\nCosto de envío:";
-      const deliveryPadding = ' '.repeat(Math.max(1, 32 - deliveryLine.length + 1 - formattedDeliveryCost.length));
+      // Alinear costo de envio a la derecha
+      const deliveryLine = "\nCosto de envio:";
+      const deliveryPadding = ' '.repeat(Math.max(1, alignWidth - deliveryLine.length + 1 - formattedDeliveryCost.length));
       content += `${deliveryLine}${deliveryPadding}${formattedDeliveryCost}`;
     }
 
     // Alinear total a la derecha
     const totalLine = "\nTOTAL:";
-    const totalPadding = ' '.repeat(Math.max(1, 32 - totalLine.length + 1 - formattedTotal.length));
+    const totalPadding = ' '.repeat(Math.max(1, alignWidth - totalLine.length + 1 - formattedTotal.length));
     content += `${totalLine}${totalPadding}${formattedTotal}`;
 
     content += `
 
 ================================
-    ¡Gracias por su compra!
+    Gracias por su compra!
 ================================
 
 
@@ -461,7 +539,7 @@ RESUMEN
     return content.trim();
   },
 
-  // Imprimir ticket de cliente automáticamente
+  // Imprimir ticket de cliente automaticamente
   async printCustomerTicket(order) {
     const content = this.generateCustomerTicket(order);
     return this.printWithDefault(content, 1);
@@ -477,8 +555,8 @@ RESUMEN
     const officialTotal = Object.values(cashRegister.officialIncome || {}).reduce((total, amount) => total + (parseFloat(amount) || 0), 0);
     const difference = officialTotal - systemTotal;
     
-    // Los totales por método de pago deberán ser calculados desde las órdenes reales
-    // Por ahora usar un objeto vacío como fallback
+    // Los totales por metodo de pago deberan ser calculados desde las ordenes reales
+    // Por ahora usar un objeto vacio como fallback
     const systemTotalsByPayment = {};
     
     // Formatear fechas
@@ -522,7 +600,7 @@ Monto inicial: ${formatCurrency(cashRegister.initialBalance)}
         RESUMEN VENTAS
 ================================
 
-Total de pedidos: (Calculado automáticamente)
+Total de pedidos: (Calculado automaticamente)
 Total del sistema: ${formatCurrency(systemTotal)}
 Total oficial: ${formatCurrency(officialTotal)}
 Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
@@ -533,10 +611,11 @@ Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
 
 `;
 
-    // Agregar totales del sistema por método de pago
+    // Agregar totales del sistema por metodo de pago
     Object.entries(systemTotalsByPayment).forEach(([method, amount]) => {
       const methodLine = `${method}:`;
-      const lineWidth = 32;
+      const fontSettings = this.getLocalFontSettings();
+      const lineWidth = fontSettings.bold ? 26 : 32;
       const formattedAmount = formatCurrency(amount);
       const paddingLength = Math.max(1, lineWidth - methodLine.length - formattedAmount.length);
       const padding = ' '.repeat(paddingLength);
@@ -554,7 +633,8 @@ Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
     if (cashRegister.officialIncome) {
       Object.entries(cashRegister.officialIncome).forEach(([method, amount]) => {
         const methodLine = `${method}:`;
-        const lineWidth = 32;
+        const fontSettings = this.getLocalFontSettings();
+        const lineWidth = fontSettings.bold ? 26 : 32;
         const formattedAmount = formatCurrency(amount);
         const paddingLength = Math.max(1, lineWidth - methodLine.length - formattedAmount.length);
         const padding = ' '.repeat(paddingLength);
@@ -577,7 +657,7 @@ ${cashRegister.comment.trim()}
     content += `
 
 ================================
-     Gestión Restaurante
+     Gestion Restaurante
 ================================
 
 
@@ -588,7 +668,7 @@ ${cashRegister.comment.trim()}
     return content.trim();
   },
 
-  // Imprimir reporte de caja automáticamente
+  // Imprimir reporte de caja automaticamente
   async printCashRegisterReport(cashRegister) {
     const content = this.generateCashRegisterReport(cashRegister);
     return this.printWithDefault(content, 1);
