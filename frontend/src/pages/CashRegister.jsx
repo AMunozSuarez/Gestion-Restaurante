@@ -26,8 +26,8 @@ const CashRegister = () => {
   // Estados para cerrar caja
   const [officialIncome, setOfficialIncome] = React.useState({
     Efectivo: '',
-    Transferencia: '',
-    Tarjeta: ''
+    Debito: '',
+    Transferencia: ''
   });
   const [comment, setComment] = React.useState('');
   const [isClosing, setIsClosing] = React.useState(false);
@@ -288,7 +288,7 @@ const CashRegister = () => {
       });
       
       if (result.success) {
-        setOfficialIncome({ Efectivo: '', Transferencia: '', Tarjeta: '' });
+        setOfficialIncome({ Efectivo: '', Debito: '', Transferencia: '' });
         setComment('');
         setSelectedCashRegister(null); // Cerrar el panel lateral
         refetch();
@@ -367,7 +367,7 @@ const CashRegister = () => {
   return (
     <div className="h-full bg-professional flex gap-4 p-2 lg:p-4 overflow-hidden">
       {/* Contenido Principal */}
-      <div className={`${selectedCashRegister ? 'w-2/3' : 'w-full'} flex flex-col gap-2 lg:gap-4 transition-all duration-300`}>
+      <div className="flex-1 min-w-0 flex flex-col gap-2 lg:gap-4">
         {/* Header - Más compacto */}
         <div className="card-professional p-3 lg:p-6 flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
@@ -660,7 +660,7 @@ const CashRegister = () => {
 
       {/* Panel de Detalle Lateral */}
       {selectedCashRegister && (
-        <div className="w-1/3 card-professional p-3 lg:p-6 overflow-y-auto scrollbar-professional">
+        <div className="w-[420px] flex-shrink-0 card-professional p-3 lg:p-6 overflow-y-auto scrollbar-professional">
           <div className="flex justify-between items-center mb-4 lg:mb-6">
             <h3 className="text-sm lg:text-base font-semibold text-amber-800">
               Detalle de Caja
@@ -744,6 +744,24 @@ const CashRegister = () => {
             </div>
           )}
 
+          {/* Contenido dependiente de ventas */}
+          {selectedSalesLoading ? (
+            <div className="space-y-3 mb-6">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-3 bg-gray-200 rounded w-1/3 mb-2"></div>
+                  <div className="h-8 bg-gray-100 rounded"></div>
+                </div>
+              ))}
+              <div className="animate-pulse">
+                <div className="h-3 bg-gray-200 rounded w-1/2 mb-2"></div>
+                <div className="space-y-1">
+                  {[1,2,3,4].map(i => <div key={i} className="h-10 bg-gray-100 rounded"></div>)}
+                </div>
+              </div>
+            </div>
+          ) : (
+          <>
           {/* Totales por Método de Pago del Sistema */}
           <div className="mb-6">
             <h4 className="text-professional-subtitle mb-3">Totales del Sistema por Método de Pago</h4>
@@ -828,7 +846,9 @@ const CashRegister = () => {
             <div className="mb-6">
               <h4 className="text-professional-subtitle mb-3">Ingresos Oficiales Declarados</h4>
               <div className="space-y-2">
-                {Object.entries(selectedCashRegister.officialIncome).map(([method, amount]) => (
+                {['Efectivo', 'Debito', 'Transferencia'].map((method) => {
+                  const amount = selectedCashRegister.officialIncome[method] ?? 0;
+                  return (
                   <div key={method} className="bg-amber-50 p-2 rounded-lg border border-amber-200">
                     <div className="flex justify-between items-center">
                       <div>
@@ -854,7 +874,7 @@ const CashRegister = () => {
                       )}
                     </div>
                   </div>
-                ))}
+                ); })}
               </div>
             </div>
           )}
@@ -937,6 +957,7 @@ const CashRegister = () => {
             <h4 className="text-professional-subtitle mb-4">
               Pedidos ({selectedCashSales?.length || 0})
             </h4>
+
             
             {selectedCashSales && selectedCashSales.length > 0 ? (
               <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-professional">
@@ -1003,6 +1024,8 @@ const CashRegister = () => {
               </div>
             )}
           </div>
+          </>
+          )}
         </div>
       )}
 

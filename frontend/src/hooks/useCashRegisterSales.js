@@ -46,6 +46,11 @@ export const useCashRegisterSales = (cashRegisterId = null, filters = {}) => {
   };
 
   useEffect(() => {
+    // Clear stale data immediately when cashRegisterId changes so the UI
+    // doesn't show the previous cash register's data while the new fetch runs.
+    setSales([]);
+    setStatistics(null);
+    setCashRegister(null);
     fetchSales();
   }, [cashRegisterId, JSON.stringify(filters)]);
 
