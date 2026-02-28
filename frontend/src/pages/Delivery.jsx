@@ -842,14 +842,32 @@ const Delivery = () => {
       setEditPaymentMethods([{ method: '', amount: 0 }]);
     }
     setEditDeliveryCost(getDeliveryCost(order));
+
+    // Pre-poblar cliente instantáneamente desde order.buyer (ya viene populated del backend)
+    if (order.buyer && typeof order.buyer === 'object' && order.buyer._id) {
+      setEditSelectedCustomer(order.buyer);
+      setEditFoundCustomer(order.buyer);
+      setEditCustomerAddresses(order.buyer.addresses || []);
+
+      // Buscar la dirección que coincida con la del pedido
+      const orderAddress = getCustomerAddress(order);
+      const matchingAddress = order.buyer.addresses?.find(addr => addr.address === orderAddress);
+      if (matchingAddress) {
+        setEditSelectedAddressId(matchingAddress._id);
+        setEditDeliveryCost(matchingAddress.deliveryCost || 0);
+      } else if (order.buyer.addresses && order.buyer.addresses.length > 0) {
+        setEditSelectedAddressId(order.buyer.addresses[0]._id);
+        setEditDeliveryCost(order.buyer.addresses[0].deliveryCost || 0);
+      }
+    }
     
-    // Buscar customer por teléfono para cargar direcciones
+    // Buscar customer por teléfono para cargar datos frescos (actualiza en segundo plano)
     if (phone) {
       setIsEditCustomerLoading(true);
       try {
         const foundCustomer = await searchCustomerByPhone(phone);
         if (foundCustomer) {
-          // Establecer el cliente como seleccionado
+          // Actualizar con datos frescos del servidor
           setEditSelectedCustomer(foundCustomer);
           setEditFoundCustomer(foundCustomer);
           setEditCustomerAddresses(foundCustomer.addresses || []);
