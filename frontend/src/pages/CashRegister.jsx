@@ -97,28 +97,7 @@ const CashRegister = () => {
     }
   }, []); // Se ejecuta solo al montar el componente
 
-  // Efecto para refrescar cuando la página se hace visible (al cambiar de pestaña)
-  React.useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        // La página se hizo visible, refrescar datos
-        if (isOpen) {
-          refetchSales();
-          refetchTips();
-        }
-        if (selectedCashRegister) {
-          refetchSelectedSales();
-          refetchSelectedTips();
-        }
-      }
-    };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isOpen, selectedCashRegister, refetchSales, refetchSelectedSales]);
 
   // Funciones de utilidad
   const formatCurrency = (amount) => {
