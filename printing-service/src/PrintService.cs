@@ -152,11 +152,9 @@ namespace PrintingService
                 {
                     if (boldActive)
                     {
-                        buf.AddRange(CMD_BOLD_ON);
                         buf.AddRange(CMD_SIZE_2H);
                         buf.AddRange(enc.GetBytes(NormalizeForPrinter(part)));
                         buf.AddRange(CMD_SIZE_NORMAL);
-                        buf.AddRange(CMD_BOLD_OFF);
                     }
                     else
                     {

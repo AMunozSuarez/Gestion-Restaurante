@@ -231,6 +231,7 @@ la fuente esta configurada bien.
 No. Orden: #${orderNumber}
 Cliente: ${customer}
 Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
+Hora: ${date.toLocaleTimeString()}
 `;
 
     // Agregar notas generales del pedido si existen (antes de productos)
