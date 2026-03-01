@@ -4,7 +4,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { useRestaurant } from '../../hooks/useRestaurant';
 import { useSubscription } from '../../hooks/useSubscription';
 import logo from '../../assets/logo.png';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { 
   HomeIcon, 
   TruckIcon, 
@@ -23,7 +22,6 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
-    const [showPrintInstallModal, setShowPrintInstallModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -121,19 +119,6 @@ const Header = () => {
             <div className="flex-shrink-0">
               <img src={logo} alt="Orden+" className="h-10 w-auto" />
             </div>
-            {/* Icono de aviso para instalar el software de impresión */}
-            <button
-              type="button"
-              className="ml-4 flex items-center text-yellow-700 hover:text-yellow-900"
-              title="Instalar servicio de impresión"
-              onClick={() => {
-                navigate('/configuracion');
-                setTimeout(() => setShowPrintInstallModal(true), 300); // Espera para asegurar navegación
-              }}
-            >
-              <ExclamationTriangleIcon className="w-6 h-6 mr-1 animate-bounce" />
-              <span className="hidden sm:inline text-sm font-semibold">Actualizacion</span>
-            </button>
           </div>
 
           {/* Navigation */}
@@ -404,46 +389,6 @@ const Header = () => {
               >
                 <TruckIcon className="w-4 h-4 mr-1.5" />
                 Delivery
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Modal de instrucciones de instalación del software de impresión */}
-      {showPrintInstallModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center">
-              <ExclamationTriangleIcon className="w-6 h-6 text-yellow-600 mr-2" />
-              <h3 className="text-lg font-semibold text-gray-900">Instalar Servicio de Impresión</h3>
-            </div>
-            <div className="p-6 space-y-4 text-gray-800">
-              <ol className="list-decimal list-inside space-y-2">
-                <li>
-                  <strong>Descargar:</strong> Haz clic en <span className="text-blue-600 font-semibold">"Descargar Servicio de Impresión"</span> en la sección de impresoras de configuración.
-                </li>
-                <li>
-                  <strong>Ejecutar:</strong> Abre el archivo descargado (<span className="font-mono">RestaurantPrintingServiceInstaller.exe</span>).
-                </li>
-                <li>
-                  <strong>Permiso de Windows:</strong> Si aparece una ventana de advertencia de Windows, haz clic en <span className="font-semibold">"Más información"</span> y luego en <span className="font-semibold">"Ejecutar de todas formas"</span>.
-                </li>
-                <li>
-                  <strong>Permiso de administrador:</strong> Da permiso de administrador si se solicita.
-                </li>
-                <li>
-                  <strong>Instalación:</strong> Haz clic en <span className="font-semibold">"Siguiente"</span> y acepta las indicaciones hasta finalizar la instalación.
-                </li>
-              </ol>
-              <p className="text-sm text-gray-500 mt-2">Después de instalar, vuelve a la configuración y verifica que el servicio esté conectado.</p>
-            </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
-              <button
-                type="button"
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-                onClick={() => setShowPrintInstallModal(false)}
-              >
-                Cerrar
               </button>
             </div>
           </div>
