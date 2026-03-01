@@ -10,97 +10,81 @@ const createOrderController = async (req, res) => {
     try {
         const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, waiter, tip } = req.body;
         
-                let customer = null;
-        let deliveryCost = 0;
+        const restaurantId = req.user.restaurant;
+        const foodIds = foods.map((item) => item.food);
 
-        // Verificar si se proporciona el campo buyer
-        if (buyer) {
-            // Caso 1: Si buyer es un ID (cliente existente)
+        // ── Paso 1: Ejecutar queries independientes en paralelo ──
+        // Customer lookup, food validation y cash register search son independientes
+        const customerPromise = (async () => {
+            if (!buyer) return null;
             if (typeof buyer === 'string') {
-                customer = await Customer.findOne({ 
-                    _id: buyer,
-                    restaurant: req.user.restaurant
-                });
-                
-                if (!customer) {
-                    return res.status(404).json({
-                        success: false,
-                        message: 'Cliente no encontrado o no pertenece a este restaurante',
-                    });
-                }
-            } 
-            // Caso 2: Si buyer es un objeto (cliente nuevo o no guardado)
-            else if (typeof buyer === 'object' && buyer.phone) {
-                // Buscar si ya existe un cliente con este teléfono
-                customer = await Customer.findOne({ 
-                    phone: buyer.phone,
-                    restaurant: req.user.restaurant
-                });
-
-                // Si no existe, crear nuevo cliente
-                if (!customer) {
-                    customer = new Customer({
+                return Customer.findOne({ _id: buyer, restaurant: restaurantId }).lean();
+            }
+            if (typeof buyer === 'object' && buyer.phone) {
+                const existing = await Customer.findOne({ phone: buyer.phone, restaurant: restaurantId });
+                if (!existing) {
+                    const newCustomer = new Customer({
                         name: buyer.name || 'Cliente',
                         phone: buyer.phone,
                         addresses: buyer.addresses || [],
                         comment: buyer.comment || '',
-                        restaurant: req.user.restaurant // Asignar el restaurante del usuario autenticado
+                        restaurant: restaurantId,
                     });
-                    await customer.save();
+                    await newCustomer.save();
+                    return newCustomer;
                 }
+                return existing;
             }
+            return null;
+        })();
 
-            // Si hay dirección seleccionada, calcular costo de envío
-            if (selectedAddress && customer) {
-                const addressWithCost = customer.addresses.find(
-                    addr => addr.address === selectedAddress
-                );
-                if (addressWithCost && typeof addressWithCost.deliveryCost === 'number') {
-                    deliveryCost = addressWithCost.deliveryCost;
-                }
-            }
+        const [customer, existingFoods, currentCashRegister] = await Promise.all([
+            customerPromise,
+            foodModel.find({ _id: { $in: foodIds }, restaurant: restaurantId }).select('_id price').lean(),
+            cashRegisterModel.findOne({ restaurant: restaurantId, status: 'Abierta' }).select('_id').lean(),
+        ]);
+
+        // ── Validaciones rápidas (sin queries) ──
+        if (buyer && typeof buyer === 'string' && !customer) {
+            return res.status(404).json({ success: false, message: 'Cliente no encontrado o no pertenece a este restaurante' });
         }
-
-        const foodIds = foods.map((item) => item.food);
-        const existingFoods = await foodModel.find({ _id: { $in: foodIds }, restaurant: req.user.restaurant });
 
         if (existingFoods.length !== foods.length) {
-            return res.status(400).json({
-                success: false,
-                message: 'Uno o más alimentos no pertenecen a este restaurante',
-            });
+            return res.status(400).json({ success: false, message: 'Uno o más alimentos no pertenecen a este restaurante' });
         }
-
-        const total = foods.reduce((sum, item) => {
-            const foodDetails = existingFoods.find((food) => food._id.toString() === item.food);
-            return sum + (foodDetails.price * item.quantity);
-        }, 0) + deliveryCost;
-
-        // Obtener la caja abierta actual
-        const currentCashRegister = await cashRegisterModel.findOne({
-            restaurant: req.user.restaurant,
-            status: 'Abierta',
-        });
 
         if (!currentCashRegister) {
-            return res.status(400).json({
-                success: false,
-                message: 'No hay una caja abierta. Por favor, abre una caja antes de crear órdenes.',
-            });
+            return res.status(400).json({ success: false, message: 'No hay una caja abierta. Por favor, abre una caja antes de crear órdenes.' });
         }
 
-        // Obtener el último número de orden de la caja actual
+        // ── Calcular delivery cost ──
+        let deliveryCost = 0;
+        if (selectedAddress && customer && customer.addresses) {
+            const addressWithCost = customer.addresses.find(addr => addr.address === selectedAddress);
+            if (addressWithCost && typeof addressWithCost.deliveryCost === 'number') {
+                deliveryCost = addressWithCost.deliveryCost;
+            }
+        }
+
+        // ── Calcular total con Map para O(n) en vez de O(n²) ──
+        const foodPriceMap = new Map(existingFoods.map(f => [f._id.toString(), f.price]));
+        const total = foods.reduce((sum, item) => {
+            return sum + (foodPriceMap.get(item.food) * item.quantity);
+        }, 0) + deliveryCost;
+
+        // ── Paso 2: Obtener número de orden (depende de cashRegister) ──
         const lastOrder = await orderModel.findOne({ 
             cashRegister: currentCashRegister._id 
-        }).sort({ orderNumber: -1 });
+        }).sort({ orderNumber: -1 }).select('orderNumber').lean();
         
-        const orderNumber = lastOrder && lastOrder.orderNumber ? lastOrder.orderNumber + 1 : 1;
+        const orderNumber = lastOrder ? lastOrder.orderNumber + 1 : 1;
 
+        // ── Paso 3: Crear y guardar orden ──
         const order = new orderModel({
             orderNumber,
             foods,
-            payment: payment || null, // Hacer payment opcional
-            paymentMethods: paymentMethods || [], // Agregar array de métodos de pago
+            payment: payment || null,
+            paymentMethods: paymentMethods || [],
             total,
             deliveryCost,
             name: !customer ? (buyer?.name || null) : null,
@@ -112,23 +96,23 @@ const createOrderController = async (req, res) => {
             section,
             status: status || 'Preparacion',
             comment: comment || '',
-            cashRegister: currentCashRegister._id, // Asignar la caja actual
-            restaurant: req.user.restaurant, // Siempre asignar el restaurante
+            cashRegister: currentCashRegister._id,
+            restaurant: restaurantId,
         });
 
         await order.save();
 
-        // Poblar los detalles de los alimentos para la respuesta
-        const populatedOrder = await orderModel.findById(order._id)
-            .populate('foods.food', 'title price')
-            .populate('buyer', 'name phone')
-            .populate('waiter', 'userName name')
-            .lean();
+        // ── Paso 4: Populate en el documento ya guardado (evita un findById extra) ──
+        await order.populate([
+            { path: 'foods.food', select: 'title price' },
+            { path: 'buyer', select: 'name phone' },
+            { path: 'waiter', select: 'userName name' },
+        ]);
 
         res.status(201).json({
             success: true,
             message: 'Pedido creado exitosamente',
-            order: populatedOrder,
+            order,
         });
     } catch (error) {
         console.error('Error creando el pedido:', error);
@@ -294,62 +278,21 @@ const getOrderByNumberController = async (req, res) => {
 const updateOrderController = async (req, res) => {
     try {
         const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip } = req.body;
-        console.log('Datos recibidos en el backend:', req.body);
         
-        // Buscar la orden existente
-        const existingOrder = await orderModel.findOne({ 
-            _id: req.params.id, 
-            restaurant: req.user.restaurant 
-        });
+        const restaurantId = req.user.restaurant;
 
-        if (!existingOrder) {
-            return res.status(404).json({
-                success: false,
-                message: 'Pedido no encontrado o no pertenece a este restaurante',
-            });
-        }
-
-        // Preparar objeto de actualización
+        // Preparar objeto de actualización con campos simples
         const updateData = {};
+        if (payment !== undefined) updateData.payment = payment;
+        if (paymentMethods !== undefined) updateData.paymentMethods = paymentMethods;
+        if (status !== undefined) updateData.status = status;
+        if (comment !== undefined) updateData.comment = comment;
+        if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
+        if (waiter !== undefined) updateData.waiter = waiter;
+        if (tip !== undefined) updateData.tip = tip;
 
-        // Si solo se está actualizando el método de pago (o status u otro campo simple)
-        if (payment !== undefined) {
-            updateData.payment = payment;
-        }
-        
-        if (paymentMethods !== undefined) {
-            updateData.paymentMethods = paymentMethods;
-        }
-        
-        if (status !== undefined) {
-            updateData.status = status;
-        }
-        
-        if (comment !== undefined) {
-            updateData.comment = comment;
-        }
-        
-        if (tableNumber !== undefined) {
-            updateData.tableNumber = tableNumber;
-        }
-        
-        if (waiter !== undefined) {
-            updateData.waiter = waiter;
-        }
-        
-        if (tip !== undefined) {
-            updateData.tip = tip;
-        }
-
-        // Si se envían foods, validar y actualizar con cálculo completo
+        // ── Si se envían foods, validar en paralelo ──
         if (foods && Array.isArray(foods)) {
-            if (!Array.isArray(foods)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'La propiedad foods debe ser un array.',
-                });
-            }
-            
             const invalidFood = foods.find((item) => !item.food || !item.quantity);
             if (invalidFood) {
                 return res.status(400).json({
@@ -358,73 +301,66 @@ const updateOrderController = async (req, res) => {
                 });
             }
 
-            let customer = null;
-            let deliveryCost = 0;
+            const foodIds = foods.map((item) => item.food);
 
-            if (buyer && buyer.phone) {
-                customer = await Customer.findOne({ phone: buyer.phone });
-
+            // Ejecutar customer lookup y food validation en paralelo
+            const customerPromise = (async () => {
+                if (!buyer || !buyer.phone) return null;
+                let customer = await Customer.findOne({ phone: buyer.phone, restaurant: restaurantId });
                 if (!customer) {
                     customer = new Customer({
                         name: buyer.name,
                         phone: buyer.phone,
                         addresses: buyer.addresses || [],
                         comment: buyer.comment || '',
+                        restaurant: restaurantId,
                     });
                     await customer.save();
                 } else {
-                    customer.name = buyer.name;
-                    customer.comment = buyer.comment || customer.comment;
-
+                    let needsSave = false;
+                    if (buyer.name && customer.name !== buyer.name) { customer.name = buyer.name; needsSave = true; }
+                    if (buyer.comment && customer.comment !== buyer.comment) { customer.comment = buyer.comment; needsSave = true; }
                     if (buyer.addresses && Array.isArray(buyer.addresses)) {
                         customer.addresses.forEach((addr) => {
                             if (addr.address === selectedAddress) {
-                                const newAddr = buyer.addresses.find((newAddr) => newAddr.address === selectedAddress);
-                                if (newAddr) {
-                                    addr.deliveryCost = newAddr.deliveryCost;
-                                }
+                                const newAddr = buyer.addresses.find((na) => na.address === selectedAddress);
+                                if (newAddr) { addr.deliveryCost = newAddr.deliveryCost; needsSave = true; }
                             }
                         });
-
                         buyer.addresses.forEach((newAddress) => {
-                            const existingAddress = customer.addresses.find(
-                                (addr) => addr.address === newAddress.address
-                            );
-                            if (!existingAddress) {
+                            if (!customer.addresses.find((addr) => addr.address === newAddress.address)) {
                                 customer.addresses.push(newAddress);
+                                needsSave = true;
                             }
                         });
                     }
-
-                    await customer.save();
+                    if (needsSave) await customer.save();
                 }
+                return customer;
+            })();
 
+            const [customer, existingFoods] = await Promise.all([
+                customerPromise,
+                foodModel.find({ _id: { $in: foodIds }, restaurant: restaurantId }).select('_id price').lean(),
+            ]);
+
+            if (existingFoods.length !== foods.length) {
+                return res.status(400).json({ success: false, message: 'Uno o más alimentos no pertenecen a este restaurante' });
+            }
+
+            let deliveryCost = 0;
+            if (customer && selectedAddress) {
                 const selectedAddressObj = customer.addresses.find((addr) => addr.address === selectedAddress);
                 if (!selectedAddressObj) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'La dirección seleccionada no está asociada al cliente',
-                    });
+                    return res.status(400).json({ success: false, message: 'La dirección seleccionada no está asociada al cliente' });
                 }
                 deliveryCost = selectedAddressObj.deliveryCost;
             }
 
-            const foodIds = foods.map((item) => item.food);
-            const existingFoods = await foodModel.find({ _id: { $in: foodIds }, restaurant: req.user.restaurant });
+            // Calcular total con Map para O(n) en vez de O(n²)
+            const foodPriceMap = new Map(existingFoods.map(f => [f._id.toString(), f.price]));
+            const total = foods.reduce((sum, item) => sum + (foodPriceMap.get(item.food) * item.quantity), 0) + deliveryCost;
 
-            if (existingFoods.length !== foods.length) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Uno o más alimentos no pertenecen a este restaurante',
-                });
-            }
-
-            const total = foods.reduce((sum, item) => {
-                const foodDetails = existingFoods.find((food) => food._id.toString() === item.food);
-                return sum + (foodDetails.price * item.quantity);
-            }, 0) + deliveryCost;
-
-            // Actualizar datos relacionados con foods
             updateData.name = !customer && buyer ? buyer.name : null;
             updateData.buyer = customer ? customer._id : null;
             updateData.foods = foods;
@@ -434,19 +370,20 @@ const updateOrderController = async (req, res) => {
             updateData.selectedAddress = customer ? selectedAddress : null;
         }
 
-        // Actualizar la orden
-        const updatedOrder = await orderModel.findByIdAndUpdate(
-            req.params.id,
+        // ── Actualizar y popular en una sola cadena (findOneAndUpdate en vez de find + findByIdAndUpdate) ──
+        const populatedOrder = await orderModel.findOneAndUpdate(
+            { _id: req.params.id, restaurant: restaurantId },
             updateData,
             { new: true, runValidators: true }
-        );
-
-        // Poblar los detalles de los alimentos para la respuesta
-        const populatedOrder = await orderModel.findById(updatedOrder._id)
+        )
             .populate('foods.food', 'title price')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
             .lean();
+
+        if (!populatedOrder) {
+            return res.status(404).json({ success: false, message: 'Pedido no encontrado o no pertenece a este restaurante' });
+        }
 
         res.status(200).json({
             success: true,

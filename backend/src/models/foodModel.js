@@ -46,6 +46,9 @@ const foodSchema = new mongoose.Schema({
 
 }, {
     timestamps: true
-})
+});
 
-module.exports = mongoose.model('Food', foodSchema)
+// Índice compuesto para validar alimentos por restaurante
+foodSchema.index({ restaurant: 1, _id: 1 });
+
+module.exports = mongoose.model('Food', foodSchema);

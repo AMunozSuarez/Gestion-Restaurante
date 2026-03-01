@@ -19,4 +19,7 @@ const cashRegisterSchema = new mongoose.Schema({
     },
 });
 
+// Índice compuesto para buscar caja abierta por restaurante (query más frecuente)
+cashRegisterSchema.index({ restaurant: 1, status: 1 });
+
 module.exports = mongoose.model('CashRegister', cashRegisterSchema);

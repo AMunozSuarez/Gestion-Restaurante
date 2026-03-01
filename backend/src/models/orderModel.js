@@ -85,4 +85,11 @@ const orderSchema = new mongoose.Schema({
     },
 }, { timestamps: true });
 
+// ── Índices compuestos para queries frecuentes ──
+orderSchema.index({ restaurant: 1, cashRegister: 1, status: 1 }); // getAllOrders, getFilteredOrders
+orderSchema.index({ cashRegister: 1, orderNumber: -1 });           // Obtener último número de orden
+orderSchema.index({ restaurant: 1, status: 1, section: 1 });       // Filtros por status/section
+orderSchema.index({ restaurant: 1, createdAt: -1 });               // getAllSales ordenado por fecha
+orderSchema.index({ restaurant: 1, tip: 1, status: 1 });           // getTipsController
+
 module.exports = mongoose.model('Order', orderSchema);
