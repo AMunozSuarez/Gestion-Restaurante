@@ -751,17 +751,17 @@ const CashRegister = () => {
           <div className="mb-6">
             <h4 className="text-professional-subtitle mb-3">Totales del Sistema por Método de Pago</h4>
             <div className="space-y-2">
-              {Object.entries(calculateSystemTotalsByPaymentMethod(selectedCashSales || [])).map(([method, amount]) => (
-                <div key={method} className="bg-blue-50 p-2 rounded-lg border border-blue-200">
-                  <p className="text-xs text-blue-700 font-medium">{method}</p>
-                  <p className="text-sm font-bold text-blue-800">{formatCurrency(amount)}</p>
-                </div>
-              ))}
-              {Object.keys(calculateSystemTotalsByPaymentMethod(selectedCashSales || [])).length === 0 && (
-                <div className="text-center py-4">
-                  <p className="text-professional-body text-sm">No hay totales por método de pago</p>
-                </div>
-              )}
+              {(() => {
+                const STANDARD_METHODS = ['Efectivo', 'Debito', 'Transferencia'];
+                const totals = calculateSystemTotalsByPaymentMethod(selectedCashSales || []);
+                const extraMethods = Object.keys(totals).filter(m => !STANDARD_METHODS.includes(m));
+                return [...STANDARD_METHODS, ...extraMethods].map((method) => (
+                  <div key={method} className="bg-blue-50 p-2 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-700 font-medium">{method}</p>
+                    <p className="text-sm font-bold text-blue-800">{formatCurrency(totals[method] || 0)}</p>
+                  </div>
+                ));
+              })()}
             </div>
           </div>
 
@@ -833,6 +833,8 @@ const CashRegister = () => {
               <div className="space-y-2">
                 {['Efectivo', 'Debito', 'Transferencia'].map((method) => {
                   const amount = selectedCashRegister.officialIncome[method] ?? 0;
+                  const systemTotals = calculateSystemTotalsByPaymentMethod(selectedCashSales || []);
+                  const systemAmount = systemTotals[method] || 0;
                   return (
                   <div key={method} className="bg-amber-50 p-2 rounded-lg border border-amber-200">
                     <div className="flex justify-between items-center">
@@ -840,23 +842,20 @@ const CashRegister = () => {
                         <p className="text-xs text-amber-700 font-medium">{method}</p>
                         <p className="text-sm font-bold text-amber-800">{formatCurrency(amount)}</p>
                       </div>
-                      {/* Comparación con el sistema */}
-                      {calculateSystemTotalsByPaymentMethod(selectedCashSales || [])[method] && (
-                        <div className="text-right">
-                          <p className="text-xs text-gray-600">Sistema:</p>
-                          <p className="text-xs font-medium text-gray-700">
-                            {formatCurrency(calculateSystemTotalsByPaymentMethod(selectedCashSales || [])[method])}
-                          </p>
-                          <p className={`text-xs font-bold ${
-                            (parseFloat(amount) - calculateSystemTotalsByPaymentMethod(selectedCashSales || [])[method]) >= 0 
-                              ? 'text-green-700' 
-                              : 'text-red-700'
-                          }`}>
-                            {(parseFloat(amount) - calculateSystemTotalsByPaymentMethod(selectedCashSales || [])[method]) >= 0 ? '+' : ''}
-                            {formatCurrency(parseFloat(amount) - calculateSystemTotalsByPaymentMethod(selectedCashSales || [])[method])}
-                          </p>
-                        </div>
-                      )}
+                      <div className="text-right">
+                        <p className="text-xs text-gray-600">Sistema:</p>
+                        <p className="text-xs font-medium text-gray-700">
+                          {formatCurrency(systemAmount)}
+                        </p>
+                        <p className={`text-xs font-bold ${
+                          (parseFloat(amount) - systemAmount) >= 0 
+                            ? 'text-green-700' 
+                            : 'text-red-700'
+                        }`}>
+                          {(parseFloat(amount) - systemAmount) >= 0 ? '+' : ''}
+                          {formatCurrency(parseFloat(amount) - systemAmount)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ); })}

@@ -12,10 +12,11 @@ export const CashRegisterProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const checkCashRegisterStatus = useCallback(async () => {
+  // silent=true: actualiza datos sin activar isLoading (para refrescos en background)
+  const checkCashRegisterStatus = useCallback(async (silent = false) => {
     if (!isAuthenticated) return;
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       setError(null);
       const response = await cashRegisterService.getCashRegisterStatus();
       if (response.success) {
@@ -30,7 +31,7 @@ export const CashRegisterProvider = ({ children }) => {
       setCashRegister(null);
       setIsOpen(false);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [isAuthenticated]);
 
@@ -110,7 +111,7 @@ export const CashRegisterProvider = ({ children }) => {
   }, []);
 
   const refreshCashRegisterStatus = useCallback(async () => {
-    await checkCashRegisterStatus();
+    await checkCashRegisterStatus(true); // silent: no activa isLoading
   }, [checkCashRegisterStatus]);
 
   const value = {
