@@ -16,3 +16,10 @@ root.render(
 // to log results (for example: reportWebVitals(console.log))
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
+
+// Prevent mouse wheel from changing numeric input values
+document.addEventListener('wheel', function () {
+  if (document.activeElement?.type === 'number') {
+    document.activeElement.blur();
+  }
+}, { passive: true });
