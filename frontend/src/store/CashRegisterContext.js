@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 const CashRegisterContext = createContext(null);
 
 export const CashRegisterProvider = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: authIsLoading } = useAuth();
   const [cashRegister, setCashRegister] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,8 +34,11 @@ export const CashRegisterProvider = ({ children }) => {
     }
   }, [isAuthenticated]);
 
-  // Fetch una sola vez al autenticarse (y no en cada cambio de vista)
+  // Fetch una sola vez al autenticarse (y no en cada cambio de vista).
+  // Si auth todavía está cargando, no hacer nada — isLoading permanece true
+  // para que las páginas no muestren la modal de caja cerrada prematuramente.
   useEffect(() => {
+    if (authIsLoading) return; // esperar a que auth resuelva
     if (isAuthenticated) {
       checkCashRegisterStatus();
     } else {
@@ -43,7 +46,7 @@ export const CashRegisterProvider = ({ children }) => {
       setIsOpen(false);
       setIsLoading(false);
     }
-  }, [isAuthenticated, checkCashRegisterStatus]);
+  }, [isAuthenticated, authIsLoading, checkCashRegisterStatus]);
 
   const openCashRegister = useCallback(async (initialAmount) => {
     try {
