@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCashRegister } from '../hooks/useCashRegister';
+import { useCashRegister } from '../store/CashRegisterContext';
 import { useCashRegisters } from '../hooks/useCashRegisters';
 import { useCashRegisterSales } from '../hooks/useCashRegisterSales';
 import { useTips } from '../hooks/useTips';

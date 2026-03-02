@@ -129,64 +129,42 @@ const getAllOrdersController = async (req, res) => {
     try {
         const { status, section, limit, sortBy = 'createdAt' } = req.query;
 
-        // Validar sortBy para seguridad
         const allowedSorts = ['createdAt', 'updatedAt', 'orderNumber'];
         const validSortBy = allowedSorts.includes(sortBy) ? sortBy : 'createdAt';
 
-        // Obtener la caja abierta actual
+        // Obtener solo el _id de la caja abierta
         const currentCashRegister = await cashRegisterModel.findOne({
             restaurant: req.user.restaurant,
             status: 'Abierta',
-        });
+        }).select('_id').lean();
 
-        // Si no hay caja abierta, devolver lista vacía en lugar de error
         if (!currentCashRegister) {
-            return res.status(200).json({
-                success: true,
-                message: 'No hay una caja abierta',
-                orders: [],
-            });
+            return res.status(200).json({ success: true, message: 'No hay una caja abierta', orders: [] });
         }
 
-        // Construir filtros
         const filters = {
             restaurant: req.user.restaurant,
-            cashRegister: currentCashRegister._id
+            cashRegister: currentCashRegister._id,
         };
-
-        // Agregar filtros opcionales
-        if (status) {
-            filters.status = status;
-        }
-        if (section) {
-            filters.section = section;
-        }
+        if (status) filters.status = status;
+        if (section) filters.section = section;
 
         let query = orderModel
             .find(filters)
-            .sort({ [validSortBy]: -1 }) // Ordenar descendente (más nuevos/recientes primero)
-            .populate('foods.food') // Incluir los datos de los alimentos
-            .populate('buyer') // Incluir los datos del cliente
-            .populate('waiter', 'userName name'); // Incluir los datos del mesero
+            .sort({ [validSortBy]: -1 })
+            .populate('foods.food', 'title price category')
+            .populate('buyer', 'name phone addresses')
+            .populate('waiter', 'userName name')
+            .lean();
 
-        // Aplicar límite si se especifica
-        if (limit) {
-            query = query.limit(Number(limit));
-        }
+        if (limit) query = query.limit(Number(limit));
 
         const orders = await query;
 
-        if (!orders) {
-            return res.status(404).send({
-                success: false,
-                message: 'No se encontraron pedidos para este restaurante',
-            });
-        }
-
-        res.status(200).send({
+        res.status(200).json({
             success: true,
             message: 'Pedidos recuperados exitosamente',
-            orders,
+            orders: orders || [],
         });
     } catch (error) {
         console.error('Error recuperando los pedidos:', error);
@@ -199,29 +177,19 @@ const getOrderByIdController = async (req, res) => {
     try {
         const order = await orderModel
             .findOne({ _id: req.params.id, restaurant: req.user.restaurant })
-            .populate('foods.food') // Incluir los datos de los alimentos
-            .populate('buyer') // Incluir los datos del cliente
-            .populate('waiter', 'userName name'); // Incluir los datos del mesero
+            .populate('foods.food', 'title price category')
+            .populate('buyer', 'name phone addresses')
+            .populate('waiter', 'userName name')
+            .lean();
 
         if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Pedido no encontrado o no pertenece a este restaurante',
-            });
+            return res.status(404).json({ success: false, message: 'Pedido no encontrado o no pertenece a este restaurante' });
         }
 
-        res.status(200).json({
-            success: true,
-            message: 'Pedido recuperado exitosamente',
-            order,
-        });
+        res.status(200).json({ success: true, message: 'Pedido recuperado exitosamente', order });
     } catch (error) {
         console.error('Error recuperando el pedido:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error recuperando el pedido',
-            error: error.message,
-        });
+        res.status(500).json({ success: false, message: 'Error recuperando el pedido', error: error.message });
     }
 };
 
@@ -230,47 +198,30 @@ const getOrderByNumberController = async (req, res) => {
     try {
         const { orderNumber } = req.params;
         
-        // Obtener la caja abierta actual
         const currentCashRegister = await cashRegisterModel.findOne({
             restaurant: req.user.restaurant,
             status: 'Abierta',
-        });
+        }).select('_id').lean();
 
         if (!currentCashRegister) {
-            return res.status(400).json({
-                success: false,
-                message: 'No se puede buscar órdenes sin una caja abierta. Por favor, abra una caja primero.',
-            });
+            return res.status(400).json({ success: false, message: 'No se puede buscar órdenes sin una caja abierta. Por favor, abra una caja primero.' });
         }
 
         const order = await orderModel
-            .findOne({ 
-                orderNumber,
-                cashRegister: currentCashRegister._id 
-            })
-            .populate('foods.food') // Incluir los datos de los alimentos
-            .populate('buyer') // Incluir los datos del cliente
-            .populate('waiter', 'userName name'); // Incluir los datos del mesero
+            .findOne({ orderNumber, cashRegister: currentCashRegister._id })
+            .populate('foods.food', 'title price category')
+            .populate('buyer', 'name phone addresses')
+            .populate('waiter', 'userName name')
+            .lean();
 
         if (!order) {
-            return res.status(404).send({
-                success: false,
-                message: 'Pedido no encontrado',
-            });
+            return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
         }
 
-        res.status(200).send({
-            success: true,
-            message: 'Pedido recuperado exitosamente',
-            order,
-        });
+        res.status(200).json({ success: true, message: 'Pedido recuperado exitosamente', order });
     } catch (error) {
         console.error('Error recuperando el pedido por número:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error recuperando el pedido',
-            error: error.message,
-        });
+        res.status(500).json({ success: false, message: 'Error recuperando el pedido', error: error.message });
     }
 };
 
@@ -458,10 +409,11 @@ const getFilteredOrders = async (req, res) => {
 
         const orders = await orderModel.find(filters)
             .sort({ createdAt: -1 })
-            .populate('foods.food', 'title price') // Incluir los datos de los alimentos
-            .populate('waiter', 'userName name') // Incluir los datos del mesero
-            .populate('buyer', 'name phone') // Incluir los datos del cliente
-            .populate('cashRegister', 'dateOpened dateClosed status'); // Incluir datos de la caja registradora
+            .populate('foods.food', 'title price')
+            .populate('waiter', 'userName name')
+            .populate('buyer', 'name phone')
+            .populate('cashRegister', 'dateOpened dateClosed status')
+            .lean();
         
         res.status(200).json({ success: true, orders });
     } catch (error) {
@@ -477,24 +429,17 @@ const getRecentOrders = async (req, res) => {
     try {
         const { limit = 10, status, section } = req.query;
 
-        // allow sorting by createdAt or updatedAt
         let { sortBy } = req.query;
         const allowedSorts = ['createdAt', 'updatedAt'];
         if (!allowedSorts.includes(sortBy)) sortBy = 'createdAt';
 
-        // Obtener la caja abierta actual
         const currentCashRegister = await cashRegisterModel.findOne({
             restaurant: req.user.restaurant,
             status: 'Abierta',
-        });
+        }).select('_id').lean();
 
-        // Si no hay caja abierta, devolver lista vacía en lugar de error
         if (!currentCashRegister) {
-            return res.status(200).json({
-                success: true,
-                message: 'No hay una caja abierta',
-                orders: [],
-            });
+            return res.status(200).json({ success: true, message: 'No hay una caja abierta', orders: [] });
         }
 
         const filters = {
@@ -503,22 +448,17 @@ const getRecentOrders = async (req, res) => {
         };
 
         if (status) {
-            // support comma separated statuses
             const statuses = status.split(',').map(s => s.trim());
             filters.status = { $in: statuses };
         }
-
-        if (section) {
-            filters.section = section;
-        }
-
-        const numericLimit = Number(limit) || 10;
+        if (section) filters.section = section;
 
         const orders = await orderModel.find(filters)
             .sort({ [sortBy]: -1 })
-            .limit(numericLimit)
-            .populate('foods.food')
-            .populate('buyer');
+            .limit(Number(limit) || 10)
+            .populate('foods.food', 'title price category')
+            .populate('buyer', 'name phone')
+            .lean();
 
         res.status(200).json({ success: true, orders });
     } catch (error) {
@@ -569,20 +509,17 @@ const getAllSalesController = async (req, res) => {
 
         let query = orderModel
             .find(filters)
-            .sort({ [validSortBy]: -1 }) // Ordenar descendente (más nuevos/recientes primero)
-            .populate('foods.food') // Incluir los datos de los alimentos
-            .populate('buyer') // Incluir los datos del cliente
-            .populate('waiter', 'userName name'); // Incluir los datos del mesero
+            .sort({ [validSortBy]: -1 })
+            .populate('foods.food', 'title price')
+            .populate('buyer', 'name phone')
+            .populate('waiter', 'userName name')
+            .lean();
 
-        // Aplicar límite si se especifica
-        if (limit) {
-            query = query.limit(Number(limit));
-        }
+        if (limit) query = query.limit(Number(limit));
 
         const orders = await query;
 
-
-        res.status(200).send({
+        res.status(200).json({
             success: true,
             message: 'Todas las ventas recuperadas exitosamente',
             orders,
@@ -618,7 +555,7 @@ const getTipsController = async (req, res) => {
             const activeCashRegister = await cashRegisterModel.findOne({
                 restaurant: req.user.restaurant,
                 status: 'Abierta'
-            });
+            }).select('_id').lean();
             if (activeCashRegister) {
                 filters.cashRegister = activeCashRegister._id;
                 console.log('📦 Filtrando por caja activa:', activeCashRegister._id);
@@ -670,6 +607,7 @@ const getTipsController = async (req, res) => {
 
         // Obtener órdenes con propinas
         const tips = await orderModel.find(filters)
+            .select('tip waiter buyer orderNumber total createdAt status section')
             .populate('waiter', 'userName name')
             .populate('buyer', 'name')
             .sort({ createdAt: -1 })

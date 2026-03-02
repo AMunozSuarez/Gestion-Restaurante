@@ -9,6 +9,18 @@ export const productsService = {
   // Obtener todos los productos
   getProducts: async (filters = {}) => {
     try {
+      // Usar caché si es válido (evita re-fetch al cambiar de vista)
+      const now = Date.now();
+      const isCacheValid = productsCache && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION);
+
+      if (isCacheValid) {
+        let products = productsCache;
+        if (filters.availableOnly || filters.available) {
+          products = products.filter(product => product.isAvailable);
+        }
+        return { success: true, foods: products };
+      }
+
       const response = await api.get('/food/getAll');
       
       if (response.data.success && response.data.foods) {

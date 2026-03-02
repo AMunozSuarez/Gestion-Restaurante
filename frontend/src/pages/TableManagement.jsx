@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTables } from '../hooks/useTables';
-import { useCashRegister } from '../hooks/useCashRegister';
+import { useCashRegister } from '../store/CashRegisterContext';
 import { useWaiters } from '../hooks/useUsers';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import { 

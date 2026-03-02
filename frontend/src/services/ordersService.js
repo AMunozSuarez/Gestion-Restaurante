@@ -1,6 +1,30 @@
 import api from './api';
 import printingService from './printingService';
 
+// ── Caché simple para órdenes (evita re-fetch al cambiar de vista) ──
+const orderCache = new Map();
+const ORDER_CACHE_TTL = 10 * 1000; // 10 segundos
+
+const getCacheKey = (url) => url;
+
+const getCachedResponse = (key) => {
+  const entry = orderCache.get(key);
+  if (entry && (Date.now() - entry.timestamp < ORDER_CACHE_TTL)) {
+    return entry.data;
+  }
+  orderCache.delete(key);
+  return null;
+};
+
+const setCachedResponse = (key, data) => {
+  orderCache.set(key, { data, timestamp: Date.now() });
+};
+
+// Invalidar caché de órdenes (llamar después de crear/actualizar/eliminar)
+const invalidateOrderCache = () => {
+  orderCache.clear();
+};
+
 export const ordersService = {
   // Obtener todos los pedidos
   getOrders: async (filters = {}) => {
@@ -14,8 +38,13 @@ export const ordersService = {
       if (filters.sortBy) params.append('sortBy', filters.sortBy);
 
       const url = `/order/getAll?${params.toString()}`;
+
+      // Intentar caché primero
+      const cached = getCachedResponse(getCacheKey(url));
+      if (cached) return cached;
       
       const response = await api.get(url);
+      setCachedResponse(getCacheKey(url), response.data);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener pedidos');
@@ -36,6 +65,7 @@ export const ordersService = {
   createOrder: async (orderData) => {
     try {
       const response = await api.post('/order/create', orderData);
+      invalidateOrderCache(); // Invalidar caché tras crear
 
       // Solo imprimir si hay productos en el carrito
       const hasProducts = Array.isArray(orderData.foods) && orderData.foods.length > 0;
@@ -62,6 +92,7 @@ export const ordersService = {
   updateOrder: async (id, updateData) => {
     try {
       const response = await api.put(`/order/update/${id}`, updateData);
+      invalidateOrderCache(); // Invalidar caché tras actualizar
       
       // Solo imprimir comanda de cocina si el pedido NO está siendo completado
       const isCompleting = updateData.status === 'Completado' || updateData.status === 'completed';
@@ -86,6 +117,7 @@ export const ordersService = {
   updateOrderStatus: async (id, status) => {
     try {
       const response = await api.put(`/order/update/${id}`, { status });
+      invalidateOrderCache();
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al actualizar estado del pedido');
@@ -96,6 +128,7 @@ export const ordersService = {
   updateOrderWithoutPrint: async (id, updateData) => {
     try {
       const response = await api.put(`/order/update/${id}`, updateData);
+      invalidateOrderCache();
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al actualizar pedido');
@@ -106,6 +139,7 @@ export const ordersService = {
   deleteOrder: async (id) => {
     try {
       const response = await api.delete(`/order/delete/${id}`);
+      invalidateOrderCache();
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al eliminar pedido');
@@ -124,7 +158,12 @@ export const ordersService = {
 
       const url = `/order/recent?${params.toString()}`;
 
+      // Intentar caché primero
+      const cached = getCachedResponse(getCacheKey(url));
+      if (cached) return cached;
+
       const response = await api.get(url);
+      setCachedResponse(getCacheKey(url), response.data);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al obtener pedidos recientes');

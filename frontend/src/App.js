@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { CashRegisterProvider } from './store/CashRegisterContext';
 import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Mostrador from './pages/Mostrador';
@@ -42,6 +43,7 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
+      <CashRegisterProvider>
       <Router>
         <Routes>
           {/* Ruta de login sin layout */}
@@ -227,6 +229,7 @@ function App() {
           <Route path="*" element={<Navigate to="/mostrador" replace />} />
         </Routes>
       </Router>
+      </CashRegisterProvider>
     </AuthProvider>
   );
 }

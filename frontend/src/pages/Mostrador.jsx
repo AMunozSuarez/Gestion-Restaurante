@@ -3,7 +3,7 @@ import { Button } from '../components/ui';
 import { PlusIcon, MinusIcon, ClockIcon, TrashIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import { useOrders, useRecentOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
-import { useCashRegister } from '../hooks/useCashRegister';
+import { useCashRegister } from '../store/CashRegisterContext';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import ProductModal from '../components/common/ProductModal';
 import { formatChileanCurrency } from '../utils/dateUtils';

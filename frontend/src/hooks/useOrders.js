@@ -15,21 +15,8 @@ export const useOrders = (filters = {}, callbacks = {}) => {
       
       // El backend devuelve { success: true, orders: [...] }
       if (response.success) {
-        
-        // Filtrar adicional en el cliente para asegurar que coincida con los filtros
-        let filteredOrders = response.orders || [];
-        
-        // Filtrar por estado si se especifica
-        if (filters.status) {
-          filteredOrders = filteredOrders.filter(order => order.status === filters.status);
-        }
-        
-        // Filtrar por sección si se especifica
-        if (filters.section) {
-          filteredOrders = filteredOrders.filter(order => order.section === filters.section);
-        }
-        
-        setOrders(filteredOrders);
+        // El backend ya filtra por status/section via query params
+        setOrders(response.orders || []);
       } else {
         setOrders([]);
         setError(response.message || 'No se pudieron obtener los pedidos');
@@ -220,22 +207,8 @@ export const useRecentOrders = (filters = {}) => {
       
       // El backend devuelve { success: true, orders: [...] }
       if (response.success) {
-        
-        // Filtrar adicional en el cliente para asegurar que coincida con los filtros
-        let filteredOrders = response.orders || [];
-        
-        // Filtrar por sección si se especifica
-        if (filters.section) {
-          filteredOrders = filteredOrders.filter(order => order.section === filters.section);
-        }
-        
-        // Filtrar por estado si se especifica (puede ser múltiple separado por comas)
-        if (filters.status) {
-          const statuses = filters.status.split(',').map(s => s.trim());
-          filteredOrders = filteredOrders.filter(order => statuses.includes(order.status));
-        }
-        
-        setOrders(filteredOrders);
+        // El backend ya filtra por section/status via query params
+        setOrders(response.orders || []);
       } else {
         setOrders([]);
         setError(response.message || 'No se pudieron obtener los pedidos recientes');

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTable, useTables } from '../hooks/useTables';
 import { useOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
-import { useCashRegister } from '../hooks/useCashRegister';
+import { useCashRegister } from '../store/CashRegisterContext';
 import { useWaiters } from '../hooks/useUsers';
 import { 
     ArrowLeftIcon, 

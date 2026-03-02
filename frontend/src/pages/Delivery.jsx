@@ -3,7 +3,7 @@ import { Button } from '../components/ui';
 import { PlusIcon, MinusIcon, TruckIcon, TrashIcon, MapIcon, PhoneIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import { useOrders, useRecentOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
-import { useCashRegister } from '../hooks/useCashRegister';
+import { useCashRegister } from '../store/CashRegisterContext';
 import { useCustomers } from '../hooks/useCustomers';
 import { useCustomerSearch } from '../hooks/useCustomerSearch';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
