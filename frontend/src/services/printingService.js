@@ -300,7 +300,11 @@ Hora: ${date.toLocaleTimeString()}
     // Agregar cada producto al contenido (marcado para negrita si esta configurado)
     content += `[BOLD]`;
     items.forEach(item => {
-      content += `${item.quantity}x ${item.product_name}\n`;
+      const isNewItem = options.newFoods && options.newFoods.some(nf => {
+        const newName = nf.name || nf.food?.title || nf.food?.name || '';
+        return newName === item.product_name;
+      });
+      content += `${isNewItem ? '* ' : ''}${item.quantity}x ${item.product_name}\n`;
       if (item.notes && item.notes.trim()) {
         // Manejar comentarios con saltos de linea
         const noteLines = item.notes.trim().split('\n');
@@ -315,36 +319,6 @@ Hora: ${date.toLocaleTimeString()}
       content += '\n';
     });
     content += `[/BOLD]`;
-
-    // Si es actualización, mostrar secciones de productos eliminados y nuevos
-    if (isUpdate) {
-      if (options.deletedFoods && options.deletedFoods.length > 0) {
-        content += `\n================================\n`;
-        content += `   --- ELIMINAR ---\n`;
-        content += `================================\n`;
-        options.deletedFoods.forEach(item => {
-          const name = item.name || item.food?.title || item.food?.name || 'Producto';
-          content += `*** ${item.quantity}x ${name} ***\n`;
-          if (item.comment) {
-            content += `   Nota: ${item.comment}\n`;
-          }
-        });
-      }
-      if (options.newFoods && options.newFoods.length > 0) {
-        content += `\n================================\n`;
-        content += `   +++ AGREGAR NUEVO +++\n`;
-        content += `================================\n`;
-        content += `[BOLD]`;
-        options.newFoods.forEach(item => {
-          const name = item.name || item.food?.title || item.food?.name || 'Producto';
-          content += `>>> ${item.quantity}x ${name}\n`;
-          if (item.comment) {
-            content += `   Nota: ${item.comment}\n`;
-          }
-        });
-        content += `[/BOLD]`;
-      }
-    }
 
     content += `\n================================`;
 
