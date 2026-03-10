@@ -350,7 +350,7 @@ const CashRegister = () => {
   }
 
   return (
-    <div className="h-full bg-professional flex gap-4 p-2 lg:p-4 overflow-hidden">
+    <div className="h-full bg-professional flex flex-col lg:flex-row gap-2 lg:gap-4 p-2 lg:p-4 overflow-auto lg:overflow-hidden">
       {/* Contenido Principal */}
       <div className="flex-1 min-w-0 flex flex-col gap-2 lg:gap-4">
         {/* Header - Más compacto */}
@@ -645,7 +645,7 @@ const CashRegister = () => {
 
       {/* Panel de Detalle Lateral */}
       {selectedCashRegister && (
-        <div className="w-[420px] flex-shrink-0 card-professional p-3 lg:p-6 overflow-y-auto scrollbar-professional">
+        <div className="mobile-detail-panel card-professional p-3 lg:p-6 overflow-y-auto scrollbar-professional">
           <div className="flex justify-between items-center mb-4 lg:mb-6">
             <h3 className="text-sm lg:text-base font-semibold text-amber-800">
               Detalle de Caja

@@ -573,7 +573,7 @@ const Configuracion = () => {
   }, [message]);
 
   return (
-    <div className="h-full bg-cream-50 flex flex-col gap-6 p-6 overflow-hidden">
+    <div className="h-full bg-cream-50 flex flex-col gap-4 md:gap-6 p-3 md:p-6 overflow-hidden">
       <div className="max-w-6xl mx-auto w-full flex-1 overflow-y-auto space-y-6">
         {/* Header */}
         <div>
@@ -587,10 +587,10 @@ const Configuracion = () => {
 
         {/* Tabs */}
         <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-4 md:space-x-8 overflow-x-auto">
             <button
               onClick={() => setActiveTab('printers')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${
                 activeTab === 'printers'
                   ? 'border-green-500 text-green-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -604,7 +604,7 @@ const Configuracion = () => {
             {isOwnerOrAdmin && (
               <button
                 onClick={() => setActiveTab('subscription')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${
                   activeTab === 'subscription'
                     ? 'border-green-500 text-green-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -619,7 +619,7 @@ const Configuracion = () => {
             {isOwnerOrAdmin && (
               <button
                 onClick={() => setActiveTab('users')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${
                   activeTab === 'users'
                     ? 'border-green-500 text-green-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'

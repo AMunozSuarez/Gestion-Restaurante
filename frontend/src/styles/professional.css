@@ -372,6 +372,94 @@
   line-height: 1.5;
 }
 
+/* ========== RESPONSIVE MOBILE ========== */
+
+/* Mobile overlay panel (for create/edit forms on small screens) */
+.mobile-overlay-panel {
+  position: relative;
+  width: 480px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1023px) {
+  .mobile-overlay-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    width: 100%;
+    background: white;
+    overflow-y: auto;
+  }
+
+  /* On mobile, reduce title size */
+  .text-professional-title {
+    font-size: 20px;
+  }
+
+  .text-blue-title {
+    font-size: 18px;
+  }
+
+  /* On mobile, reduce button padding */
+  .btn-professional-primary,
+  .btn-professional-secondary,
+  .btn-professional-outline,
+  .btn-blue-primary {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  /* On mobile order cards adjust */
+  .order-card {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+
+  /* Detail side panel as overlay */
+  .mobile-detail-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    width: 100%;
+    background: white;
+    overflow-y: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-detail-panel {
+    width: 420px;
+    flex-shrink: 0;
+  }
+}
+
+/* Mobile order card (for order list in Mostrador/Delivery on small screens) */
+.mobile-order-card {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(210, 180, 140, 0.4);
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-order-card:active {
+  transform: scale(0.98);
+}
+
+.mobile-order-card-blue {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  background: rgba(239, 246, 255, 0.9);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-order-card-blue:active {
+  transform: scale(0.98);
+}
+
 /* Estados de pedidos azules */
 .status-preparing-blue {
   background: rgba(59, 130, 246, 0.1);

@@ -936,14 +936,14 @@ const Mostrador = () => {
 
   return (
     <>
-      <div className="h-full bg-professional flex flex-col gap-4 p-4 overflow-hidden">
+      <div className="h-full bg-professional flex flex-col gap-2 lg:gap-4 p-2 lg:p-4 overflow-hidden">
         {/* Header con botón crear pedido */}
         <div className={`flex justify-between items-center flex-shrink-0 ${
           !isCreatingOrder && !isEditingOrder && !isViewingCompletedOrder 
             ? 'max-w-6xl mx-auto w-full' 
             : ''
         }`}>
-          <h1 className="text-professional-title">Mostrador</h1>
+          <h1 className="text-professional-title text-xl lg:text-[28px]">Mostrador</h1>
           <Button
             onClick={() => {
               if (isCreatingOrder) {
@@ -970,11 +970,11 @@ const Mostrador = () => {
         </div>
 
         {/* Contenido principal con altura fija */}
-        <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
+        <div className="flex-1 flex flex-col lg:flex-row gap-2 lg:gap-4 overflow-hidden min-h-0">
         {/* Columna izquierda - Formulario de creación (cuando está activo) */}
         {isCreatingOrder && (
-          <div className="w-[480px] flex-shrink-0">
-            <div className="h-full flex flex-col card-professional p-4">
+          <div className="mobile-overlay-panel">
+            <div className="h-full flex flex-col card-professional p-3 lg:p-4">
               <h2 className="text-professional-subtitle mb-3 flex-shrink-0">Creando Nuevo Pedido</h2>
               
               {/* Formulario temporal con scroll independiente */}
@@ -1223,21 +1223,21 @@ const Mostrador = () => {
 
         {/* Columna derecha - Lista de pedidos con altura controlada */}
         <div className={`${
-          isCreatingOrder ? 'flex-1' : 
-          (isEditingOrder || isViewingCompletedOrder) ? 'flex-1' : 
-          'w-full max-w-6xl mx-auto'
-        } flex flex-col gap-3 min-h-0`}>
+          isCreatingOrder ? 'hidden lg:flex flex-1' : 
+          (isEditingOrder || isViewingCompletedOrder) ? 'hidden lg:flex flex-1' : 
+          'w-full max-w-6xl mx-auto flex'
+        } flex-col gap-2 lg:gap-3 min-h-0`}>
           {/* Pedidos en preparación - 60% de la altura */}
           <div className="flex-[60] min-h-0">
-            <div className="h-full flex flex-col card-professional p-4">
-              <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center gap-3">
-                <ClockIcon className="w-6 h-6 text-orange-600" />
+            <div className="h-full flex flex-col card-professional p-2 lg:p-4">
+              <h2 className="text-professional-subtitle text-base lg:text-xl mb-2 lg:mb-3 flex-shrink-0 flex items-center gap-2 lg:gap-3">
+                <ClockIcon className="w-5 h-5 lg:w-6 lg:h-6 text-orange-600" />
                 Pedidos en Preparación
               </h2>
               
               <div className="flex-1 min-h-0 flex flex-col">
-                {/* Encabezado de la tabla - fijo */}
-                <div className="table-header-professional grid grid-cols-6 gap-3 mb-2 flex-shrink-0 px-2">
+                {/* Encabezado de la tabla - fijo (solo desktop) */}
+                <div className="hidden lg:grid table-header-professional grid-cols-6 gap-3 mb-2 flex-shrink-0 px-2">
                   <div className="text-center font-semibold text-sm">#</div>
                   <div className="text-center font-semibold text-sm">Fecha/Hora</div>
                   <div className="text-center font-semibold text-sm">Tiempo</div>
@@ -1249,9 +1249,10 @@ const Mostrador = () => {
                 {/* Lista de pedidos con scroll independiente */}
                 <div className="flex-1 overflow-y-auto scrollbar-professional space-y-1 pr-1">
                   {orders.map((order, index) => (
+                    <React.Fragment key={order._id || order.id}>
+                    {/* Desktop row */}
                     <div 
-                      key={order._id || order.id} 
-                      className={`grid grid-cols-6 gap-3 p-3 rounded-lg border transition-all duration-200 cursor-pointer hover:shadow-md ${
+                      className={`hidden lg:grid grid-cols-6 gap-3 p-3 rounded-lg border transition-all duration-200 cursor-pointer hover:shadow-md ${
                         (selectedOrder?._id || selectedOrder?.id) === (order._id || order.id)
                           ? 'bg-yellow-100 shadow-md border-yellow-300' 
                           : 'bg-yellow-50 hover:bg-yellow-100'
@@ -1285,6 +1286,33 @@ const Mostrador = () => {
                         {formatChileanCurrency(order.total || 0)}
                       </div>
                     </div>
+                    {/* Mobile card */}
+                    <div 
+                      className={`lg:hidden mobile-order-card ${
+                        (selectedOrder?._id || selectedOrder?.id) === (order._id || order.id)
+                          ? 'bg-yellow-100 border-yellow-300 shadow-md' 
+                          : 'bg-yellow-50'
+                      }`}
+                      onClick={() => handleSelectOrderToEdit(order)}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-800 text-sm">#{order.orderNumber}</span>
+                          <span className="status-preparing text-xs">Preparación</span>
+                        </div>
+                        <span className="font-semibold text-gray-800 text-sm">{formatChileanCurrency(order.total || 0)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-800 font-medium truncate mr-2">{getCustomerName(order)}</span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-orange-500 font-medium text-xs">
+                            {Math.max(0, Math.floor((now - new Date(order.createdAt)) / 60000))} min
+                          </span>
+                          <span className="text-xs text-gray-500">{formatTime(order.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    </React.Fragment>
                   ))}
                   
                   {orders.length === 0 && (
@@ -1299,14 +1327,14 @@ const Mostrador = () => {
 
           {/* Pedidos completados recientes - 40% de la altura */}
           <div className="flex-[40] min-h-0">
-            <div className="h-full flex flex-col card-professional p-4">
-              <h2 className="text-professional-subtitle mb-3 flex-shrink-0">
+            <div className="h-full flex flex-col card-professional p-2 lg:p-4">
+              <h2 className="text-professional-subtitle text-base lg:text-xl mb-2 lg:mb-3 flex-shrink-0">
                 Pedidos Completados/Cancelados
               </h2>
               
               <div className="flex-1 min-h-0 flex flex-col">
-                {/* Encabezado de la tabla - fijo */}
-                <div className="bg-green-700 text-white grid grid-cols-5 gap-3 p-2 rounded-t-lg mb-1 flex-shrink-0">
+                {/* Encabezado de la tabla - fijo (solo desktop) */}
+                <div className="hidden lg:grid bg-green-700 text-white grid-cols-5 gap-3 p-2 rounded-t-lg mb-1 flex-shrink-0">
                   <div className="text-center font-semibold text-xs">#</div>
                   <div className="text-center font-semibold text-xs">Fecha/Hora</div>
                   <div className="text-center font-semibold text-xs">Cliente</div>
@@ -1317,9 +1345,10 @@ const Mostrador = () => {
                 {/* Lista de pedidos completados con scroll independiente */}
                 <div className="flex-1 overflow-y-auto scrollbar-professional space-y-1 pr-1">
                   {completedOrders.map((order, index) => (
+                    <React.Fragment key={order.id}>
+                    {/* Desktop row */}
                     <div 
-                      key={order.id} 
-                      className={`grid grid-cols-5 gap-3 p-2 rounded transition-colors cursor-pointer ${
+                      className={`hidden lg:grid grid-cols-5 gap-3 p-2 rounded transition-colors cursor-pointer ${
                         (selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
                           ? (order.status === 'Completado' ? 'bg-green-200 border-green-400' : 'bg-red-200 border-red-400')
                           : (order.status === 'Completado' ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100')
@@ -1351,6 +1380,30 @@ const Mostrador = () => {
                         {formatChileanCurrency(order.total || 0)}
                       </div>
                     </div>
+                    {/* Mobile card */}
+                    <div 
+                      className={`lg:hidden p-2 rounded-lg cursor-pointer border-l-4 ${
+                        (selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
+                          ? (order.status === 'Completado' ? 'bg-green-200 border-green-500' : 'bg-red-200 border-red-500')
+                          : (order.status === 'Completado' ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500')
+                      }`}
+                      onClick={() => handleSelectCompletedOrder(order)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-800 text-sm">#{order.orderNumber}</span>
+                          <span className={order.status === 'Completado' ? 'status-completed text-xs' : 'bg-red-100 border-red-300 text-red-600 rounded-full px-1 py-0.5 text-xs font-medium'}>
+                            {order.status}
+                          </span>
+                        </div>
+                        <span className="font-semibold text-gray-800 text-sm">{formatChileanCurrency(order.total || 0)}</span>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-xs text-gray-800 font-medium truncate mr-2">{getCustomerName(order)?.toUpperCase()}</span>
+                        <span className="text-xs text-gray-500 flex-shrink-0">{formatTime(order.createdAt)}</span>
+                      </div>
+                    </div>
+                    </React.Fragment>
                   ))}
                   
                   {completedOrders.length === 0 && (
@@ -1366,8 +1419,8 @@ const Mostrador = () => {
 
         {/* Columna de edición - Formulario de edición (cuando está activo) */}
         {isEditingOrder && selectedOrder && (
-          <div className="w-[480px] flex-shrink-0">
-            <div className="h-full flex flex-col card-professional p-4">
+          <div className="mobile-overlay-panel">
+            <div className="h-full flex flex-col card-professional p-3 lg:p-4">
               <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
                 <span>Editando Pedido #{selectedOrder.orderNumber}</span>
                 <div className="flex items-center gap-2">
@@ -1705,8 +1758,8 @@ const Mostrador = () => {
 
         {/* Columna de vista - Detalle de pedidos completados/cancelados (solo lectura) */}
         {isViewingCompletedOrder && selectedCompletedOrder && (
-          <div className="w-[480px] flex-shrink-0">
-            <div className="h-full flex flex-col card-professional p-4 bg-gray-50 border border-gray-300">
+          <div className="mobile-overlay-panel">
+            <div className="h-full flex flex-col card-professional p-3 lg:p-4 bg-gray-50 border border-gray-300">
               <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
                 <span className="text-gray-700">
                   Detalle Pedido #{selectedCompletedOrder.orderNumber} 

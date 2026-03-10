@@ -27,8 +27,8 @@ const Ventas = () => {
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   
-  // Estados para colapsar paneles
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  // Estados para colapsar paneles - filtros colapsados por defecto en mobile
+  const [filtersCollapsed, setFiltersCollapsed] = useState(window.innerWidth < 1024);
   const [summaryCollapsed, setSummaryCollapsed] = useState(false);
 
   // Hook para obtener TODAS las ventas del restaurante (sin filtro de caja)
@@ -277,7 +277,7 @@ const Ventas = () => {
   };
 
   return (
-    <div className="h-full bg-professional flex justify-center gap-4 p-2 lg:p-4 overflow-hidden">
+    <div className="h-full bg-professional flex justify-center gap-4 p-2 lg:p-4 overflow-auto lg:overflow-hidden">
       {/* Contenido Principal */}
       <div className="w-full max-w-7xl flex flex-col gap-2 lg:gap-3">
         {/* Header - Más compacto */}

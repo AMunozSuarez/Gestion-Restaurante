@@ -24,13 +24,13 @@ const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading }) => 
     : categorizedProducts[selectedCategory] || [];
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      <div className="flex items-end sm:items-center justify-center min-h-full sm:p-4">
         {/* Overlay */}
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose}></div>
 
         {/* Modal */}
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
+        <div className="relative bg-white w-full rounded-t-2xl sm:rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-6xl flex flex-col" style={{maxHeight: '95vh'}}>
           {/* Header */}
           <div className="bg-white px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
@@ -46,13 +46,13 @@ const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading }) => 
             </div>
             
             {/* Filtros por categoría */}
-            <div className="mt-4">
-              <div className="flex flex-wrap gap-2">
+            <div className="mt-3">
+              <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
                 {categories.map((category) => (
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                    className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
                       selectedCategory === category
                         ? 'bg-orange-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -71,7 +71,7 @@ const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading }) => 
           </div>
 
           {/* Content */}
-          <div className="bg-white px-6 py-4 max-h-96 overflow-y-auto">
+          <div className="bg-white px-4 sm:px-6 py-4 overflow-y-auto flex-1">
             {isLoading ? (
               <div className="flex justify-center items-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
@@ -86,7 +86,7 @@ const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading }) => 
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4">
                 {filteredProducts.map((product) => (
                   <div
                     key={product.id}
