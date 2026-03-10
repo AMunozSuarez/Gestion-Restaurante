@@ -1873,6 +1873,45 @@ const Mostrador = () => {
                     </div>
                   </div>
 
+                  {selectedCompletedOrder.deletedFoods && selectedCompletedOrder.deletedFoods.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-red-600 mb-1">
+                        Productos Eliminados ({selectedCompletedOrder.deletedFoods.length} items)
+                      </label>
+                      <div className="bg-red-50 border border-red-200 rounded overflow-y-auto p-3">
+                        <div className="space-y-2">
+                          {selectedCompletedOrder.deletedFoods.map((food, index) => (
+                            <div key={index} className="bg-white rounded p-3 border border-red-200">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-red-700 line-through">
+                                    {food.food?.title || food.name || 'Producto'}
+                                  </div>
+                                  {food.food?.price != null && (
+                                    <div className="text-xs text-red-400">
+                                      {formatChileanCurrency(food.food.price)} c/u
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-sm text-red-500">
+                                  Cantidad: {food.quantity || 1}
+                                </div>
+                              </div>
+                              {food.comment && (
+                                <div className="mt-2 pt-2 border-t border-red-100">
+                                  <div className="text-xs text-red-500">
+                                    <span className="font-medium">Comentario:</span>{' '}
+                                    <span className="whitespace-pre-wrap">"{food.comment}"</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">
                       Método de Pago
