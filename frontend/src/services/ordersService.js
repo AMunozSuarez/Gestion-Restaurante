@@ -100,7 +100,10 @@ export const ordersService = {
         try {
           const defaultPrinter = printingService.getDefaultPrinter();
           if (defaultPrinter) {
-            await printingService.printKitchenOrder(response.data.order);
+            await printingService.printKitchenOrder(response.data.order, {
+              newFoods: updateData.newFoods || [],
+              deletedFoods: updateData.deletedFoods || []
+            });
           }
         } catch (printError) {
           console.error('Error al imprimir comanda actualizada automáticamente:', printError);

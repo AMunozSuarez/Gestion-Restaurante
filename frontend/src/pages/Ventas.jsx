@@ -21,6 +21,7 @@ const Ventas = () => {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('all');
   const [sectionFilter, setSectionFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [hasDeletedItemsFilter, setHasDeletedItemsFilter] = useState(false);
   
   // Estados para modal de detalle
   const [selectedVenta, setSelectedVenta] = useState(null);
@@ -106,9 +107,14 @@ const Ventas = () => {
         );
       }
 
+      // Filtro por órdenes con productos eliminados
+      if (hasDeletedItemsFilter) {
+        matches = matches && (venta.hasDeletedItems === true || (venta.deletedFoods && venta.deletedFoods.length > 0));
+      }
+
       return matches;
     });
-  }, [ventas, paymentMethodFilter, searchTerm]);
+  }, [ventas, paymentMethodFilter, searchTerm, hasDeletedItemsFilter]);
 
   // Calcular estadísticas usando useMemo para optimización
   const stats = useMemo(() => {
@@ -259,6 +265,7 @@ const Ventas = () => {
     setPaymentMethodFilter('all');
     setSectionFilter('all');
     setSearchTerm('');
+    setHasDeletedItemsFilter(false);
     setFiltersCollapsed(false);
     setSummaryCollapsed(false);
   };
@@ -315,7 +322,7 @@ const Ventas = () => {
           </div>
           
           {!filtersCollapsed && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 lg:gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-2 lg:gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Desde
@@ -404,6 +411,18 @@ const Ventas = () => {
                     className="pl-8 w-full px-2 py-1.5 lg:px-3 lg:py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent text-sm"
                   />
                 </div>
+              </div>
+
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={hasDeletedItemsFilter}
+                    onChange={(e) => setHasDeletedItemsFilter(e.target.checked)}
+                    className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-400"
+                  />
+                  <span className="text-xs font-medium text-gray-700">Con productos eliminados</span>
+                </label>
               </div>
             </div>
           )}

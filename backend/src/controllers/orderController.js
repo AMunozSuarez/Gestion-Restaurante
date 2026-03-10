@@ -153,6 +153,7 @@ const getAllOrdersController = async (req, res) => {
             .find(filters)
             .sort({ [validSortBy]: -1 })
             .populate('foods.food', 'title price category')
+            .populate('deletedFoods.food', 'title price')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
             .lean();
@@ -178,6 +179,7 @@ const getOrderByIdController = async (req, res) => {
         const order = await orderModel
             .findOne({ _id: req.params.id, restaurant: req.user.restaurant })
             .populate('foods.food', 'title price category')
+            .populate('deletedFoods.food', 'title price')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
             .lean();
@@ -210,6 +212,7 @@ const getOrderByNumberController = async (req, res) => {
         const order = await orderModel
             .findOne({ orderNumber, cashRegister: currentCashRegister._id })
             .populate('foods.food', 'title price category')
+            .populate('deletedFoods.food', 'title price')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
             .lean();
@@ -228,7 +231,7 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip } = req.body;
+        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, deletedFoods } = req.body;
         
         const restaurantId = req.user.restaurant;
 
@@ -241,6 +244,10 @@ const updateOrderController = async (req, res) => {
         if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
         if (waiter !== undefined) updateData.waiter = waiter;
         if (tip !== undefined) updateData.tip = tip;
+        if (deletedFoods !== undefined && Array.isArray(deletedFoods)) {
+            updateData.deletedFoods = deletedFoods;
+            updateData.hasDeletedItems = deletedFoods.length > 0;
+        }
 
         // ── Si se envían foods, validar en paralelo ──
         if (foods && Array.isArray(foods)) {
@@ -253,6 +260,7 @@ const updateOrderController = async (req, res) => {
             }
 
             const foodIds = foods.map((item) => item.food);
+            const uniqueFoodIds = [...new Set(foodIds)];
 
             // Ejecutar customer lookup y food validation en paralelo
             const customerPromise = (async () => {
@@ -292,10 +300,10 @@ const updateOrderController = async (req, res) => {
 
             const [customer, existingFoods] = await Promise.all([
                 customerPromise,
-                foodModel.find({ _id: { $in: foodIds }, restaurant: restaurantId }).select('_id price').lean(),
+                foodModel.find({ _id: { $in: uniqueFoodIds }, restaurant: restaurantId }).select('_id price').lean(),
             ]);
 
-            if (existingFoods.length !== foods.length) {
+            if (existingFoods.length !== uniqueFoodIds.length) {
                 return res.status(400).json({ success: false, message: 'Uno o más alimentos no pertenecen a este restaurante' });
             }
 
@@ -328,6 +336,7 @@ const updateOrderController = async (req, res) => {
             { new: true, runValidators: true }
         )
             .populate('foods.food', 'title price')
+            .populate('deletedFoods.food', 'title price')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
             .lean();
@@ -410,6 +419,7 @@ const getFilteredOrders = async (req, res) => {
         const orders = await orderModel.find(filters)
             .sort({ createdAt: -1 })
             .populate('foods.food', 'title price')
+            .populate('deletedFoods.food', 'title price')
             .populate('waiter', 'userName name')
             .populate('buyer', 'name phone')
             .populate('cashRegister', 'dateOpened dateClosed status')
@@ -470,7 +480,7 @@ const getRecentOrders = async (req, res) => {
 // GET ALL SALES (ALL ORDERS) FOR SALES PAGE - WITHOUT CASH REGISTER FILTER
 const getAllSalesController = async (req, res) => {
     try {
-        const { status, section, limit, sortBy = 'createdAt', dateFrom, dateTo } = req.query;
+        const { status, section, limit, sortBy = 'createdAt', dateFrom, dateTo, hasDeletedItems } = req.query;
 
         // Validar sortBy para seguridad
         const allowedSorts = ['createdAt', 'updatedAt', 'orderNumber'];
@@ -487,6 +497,9 @@ const getAllSalesController = async (req, res) => {
         }
         if (section) {
             filters.section = section;
+        }
+        if (hasDeletedItems === 'true') {
+            filters.hasDeletedItems = true;
         }
 
         // Filtros de fecha en zona horaria de Chile
@@ -511,6 +524,7 @@ const getAllSalesController = async (req, res) => {
             .find(filters)
             .sort({ [validSortBy]: -1 })
             .populate('foods.food', 'title price')
+            .populate('deletedFoods.food', 'title price')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
             .lean();

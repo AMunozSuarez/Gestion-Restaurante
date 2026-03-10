@@ -271,6 +271,7 @@ const getCashRegisterSales = async (req, res) => {
         const orders = await orderModel.find(filters)
             .sort({ updatedAt: -1 })
             .populate('foods.food', 'title price')
+            .populate('deletedFoods.food', 'title price')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name');
 

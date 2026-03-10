@@ -199,7 +199,7 @@ la fuente esta configurada bien.
   },
 
   // Generar comanda de cocina
-  generateKitchenOrder(order) {
+  generateKitchenOrder(order, options = {}) {
     
     const date = new Date();
     const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
@@ -223,7 +223,23 @@ la fuente esta configurada bien.
 
     const orderType = order.section || order.order_type || order.orderType || 'Mostrador';
     
-    let content = `
+    const isUpdate = (options.newFoods && options.newFoods.length > 0) ||
+                     (options.deletedFoods && options.deletedFoods.length > 0);
+
+    let content;
+    if (isUpdate) {
+      content = `
+================================
+   *** ACTUALIZACION PEDIDO ***
+================================
+
+No. Orden: #${orderNumber}
+Cliente: ${customer}
+Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
+Hora: ${date.toLocaleTimeString()}
+`;
+    } else {
+      content = `
 ================================
          COMANDA COCINA
 ================================
@@ -233,6 +249,7 @@ Cliente: ${customer}
 Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
 Hora: ${date.toLocaleTimeString()}
 `;
+    }
 
     // Agregar notas generales del pedido si existen (antes de productos)
     const orderNotes = order.comment || order.notes || '';
@@ -299,14 +316,44 @@ Hora: ${date.toLocaleTimeString()}
     });
     content += `[/BOLD]`;
 
-    content += `================================`;
+    // Si es actualización, mostrar secciones de productos eliminados y nuevos
+    if (isUpdate) {
+      if (options.deletedFoods && options.deletedFoods.length > 0) {
+        content += `\n================================\n`;
+        content += `   --- ELIMINAR ---\n`;
+        content += `================================\n`;
+        options.deletedFoods.forEach(item => {
+          const name = item.name || item.food?.title || item.food?.name || 'Producto';
+          content += `*** ${item.quantity}x ${name} ***\n`;
+          if (item.comment) {
+            content += `   Nota: ${item.comment}\n`;
+          }
+        });
+      }
+      if (options.newFoods && options.newFoods.length > 0) {
+        content += `\n================================\n`;
+        content += `   +++ AGREGAR NUEVO +++\n`;
+        content += `================================\n`;
+        content += `[BOLD]`;
+        options.newFoods.forEach(item => {
+          const name = item.name || item.food?.title || item.food?.name || 'Producto';
+          content += `>>> ${item.quantity}x ${name}\n`;
+          if (item.comment) {
+            content += `   Nota: ${item.comment}\n`;
+          }
+        });
+        content += `[/BOLD]`;
+      }
+    }
+
+    content += `\n================================`;
 
     return content.trim();
   },
 
   // Imprimir comanda de cocina automaticamente
-  async printKitchenOrder(order) {
-    const content = this.generateKitchenOrder(order);
+  async printKitchenOrder(order, options = {}) {
+    const content = this.generateKitchenOrder(order, options);
     return this.printWithDefault(content, 1, true); // isKitchen=true para aplicar negrita si esta configurado
   },
 

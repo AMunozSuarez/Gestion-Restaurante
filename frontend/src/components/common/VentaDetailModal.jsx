@@ -60,6 +60,16 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
               comment: item.comment || '',
               price: typeof item.food === 'object' ? item.food.price : 0
             }))
+          : [],
+        deletedFoods: (venta.deletedFoods && Array.isArray(venta.deletedFoods))
+          ? venta.deletedFoods.map(item => ({
+              id: item.food?._id || item.food,
+              title: (typeof item.food === 'object' ? item.food.title : null) || item.name || 'Producto eliminado',
+              quantity: item.quantity || 1,
+              comment: item.comment || '',
+              price: typeof item.food === 'object' ? item.food.price : 0,
+              deleted: true
+            }))
           : []
       });
     }
@@ -582,6 +592,16 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">
               Productos ({isEditing ? editingData.foods?.length || 0 : venta.foods?.length || 0})
+              {(!isEditing && venta.deletedFoods?.length > 0) && (
+                <span className="ml-2 text-sm font-normal text-red-500">
+                  ({venta.deletedFoods.length} eliminado{venta.deletedFoods.length > 1 ? 's' : ''})
+                </span>
+              )}
+              {(isEditing && editingData.deletedFoods?.length > 0) && (
+                <span className="ml-2 text-sm font-normal text-red-500">
+                  ({editingData.deletedFoods.length} eliminado{editingData.deletedFoods.length > 1 ? 's' : ''})
+                </span>
+              )}
             </h3>
             {isEditing && (
               <Button
@@ -596,7 +616,9 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
             )}
           </div>
           
-          {(isEditing ? (editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : []) : (venta.foods && Array.isArray(venta.foods) ? venta.foods : [])).length > 0 ? (
+          {((isEditing ? (editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : []) : (venta.foods && Array.isArray(venta.foods) ? venta.foods : [])).length > 0 ||
+            (!isEditing && venta.deletedFoods?.length > 0) ||
+            (isEditing && editingData.deletedFoods?.length > 0)) ? (
             <div className="space-y-3">
               {(isEditing ? (editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : []) : (venta.foods && Array.isArray(venta.foods) ? venta.foods : [])).map((item, index) => {
                 // Calcular precio unitario estimado desde el total del pedido
@@ -691,6 +713,31 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                   </div>
                 );
               })}
+
+              {/* Productos eliminados (solo visualización) */}
+              {(isEditing
+                ? (editingData.deletedFoods && Array.isArray(editingData.deletedFoods) ? editingData.deletedFoods : [])
+                : (venta.deletedFoods && Array.isArray(venta.deletedFoods) ? venta.deletedFoods : [])
+              ).map((item, index) => (
+                <div
+                  key={`deleted-${index}`}
+                  className="flex items-center justify-between p-4 bg-red-50 rounded-lg opacity-70 border border-red-200"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg font-medium text-red-400 line-through">
+                        {item.title || item.name || (typeof item.food === 'object' && item.food?.title ? item.food.title : 'Producto eliminado')}
+                      </span>
+                      <span className="text-sm text-red-400 line-through">x{item.quantity}</span>
+                    </div>
+                    {item.comment && (
+                      <p className="text-sm text-red-400 mt-1 line-through">
+                        <span className="font-medium">Comentario:</span> {item.comment}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="text-center py-8">

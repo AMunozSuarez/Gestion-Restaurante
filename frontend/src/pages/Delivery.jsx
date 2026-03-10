@@ -285,26 +285,19 @@ const Delivery = () => {
 
   // Funciones para edición - manejo del carrito de edición
   const addToEditCart = (product) => {
-    setEditCart(prevCart => {
-      const existingItem = prevCart.find(item => item.id === product.id);
-      if (existingItem) {
-        // Mostrar notificación de cantidad actualizada
-        setAddedProductNotification(`${product.name} - Cantidad actualizada`);
-        setTimeout(() => setAddedProductNotification(null), 2000);
-        
-        return prevCart.map(item =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      
-      // Mostrar notificación de producto agregado
-      setAddedProductNotification(`${product.name} agregado al carrito`);
-      setTimeout(() => setAddedProductNotification(null), 2000);
-      
-      return [...prevCart, { ...product, quantity: 1, comments: '' }];
-    });
+    // Siempre agregar como nueva entrada separada (nunca agrupar)
+    const cartId = `new_${product.id}_${Date.now()}`;
+    setAddedProductNotification(`${product.name} agregado al carrito`);
+    setTimeout(() => setAddedProductNotification(null), 2000);
+    setEditCart(prevCart => [...prevCart, {
+      ...product,
+      cartId,
+      quantity: 1,
+      comments: '',
+      isNew: true,
+      isOriginal: false,
+      deleted: false
+    }]);
   };
 
   // Función para agregar comentarios a productos en el carrito
@@ -319,10 +312,10 @@ const Delivery = () => {
   };
 
   // Función para agregar comentarios a productos en el carrito de edición
-  const addCommentToEditProduct = (productId, comment) => {
+  const addCommentToEditProduct = (cartId, comment) => {
     setEditCart(prevCart =>
       prevCart.map(item =>
-        item.id === productId
+        item.cartId === cartId
           ? { ...item, comments: comment }
           : item
       )
@@ -349,7 +342,7 @@ const Delivery = () => {
 
   const saveEditComment = () => {
     if (editCommentingProduct) {
-      addCommentToEditProduct(editCommentingProduct.id, editProductComment);
+      addCommentToEditProduct(editCommentingProduct.cartId, editProductComment);
       setEditCommentingProduct(null);
       setEditProductComment('');
     }
@@ -369,8 +362,17 @@ const Delivery = () => {
     setCart(prevCart => prevCart.filter(item => item.id !== productId));
   };
 
-  const removeFromEditCart = (productId) => {
-    setEditCart(prevCart => prevCart.filter(item => item.id !== productId));
+  const removeFromEditCart = (cartId) => {
+    setEditCart(prevCart => {
+      const item = prevCart.find(i => i.cartId === cartId);
+      if (!item) return prevCart;
+      // Ítems originales: marcar como eliminado visualmente (no remover)
+      if (item.isOriginal) {
+        return prevCart.map(i => i.cartId === cartId ? { ...i, deleted: true } : i);
+      }
+      // Ítems nuevos: remover directamente
+      return prevCart.filter(i => i.cartId !== cartId);
+    });
   };
 
   const updateQuantity = (productId, newQuantity) => {
@@ -387,14 +389,14 @@ const Delivery = () => {
     );
   };
 
-  const updateEditQuantity = (productId, newQuantity) => {
+  const updateEditQuantity = (cartId, newQuantity) => {
     if (newQuantity <= 0) {
-      removeFromEditCart(productId);
+      removeFromEditCart(cartId);
       return;
     }
     setEditCart(prevCart =>
       prevCart.map(item =>
-        item.id === productId
+        item.cartId === cartId && item.isNew
           ? { ...item, quantity: newQuantity }
           : item
       )
@@ -416,7 +418,7 @@ const Delivery = () => {
   };
 
   const calculateEditSubtotal = () => {
-    return editCart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return editCart.filter(item => !item.deleted).reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
   // Funciones para manejo de métodos de pago múltiples
@@ -905,7 +907,7 @@ const Delivery = () => {
     }
     
     // Cargar productos del pedido en el carrito de edición
-    const orderProducts = order.foods?.map(food => {
+    const orderProducts = order.foods?.map((food, index) => {
       console.log('Procesando food:', food); // Debug log
       
       // Determinar el ID del producto
@@ -925,16 +927,44 @@ const Delivery = () => {
       
       return {
         id: productId,
+        cartId: `orig_${index}_${productId}`,
         name: food.food?.title || 'Producto',
         price: food.food?.price || 0,
         quantity: food.quantity || 1,
         comments: food.comment || '',
-        category: food.food?.category
+        category: food.food?.category,
+        isOriginal: true,
+        isNew: false,
+        deleted: false,
       };
     }) || [];
+
+    // También cargar los productos eliminados previamente (para visualización)
+    const deletedProducts = (order.deletedFoods || []).map((food, index) => {
+      let productId;
+      if (typeof food.food === 'string') {
+        productId = food.food;
+      } else if (food.food && typeof food.food === 'object') {
+        productId = food.food._id || food.food.id;
+      } else {
+        productId = food.food;
+      }
+      return {
+        id: productId,
+        cartId: `del_${index}_${productId}`,
+        name: food.food?.title || 'Producto eliminado',
+        price: food.food?.price || 0,
+        quantity: food.quantity || 1,
+        comments: food.comment || '',
+        category: food.food?.category,
+        isOriginal: true,
+        isNew: false,
+        deleted: true,
+      };
+    });
     
     console.log('Productos cargados en editCart:', orderProducts);
-    setEditCart(orderProducts);
+    setEditCart([...orderProducts, ...deletedProducts]);
   };
 
   // Función para crear el pedido
@@ -1108,9 +1138,14 @@ const Delivery = () => {
       // Filtrar métodos de pago válidos (opcional - puede estar vacío)
       const validEditPayments = editPaymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Método' && p.method !== 'Pendiente');
 
+      // Separar ítems activos, eliminados y nuevos
+      const activeFoods = editCart.filter(item => !item.deleted);
+      const deletedFoods = editCart.filter(item => item.isOriginal && item.deleted);
+      const newFoods = editCart.filter(item => item.isNew && !item.deleted);
+
       // Preparar los datos del pedido actualizado (incluye campos específicos de delivery)
       const orderData = {
-        foods: editCart.map(item => {
+        foods: activeFoods.map(item => {
           console.log('Enviando item al backend:', item);
           return {
             food: item.id,
@@ -1118,6 +1153,18 @@ const Delivery = () => {
             comment: item.comments || ''
           };
         }),
+        deletedFoods: deletedFoods.map(item => ({
+          food: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          comment: item.comments || ''
+        })),
+        newFoods: newFoods.map(item => ({
+          food: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          comment: item.comments || ''
+        })),
         payment: validEditPayments.length === 0 ? 'Pendiente' : (validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple'),
         paymentMethods: validEditPayments.length > 0 ? validEditPayments : [],
         buyer: {
@@ -1225,7 +1272,8 @@ const Delivery = () => {
     }
     
     // Validaciones simples (incluye validaciones específicas de delivery)
-    if (!editCart || editCart.length === 0) {
+    const activeFoodsForComplete = editCart.filter(item => !item.deleted);
+    if (!editCart || activeFoodsForComplete.length === 0) {
       alert('⚠️ Debe agregar al menos un producto al pedido');
       return;
     }
@@ -1270,8 +1318,14 @@ const Delivery = () => {
     }
 
     const orderData = {
-      foods: editCart.map(item => ({
+      foods: activeFoodsForComplete.map(item => ({
         food: item.id,
+        quantity: item.quantity,
+        comment: item.comments || ''
+      })),
+      deletedFoods: editCart.filter(item => item.isOriginal && item.deleted).map(item => ({
+        food: item.id,
+        name: item.name,
         quantity: item.quantity,
         comment: item.comments || ''
       })),
@@ -2259,64 +2313,96 @@ const Delivery = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-blue-body mb-1">
-                      Carrito ({editCart.length} items)
+                      Carrito ({editCart.filter(i => !i.deleted).length} items)
+                      {editCart.some(i => i.deleted) && (
+                        <span className="ml-2 text-xs text-red-500 font-normal">
+                          ({editCart.filter(i => i.deleted).length} eliminado{editCart.filter(i => i.deleted).length > 1 ? 's' : ''})
+                        </span>
+                      )}
                     </label>
                     <div className="border border-blue-200 rounded-md p-3 bg-gray-50">
-                      {editCart.length === 0 ? (
+                      {editCart.filter(i => !i.deleted).length === 0 && editCart.filter(i => i.deleted).length === 0 ? (
                         <div className="flex items-center justify-center py-8">
                           <p className="text-blue-600 text-center text-sm">El carrito está vacío</p>
                         </div>
                       ) : (
                         <div className="space-y-2">
                           {editCart.map((item) => (
-                            <div key={item.id} className="bg-white rounded p-3 border border-blue-100">
+                            <div
+                              key={item.cartId || item.id}
+                              className={`rounded p-3 border transition-all ${
+                                item.deleted
+                                  ? 'bg-red-50 border-red-200 opacity-70'
+                                  : item.isNew
+                                  ? 'bg-green-50 border-green-200'
+                                  : 'bg-white border-blue-100'
+                              }`}
+                            >
                               <div className="flex items-center justify-between mb-2">
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium">{item.name}</div>
-                                  <div className="text-xs text-gray-500">
+                                <div className="flex-1 min-w-0">
+                                  <div className={`text-sm font-medium flex items-center gap-2 ${item.deleted ? 'line-through text-red-400' : ''}`}>
+                                    {item.name}
+                                    {item.isNew && !item.deleted && (
+                                      <span className="text-xs bg-green-100 text-green-700 border border-green-300 px-1.5 py-0.5 rounded-full font-semibold">NUEVO</span>
+                                    )}
+                                  </div>
+                                  <div className={`text-xs ${item.deleted ? 'line-through text-red-300' : 'text-gray-500'}`}>
                                     {formatChileanCurrency(item.price)} c/u
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => updateEditQuantity(item.id, item.quantity - 1)}
-                                    className="w-6 h-6 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-xs"
-                                  >
-                                    -
-                                  </button>
-                                  <span className="w-8 text-center text-sm">{item.quantity}</span>
-                                  <button
-                                    onClick={() => updateEditQuantity(item.id, item.quantity + 1)}
-                                    className="w-6 h-6 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-xs"
-                                  >
-                                    +
-                                  </button>
-                                  <button
-                                    onClick={() => removeFromEditCart(item.id)}
-                                    className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs"
-                                  >
-                                    <TrashIcon className="w-3 h-3 mx-auto" />
-                                  </button>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {item.isNew && !item.deleted ? (
+                                    <>
+                                      <button
+                                        onClick={() => updateEditQuantity(item.cartId, item.quantity - 1)}
+                                        className="w-6 h-6 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-xs"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="w-8 text-center text-sm">{item.quantity}</span>
+                                      <button
+                                        onClick={() => updateEditQuantity(item.cartId, item.quantity + 1)}
+                                        className="w-6 h-6 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-xs"
+                                      >
+                                        +
+                                      </button>
+                                    </>
+                                  ) : item.isOriginal && !item.deleted ? (
+                                    <span className="text-sm text-gray-500 w-16 text-center">x{item.quantity}</span>
+                                  ) : item.deleted ? (
+                                    <span className="text-xs text-red-400 line-through w-16 text-center">x{item.quantity}</span>
+                                  ) : null}
+                                  {!item.deleted && (
+                                    <button
+                                      onClick={() => removeFromEditCart(item.cartId || item.id)}
+                                      className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs"
+                                      title={item.isOriginal ? 'Marcar como eliminado' : 'Quitar del carrito'}
+                                    >
+                                      <TrashIcon className="w-3 h-3 mx-auto" />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                               
                               {/* Comentarios del producto */}
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => openEditCommentModal(item)}
-                                  className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center gap-1"
-                                >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1.586l-4.707 4.707z" />
-                                  </svg>
-                                  {item.comments ? 'Editar' : 'Agregar'} comentario
-                                </button>
-                                {item.comments && (
-                                  <div className="flex-1 text-xs text-gray-600 italic">
-                                    "{item.comments}"
-                                  </div>
-                                )}
-                              </div>
+                              {!item.deleted && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => openEditCommentModal(item)}
+                                    className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center gap-1"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1.586l-4.707 4.707z" />
+                                    </svg>
+                                    {item.comments ? 'Editar' : 'Agregar'} comentario
+                                  </button>
+                                  {item.comments && (
+                                    <div className="flex-1 text-xs text-gray-600 italic">
+                                      "{item.comments}"
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

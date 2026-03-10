@@ -73,6 +73,18 @@ const orderSchema = new mongoose.Schema({
         type: String,
         default: '',
     },
+    deletedFoods: [
+        {
+            food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food' },
+            quantity: { type: Number },
+            comment: { type: String, default: '' },
+            name: { type: String, default: '' },
+        },
+    ],
+    hasDeletedItems: {
+        type: Boolean,
+        default: false,
+    },
     cashRegister: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'CashRegister',
