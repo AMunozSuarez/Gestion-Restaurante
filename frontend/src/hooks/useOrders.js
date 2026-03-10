@@ -233,6 +233,136 @@ export const useRecentOrders = (filters = {}) => {
   };
 };
 
+// Hook combinado: obtiene pedidos activos + recientes en UNA sola llamada
+export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => {
+  const [activeOrders, setActiveOrders] = useState([]);
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const { recentLimit = 10, recentStatuses = 'Completado,Cancelado' } = recentConfig;
+
+  const fetchAll = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await ordersService.getSectionOrders({
+        section,
+        recentLimit,
+        recentStatuses,
+      });
+      if (response.success) {
+        setActiveOrders(response.active || []);
+        setRecentOrders(response.recent || []);
+      } else {
+        setActiveOrders([]);
+        setRecentOrders([]);
+        setError(response.message || 'No se pudieron obtener los pedidos');
+      }
+    } catch (err) {
+      setError(err.message);
+      setActiveOrders([]);
+      setRecentOrders([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAll();
+  }, [section, recentLimit, recentStatuses]);
+
+  // ── Mutaciones locales (misma lógica que useOrders) ──
+
+  const updateOrderStatus = async (orderId, status) => {
+    try {
+      const response = await ordersService.updateOrderStatus(orderId, status);
+      if (status === 'Completado' || status === 'Cancelado' || status === 'Enviado') {
+        setActiveOrders(prev => prev.filter(o => (o._id || o.id) !== orderId));
+        // Refrescar recientes para que aparezca el pedido movido
+        fetchAll();
+        if (callbacks.onOrderRemoved) callbacks.onOrderRemoved({ id: orderId, status });
+      } else {
+        setActiveOrders(prev =>
+          prev.map(o => (o._id || o.id) === orderId ? { ...o, status, updatedAt: new Date().toISOString() } : o)
+        );
+        if (callbacks.onOrderUpdated) callbacks.onOrderUpdated({ id: orderId, status });
+      }
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const createOrder = async (orderData) => {
+    try {
+      const response = await ordersService.createOrder(orderData);
+      if (response.success && response.order) {
+        const newOrder = response.order;
+        if ((!section || newOrder.section === section) && newOrder.status === 'Preparacion') {
+          setActiveOrders(prev => [newOrder, ...prev]);
+        }
+        return { success: true, order: newOrder };
+      }
+      return { success: false, error: response.message || 'Error desconocido' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateOrder = async (orderId, updateData) => {
+    try {
+      const response = await ordersService.updateOrder(orderId, updateData);
+      if (response.success && response.order) {
+        const updated = response.order;
+        const shouldRemove = updated.status !== 'Preparacion' || (section && updated.section !== section);
+        if (shouldRemove) {
+          setActiveOrders(prev => prev.filter(o => (o._id || o.id) !== orderId));
+        } else {
+          setActiveOrders(prev => prev.map(o => (o._id || o.id) === orderId ? updated : o));
+        }
+        return { success: true, order: updated };
+      }
+      return { success: false, error: response.message || 'Error desconocido' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateOrderWithoutPrint = async (orderId, updateData) => {
+    try {
+      const response = await ordersService.updateOrderWithoutPrint(orderId, updateData);
+      if (response.success && response.order) {
+        const updated = response.order;
+        const shouldRemove = updated.status !== 'Preparacion' || (section && updated.section !== section);
+        if (shouldRemove) {
+          setActiveOrders(prev => prev.filter(o => (o._id || o.id) !== orderId));
+          if (callbacks.onOrderRemoved) callbacks.onOrderRemoved(updated);
+        } else {
+          setActiveOrders(prev => prev.map(o => (o._id || o.id) === orderId ? updated : o));
+          if (callbacks.onOrderUpdated) callbacks.onOrderUpdated(updated);
+        }
+        return { success: true, order: updated };
+      }
+      return { success: false, error: response.message || 'Error desconocido' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  return {
+    orders: activeOrders,
+    completedOrders: recentOrders,
+    isLoading,
+    error,
+    refetch: fetchAll,
+    updateOrderStatus,
+    createOrder,
+    updateOrder,
+    updateOrderWithoutPrint,
+  };
+};
+
 // Hook para un pedido específico
 export const useOrder = (orderId) => {
   const [order, setOrder] = useState(null);

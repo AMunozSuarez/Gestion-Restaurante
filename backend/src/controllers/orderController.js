@@ -477,6 +477,52 @@ const getRecentOrders = async (req, res) => {
     }
 };
 
+// GET SECTION ORDERS (active + recent in one call)
+const getSectionOrders = async (req, res) => {
+    try {
+        const { section, recentLimit = 10, recentStatuses = 'Completado,Cancelado' } = req.query;
+
+        const currentCashRegister = await cashRegisterModel.findOne({
+            restaurant: req.user.restaurant,
+            status: 'Abierta',
+        }).select('_id').lean();
+
+        if (!currentCashRegister) {
+            return res.status(200).json({ success: true, message: 'No hay una caja abierta', active: [], recent: [] });
+        }
+
+        const baseFilter = {
+            restaurant: req.user.restaurant,
+            cashRegister: currentCashRegister._id,
+        };
+        if (section) baseFilter.section = section;
+
+        const recentStatusList = recentStatuses.split(',').map(s => s.trim());
+
+        // Execute both queries in parallel
+        const [active, recent] = await Promise.all([
+            orderModel.find({ ...baseFilter, status: 'Preparacion' })
+                .sort({ createdAt: -1 })
+                .populate('foods.food', 'title price category')
+                .populate('deletedFoods.food', 'title price')
+                .populate('buyer', 'name phone addresses')
+                .populate('waiter', 'userName name')
+                .lean(),
+            orderModel.find({ ...baseFilter, status: { $in: recentStatusList } })
+                .sort({ updatedAt: -1 })
+                .limit(Number(recentLimit))
+                .populate('foods.food', 'title price category')
+                .populate('buyer', 'name phone')
+                .lean(),
+        ]);
+
+        res.status(200).json({ success: true, active, recent });
+    } catch (error) {
+        console.error('Error en getSectionOrders:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener órdenes de sección', error });
+    }
+};
+
 // GET ALL SALES (ALL ORDERS) FOR SALES PAGE - WITHOUT CASH REGISTER FILTER
 const getAllSalesController = async (req, res) => {
     try {
@@ -685,6 +731,7 @@ module.exports = {
     getOrderByNumberController,
     getFilteredOrders,
     getRecentOrders,
+    getSectionOrders,
     getAllSalesController,
     getTipsController
 };

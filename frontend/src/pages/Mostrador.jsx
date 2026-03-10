@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '../components/ui';
 import { PlusIcon, MinusIcon, ClockIcon, TrashIcon, PrinterIcon } from '@heroicons/react/24/outline';
-import { useOrders, useRecentOrders } from '../hooks/useOrders';
+import { useSectionOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../store/CashRegisterContext';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
@@ -104,7 +104,6 @@ const Mostrador = () => {
       setIsEditingOrder(false);
       setSelectedOrder(null);
       clearEditForm();
-      refetchCompletedOrders();
     },
     onOrderUpdated: (order) => {
       // Callback para cuando se actualiza un pedido pero no se remueve
@@ -112,29 +111,20 @@ const Mostrador = () => {
     }
   };
 
-  // Hooks para obtener datos reales
+  // Hook combinado: obtiene pedidos activos + recientes en una sola llamada
   const { 
     orders, 
+    completedOrders,
     isLoading: ordersLoading, 
     error: ordersError,
     updateOrderStatus,
     createOrder,
     updateOrder,
     updateOrderWithoutPrint,
-  } = useOrders({ 
-    section: 'mostrador', 
-    status: 'Preparacion' 
+  } = useSectionOrders('mostrador', { 
+    recentLimit: 10, 
+    recentStatuses: 'Completado,Cancelado' 
   }, orderCallbacks);
-
-  const { 
-    orders: completedOrders, 
-    refetch: refetchCompletedOrders 
-  } = useRecentOrders({ 
-    limit: 10, 
-    status: 'Completado,Cancelado', 
-    section: 'mostrador', 
-    sortBy: 'updatedAt' 
-  });
 
   const formatTime = (dateString) => {
     return new Date(dateString).toLocaleTimeString('es-ES', {

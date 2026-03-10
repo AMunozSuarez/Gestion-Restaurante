@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '../components/ui';
 import { PlusIcon, MinusIcon, TruckIcon, TrashIcon, MapIcon, PhoneIcon, PrinterIcon } from '@heroicons/react/24/outline';
-import { useOrders, useRecentOrders } from '../hooks/useOrders';
+import { useSectionOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../store/CashRegisterContext';
 import { useCustomers } from '../hooks/useCustomers';
@@ -175,7 +175,6 @@ const Delivery = () => {
       setIsEditingOrder(false);
       setSelectedOrder(null);
       clearEditForm();
-      refetchCompletedOrders();
     },
     onOrderUpdated: (order) => {
       // Callback para cuando se actualiza un pedido pero no se remueve
@@ -183,29 +182,20 @@ const Delivery = () => {
     }
   };
 
-  // Hooks para obtener datos reales
+  // Hook combinado: obtiene pedidos activos + recientes en una sola llamada
   const { 
     orders, 
+    completedOrders,
     isLoading: ordersLoading, 
     error: ordersError,
     updateOrderStatus,
     createOrder,
     updateOrder,
     updateOrderWithoutPrint,
-  } = useOrders({ 
-    section: 'delivery', 
-    status: 'Preparacion' 
+  } = useSectionOrders('delivery', { 
+    recentLimit: 10, 
+    recentStatuses: 'Completado,Cancelado,Enviado' 
   }, orderCallbacks);
-
-  const { 
-    orders: completedOrders, 
-    refetch: refetchCompletedOrders 
-  } = useRecentOrders({ 
-    limit: 10, 
-    status: 'Completado,Cancelado,Enviado', 
-    section: 'delivery', 
-    sortBy: 'updatedAt' 
-  });
 
   const formatTime = (dateString) => {
     return new Date(dateString).toLocaleTimeString('es-ES', {

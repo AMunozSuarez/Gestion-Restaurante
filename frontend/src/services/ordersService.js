@@ -173,6 +173,28 @@ export const ordersService = {
     }
   },
 
+  // Obtener pedidos de sección (activos + recientes en una sola llamada)
+  getSectionOrders: async (filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      
+      if (filters.section) params.append('section', filters.section);
+      if (filters.recentLimit) params.append('recentLimit', filters.recentLimit);
+      if (filters.recentStatuses) params.append('recentStatuses', filters.recentStatuses);
+
+      const url = `/order/section?${params.toString()}`;
+
+      const cached = getCachedResponse(getCacheKey(url));
+      if (cached) return cached;
+
+      const response = await api.get(url);
+      setCachedResponse(getCacheKey(url), response.data);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al obtener pedidos de sección');
+    }
+  },
+
   // Obtener TODAS las ventas del restaurante (para página de ventas)
   getAllSales: async (filters = {}) => {
     try {

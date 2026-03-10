@@ -1,6 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
-const { createOrderController, getAllOrdersController, updateOrderController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders, getRecentOrders, getAllSalesController, getTipsController } = require('../controllers/orderController');
+const { createOrderController, getAllOrdersController, updateOrderController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders, getRecentOrders, getSectionOrders, getAllSalesController, getTipsController } = require('../controllers/orderController');
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
 const router = express.Router();
 
@@ -33,6 +33,9 @@ router.get('/sales/cash/:cashRegisterId', authMiddleware, filterByRestaurant, ge
 
 // GET RECENT ORDERS (limit, status, section)
 router.get('/recent', authMiddleware, filterByRestaurant, getRecentOrders);
+
+// GET SECTION ORDERS (active + recent in one call)
+router.get('/section', authMiddleware, filterByRestaurant, getSectionOrders);
 
 // GET ALL SALES FOR SALES PAGE (WITHOUT CASH REGISTER FILTER)
 router.get('/getAllSales', authMiddleware, filterByRestaurant, getAllSalesController);
