@@ -28,8 +28,13 @@ export const CashRegisterProvider = ({ children }) => {
       }
     } catch (err) {
       setError(err.message);
-      setCashRegister(null);
-      setIsOpen(false);
+      // En modo silencioso (background) no limpiar el estado: un error de red
+      // no significa que la caja se cerró; mantener el estado previo evita
+      // mostrar la alerta de caja falsamente.
+      if (!silent) {
+        setCashRegister(null);
+        setIsOpen(false);
+      }
     } finally {
       if (!silent) setIsLoading(false);
     }
@@ -50,6 +55,10 @@ export const CashRegisterProvider = ({ children }) => {
   }, [isAuthenticated, authIsLoading, checkCashRegisterStatus]);
 
   const openCashRegister = useCallback(async (initialAmount) => {
+    // Evitar abrir una segunda caja si ya hay una abierta
+    if (isOpen) {
+      return { success: false, error: 'Ya hay una caja registradora abierta.' };
+    }
     try {
       const subscriptionResponse = await getCurrentSubscription();
       if (!subscriptionResponse.success || !subscriptionResponse.data?.subscription) {
@@ -76,7 +85,7 @@ export const CashRegisterProvider = ({ children }) => {
       }
       return { success: false, error: err.message };
     }
-  }, [checkCashRegisterStatus]);
+  }, [checkCashRegisterStatus, isOpen]);
 
   const closeCashRegister = useCallback(async ({ officialIncome, comment }) => {
     try {

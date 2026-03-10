@@ -20,7 +20,7 @@ import { Button } from '../components/ui';
 const TableManagement = () => {
     const navigate = useNavigate();
     const { tables, isLoading, createTable, updateTable, deleteTable, openTable, updateTablePositions } = useTables();
-    const { isOpen: isCashOpen, isLoading: cashLoading } = useCashRegister();
+    const { isOpen: isCashOpen, isLoading: cashLoading, openCashRegister } = useCashRegister();
     const { waiters } = useWaiters();
     
     // Estados
@@ -85,9 +85,17 @@ const TableManagement = () => {
         }
     }, [isCashOpen, cashLoading]);
 
+    const handleOpenCash = async (initialAmount) => {
+        const result = await openCashRegister(initialAmount);
+        if (result.success) {
+            setShowCashAlert(false);
+        }
+        return result;
+    };
+
     // Función para abrir mesa
     const handleOpenTable = async (table) => {
-        if (!isCashOpen) {
+        if (cashLoading || !isCashOpen) {
             setShowCashAlert(true);
             return;
         }
@@ -414,8 +422,9 @@ const TableManagement = () => {
             {/* Alert de caja */}
             {showCashAlert && (
                 <CashRegisterAlert 
-                    isOpen={!isCashOpen}
+                    isOpen={showCashAlert}
                     onClose={() => setShowCashAlert(false)}
+                    onOpenCashRegister={handleOpenCash}
                 />
             )}
 
