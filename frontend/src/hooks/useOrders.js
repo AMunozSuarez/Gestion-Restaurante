@@ -277,10 +277,14 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
   const updateOrderStatus = async (orderId, status) => {
     try {
       const response = await ordersService.updateOrderStatus(orderId, status);
-      if (status === 'Completado' || status === 'Cancelado' || status === 'Enviado') {
+      const recentStatusList = recentStatuses.split(',').map(s => s.trim());
+      if (recentStatusList.includes(status)) {
+        const movedOrder = activeOrders.find(o => (o._id || o.id) === orderId);
         setActiveOrders(prev => prev.filter(o => (o._id || o.id) !== orderId));
-        // Refrescar recientes para que aparezca el pedido movido
-        fetchAll();
+        if (movedOrder) {
+          const updatedOrder = { ...movedOrder, status, updatedAt: new Date().toISOString() };
+          setRecentOrders(prev => [updatedOrder, ...prev.filter(o => (o._id || o.id) !== orderId)].slice(0, recentLimit));
+        }
         if (callbacks.onOrderRemoved) callbacks.onOrderRemoved({ id: orderId, status });
       } else {
         setActiveOrders(prev =>
@@ -318,6 +322,10 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
         const shouldRemove = updated.status !== 'Preparacion' || (section && updated.section !== section);
         if (shouldRemove) {
           setActiveOrders(prev => prev.filter(o => (o._id || o.id) !== orderId));
+          const recentStatusList = recentStatuses.split(',').map(s => s.trim());
+          if (recentStatusList.includes(updated.status)) {
+            setRecentOrders(prev => [updated, ...prev.filter(o => (o._id || o.id) !== orderId)].slice(0, recentLimit));
+          }
         } else {
           setActiveOrders(prev => prev.map(o => (o._id || o.id) === orderId ? updated : o));
         }
@@ -337,6 +345,10 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
         const shouldRemove = updated.status !== 'Preparacion' || (section && updated.section !== section);
         if (shouldRemove) {
           setActiveOrders(prev => prev.filter(o => (o._id || o.id) !== orderId));
+          const recentStatusList = recentStatuses.split(',').map(s => s.trim());
+          if (recentStatusList.includes(updated.status)) {
+            setRecentOrders(prev => [updated, ...prev.filter(o => (o._id || o.id) !== orderId)].slice(0, recentLimit));
+          }
           if (callbacks.onOrderRemoved) callbacks.onOrderRemoved(updated);
         } else {
           setActiveOrders(prev => prev.map(o => (o._id || o.id) === orderId ? updated : o));
