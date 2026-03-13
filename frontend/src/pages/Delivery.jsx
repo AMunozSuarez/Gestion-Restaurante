@@ -399,7 +399,7 @@ const Delivery = () => {
   };
 
   const calculateEditTotal = () => {
-    const subtotal = editCart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const subtotal = editCart.filter(item => !item.deleted).reduce((total, item) => total + (item.price * item.quantity), 0);
     return subtotal + getEditCurrentDeliveryCost();
   };
 
