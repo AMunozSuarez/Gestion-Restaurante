@@ -1,5 +1,6 @@
 const Table = require('../models/tableModel');
 const Order = require('../models/orderModel');
+const { getIO } = require('../socket');
 
 // Obtener todas las mesas del restaurante
 const getTables = async (req, res) => {
@@ -169,7 +170,13 @@ const openTable = async (req, res) => {
         const populatedTable = await Table.findById(table._id)
             .populate('waiter', 'userName email')
             .populate('currentOrder');
-        
+
+        try {
+            getIO().to(`restaurant:${req.restaurantId}`).emit('table:updated', { table: populatedTable });
+        } catch (socketErr) {
+            console.error('Error emitiendo socket table:updated:', socketErr.message);
+        }
+
         res.json(populatedTable);
     } catch (error) {
         console.error('Error al abrir mesa:', error);
@@ -205,6 +212,13 @@ const closeTable = async (req, res) => {
         table.waiter = null;
         
         await table.save();
+
+        try {
+            getIO().to(`restaurant:${req.restaurantId}`).emit('table:updated', { table });
+        } catch (socketErr) {
+            console.error('Error emitiendo socket table:updated:', socketErr.message);
+        }
+
         res.json(table);
     } catch (error) {
         console.error('Error al cerrar mesa:', error);
@@ -279,7 +293,13 @@ const assignOrderToTable = async (req, res) => {
                 }
             })
             .populate('waiter', 'userName email');
-        
+
+        try {
+            getIO().to(`restaurant:${req.restaurantId}`).emit('table:updated', { table: populatedTable });
+        } catch (socketErr) {
+            console.error('Error emitiendo socket table:updated:', socketErr.message);
+        }
+
         res.json(populatedTable);
     } catch (error) {
         console.error('Error al asignar orden:', error);

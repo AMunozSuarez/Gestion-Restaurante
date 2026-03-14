@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import tablesService from '../services/tablesService';
+import { onSocketEvent } from '../services/socketService';
 
 export const useTables = () => {
     const [tables, setTables] = useState([]);
@@ -23,6 +24,22 @@ export const useTables = () => {
     useEffect(() => {
         fetchTables();
     }, [fetchTables]);
+
+    // Listen for real-time table updates via Socket.io
+    useEffect(() => {
+        const unsub = onSocketEvent('table:updated', ({ table: updatedTable }) => {
+            if (updatedTable) {
+                setTables(prev => {
+                    const exists = prev.some(t => t._id === updatedTable._id);
+                    if (exists) {
+                        return prev.map(t => t._id === updatedTable._id ? updatedTable : t);
+                    }
+                    return [...prev, updatedTable].sort((a, b) => a.tableNumber - b.tableNumber);
+                });
+            }
+        });
+        return unsub;
+    }, []);
 
     const createTable = useCallback(async (tableData) => {
         try {

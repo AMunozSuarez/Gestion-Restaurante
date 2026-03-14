@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getSocketId } from './socketService';
 
 // Configuración base de la API
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
@@ -11,12 +12,16 @@ const api = axios.create({
   },
 });
 
-// Interceptor para agregar token a las requests
+// Interceptor para agregar token y socketId a las requests
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    const socketId = getSocketId();
+    if (socketId) {
+      config.headers['X-Socket-Id'] = socketId;
     }
     return config;
   },

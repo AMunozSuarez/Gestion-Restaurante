@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import authService from '../services/authService';
+import { connectSocket, disconnectSocket } from '../services/socketService';
 
 // Crear contexto de autenticación
 const AuthContext = createContext();
@@ -19,6 +20,7 @@ export const AuthProvider = ({ children }) => {
           const currentUser = authService.getCurrentUser();
           setUser(currentUser);
           setIsAuthenticated(true);
+          connectSocket();
         } else {
           // Token expirado o no existe, limpiar
           authService.logout();
@@ -45,6 +47,7 @@ export const AuthProvider = ({ children }) => {
       const { token, user: userData } = await authService.login(credentials);
       setUser(userData);
       setIsAuthenticated(true);
+      connectSocket();
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -56,6 +59,7 @@ export const AuthProvider = ({ children }) => {
   // Función de logout
   const logout = () => {
     authService.logout();
+    disconnectSocket();
     setUser(null);
     setIsAuthenticated(false);
   };

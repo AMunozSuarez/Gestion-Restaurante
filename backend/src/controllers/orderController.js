@@ -3,6 +3,7 @@ const foodModel = require('../models/foodModel'); // Importar el modelo de alime
 const Customer = require('../models/customerModel'); // Importar el modelo de clientes
 const cashRegisterModel = require('../models/cashRegisterModel'); // Importar el modelo de caja
 const { getChileDate, getChileTimestamp, formatChileDate, getChileDayRange } = require('../utils/dateUtils');
+const { getIO } = require('../socket');
 
 // CREATE A NEW ORDER
 
@@ -108,6 +109,14 @@ const createOrderController = async (req, res) => {
             { path: 'buyer', select: 'name phone' },
             { path: 'waiter', select: 'userName name' },
         ]);
+
+        // Emit socket event for real-time updates
+        try {
+            const senderSocketId = req.headers['x-socket-id'] || null;
+            getIO().to(`restaurant:${restaurantId}`).emit('order:created', { order, _fromSocketId: senderSocketId });
+        } catch (socketErr) {
+            console.error('Error emitiendo socket order:created:', socketErr.message);
+        }
 
         res.status(201).json({
             success: true,
@@ -343,6 +352,14 @@ const updateOrderController = async (req, res) => {
 
         if (!populatedOrder) {
             return res.status(404).json({ success: false, message: 'Pedido no encontrado o no pertenece a este restaurante' });
+        }
+
+        // Emit socket event for real-time updates
+        try {
+            const senderSocketId = req.headers['x-socket-id'] || null;
+            getIO().to(`restaurant:${restaurantId}`).emit('order:updated', { order: populatedOrder, _fromSocketId: senderSocketId });
+        } catch (socketErr) {
+            console.error('Error emitiendo socket order:updated:', socketErr.message);
         }
 
         res.status(200).json({

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import ordersService from '../services/ordersService';
+import { onSocketEvent } from '../services/socketService';
 
 // Hook para obtener pedidos
 export const useOrders = (filters = {}, callbacks = {}) => {
@@ -272,7 +273,36 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
     fetchAll();
   }, [section, recentLimit, recentStatuses]);
 
-  // ── Mutaciones locales (misma lógica que useOrders) ──
+  // Listen for real-time order events via Socket.io
+  useEffect(() => {
+    const unsubCreated = onSocketEvent('order:created', ({ order }) => {
+      if (!order) return;
+      if (section && order.section !== section) return;
+      if (order.status === 'Preparacion') {
+        setActiveOrders(prev => {
+          if (prev.some(o => (o._id || o.id) === (order._id || order.id))) return prev;
+          return [order, ...prev];
+        });
+      }
+    });
+
+    const unsubUpdated = onSocketEvent('order:updated', ({ order }) => {
+      if (!order) return;
+      if (section && order.section !== section) return;
+      const orderId = order._id || order.id;
+      if (order.status === 'Preparacion') {
+        setActiveOrders(prev => prev.map(o => (o._id || o.id) === orderId ? order : o));
+      } else {
+        setActiveOrders(prev => prev.filter(o => (o._id || o.id) !== orderId));
+        const recentStatusList = recentStatuses.split(',').map(s => s.trim());
+        if (recentStatusList.includes(order.status)) {
+          setRecentOrders(prev => [order, ...prev.filter(o => (o._id || o.id) !== orderId)].slice(0, recentLimit));
+        }
+      }
+    });
+
+    return () => { unsubCreated(); unsubUpdated(); };
+  }, [section, recentStatuses, recentLimit]);
 
   const updateOrderStatus = async (orderId, status) => {
     try {

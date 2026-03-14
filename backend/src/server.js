@@ -1,13 +1,17 @@
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const morgan = require('morgan');
 const { conexion } = require('./bdd/conexion'); // Import the connection function
 const { configureMercadoPago } = require('./services/mercadoPagoService');
 const { checkExpiredSubscriptions, sendExpirationReminders } = require('./scripts/checkExpiredSubscriptions');
+const { initSocket } = require('./socket');
 
 require('dotenv').config(); // Load environment variables from the .env file
 
 const app = express();
+const server = http.createServer(app);
+initSocket(server);
 
 const port = process.env.PORT || 3001; // Use the port defined in the environment or 3001 by default
 
@@ -47,7 +51,7 @@ app.get('/', (req, res) => {
     res.send('Hello World!');
 });
 
-app.listen(port, () => {
+server.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
     
     // Verificar suscripciones vencidas al iniciar el servidor
