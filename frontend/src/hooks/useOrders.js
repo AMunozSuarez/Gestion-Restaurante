@@ -334,7 +334,10 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
       if (response.success && response.order) {
         const newOrder = response.order;
         if ((!section || newOrder.section === section) && newOrder.status === 'Preparacion') {
-          setActiveOrders(prev => [newOrder, ...prev]);
+          setActiveOrders(prev => {
+            if (prev.some(o => (o._id || o.id) === (newOrder._id || newOrder.id))) return prev;
+            return [newOrder, ...prev];
+          });
         }
         return { success: true, order: newOrder };
       }
