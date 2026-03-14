@@ -1,6 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
-const { createOrderController, getAllOrdersController, updateOrderController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders, getRecentOrders, getSectionOrders, getAllSalesController, getTipsController } = require('../controllers/orderController');
+const { createOrderController, getAllOrdersController, updateOrderController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders, getRecentOrders, getSectionOrders, getAllSalesController, getTipsController, printTicketController } = require('../controllers/orderController');
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
 const router = express.Router();
 
@@ -39,5 +39,8 @@ router.get('/section', authMiddleware, filterByRestaurant, getSectionOrders);
 
 // GET ALL SALES FOR SALES PAGE (WITHOUT CASH REGISTER FILTER)
 router.get('/getAllSales', authMiddleware, filterByRestaurant, getAllSalesController);
+
+// SOLICITAR IMPRESIÓN DE TICKET DE CLIENTE (desde app)
+router.post('/print-ticket/:id', authMiddleware, filterByRestaurant, printTicketController);
 
 module.exports = router; // Export the router

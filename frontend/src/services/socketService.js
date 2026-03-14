@@ -1,18 +1,25 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace('/api', '');
+const SOCKET_URL = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace(/\/api$/, '');
 
 let socket = null;
+// Listeners registered before connectSocket is called
+const pendingListeners = [];
 
 export const connectSocket = () => {
   const token = localStorage.getItem('token');
-  if (!token || socket?.connected) return;
+  if (!token || socket) return;
 
   socket = io(SOCKET_URL, {
     auth: { token },
     reconnection: true,
     reconnectionDelay: 2000,
     reconnectionAttempts: 10,
+  });
+
+  // Register any listeners that were added before socket was created
+  pendingListeners.forEach(({ event, callback }) => {
+    socket.on(event, callback);
   });
 
   socket.on('connect', () => {
@@ -32,9 +39,18 @@ export const disconnectSocket = () => {
 };
 
 export const onSocketEvent = (event, callback) => {
-  if (!socket) return () => {};
+  if (!socket) {
+    // Socket not yet initialized — queue the listener
+    const entry = { event, callback };
+    pendingListeners.push(entry);
+    return () => {
+      const idx = pendingListeners.indexOf(entry);
+      if (idx >= 0) pendingListeners.splice(idx, 1);
+      socket?.off(event, callback);
+    };
+  }
   socket.on(event, callback);
-  return () => socket.off(event, callback);
+  return () => socket?.off(event, callback);
 };
 
 export const getSocketId = () => socket?.id || null;

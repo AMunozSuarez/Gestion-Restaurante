@@ -739,6 +739,29 @@ const getTipsController = async (req, res) => {
     }
 };
 
+// SOLICITAR IMPRESIÓN DE TICKET DE CLIENTE (desde app)
+const printTicketController = async (req, res) => {
+    try {
+        const order = await orderModel
+            .findOne({ _id: req.params.id, restaurant: req.restaurantId })
+            .populate('foods.food', 'title price')
+            .populate('buyer', 'name phone')
+            .populate('waiter', 'userName name')
+            .lean();
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
+        }
+
+        getIO().to(`restaurant:${req.restaurantId}`).emit('ticket:print', { order });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error al solicitar impresión de ticket:', error);
+        res.status(500).json({ success: false, message: 'Error al solicitar impresión', error });
+    }
+};
+
 module.exports = {
     createOrderController,
     getAllOrdersController,
@@ -750,5 +773,6 @@ module.exports = {
     getRecentOrders,
     getSectionOrders,
     getAllSalesController,
-    getTipsController
+    getTipsController,
+    printTicketController
 };

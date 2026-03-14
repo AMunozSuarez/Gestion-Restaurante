@@ -54,9 +54,24 @@ const SocketOrderPrinter = () => {
       }
     });
 
+    const unsubTicket = onSocketEvent('ticket:print', ({ order }) => {
+      if (!order) return;
+      try {
+        const defaultPrinter = printingService.getDefaultPrinter();
+        if (defaultPrinter) {
+          printingService.printCustomerTicket(order).catch((err) => {
+            console.error('Error al imprimir ticket solicitado:', err);
+          });
+        }
+      } catch (e) {
+        console.error('Error al imprimir ticket:', e);
+      }
+    });
+
     return () => {
       unsubCreated();
       unsubUpdated();
+      unsubTicket();
     };
   }, []);
 
