@@ -543,7 +543,7 @@ const getSectionOrders = async (req, res) => {
 // GET ALL SALES (ALL ORDERS) FOR SALES PAGE - WITHOUT CASH REGISTER FILTER
 const getAllSalesController = async (req, res) => {
     try {
-        const { status, section, limit, sortBy = 'createdAt', dateFrom, dateTo, hasDeletedItems, page } = req.query;
+        const { status, section, limit, sortBy = 'createdAt', dateFrom, dateTo, hasDeletedItems, page, paymentMethod } = req.query;
 
         // Validar sortBy para seguridad
         const allowedSorts = ['createdAt', 'updatedAt', 'orderNumber'];
@@ -560,6 +560,12 @@ const getAllSalesController = async (req, res) => {
         }
         if (section) {
             filters.section = section;
+        }
+        if (paymentMethod) {
+            filters.$or = [
+                { 'paymentMethods.method': paymentMethod },
+                { payment: paymentMethod }
+            ];
         }
         if (hasDeletedItems === 'true') {
             filters.hasDeletedItems = true;

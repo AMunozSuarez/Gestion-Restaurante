@@ -32,6 +32,7 @@ const Ventas = () => {
     section: undefined,
     dateFrom: today,
     dateTo: today,
+    paymentMethod: undefined,
   });
 
   const applyFilters = () => {
@@ -40,6 +41,7 @@ const Ventas = () => {
       section: sectionFilter === 'all' ? undefined : sectionFilter,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
+      paymentMethod: paymentMethodFilter === 'all' ? undefined : paymentMethodFilter,
     });
     setCurrentPage(1);
   };
@@ -102,20 +104,6 @@ const Ventas = () => {
     return ventas.filter(venta => {
       let matches = true;
 
-      // Los filtros de fecha, estado y sección ya se manejan en el backend
-      // Solo aplicamos filtros adicionales aquí
-
-      // Filtro por método de pago
-      if (paymentMethodFilter !== 'all') {
-        // Verificar si la venta tiene el método de pago especificado
-        if (venta.paymentMethods && venta.paymentMethods.length > 0) {
-          matches = matches && venta.paymentMethods.some(pm => pm.method === paymentMethodFilter);
-        } else {
-          // Compatibilidad con el campo payment antiguo
-          matches = matches && venta.payment === paymentMethodFilter;
-        }
-      }
-
       // Filtro por búsqueda (cliente o ID)
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
@@ -134,7 +122,7 @@ const Ventas = () => {
 
       return matches;
     });
-  }, [ventas, paymentMethodFilter, searchTerm, hasDeletedItemsFilter]);
+  }, [ventas, searchTerm, hasDeletedItemsFilter]);
 
   // Calcular estadísticas usando useMemo para optimización
   const stats = useMemo(() => {
@@ -289,7 +277,7 @@ const Ventas = () => {
     setFiltersCollapsed(false);
     setSummaryCollapsed(false);
     setCurrentPage(1);
-    setAppliedFilters({ status: undefined, section: undefined, dateFrom: todayDate, dateTo: todayDate });
+    setAppliedFilters({ status: undefined, section: undefined, dateFrom: todayDate, dateTo: todayDate, paymentMethod: undefined });
   };
 
   // Exportar datos (simulado)
@@ -530,7 +518,7 @@ const Ventas = () => {
         </div>
 
         {/* Lista de ventas */}
-        <div className="card-professional flex flex-col">
+        <div className="card-professional flex flex-col overflow-hidden">
 
           {isLoading ? (
             <div className="flex items-center justify-center py-16">

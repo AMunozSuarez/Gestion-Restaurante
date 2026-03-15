@@ -209,6 +209,7 @@ export const ordersService = {
       if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
       if (filters.dateTo) params.append('dateTo', filters.dateTo);
       if (filters.page) params.append('page', filters.page);
+      if (filters.paymentMethod) params.append('paymentMethod', filters.paymentMethod);
 
       const url = `/order/getAllSales?${params.toString()}`;
 
