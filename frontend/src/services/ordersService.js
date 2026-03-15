@@ -1,5 +1,6 @@
 import api from './api';
 import printingService from './printingService';
+import { markOwnUpdate } from './socketService';
 
 // ── Caché simple para órdenes (evita re-fetch al cambiar de vista) ──
 const orderCache = new Map();
@@ -93,8 +94,7 @@ export const ordersService = {
     try {
       const response = await api.put(`/order/update/${id}`, updateData);
       invalidateOrderCache(); // Invalidar caché tras actualizar
-      
-      // Solo imprimir comanda de cocina si el pedido NO está siendo completado
+      markOwnUpdate(id); // Evitar doble impresión cuando llega el evento socket
       const isCompleting = updateData.status === 'Completado' || updateData.status === 'completed';
       if (!isCompleting && response.data && response.data.order) {
         try {
@@ -102,7 +102,8 @@ export const ordersService = {
           if (defaultPrinter) {
             await printingService.printKitchenOrder(response.data.order, {
               newFoods: updateData.newFoods || [],
-              deletedFoods: updateData.deletedFoods || []
+              deletedFoods: updateData.deletedFoods || [],
+              allFoods: updateData.allFoods || null
             });
           }
         } catch (printError) {

@@ -1155,6 +1155,13 @@ const Delivery = () => {
           quantity: item.quantity,
           comment: item.comments || ''
         })),
+        allFoods: activeFoods.map(item => ({
+          food: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          comment: item.comments || '',
+          isNew: item.isNew || false
+        })),
         payment: validEditPayments.length === 0 ? 'Pendiente' : (validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple'),
         paymentMethods: validEditPayments.length > 0 ? validEditPayments : [],
         buyer: {

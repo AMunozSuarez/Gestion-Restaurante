@@ -56,3 +56,14 @@ export const onSocketEvent = (event, callback) => {
 export const getSocketId = () => socket?.id || null;
 
 export const getSocket = () => socket;
+
+// Tracks order IDs updated by this browser tab to avoid double-printing
+// (ordersService prints directly AND socket event would also print)
+const pendingOwnUpdates = new Set();
+
+export const markOwnUpdate = (orderId) => {
+  pendingOwnUpdates.add(String(orderId));
+  setTimeout(() => pendingOwnUpdates.delete(String(orderId)), 10000);
+};
+
+export const isOwnUpdate = (orderId) => pendingOwnUpdates.has(String(orderId));

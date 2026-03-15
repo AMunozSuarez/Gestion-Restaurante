@@ -271,13 +271,23 @@ Hora: ${date.toLocaleTimeString()}
 
     // Agregar productos - manejar diferentes estructuras
     let items = [];
-    
+
+    // Si se pasó allFoods con flags isNew ya calculados (update desde editCart), usarlo directamente
+    if (options.allFoods && options.allFoods.length > 0) {
+      items = options.allFoods.map(item => ({
+        product_name: item.name || 'Producto',
+        quantity: item.quantity || 1,
+        notes: item.comment || '',
+        isNew: item.isNew || false
+      }));
+    }
     // Estructura del backend: order.foods
-    if (order.foods && Array.isArray(order.foods)) {
+    else if (order.foods && Array.isArray(order.foods)) {
       items = order.foods.map(item => ({
         product_name: item.food?.title || item.food?.name || 'Producto',
         quantity: item.quantity || 1,
-        notes: item.comment || ''
+        notes: item.comment || '',
+        isNew: false
       }));
     }
     // Estructura alternativa: order.items
@@ -285,7 +295,8 @@ Hora: ${date.toLocaleTimeString()}
       items = order.items.map(item => ({
         product_name: item.product_name || item.name || item.title || 'Producto',
         quantity: item.quantity || 1,
-        notes: item.notes || item.comment || ''
+        notes: item.notes || item.comment || '',
+        isNew: false
       }));
     }
     // Estructura alternativa: order.order_items
@@ -293,17 +304,24 @@ Hora: ${date.toLocaleTimeString()}
       items = order.order_items.map(item => ({
         product_name: item.product_name || item.name || item.title || 'Producto',
         quantity: item.quantity || 1,
-        notes: item.notes || item.comment || ''
+        notes: item.notes || item.comment || '',
+        isNew: false
       }));
     }
 
     // Agregar cada producto al contenido (marcado para negrita si esta configurado)
     content += `[BOLD]`;
     items.forEach(item => {
-      const isNewItem = options.newFoods && options.newFoods.some(nf => {
-        const newName = nf.name || nf.food?.title || nf.food?.name || '';
-        return newName === item.product_name;
-      });
+      // Si el item ya tiene isNew definido (de allFoods), usarlo directamente.
+      // Si no, fallback al matching por nombre (comportamiento anterior).
+      const isNewItem = item.isNew || (
+        !options.allFoods &&
+        options.newFoods &&
+        options.newFoods.some(nf => {
+          const newName = nf.name || nf.food?.title || nf.food?.name || '';
+          return newName === item.product_name;
+        })
+      );
       content += `${isNewItem ? '* ' : ''}${item.quantity}x ${item.product_name}\n`;
       if (item.notes && item.notes.trim()) {
         // Manejar comentarios con saltos de linea

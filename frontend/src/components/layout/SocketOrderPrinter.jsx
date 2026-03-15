@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { onSocketEvent, getSocketId } from '../../services/socketService';
+import { onSocketEvent, getSocketId, isOwnUpdate } from '../../services/socketService';
 import printingService from '../../services/printingService';
 
 /**
@@ -36,6 +36,7 @@ const SocketOrderPrinter = () => {
       if (!order) return;
       // Ignorar actualizaciones de este mismo cliente
       if (_fromSocketId && _fromSocketId === getSocketId()) return;
+      if (isOwnUpdate(order._id)) return;
       // No imprimir si se está completando/cancelando
       if (order.status === 'Completado' || order.status === 'Cancelado') return;
 
