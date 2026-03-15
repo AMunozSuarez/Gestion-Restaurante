@@ -543,7 +543,7 @@ const getSectionOrders = async (req, res) => {
 // GET ALL SALES (ALL ORDERS) FOR SALES PAGE - WITHOUT CASH REGISTER FILTER
 const getAllSalesController = async (req, res) => {
     try {
-        const { status, section, limit, sortBy = 'createdAt', dateFrom, dateTo, hasDeletedItems } = req.query;
+        const { status, section, limit, sortBy = 'createdAt', dateFrom, dateTo, hasDeletedItems, page } = req.query;
 
         // Validar sortBy para seguridad
         const allowedSorts = ['createdAt', 'updatedAt', 'orderNumber'];
@@ -583,23 +583,33 @@ const getAllSalesController = async (req, res) => {
         }
 
 
-        let query = orderModel
+        const pageNum = Math.max(1, parseInt(page) || 1);
+        const pageSize = Math.min(200, Math.max(1, parseInt(limit) || 50));
+        const skip = (pageNum - 1) * pageSize;
+
+        const totalCount = await orderModel.countDocuments(filters);
+
+        const orders = await orderModel
             .find(filters)
             .sort({ [validSortBy]: -1 })
+            .skip(skip)
+            .limit(pageSize)
             .populate('foods.food', 'title price')
             .populate('deletedFoods.food', 'title price')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
             .lean();
 
-        if (limit) query = query.limit(Number(limit));
-
-        const orders = await query;
-
         res.status(200).json({
             success: true,
             message: 'Todas las ventas recuperadas exitosamente',
             orders,
+            pagination: {
+                page: pageNum,
+                limit: pageSize,
+                totalCount,
+                totalPages: Math.ceil(totalCount / pageSize)
+            },
             timezone: 'America/Santiago',
             currentChileTime: formatChileDate(getChileDate())
         });

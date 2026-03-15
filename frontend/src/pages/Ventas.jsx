@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  MagnifyingGlassIcon, 
+import {
   DocumentTextIcon,
-  EyeIcon
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { useSales } from '../hooks/useSales';
 import { useTips } from '../hooks/useTips';
@@ -10,10 +10,12 @@ import { useProducts } from '../hooks/useProducts';
 import VentaDetailModal from '../components/common/VentaDetailModal';
 import { getChileToday, formatChileDateTime, formatChileanCurrency } from '../utils/dateUtils';
 
+const ITEMS_PER_PAGE = 50;
+
 const Ventas = () => {
   // Obtener fecha de hoy en zona horaria de Chile
   const today = getChileToday();
-  
+
   // Estados para filtros - Por defecto filtrar por hoy
   const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo] = useState(today);
@@ -22,35 +24,53 @@ const Ventas = () => {
   const [sectionFilter, setSectionFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [hasDeletedItemsFilter, setHasDeletedItemsFilter] = useState(false);
-  
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Filtros aplicados al backend (solo se actualizan al hacer clic en "Aplicar")
+  const [appliedFilters, setAppliedFilters] = useState({
+    status: undefined,
+    section: undefined,
+    dateFrom: today,
+    dateTo: today,
+  });
+
+  const applyFilters = () => {
+    setAppliedFilters({
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      section: sectionFilter === 'all' ? undefined : sectionFilter,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    });
+    setCurrentPage(1);
+  };
+
   // Estados para modal de detalle
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  
+
   // Estados para colapsar paneles - filtros colapsados por defecto en mobile
   const [filtersCollapsed, setFiltersCollapsed] = useState(window.innerWidth < 1024);
   const [summaryCollapsed, setSummaryCollapsed] = useState(false);
 
   // Hook para obtener TODAS las ventas del restaurante (sin filtro de caja)
-  const { sales: ventas, isLoading, error, refetch: fetchSales } = useSales({
-    status: statusFilter === 'all' ? undefined : statusFilter,
-    section: sectionFilter === 'all' ? undefined : sectionFilter,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined
+  const { sales: ventas, pagination, isLoading, error, refetch: fetchSales } = useSales({
+    ...appliedFilters,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE
   });
 
   // Hook para obtener productos
   const { products, isLoading: productsLoading } = useProducts();
 
   // Hook para obtener propinas con los mismos filtros de fecha
-  const { 
-    statistics: tipsStatistics, 
-    refetch: refetchTips 
+  const {
+    statistics: tipsStatistics,
+    refetch: refetchTips
   } = useTips({
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
-    status: statusFilter === 'all' ? undefined : statusFilter,
-    section: sectionFilter === 'all' ? undefined : sectionFilter
+    dateFrom: appliedFilters.dateFrom,
+    dateTo: appliedFilters.dateTo,
+    status: appliedFilters.status,
+    section: appliedFilters.section
   });
 
   // Efecto para refrescar ventas cuando se monta el componente o se hace visible
@@ -71,7 +91,7 @@ const Ventas = () => {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -120,21 +140,21 @@ const Ventas = () => {
   const stats = useMemo(() => {
     const completedVentas = ventasFiltradas.filter(v => ['Completado', 'Enviado'].includes(v.status));
     const canceledVentas = ventasFiltradas.filter(v => v.status === 'Cancelado');
-    
+
     const totalMonto = completedVentas.reduce((sum, venta) => sum + (venta.total || 0), 0);
-    
+
     // Calcular montos por método de pago usando la nueva estructura paymentMethods
     let montoEfectivo = 0;
     let montoTarjeta = 0;
     let montoTransferencia = 0;
     let montoDelivery = 0;
-    
+
     completedVentas.forEach(venta => {
       // Calcular monto de delivery
       if (venta.section === 'delivery' && venta.deliveryCost) {
         montoDelivery += venta.deliveryCost || 0;
       }
-      
+
       if (venta.paymentMethods && venta.paymentMethods.length > 0) {
         // Nueva estructura con múltiples métodos de pago
         venta.paymentMethods.forEach(pm => {
@@ -160,7 +180,7 @@ const Ventas = () => {
     });
 
     return {
-      totalVentas: ventasFiltradas.length,
+      totalVentas: pagination.totalCount || ventasFiltradas.length,
       totalMonto,
       ventasCompletadas: completedVentas.length,
       ventasCanceladas: canceledVentas.length,
@@ -169,7 +189,7 @@ const Ventas = () => {
       montoTransferencia,
       montoDelivery
     };
-  }, [ventasFiltradas]);
+  }, [ventasFiltradas, pagination.totalCount]);
 
   // Mostrar loading inicial
   if (isLoading && ventas.length === 0) {
@@ -268,6 +288,8 @@ const Ventas = () => {
     setHasDeletedItemsFilter(false);
     setFiltersCollapsed(false);
     setSummaryCollapsed(false);
+    setCurrentPage(1);
+    setAppliedFilters({ status: undefined, section: undefined, dateFrom: todayDate, dateTo: todayDate });
   };
 
   // Exportar datos (simulado)
@@ -276,8 +298,10 @@ const Ventas = () => {
     // Aquí se implementaría la lógica de exportación
   };
 
+  const totalPages = pagination.totalPages || 1;
+
   return (
-    <div className="h-full bg-professional flex justify-center gap-4 p-2 lg:p-4 overflow-auto lg:overflow-hidden">
+    <div className="h-full bg-professional flex justify-center items-start gap-4 p-2 lg:p-4 overflow-auto pb-6">
       {/* Contenido Principal */}
       <div className="w-full max-w-7xl flex flex-col gap-2 lg:gap-3">
         {/* Header - Más compacto */}
@@ -320,7 +344,7 @@ const Ventas = () => {
               </button>
             </div>
           </div>
-          
+
           {!filtersCollapsed && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-2 lg:gap-3">
               <div>
@@ -413,7 +437,7 @@ const Ventas = () => {
                 </div>
               </div>
 
-              <div className="flex items-end">
+              <div className="flex items-end justify-between gap-2">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -421,8 +445,14 @@ const Ventas = () => {
                     onChange={(e) => setHasDeletedItemsFilter(e.target.checked)}
                     className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-400"
                   />
-                  <span className="text-xs font-medium text-gray-700">Con productos eliminados</span>
+                  <span className="text-xs font-medium text-gray-700">Con eliminados</span>
                 </label>
+                <button
+                  onClick={applyFilters}
+                  className="px-3 py-1.5 text-xs font-semibold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors whitespace-nowrap"
+                >
+                  Aplicar
+                </button>
               </div>
             </div>
           )}
@@ -439,7 +469,7 @@ const Ventas = () => {
               {summaryCollapsed ? '+' : '−'}
             </button>
           </div>
-          
+
           {!summaryCollapsed && (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-2">
@@ -468,7 +498,7 @@ const Ventas = () => {
                   <p className="text-sm font-bold text-orange-800">{formatCurrency(stats.montoDelivery)}</p>
                 </div>
               </div>
-              
+
               {/* Tarjeta de Propinas */}
               {tipsStatistics && tipsStatistics.totalTips > 0 && (
                 <div className="bg-gradient-to-br from-teal-50 to-emerald-100 p-3 rounded-lg border border-teal-200">
@@ -500,20 +530,20 @@ const Ventas = () => {
         </div>
 
         {/* Lista de ventas */}
-        <div className="card-professional flex-1 flex flex-col overflow-hidden min-h-0">
+        <div className="card-professional flex flex-col">
 
           {isLoading ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center justify-center py-16">
               <div className="text-center">
                 <div className="loading-professional mx-auto mb-4"></div>
                 <p className="text-professional-body">Cargando ventas...</p>
               </div>
             </div>
           ) : error ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center justify-center py-16">
               <div className="text-center">
                 <p className="text-red-600 mb-4">{error}</p>
-                <button 
+                <button
                   onClick={fetchSales}
                   className="btn-professional-outline"
                 >
@@ -522,168 +552,212 @@ const Ventas = () => {
               </div>
             </div>
           ) : ventasFiltradas.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center justify-center py-16">
               <div className="text-center">
                 <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-professional-body">No se encontraron ventas con los filtros aplicados</p>
               </div>
             </div>
           ) : (
-            <div className="flex-1 overflow-auto scrollbar-professional">
-              {/* Vista de tabla para pantallas grandes */}
-              <div className="hidden lg:block">
-                <table className="min-w-full">
-                  <thead className="bg-gradient-to-r from-amber-50 to-orange-50 sticky top-0">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                        Cliente
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                        Fecha
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                        Sección
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                        Estado
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                        Método de Pago
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                        Total
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white bg-opacity-50 divide-y divide-amber-100">
-                    {ventasFiltradas.map((venta) => (
-                      <tr 
-                        key={venta._id || venta.id} 
-                        className="hover:bg-amber-50 hover:bg-opacity-50 transition-colors cursor-pointer"
-                        onClick={() => handleViewDetail(venta)}
-                      >
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {venta.name || venta.buyer?.name || 'Cliente anónimo'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                          {formatDate(venta.createdAt)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            venta.section === 'delivery'
-                              ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                              : venta.section === 'mesas'
-                              ? 'bg-teal-100 text-teal-800 border border-teal-200'
-                              : 'bg-amber-100 text-amber-800 border border-amber-200'
-                          }`}>
-                            {venta.section === 'delivery' ? 'Delivery' : venta.section === 'mesas' ? 'Mesas' : 'Mostrador'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+            <>
+              <div className="overflow-auto scrollbar-professional">
+                {/* Vista de tabla para pantallas grandes */}
+                <div className="hidden lg:block">
+                  <table className="min-w-full">
+                    <thead className="bg-gradient-to-r from-amber-50 to-orange-50 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                          Cliente
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                          Fecha
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                          Sección
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                          Estado
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                          Método de Pago
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                          Total
+                        </th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 uppercase tracking-wider">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white bg-opacity-50 divide-y divide-amber-100">
+                      {ventasFiltradas.map((venta) => (
+                        <tr
+                          key={venta._id || venta.id}
+                          className="hover:bg-amber-50 hover:bg-opacity-50 transition-colors cursor-pointer"
+                          onClick={() => handleViewDetail(venta)}
+                        >
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {venta.name || venta.buyer?.name || 'Cliente anónimo'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                            {formatDate(venta.createdAt)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              venta.section === 'delivery'
+                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                : venta.section === 'mesas'
+                                ? 'bg-teal-100 text-teal-800 border border-teal-200'
+                                : 'bg-amber-100 text-amber-800 border border-amber-200'
+                            }`}>
+                              {venta.section === 'delivery' ? 'Delivery' : venta.section === 'mesas' ? 'Mesas' : 'Mostrador'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              ['Completado', 'Enviado'].includes(venta.status)
+                                ? 'bg-green-100 text-green-800 border border-green-200'
+                                : venta.status === 'Preparacion'
+                                ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                                : venta.status === 'Cancelado'
+                                ? 'bg-red-100 text-red-800 border border-red-200'
+                                : 'bg-blue-100 text-blue-800 border border-blue-200'
+                            }`}>
+                              {venta.status === 'Preparacion' ? 'Preparación' : venta.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {renderPaymentMethods(venta)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                            {formatCurrency(venta.total)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewDetail(venta);
+                              }}
+                              className="text-amber-600 hover:text-amber-800 font-medium"
+                            >
+                              Ver Detalle
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Vista de tarjetas para pantallas medianas y pequeñas */}
+                <div className="lg:hidden space-y-3 p-3">
+                  {ventasFiltradas.map((venta) => (
+                    <div
+                      key={venta._id || venta.id}
+                      className="bg-white bg-opacity-80 rounded-lg border border-amber-200 p-3 hover:bg-opacity-100 transition-all cursor-pointer shadow-sm"
+                      onClick={() => handleViewDetail(venta)}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-medium text-gray-900 text-sm">
+                            {venta.name || venta.buyer?.name || 'Cliente anónimo'}
+                          </h4>
+                          <p className="text-xs text-gray-500">
+                            {formatDate(venta.createdAt)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              venta.section === 'delivery'
+                                ? 'bg-blue-100 text-blue-800'
+                                : venta.section === 'mesas'
+                                ? 'bg-teal-100 text-teal-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {venta.section === 'delivery' ? 'Delivery' : venta.section === 'mesas' ? 'Mesas' : 'Mostrador'}
+                            </span>
+                          </div>
+                          <p className="font-semibold text-amber-700">
+                            {formatCurrency(venta.total)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <div className="flex gap-2">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             ['Completado', 'Enviado'].includes(venta.status)
-                              ? 'bg-green-100 text-green-800 border border-green-200'
+                              ? 'bg-green-100 text-green-800'
                               : venta.status === 'Preparacion'
-                              ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                              ? 'bg-yellow-100 text-yellow-800'
                               : venta.status === 'Cancelado'
-                              ? 'bg-red-100 text-red-800 border border-red-200'
-                              : 'bg-blue-100 text-blue-800 border border-blue-200'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {venta.status === 'Preparacion' ? 'Preparación' : venta.status}
+                            {venta.status === 'Preparacion' ? 'Prep.' : venta.status}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+
                           {renderPaymentMethods(venta)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
-                          {formatCurrency(venta.total)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewDetail(venta);
-                            }}
-                            className="text-amber-600 hover:text-amber-800 font-medium"
-                          >
-                            Ver Detalle
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewDetail(venta);
+                          }}
+                          className="text-xs text-amber-600 hover:text-amber-800 font-medium bg-amber-50 px-2 py-1 rounded"
+                        >
+                          Ver Detalle
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Vista de tarjetas para pantallas medianas y pequeñas */}
-              <div className="lg:hidden space-y-3 p-3">
-                {ventasFiltradas.map((venta) => (
-                  <div 
-                    key={venta._id || venta.id} 
-                    className="bg-white bg-opacity-80 rounded-lg border border-amber-200 p-3 hover:bg-opacity-100 transition-all cursor-pointer shadow-sm"
-                    onClick={() => handleViewDetail(venta)}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h4 className="font-medium text-gray-900 text-sm">
-                          {venta.name || venta.buyer?.name || 'Cliente anónimo'}
-                        </h4>
-                        <p className="text-xs text-gray-500">
-                          {formatDate(venta.createdAt)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            venta.section === 'delivery'
-                              ? 'bg-blue-100 text-blue-800'
-                              : venta.section === 'mesas'
-                              ? 'bg-teal-100 text-teal-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {venta.section === 'delivery' ? 'Delivery' : venta.section === 'mesas' ? 'Mesas' : 'Mostrador'}
-                          </span>
-                        </div>
-                        <p className="font-semibold text-amber-700">
-                          {formatCurrency(venta.total)}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <div className="flex gap-2">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          ['Completado', 'Enviado'].includes(venta.status)
-                            ? 'bg-green-100 text-green-800'
-                            : venta.status === 'Preparacion'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : venta.status === 'Cancelado'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {venta.status === 'Preparacion' ? 'Prep.' : venta.status}
-                        </span>
-                        
-                        {renderPaymentMethods(venta)}
-                      </div>
-                      
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewDetail(venta);
-                        }}
-                        className="text-xs text-amber-600 hover:text-amber-800 font-medium bg-amber-50 px-2 py-1 rounded"
-                      >
-                        Ver Detalle
-                      </button>
-                    </div>
+              {/* Paginación */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-2 border-t border-amber-100 flex-shrink-0">
+                  <p className="text-xs text-gray-600">
+                    Página {currentPage} de {totalPages} ({pagination.totalCount} ventas)
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="px-2 py-1 text-xs rounded border border-amber-200 text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      1
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-1 rounded border border-amber-200 text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeftIcon className="h-4 w-4" />
+                    </button>
+                    <span className="px-3 py-1 text-sm font-semibold text-amber-800 bg-amber-50 rounded border border-amber-200">
+                      {currentPage}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-1 rounded border border-amber-200 text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRightIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="px-2 py-1 text-xs rounded border border-amber-200 text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {totalPages}
+                    </button>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

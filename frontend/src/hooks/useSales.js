@@ -4,6 +4,7 @@ import ordersService from '../services/ordersService';
 // Hook para obtener TODAS las ventas del restaurante (sin filtro de caja)
 export const useSales = (filters = {}) => {
   const [sales, setSales] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, totalCount: 0, limit: 50 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -11,30 +12,13 @@ export const useSales = (filters = {}) => {
     try {
       setIsLoading(true);
       setError(null);
-      console.log('Obteniendo todas las ventas con filtros:', filters);
       const response = await ordersService.getAllSales(filters);
-      
-      // El backend devuelve { success: true, orders: [...] }
+
       if (response.success) {
-        console.log('Ventas obtenidas:', response.orders?.length || 0);
-        console.log('Estados y secciones de ventas:', response.orders?.map(o => ({ id: o._id || o.id, status: o.status, section: o.section })));
-        
-        // Filtrar adicional en el cliente para asegurar que coincida con los filtros
-        let filteredSales = response.orders || [];
-        
-        // Filtrar por estado si se especifica
-        if (filters.status) {
-          filteredSales = filteredSales.filter(sale => sale.status === filters.status);
-          console.log('Ventas después de filtrar por estado:', filteredSales.length);
+        setSales(response.orders || []);
+        if (response.pagination) {
+          setPagination(response.pagination);
         }
-        
-        // Filtrar por sección si se especifica
-        if (filters.section) {
-          filteredSales = filteredSales.filter(sale => sale.section === filters.section);
-          console.log('Ventas después de filtrar por sección:', filteredSales.length);
-        }
-        
-        setSales(filteredSales);
       } else {
         setSales([]);
         setError(response.message || 'No se pudieron obtener las ventas');
@@ -53,17 +37,16 @@ export const useSales = (filters = {}) => {
 
   const updateSaleStatus = async (saleId, status) => {
     try {
-      const response = await ordersService.updateOrderStatus(saleId, status);
-      
-      // Actualizar el pedido en el estado local
-      setSales(prevSales => 
-        prevSales.map(sale => 
-          (sale._id || sale.id) === saleId 
+      await ordersService.updateOrderStatus(saleId, status);
+
+      setSales(prevSales =>
+        prevSales.map(sale =>
+          (sale._id || sale.id) === saleId
             ? { ...sale, status, updatedAt: new Date().toISOString() }
             : sale
         )
       );
-      
+
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -72,6 +55,7 @@ export const useSales = (filters = {}) => {
 
   return {
     sales,
+    pagination,
     isLoading,
     error,
     refetch: fetchSales,

@@ -200,7 +200,7 @@ export const ordersService = {
   getAllSales: async (filters = {}) => {
     try {
       const params = new URLSearchParams();
-      
+
       // Agregar filtros si existen
       if (filters.status) params.append('status', filters.status);
       if (filters.section) params.append('section', filters.section);
@@ -208,9 +208,10 @@ export const ordersService = {
       if (filters.sortBy) params.append('sortBy', filters.sortBy);
       if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
       if (filters.dateTo) params.append('dateTo', filters.dateTo);
+      if (filters.page) params.append('page', filters.page);
 
       const url = `/order/getAllSales?${params.toString()}`;
-      
+
       const response = await api.get(url);
       return response.data;
     } catch (error) {
