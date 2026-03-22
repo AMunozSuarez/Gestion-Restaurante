@@ -32,7 +32,7 @@ const SocketOrderPrinter = () => {
       }
     });
 
-    const unsubUpdated = onSocketEvent('order:updated', ({ order, _fromSocketId }) => {
+    const unsubUpdated = onSocketEvent('order:updated', ({ order, newFoods, _fromSocketId }) => {
       if (!order) return;
       // Ignorar actualizaciones de este mismo cliente
       if (_fromSocketId && _fromSocketId === getSocketId()) return;
@@ -43,10 +43,17 @@ const SocketOrderPrinter = () => {
       const hasProducts = Array.isArray(order.foods) && order.foods.length > 0;
       if (!hasProducts) return;
 
+      console.log('🟢 Socket order:updated recibido');
+      console.log('🟢 newFoods recibido:', newFoods);
+      console.log('🟢 deletedFoods:', order.deletedFoods?.map(d => ({ name: d.food?.title, qty: d.quantity })));
+
       try {
         const defaultPrinter = printingService.getDefaultPrinter();
         if (defaultPrinter) {
-          printingService.printKitchenOrder(order).catch((err) => {
+          // Pass newFoods for asterisk marking on new items
+          const options = newFoods && newFoods.length > 0 ? { newFoods } : {};
+          console.log('🟢 Imprimiendo con options:', options);
+          printingService.printKitchenOrder(order, options).catch((err) => {
             console.error('Error al imprimir comanda actualizada:', err);
           });
         }
@@ -57,6 +64,9 @@ const SocketOrderPrinter = () => {
 
     const unsubTicket = onSocketEvent('ticket:print', ({ order }) => {
       if (!order) return;
+      console.log('🟣 Socket ticket:print recibido');
+      console.log('🟣 tip:', order.tip);
+      console.log('🟣 deletedFoods:', order.deletedFoods?.map(d => ({ name: d.food?.title, qty: d.quantity })));
       try {
         const defaultPrinter = printingService.getDefaultPrinter();
         if (defaultPrinter) {

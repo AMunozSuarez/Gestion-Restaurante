@@ -313,15 +313,22 @@ Hora: ${date.toLocaleTimeString()}
     content += `[BOLD]`;
     items.forEach(item => {
       // Si el item ya tiene isNew definido (de allFoods), usarlo directamente.
-      // Si no, fallback al matching por nombre (comportamiento anterior).
+      // Si no, match by food ID from newFoods.
       const isNewItem = item.isNew || (
         !options.allFoods &&
         options.newFoods &&
         options.newFoods.some(nf => {
-          const newName = nf.name || nf.food?.title || nf.food?.name || '';
-          return newName === item.product_name;
+          // Match by food ID (nf.food is the ID string sent from backend)
+          const newFoodId = nf.food?.toString();
+          const itemFoodId = item.foodId?.toString();
+          const match = newFoodId === itemFoodId;
+          if (match) {
+            console.log('🟡 Match encontrado para:', item.product_name);
+          }
+          return match;
         })
       );
+      console.log('🟡 Producto:', item.product_name, '| isNew:', isNewItem, '| foodId:', item.foodId);
       content += `${isNewItem ? '* ' : ''}${item.quantity}x ${item.product_name}\n`;
       if (item.notes && item.notes.trim()) {
         // Manejar comentarios con saltos de linea

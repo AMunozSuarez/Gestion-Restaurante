@@ -357,7 +357,17 @@ const updateOrderController = async (req, res) => {
         // Emit socket event for real-time updates
         try {
             const senderSocketId = req.headers['x-socket-id'] || null;
-            getIO().to(`restaurant:${restaurantId}`).emit('order:updated', { order: populatedOrder, _fromSocketId: senderSocketId });
+            const socketPayload = {
+                order: populatedOrder,
+                _fromSocketId: senderSocketId
+            };
+            // Include newFoods from request for print marking (sent by POS web or Flutter)
+            if (newFoods && Array.isArray(newFoods) && newFoods.length > 0) {
+                console.log('🔵 Emitiendo newFoods:', JSON.stringify(newFoods, null, 2));
+                socketPayload.newFoods = newFoods;
+            }
+            console.log('🔵 deletedFoods en orden:', populatedOrder.deletedFoods?.map(d => ({ name: d.food?.title, quantity: d.quantity })));
+            getIO().to(`restaurant:${restaurantId}`).emit('order:updated', socketPayload);
         } catch (socketErr) {
             console.error('Error emitiendo socket order:updated:', socketErr.message);
         }
