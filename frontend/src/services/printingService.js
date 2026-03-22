@@ -516,10 +516,13 @@ Cliente: ${customer}`;
     });
 
     // Calcular costos adicionales
-    const deliveryCost = (order.section === 'delivery' || order.order_type === 'delivery') 
+    const deliveryCost = (order.section === 'delivery' || order.order_type === 'delivery')
       ? (order.delivery_cost || order.deliveryCost || 0) : 0;
-    
-    const total = subtotal + deliveryCost;
+
+    // Obtener propina
+    const tip = order.tip || order.suggestedTip || 0;
+
+    const total = subtotal + deliveryCost + tip;
 
     // Formatear precios en formato chileno
     const formattedSubtotal = new Intl.NumberFormat('es-CL', {
@@ -553,11 +556,24 @@ RESUMEN
         currency: 'CLP',
         minimumFractionDigits: 0
       }).format(deliveryCost);
-      
+
       // Alinear costo de envio a la derecha
       const deliveryLine = "\nCosto de envio:";
       const deliveryPadding = ' '.repeat(Math.max(1, alignWidth - deliveryLine.length + 1 - formattedDeliveryCost.length));
       content += `${deliveryLine}${deliveryPadding}${formattedDeliveryCost}`;
+    }
+
+    if (tip > 0) {
+      const formattedTip = new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        minimumFractionDigits: 0
+      }).format(tip);
+
+      // Alinear propina a la derecha
+      const tipLine = "\nPropina:";
+      const tipPadding = ' '.repeat(Math.max(1, alignWidth - tipLine.length + 1 - formattedTip.length));
+      content += `${tipLine}${tipPadding}${formattedTip}`;
     }
 
     // Alinear total a la derecha

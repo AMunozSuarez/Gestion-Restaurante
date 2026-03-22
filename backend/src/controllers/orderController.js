@@ -240,9 +240,14 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, deletedFoods } = req.body;
-        
+        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, deletedFoods, newFoods } = req.body;
+
         const restaurantId = req.user.restaurant;
+
+        // Log temporal para debug
+        if (newFoods && newFoods.length > 0) {
+            console.log('📲 newFoods recibido:', JSON.stringify(newFoods, null, 2));
+        }
 
         // Preparar objeto de actualización con campos simples
         const updateData = {};
@@ -357,7 +362,12 @@ const updateOrderController = async (req, res) => {
         // Emit socket event for real-time updates
         try {
             const senderSocketId = req.headers['x-socket-id'] || null;
-            getIO().to(`restaurant:${restaurantId}`).emit('order:updated', { order: populatedOrder, _fromSocketId: senderSocketId });
+            const payload = { order: populatedOrder, _fromSocketId: senderSocketId };
+            if (newFoods && Array.isArray(newFoods) && newFoods.length > 0) {
+                payload.newFoods = newFoods;
+                console.log('📡 Emitiendo socket con newFoods:', newFoods.length, 'items');
+            }
+            getIO().to(`restaurant:${restaurantId}`).emit('order:updated', payload);
         } catch (socketErr) {
             console.error('Error emitiendo socket order:updated:', socketErr.message);
         }

@@ -32,7 +32,7 @@ const SocketOrderPrinter = () => {
       }
     });
 
-    const unsubUpdated = onSocketEvent('order:updated', ({ order, _fromSocketId }) => {
+    const unsubUpdated = onSocketEvent('order:updated', ({ order, newFoods, _fromSocketId }) => {
       if (!order) return;
       // Ignorar actualizaciones de este mismo cliente
       if (_fromSocketId && _fromSocketId === getSocketId()) return;
@@ -40,13 +40,15 @@ const SocketOrderPrinter = () => {
       // No imprimir si se está completando/cancelando
       if (order.status === 'Completado' || order.status === 'Cancelado') return;
 
-      const hasProducts = Array.isArray(order.foods) && order.foods.length > 0;
-      if (!hasProducts) return;
+      // Solo imprimir si hay productos nuevos para agregar
+      const hasNewFoods = Array.isArray(newFoods) && newFoods.length > 0;
+      if (!hasNewFoods) return;
 
       try {
         const defaultPrinter = printingService.getDefaultPrinter();
         if (defaultPrinter) {
-          printingService.printKitchenOrder(order).catch((err) => {
+          // Pasar newFoods para que imprima solo los nuevos con asterisco
+          printingService.printKitchenOrder(order, { newFoods }).catch((err) => {
             console.error('Error al imprimir comanda actualizada:', err);
           });
         }

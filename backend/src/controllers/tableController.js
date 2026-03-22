@@ -20,23 +20,23 @@ const getTables = async (req, res) => {
 // Obtener una mesa específica
 const getTableById = async (req, res) => {
     try {
-        const table = await Table.findOne({ 
-            _id: req.params.id, 
-            restaurant: req.restaurantId 
+        const table = await Table.findOne({
+            _id: req.params.id,
+            restaurant: req.restaurantId
         })
             .populate({
                 path: 'currentOrder',
-                populate: {
-                    path: 'foods.food',
-                    model: 'Food'
-                }
+                populate: [
+                    { path: 'foods.food', model: 'Food' },
+                    { path: 'deletedFoods.food', model: 'Food' }
+                ]
             })
             .populate('waiter', 'userName email');
-        
+
         if (!table) {
             return res.status(404).json({ message: 'Mesa no encontrada' });
         }
-        
+
         res.json(table);
     } catch (error) {
         console.error('Error al obtener mesa:', error);

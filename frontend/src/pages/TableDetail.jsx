@@ -62,15 +62,38 @@ const TableDetail = () => {
     // Cargar pedido actual de la mesa si existe
     useEffect(() => {
         if (table?.currentOrder && table.currentOrder.foods) {
-            const orderProducts = table.currentOrder.foods.map(food => ({
+            // Cargar productos activos
+            const orderProducts = table.currentOrder.foods.map((food, index) => ({
                 id: food.food?._id || food.food,
+                cartId: `orig_${index}_${food.food?._id || food.food}`,
                 name: food.food?.title || 'Producto',
                 price: food.food?.price || 0,
                 quantity: food.quantity || 1,
                 comments: food.comment || '',
-                category: food.food?.category
+                category: food.food?.category,
+                isOriginal: true,
+                isNew: false,
+                deleted: false
             }));
-            setCart(orderProducts);
+
+            // Cargar productos eliminados si existen
+            const deletedProducts = (table.currentOrder.deletedFoods || []).map((food, index) => {
+                const productId = food.food?._id || food.food;
+                return {
+                    id: productId,
+                    cartId: `del_${index}_${productId}`,
+                    name: food.food?.title || 'Producto eliminado',
+                    price: food.food?.price || 0,
+                    quantity: food.quantity || 1,
+                    comments: food.comment || '',
+                    category: food.food?.category,
+                    isOriginal: true,
+                    isNew: false,
+                    deleted: true
+                };
+            });
+
+            setCart([...orderProducts, ...deletedProducts]);
             setComments(table.currentOrder.comment || '');
         }
     }, [table]);
@@ -98,28 +121,48 @@ const TableDetail = () => {
 
     // Funciones del carrito
     const addToCart = (product) => {
-        const existingItem = cart.find(item => item.id === product.id);
+        const existingItem = cart.find(item => item.id === product.id && !item.deleted);
         if (existingItem) {
             updateQuantity(product.id, existingItem.quantity + 1);
         } else {
-            setCart(prev => [...prev, { ...product, quantity: 1, comments: '' }]);
+            const newProduct = {
+                ...product,
+                cartId: `new_${Date.now()}_${product.id}`,
+                quantity: 1,
+                comments: '',
+                isOriginal: false,
+                isNew: !!table.currentOrder, // Es nuevo si la mesa ya tiene una orden
+                deleted: false
+            };
+            setCart(prev => [...prev, newProduct]);
             setAddedProductNotification(`${product.name} agregado`);
             setTimeout(() => setAddedProductNotification(null), 2000);
         }
     };
 
-    const removeFromCart = (productId) => {
-        setCart(prev => prev.filter(item => item.id !== productId));
+    const removeFromCart = (cartId) => {
+        setCart(prev => prev.map(item => {
+            if (item.cartId === cartId) {
+                // Si es un producto original de la orden, marcarlo como deleted
+                if (item.isOriginal && table.currentOrder) {
+                    return { ...item, deleted: true };
+                }
+                // Si es un producto nuevo, eliminarlo completamente
+                return null;
+            }
+            return item;
+        }).filter(Boolean));
     };
 
     const updateQuantity = (productId, newQuantity) => {
         if (newQuantity <= 0) {
-            removeFromCart(productId);
+            const item = cart.find(i => i.id === productId && !i.deleted);
+            if (item) removeFromCart(item.cartId);
             return;
         }
         setCart(prev =>
             prev.map(item =>
-                item.id === productId ? { ...item, quantity: newQuantity } : item
+                item.id === productId && !item.deleted ? { ...item, quantity: newQuantity } : item
             )
         );
     };
@@ -146,7 +189,7 @@ const TableDetail = () => {
     };
 
     const calculateTotal = () => {
-        return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+        return cart.filter(item => !item.deleted).reduce((total, item) => total + (item.price * item.quantity), 0);
     };
 
     const calculateTip = (percentage) => {
@@ -169,17 +212,35 @@ const TableDetail = () => {
             return;
         }
 
-        if (cart.length === 0) {
+        const activeItems = cart.filter(item => !item.deleted);
+        if (activeItems.length === 0) {
             showNotification('Agrega productos al carrito', 'warning');
             return;
         }
 
         try {
             setIsProcessing(true);
-            
+
+            // Filtrar productos activos, eliminados y nuevos
+            const activeFoods = cart.filter(item => !item.deleted);
+            const deletedFoods = cart.filter(item => item.isOriginal && item.deleted);
+            const newFoods = cart.filter(item => item.isNew && !item.deleted);
+
             const orderData = {
-                foods: cart.map(item => ({
+                foods: activeFoods.map(item => ({
                     food: item.id,
+                    quantity: item.quantity,
+                    comment: item.comments || ''
+                })),
+                deletedFoods: deletedFoods.map(item => ({
+                    food: item.id,
+                    name: item.name,
+                    quantity: item.quantity,
+                    comment: item.comments || ''
+                })),
+                newFoods: newFoods.map(item => ({
+                    food: item.id,
+                    name: item.name,
                     quantity: item.quantity,
                     comment: item.comments || ''
                 })),
@@ -309,10 +370,27 @@ const TableDetail = () => {
         try {
             setIsProcessing(true);
 
+            // Filtrar productos activos, eliminados y nuevos
+            const activeFoods = cart.filter(item => !item.deleted);
+            const deletedFoods = cart.filter(item => item.isOriginal && item.deleted);
+            const newFoods = cart.filter(item => item.isNew && !item.deleted);
+
             // Actualizar orden como completada
             const orderData = {
-                foods: cart.map(item => ({
+                foods: activeFoods.map(item => ({
                     food: item.id,
+                    quantity: item.quantity,
+                    comment: item.comments || ''
+                })),
+                deletedFoods: deletedFoods.map(item => ({
+                    food: item.id,
+                    name: item.name,
+                    quantity: item.quantity,
+                    comment: item.comments || ''
+                })),
+                newFoods: newFoods.map(item => ({
+                    food: item.id,
+                    name: item.name,
                     quantity: item.quantity,
                     comment: item.comments || ''
                 })),
@@ -540,7 +618,14 @@ const TableDetail = () => {
                     {/* Carrito */}
                     <div className="lg:col-span-1">
                         <div className="bg-white rounded-xl shadow-sm p-6 sticky top-6">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Pedido</h2>
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                                Pedido ({cart.filter(i => !i.deleted).length} items)
+                                {cart.some(i => i.deleted) && (
+                                    <span className="ml-2 text-xs text-red-500 font-normal">
+                                        ({cart.filter(i => i.deleted).length} eliminado{cart.filter(i => i.deleted).length > 1 ? 's' : ''})
+                                    </span>
+                                )}
+                            </h2>
 
                             {cart.length === 0 ? (
                                 <p className="text-gray-500 text-center py-8">
@@ -548,37 +633,50 @@ const TableDetail = () => {
                                 </p>
                             ) : (
                                 <div className="space-y-3 mb-4 max-h-[400px] overflow-y-auto">
-                                    {cart.map(item => (
-                                        <div key={item.id} className="border border-gray-200 rounded-lg p-3">
+                                    {cart.filter(item => !item.deleted).map(item => (
+                                        <div key={item.cartId} className={`border rounded-lg p-3 ${item.isNew ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}>
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="flex-1">
-                                                    <div className="font-medium text-sm">{item.name}</div>
+                                                    <div className="font-medium text-sm flex items-center gap-2">
+                                                        {item.name}
+                                                        {item.isNew && (
+                                                            <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded">Nuevo</span>
+                                                        )}
+                                                    </div>
                                                     <div className="text-teal-600 text-sm">
                                                         {formatChileanCurrency(item.price)}
                                                     </div>
                                                 </div>
                                                 <button
-                                                    onClick={() => removeFromCart(item.id)}
+                                                    onClick={() => removeFromCart(item.cartId)}
                                                     className="p-1 hover:bg-red-100 rounded"
+                                                    title={item.isOriginal ? 'Marcar como eliminado' : 'Quitar del carrito'}
                                                 >
                                                     <TrashIcon className="w-4 h-4 text-red-600" />
                                                 </button>
                                             </div>
-                                            
+
                                             <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                                    className="p-1 bg-gray-100 hover:bg-gray-200 rounded"
-                                                >
-                                                    <MinusIcon className="w-4 h-4" />
-                                                </button>
-                                                <span className="w-8 text-center font-medium">{item.quantity}</span>
-                                                <button
-                                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                                    className="p-1 bg-gray-100 hover:bg-gray-200 rounded"
-                                                >
-                                                    <PlusIcon className="w-4 h-4" />
-                                                </button>
+                                                {/* Solo mostrar botones +/- para productos nuevos (no originales) */}
+                                                {!item.isOriginal ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                            className="p-1 bg-gray-100 hover:bg-gray-200 rounded"
+                                                        >
+                                                            <MinusIcon className="w-4 h-4" />
+                                                        </button>
+                                                        <span className="w-8 text-center font-medium">{item.quantity}</span>
+                                                        <button
+                                                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                            className="p-1 bg-gray-100 hover:bg-gray-200 rounded"
+                                                        >
+                                                            <PlusIcon className="w-4 h-4" />
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-sm text-gray-500">x{item.quantity}</span>
+                                                )}
                                                 <button
                                                     onClick={() => openCommentModal(item)}
                                                     className="ml-auto p-1 hover:bg-gray-100 rounded"
@@ -594,6 +692,23 @@ const TableDetail = () => {
                                             )}
                                         </div>
                                     ))}
+
+                                    {/* Mostrar productos eliminados */}
+                                    {cart.filter(item => item.deleted).length > 0 && (
+                                        <div className="mt-4 pt-3 border-t border-red-200">
+                                            <p className="text-xs text-red-600 font-medium mb-2">
+                                                Productos eliminados ({cart.filter(item => item.deleted).length})
+                                            </p>
+                                            {cart.filter(item => item.deleted).map(item => (
+                                                <div key={item.cartId} className="border border-red-200 bg-red-50 rounded-lg p-2 mb-2 opacity-60">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm line-through text-gray-500">{item.name} x{item.quantity}</span>
+                                                        <span className="text-xs text-red-600">{formatChileanCurrency(item.price * item.quantity)}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
