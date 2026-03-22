@@ -121,17 +121,30 @@ const TableDetail = () => {
 
     // Funciones del carrito
     const addToCart = (product) => {
-        const existingItem = cart.find(item => item.id === product.id && !item.deleted);
-        if (existingItem) {
-            updateQuantity(product.id, existingItem.quantity + 1);
+        // Solo buscar en items NUEVOS (no originales) para sumar cantidad
+        const existingNewItem = cart.find(item => item.id === product.id && !item.deleted && !item.isOriginal);
+        if (existingNewItem) {
+            // Si ya hay un item nuevo con el mismo producto, sumar cantidad
+            setCart(prev =>
+                prev.map(item =>
+                    item.cartId === existingNewItem.cartId
+                        ? { ...item, quantity: item.quantity + 1 }
+                        : item
+                )
+            );
+            setAddedProductNotification(`${product.name} agregado`);
+            setTimeout(() => setAddedProductNotification(null), 2000);
         } else {
+            // Crear entrada nueva (separada de productos originales)
+            // isNew: true si ya hay una orden existente (para impresión diferenciada)
+            // isOriginal: false porque es un producto nuevo agregado por el usuario
             const newProduct = {
                 ...product,
                 cartId: `new_${Date.now()}_${product.id}`,
                 quantity: 1,
                 comments: '',
                 isOriginal: false,
-                isNew: !!table.currentOrder, // Es nuevo si la mesa ya tiene una orden
+                isNew: true, // Siempre true para productos agregados manualmente
                 deleted: false
             };
             setCart(prev => [...prev, newProduct]);
@@ -154,15 +167,14 @@ const TableDetail = () => {
         }).filter(Boolean));
     };
 
-    const updateQuantity = (productId, newQuantity) => {
+    const updateQuantity = (cartId, newQuantity) => {
         if (newQuantity <= 0) {
-            const item = cart.find(i => i.id === productId && !i.deleted);
-            if (item) removeFromCart(item.cartId);
+            removeFromCart(cartId);
             return;
         }
         setCart(prev =>
             prev.map(item =>
-                item.id === productId && !item.deleted ? { ...item, quantity: newQuantity } : item
+                item.cartId === cartId ? { ...item, quantity: newQuantity } : item
             )
         );
     };
@@ -224,7 +236,10 @@ const TableDetail = () => {
             // Filtrar productos activos, eliminados y nuevos
             const activeFoods = cart.filter(item => !item.deleted);
             const deletedFoods = cart.filter(item => item.isOriginal && item.deleted);
-            const newFoods = cart.filter(item => item.isNew && !item.deleted);
+            // newFoods solo aplica para actualizaciones (no para creación de orden)
+            const newFoods = table.currentOrder
+                ? cart.filter(item => item.isNew && !item.deleted)
+                : [];
 
             const orderData = {
                 foods: activeFoods.map(item => ({
@@ -373,7 +388,10 @@ const TableDetail = () => {
             // Filtrar productos activos, eliminados y nuevos
             const activeFoods = cart.filter(item => !item.deleted);
             const deletedFoods = cart.filter(item => item.isOriginal && item.deleted);
-            const newFoods = cart.filter(item => item.isNew && !item.deleted);
+            // newFoods solo aplica para actualizaciones
+            const newFoods = table.currentOrder
+                ? cart.filter(item => item.isNew && !item.deleted)
+                : [];
 
             // Actualizar orden como completada
             const orderData = {
@@ -633,65 +651,100 @@ const TableDetail = () => {
                                 </p>
                             ) : (
                                 <div className="space-y-3 mb-4 max-h-[400px] overflow-y-auto">
-                                    {cart.filter(item => !item.deleted).map(item => (
-                                        <div key={item.cartId} className={`border rounded-lg p-3 ${item.isNew ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}>
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="flex-1">
-                                                    <div className="font-medium text-sm flex items-center gap-2">
-                                                        {item.name}
-                                                        {item.isNew && (
-                                                            <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded">Nuevo</span>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-teal-600 text-sm">
-                                                        {formatChileanCurrency(item.price)}
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => removeFromCart(item.cartId)}
-                                                    className="p-1 hover:bg-red-100 rounded"
-                                                    title={item.isOriginal ? 'Marcar como eliminado' : 'Quitar del carrito'}
-                                                >
-                                                    <TrashIcon className="w-4 h-4 text-red-600" />
-                                                </button>
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                {/* Solo mostrar botones +/- para productos nuevos (no originales) */}
-                                                {!item.isOriginal ? (
-                                                    <>
+                                    {/* Sección: Productos nuevos (Por enviar) */}
+                                    {cart.filter(item => item.isNew && !item.deleted).length > 0 && (
+                                        <div className="mb-3">
+                                            <p className="text-xs text-green-600 font-medium mb-2">Por enviar</p>
+                                            {cart.filter(item => item.isNew && !item.deleted).map(item => (
+                                                <div key={item.cartId} className="border border-green-300 bg-green-50 rounded-lg p-3 mb-2">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className="flex-1">
+                                                            <div className="font-medium text-sm flex items-center gap-2">
+                                                                {item.name}
+                                                                <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded">Nuevo</span>
+                                                            </div>
+                                                            <div className="text-teal-600 text-sm">
+                                                                {formatChileanCurrency(item.price)}
+                                                            </div>
+                                                        </div>
                                                         <button
-                                                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                            onClick={() => removeFromCart(item.cartId)}
+                                                            className="p-1 hover:bg-red-100 rounded"
+                                                            title="Quitar del carrito"
+                                                        >
+                                                            <TrashIcon className="w-4 h-4 text-red-600" />
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => updateQuantity(item.cartId, item.quantity - 1)}
                                                             className="p-1 bg-gray-100 hover:bg-gray-200 rounded"
                                                         >
                                                             <MinusIcon className="w-4 h-4" />
                                                         </button>
                                                         <span className="w-8 text-center font-medium">{item.quantity}</span>
                                                         <button
-                                                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                            onClick={() => updateQuantity(item.cartId, item.quantity + 1)}
                                                             className="p-1 bg-gray-100 hover:bg-gray-200 rounded"
                                                         >
                                                             <PlusIcon className="w-4 h-4" />
                                                         </button>
-                                                    </>
-                                                ) : (
-                                                    <span className="text-sm text-gray-500">x{item.quantity}</span>
-                                                )}
-                                                <button
-                                                    onClick={() => openCommentModal(item)}
-                                                    className="ml-auto p-1 hover:bg-gray-100 rounded"
-                                                >
-                                                    <ChatBubbleLeftIcon className={`w-4 h-4 ${item.comments ? 'text-teal-600' : 'text-gray-400'}`} />
-                                                </button>
-                                            </div>
-
-                                            {item.comments && (
-                                                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                                                    {item.comments}
+                                                        <button
+                                                            onClick={() => openCommentModal(item)}
+                                                            className="ml-auto p-1 hover:bg-gray-100 rounded"
+                                                        >
+                                                            <ChatBubbleLeftIcon className={`w-4 h-4 ${item.comments ? 'text-teal-600' : 'text-gray-400'}`} />
+                                                        </button>
+                                                    </div>
+                                                    {item.comments && (
+                                                        <div className="mt-2 text-xs text-gray-600 bg-white/50 p-2 rounded">
+                                                            {item.comments}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
+                                            ))}
                                         </div>
-                                    ))}
+                                    )}
+
+                                    {/* Sección: Productos en cocina (originales) */}
+                                    {cart.filter(item => item.isOriginal && !item.deleted).length > 0 && (
+                                        <div className="mb-3">
+                                            <p className="text-xs text-gray-500 font-medium mb-2">En cocina</p>
+                                            {cart.filter(item => item.isOriginal && !item.deleted).map(item => (
+                                                <div key={item.cartId} className="border border-gray-200 rounded-lg p-3 mb-2">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className="flex-1">
+                                                            <div className="font-medium text-sm">{item.name}</div>
+                                                            <div className="text-teal-600 text-sm">
+                                                                {formatChileanCurrency(item.price)}
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => removeFromCart(item.cartId)}
+                                                            className="p-1 hover:bg-red-100 rounded"
+                                                            title="Marcar como eliminado"
+                                                        >
+                                                            <TrashIcon className="w-4 h-4 text-red-600" />
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm text-gray-500">x{item.quantity}</span>
+                                                        <button
+                                                            onClick={() => openCommentModal(item)}
+                                                            className="ml-auto p-1 hover:bg-gray-100 rounded"
+                                                        >
+                                                            <ChatBubbleLeftIcon className={`w-4 h-4 ${item.comments ? 'text-teal-600' : 'text-gray-400'}`} />
+                                                        </button>
+                                                    </div>
+                                                    {item.comments && (
+                                                        <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                                            {item.comments}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
 
                                     {/* Mostrar productos eliminados */}
                                     {cart.filter(item => item.deleted).length > 0 && (

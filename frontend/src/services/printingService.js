@@ -285,10 +285,38 @@ Hora: ${date.toLocaleTimeString()}
     else if (order.foods && Array.isArray(order.foods)) {
       items = order.foods.map(item => ({
         product_name: item.food?.title || item.food?.name || 'Producto',
+        product_id: item.food?._id || item.food,
         quantity: item.quantity || 1,
         notes: item.comment || '',
         isNew: false
       }));
+
+      // Si hay newFoods, marcar los productos nuevos usando matching inteligente
+      if (options.newFoods && options.newFoods.length > 0) {
+        // Crear lista de newFoods para matching (por ID y cantidad)
+        const newFoodsToMatch = options.newFoods.map(nf => ({
+          id: nf.food?._id || nf.food,
+          name: nf.name || nf.food?.title || nf.food?.name || '',
+          quantity: nf.quantity || 1,
+          matched: false
+        }));
+
+        // Recorrer items de atrás hacia adelante (los nuevos suelen estar al final)
+        for (let i = items.length - 1; i >= 0; i--) {
+          const item = items[i];
+          // Buscar un newFood que coincida y no haya sido usado
+          const matchIndex = newFoodsToMatch.findIndex(nf =>
+            !nf.matched &&
+            (nf.id === item.product_id || nf.name === item.product_name) &&
+            nf.quantity === item.quantity
+          );
+
+          if (matchIndex !== -1) {
+            items[i].isNew = true;
+            newFoodsToMatch[matchIndex].matched = true;
+          }
+        }
+      }
     }
     // Estructura alternativa: order.items
     else if (order.items && Array.isArray(order.items)) {
@@ -312,17 +340,7 @@ Hora: ${date.toLocaleTimeString()}
     // Agregar cada producto al contenido (marcado para negrita si esta configurado)
     content += `[BOLD]`;
     items.forEach(item => {
-      // Si el item ya tiene isNew definido (de allFoods), usarlo directamente.
-      // Si no, fallback al matching por nombre (comportamiento anterior).
-      const isNewItem = item.isNew || (
-        !options.allFoods &&
-        options.newFoods &&
-        options.newFoods.some(nf => {
-          const newName = nf.name || nf.food?.title || nf.food?.name || '';
-          return newName === item.product_name;
-        })
-      );
-      content += `${isNewItem ? '* ' : ''}${item.quantity}x ${item.product_name}\n`;
+      content += `${item.isNew ? '* ' : ''}${item.quantity}x ${item.product_name}\n`;
       if (item.notes && item.notes.trim()) {
         // Manejar comentarios con saltos de linea
         const noteLines = item.notes.trim().split('\n');
