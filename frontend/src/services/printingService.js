@@ -200,10 +200,10 @@ la fuente esta configurada bien.
 
   // Generar comanda de cocina
   generateKitchenOrder(order, options = {}) {
-    
+
     const date = new Date();
     const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
-    
+
     // Extraer nombre del cliente desde diferentes posibles campos
     let customer = 'Cliente';
     if (order.buyer && typeof order.buyer === 'object' && order.buyer.name) {
@@ -220,9 +220,18 @@ la fuente esta configurada bien.
       customer = order.customerName;
     }
 
-
     const orderType = order.section || order.order_type || order.orderType || 'Mostrador';
-    
+    const isMesas = orderType.toLowerCase() === 'mesas';
+
+    // Extraer datos de mesa y garzón para sección mesas
+    const tableNumber = order.tableNumber || '';
+    let waiterName = '';
+    if (order.waiter && typeof order.waiter === 'object') {
+      waiterName = order.waiter.userName || order.waiter.name || '';
+    } else if (order.waiterName) {
+      waiterName = order.waiterName;
+    }
+
     const isUpdate = (options.newFoods && options.newFoods.length > 0) ||
                      (options.deletedFoods && options.deletedFoods.length > 0);
 
@@ -234,9 +243,16 @@ la fuente esta configurada bien.
 ================================
 
 No. Orden: #${orderNumber}
-Cliente: ${customer}
-Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
-Hora: ${date.toLocaleTimeString()}
+`;
+      // Para sección mesas: mostrar Mesa y Garzón, NO mostrar cliente
+      if (isMesas) {
+        if (tableNumber) content += `Mesa: ${tableNumber}\n`;
+        if (waiterName) content += `Garzon: ${waiterName}\n`;
+      } else {
+        content += `Cliente: ${customer}\n`;
+        content += `Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}\n`;
+      }
+      content += `Hora: ${date.toLocaleTimeString()}
 `;
     } else {
       content = `
@@ -245,9 +261,16 @@ Hora: ${date.toLocaleTimeString()}
 ================================
 
 No. Orden: #${orderNumber}
-Cliente: ${customer}
-Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}
-Hora: ${date.toLocaleTimeString()}
+`;
+      // Para sección mesas: mostrar Mesa y Garzón, NO mostrar cliente
+      if (isMesas) {
+        if (tableNumber) content += `Mesa: ${tableNumber}\n`;
+        if (waiterName) content += `Garzon: ${waiterName}\n`;
+      } else {
+        content += `Cliente: ${customer}\n`;
+        content += `Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}\n`;
+      }
+      content += `Hora: ${date.toLocaleTimeString()}
 `;
     }
 
