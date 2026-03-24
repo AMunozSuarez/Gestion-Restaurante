@@ -780,8 +780,8 @@ const SuperAdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="h-full bg-gray-50 overflow-auto">
+      <div className="max-w-7xl mx-auto p-6 pb-12">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
