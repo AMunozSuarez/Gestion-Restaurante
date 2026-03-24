@@ -144,7 +144,7 @@ const TableManagement = () => {
             
             // Encontrar la primera posición disponible en la sección actual
             let availablePosition = { x: 0, y: 0 };
-            const cols = 8;
+            const cols = 7;
             const rows = 6;
             
             outerLoop:
@@ -365,7 +365,7 @@ const TableManagement = () => {
 
     // Crear cuadrícula de posiciones
     const createGrid = () => {
-        const cols = 8;
+        const cols = 7;
         const rows = 6;
         const grid = [];
         
@@ -554,7 +554,7 @@ const TableManagement = () => {
                                 <p className="text-sm text-gray-600">Arrastra las mesas para cambiar su posición</p>
                             </div>
                         )}
-                        <div className={`grid grid-cols-8 gap-2 p-4 rounded-xl ${
+                        <div className={`grid grid-cols-7 gap-2 p-4 rounded-xl ${
                             isEditMode 
                                 ? 'bg-gray-100' 
                                 : 'bg-gradient-to-br from-teal-50/30 to-cyan-50/30 border-2 border-teal-100/50'

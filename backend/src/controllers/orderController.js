@@ -2,6 +2,7 @@ const orderModel = require('../models/orderModel');
 const foodModel = require('../models/foodModel'); // Importar el modelo de alimentos
 const Customer = require('../models/customerModel'); // Importar el modelo de clientes
 const cashRegisterModel = require('../models/cashRegisterModel'); // Importar el modelo de caja
+const Table = require('../models/tableModel'); // Importar el modelo de mesas
 const { getChileDate, getChileTimestamp, formatChileDate, getChileDayRange } = require('../utils/dateUtils');
 const { getIO } = require('../socket');
 
@@ -9,8 +10,8 @@ const { getIO } = require('../socket');
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, waiter, tip } = req.body;
-        
+        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, tableId, waiter, tip } = req.body;
+
         const restaurantId = req.user.restaurant;
         const foodIds = foods.map((item) => item.food);
 
@@ -39,10 +40,23 @@ const createOrderController = async (req, res) => {
             return null;
         })();
 
-        const [customer, existingFoods, currentCashRegister] = await Promise.all([
+        // Si es sección mesas, buscar la mesa para asignación atómica
+        const tablePromise = (async () => {
+            if (section !== 'mesas') return null;
+            if (tableId) {
+                return Table.findOne({ _id: tableId, restaurant: restaurantId });
+            }
+            if (tableNumber) {
+                return Table.findOne({ tableNumber, restaurant: restaurantId });
+            }
+            return null;
+        })();
+
+        const [customer, existingFoods, currentCashRegister, table] = await Promise.all([
             customerPromise,
             foodModel.find({ _id: { $in: foodIds }, restaurant: restaurantId }).select('_id price').lean(),
             cashRegisterModel.findOne({ restaurant: restaurantId, status: 'Abierta' }).select('_id').lean(),
+            tablePromise,
         ]);
 
         // ── Validaciones rápidas (sin queries) ──
@@ -103,19 +117,47 @@ const createOrderController = async (req, res) => {
 
         await order.save();
 
-        // ── Paso 4: Populate en el documento ya guardado (evita un findById extra) ──
+        // ── Paso 4: Asignar orden a mesa si es sección "mesas" (operación atómica) ──
+        let populatedTable = null;
+        if (table) {
+            table.currentOrder = order._id;
+            if (table.status === 'available') {
+                table.status = 'occupied';
+                table.openedAt = new Date();
+            }
+            await table.save();
+
+            // Populate la mesa para el evento socket
+            populatedTable = await Table.findById(table._id)
+                .populate({
+                    path: 'currentOrder',
+                    populate: {
+                        path: 'foods.food',
+                        model: 'Food'
+                    }
+                })
+                .populate('waiter', 'userName email');
+        }
+
+        // ── Paso 5: Populate en el documento ya guardado (evita un findById extra) ──
         await order.populate([
             { path: 'foods.food', select: 'title price' },
             { path: 'buyer', select: 'name phone' },
             { path: 'waiter', select: 'userName name' },
         ]);
 
-        // Emit socket event for real-time updates
+        // Emit socket events for real-time updates
         try {
             const senderSocketId = req.headers['x-socket-id'] || null;
-            getIO().to(`restaurant:${restaurantId}`).emit('order:created', { order, _fromSocketId: senderSocketId });
+            const io = getIO();
+            io.to(`restaurant:${restaurantId}`).emit('order:created', { order, _fromSocketId: senderSocketId });
+
+            // Si se asignó a mesa, emitir table:updated también
+            if (populatedTable) {
+                io.to(`restaurant:${restaurantId}`).emit('table:updated', { table: populatedTable });
+            }
         } catch (socketErr) {
-            console.error('Error emitiendo socket order:created:', socketErr.message);
+            console.error('Error emitiendo socket events:', socketErr.message);
         }
 
         res.status(201).json({

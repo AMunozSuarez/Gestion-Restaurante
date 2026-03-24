@@ -508,7 +508,7 @@ const TableDetail = () => {
     const displayProducts = searchTerm.trim() ? searchResults : products;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50">
+        <div className="h-full bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 flex flex-col overflow-hidden">
             {showCashAlert && <CashRegisterAlert isOpen={!isCashOpen} onClose={() => setShowCashAlert(false)} />}
 
             {/* Notificación toast */}
@@ -597,7 +597,8 @@ const TableDetail = () => {
                 </div>
             )}
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex-1 overflow-auto">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Productos */}
                     <div className="lg:col-span-2">
@@ -786,6 +787,7 @@ const TableDetail = () => {
                         </div>
                     </div>
                 </div>
+            </div>
             </div>
 
             {/* Modal: Comentario de producto */}
