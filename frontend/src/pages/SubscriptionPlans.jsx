@@ -11,7 +11,7 @@ const SubscriptionPlans = () => {
   const [error, setError] = useState('');
   const [currentSubscription, setCurrentSubscription] = useState(null);
   const [showPlans, setShowPlans] = useState(false);
-  const [hasUsedTrial, setHasUsedTrial] = useState(false);
+
 
   useEffect(() => {
     loadInitialData();
@@ -59,8 +59,8 @@ const SubscriptionPlans = () => {
       setLoading(true);
       const response = await getPlans();
       if (response.success) {
-        setPlans(response.data);
-        setHasUsedTrial(response.hasUsedTrial || false);
+        // Siempre filtrar el plan trial — solo se ofrecen planes de pago
+        setPlans(response.data.filter(p => p.id !== 'trial'));
       }
     } catch (error) {
       setError('Error al cargar los planes');
@@ -92,11 +92,6 @@ const SubscriptionPlans = () => {
         return;
       }
 
-      // Si es un plan gratuito (trial), redirigir a página de éxito
-      if (response.data?.isFree) {
-        navigate('/subscription/success?trial=true');
-        return;
-      }
       
       // Si es plan de pago, redirigir a MercadoPago
       const initPoint = response.data?.mercadoPago?.initPoint;
@@ -123,11 +118,6 @@ const SubscriptionPlans = () => {
 
   const getPlanIcon = (planId) => {
     const iconComponents = {
-      trial: (
-        <svg className="w-20 h-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-        </svg>
-      ),
       monthly: (
         <svg className="w-20 h-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
@@ -143,7 +133,6 @@ const SubscriptionPlans = () => {
 
   const getPlanColor = (planId) => {
     const colors = {
-      trial: 'from-emerald-500 to-teal-600',
       monthly: 'from-blue-600 to-indigo-700',
     };
     return colors[planId] || 'from-gray-400 to-gray-600';
@@ -461,53 +450,17 @@ const SubscriptionPlans = () => {
           </div>
         )}
 
-        {/* Mensaje cuando el usuario ya usó el trial */}
-        {hasUsedTrial && plans.length === 1 && (
-          <div className="max-w-3xl mx-auto mb-8">
-            <div className="bg-blue-50 border-2 border-blue-300 rounded-2xl p-6 shadow-lg">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <svg className="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-4 flex-1">
-                  <h3 className="text-lg font-bold text-blue-900 mb-2">
-                    Ya has usado tu período de prueba gratuito
-                  </h3>
-                  <p className="text-blue-800 leading-relaxed">
-                    Esperamos que hayas disfrutado de todas las funcionalidades. Para continuar usando nuestro sistema, selecciona el plan mensual a continuación.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* Plans Grid */}
-        {/* Si hay suscripción previa no-active (expired/suspended/cancelled), filtrar el trial */}
-        {(() => {
-          const visiblePlans = (currentSubscription && currentSubscription.status !== 'active')
-            ? plans.filter(p => p.id !== 'trial')
-            : plans;
-          return (
-        <div className={`mx-auto mb-16 ${
-          visiblePlans.length === 1 
-            ? 'max-w-xl' 
-            : 'max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12'
-        }`}>
-          {visiblePlans.map((plan) => (
+        <div className="max-w-xl mx-auto mb-16">
+          {plans.map((plan) => (
             <Card
               key={plan.id}
-              className={`relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:scale-105 border-2 ${
-                plan.id === 'monthly' 
-                  ? 'border-blue-500 shadow-xl shadow-blue-200' 
-                  : 'border-gray-200 hover:border-emerald-400'
-              } ${
+              className={`relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:scale-105 border-2 border-blue-500 shadow-xl shadow-blue-200 ${
                 selectedPlan === plan.id ? 'ring-4 ring-purple-500 scale-105' : ''
               }`}
             >
-              
               {/* Plan Header */}
               <div className={`bg-gradient-to-br ${getPlanColor(plan.id)} p-8 text-white relative overflow-hidden`}>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
@@ -516,9 +469,7 @@ const SubscriptionPlans = () => {
                   <div className="mb-4">{getPlanIcon(plan.id)}</div>
                   <h3 className="text-3xl font-bold mb-3">{plan.name}</h3>
                   <div className="flex items-end mb-2">
-                    <span className="text-5xl font-extrabold">
-                      {plan.price === 0 ? 'Gratis' : formatPrice(plan.price)}
-                    </span>
+                    <span className="text-5xl font-extrabold">{formatPrice(plan.price)}</span>
                   </div>
                   <p className="text-sm opacity-90 font-medium">{plan.duration} días de acceso completo</p>
                 </div>
@@ -564,11 +515,7 @@ const SubscriptionPlans = () => {
                 <button
                   onClick={() => handleSelectPlan(plan.id)}
                   disabled={selectedPlan === plan.id}
-                  className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 ${
-                    plan.id === 'monthly'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white hover:from-blue-700 hover:to-indigo-800 shadow-lg hover:shadow-blue-500/50'
-                      : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-lg hover:shadow-emerald-500/50'
-                  } ${
+                  className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-700 text-white hover:from-blue-700 hover:to-indigo-800 shadow-lg hover:shadow-blue-500/50 ${
                     selectedPlan === plan.id
                       ? 'opacity-50 cursor-not-allowed'
                       : 'hover:shadow-2xl transform hover:-translate-y-1'
@@ -582,8 +529,6 @@ const SubscriptionPlans = () => {
                       </svg>
                       Procesando...
                     </span>
-                  ) : plan.price === 0 ? (
-                    'Comenzar Prueba Gratis'
                   ) : currentSubscription && currentSubscription.status !== 'active' ? (
                     'Renovar — Agregar 30 días'
                   ) : (
@@ -594,8 +539,6 @@ const SubscriptionPlans = () => {
             </Card>
           ))}
         </div>
-          );
-        })()}
 
         {/* Benefits Section */}
         <div className="max-w-6xl mx-auto">
