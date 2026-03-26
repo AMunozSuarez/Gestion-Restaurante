@@ -87,7 +87,7 @@ const getCurrentSubscription = async (req, res) => {
 
         const subscription = await Subscription.findOne({
             restaurant: restaurantId,
-            status: { $in: ['active', 'trial', 'expired'] },
+            status: { $in: ['active', 'trial', 'expired', 'suspended', 'cancelled'] },
         }).sort({ createdAt: -1 });
 
         if (!subscription) {
@@ -642,6 +642,56 @@ const verifyMercadoPagoPayment = async (req, res) => {
             });
         }
 
+        // Verificar si ya tiene una suscripción que NO está activa (suspendida, expirada, cancelada)
+        // En ese caso, reactivarla y extender la fecha en lugar de crear una nueva
+        const existingSuspendedOrExpired = await Subscription.findOne({
+            restaurant: restaurantId,
+            status: { $in: ['suspended', 'expired', 'cancelled'] },
+        }).sort({ createdAt: -1 });
+
+        if (existingSuspendedOrExpired) {
+            console.log('Suscripción inactiva encontrada - reactivando y extendiendo');
+            const planCfg = Subscription.schema.statics.getPlanConfig(plan);
+            const newEndDate = calculateEndDate(new Date(), plan);
+
+            existingSuspendedOrExpired.plan = plan;
+            existingSuspendedOrExpired.status = 'active';
+            existingSuspendedOrExpired.paymentId = paymentInfo.id.toString();
+            existingSuspendedOrExpired.lastPaymentDate = new Date(paymentInfo.date_approved);
+            existingSuspendedOrExpired.startDate = new Date();
+            existingSuspendedOrExpired.endDate = newEndDate;
+            existingSuspendedOrExpired.amount = paymentInfo.transaction_amount || paymentInfo.amount;
+            existingSuspendedOrExpired.paymentProvider = 'mercadopago';
+            existingSuspendedOrExpired.paymentHistory.push({
+                date: new Date(paymentInfo.date_approved),
+                amount: paymentInfo.transaction_amount || paymentInfo.amount,
+                status: 'success',
+                paymentId: paymentInfo.id.toString(),
+            });
+            await existingSuspendedOrExpired.save();
+
+            await Restaurant.findByIdAndUpdate(restaurantId, {
+                currentSubscription: existingSuspendedOrExpired._id,
+                subscriptionStatus: 'active',
+                subscriptionPlan: plan,
+                subscriptionStartDate: new Date(),
+                subscriptionEndDate: newEndDate,
+                lastPaymentDate: new Date(paymentInfo.date_approved),
+                isSuspended: false,
+                suspensionReason: null,
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: 'Pago verificado y suscripción reactivada',
+                data: {
+                    subscription: existingSuspendedOrExpired,
+                    payment: paymentInfo,
+                    reactivated: true,
+                },
+            });
+        }
+
         // Verificar si ya tiene una suscripción activa (evitar duplicados)
         const existingActive = await Subscription.findOne({
             restaurant: restaurantId,
@@ -649,31 +699,37 @@ const verifyMercadoPagoPayment = async (req, res) => {
         });
 
         if (existingActive) {
-            console.log('Ya existe una suscripción activa - actualizando en lugar de duplicar');
-            // Actualizar la existente en lugar de crear una nueva
+            console.log('Ya existe una suscripción activa - extendiendo en lugar de duplicar');
+            const newEndDate = calculateEndDate(new Date(existingActive.endDate), plan);
             existingActive.plan = plan;
             existingActive.paymentId = paymentInfo.id.toString();
             existingActive.lastPaymentDate = new Date(paymentInfo.date_approved);
+            existingActive.endDate = newEndDate;
             existingActive.paymentHistory.push({
                 date: new Date(paymentInfo.date_approved),
-                amount: paymentInfo.amount,
+                amount: paymentInfo.transaction_amount || paymentInfo.amount,
                 status: 'success',
                 paymentId: paymentInfo.id.toString(),
             });
             await existingActive.save();
-            
+
+            await Restaurant.findByIdAndUpdate(restaurantId, {
+                subscriptionEndDate: newEndDate,
+                lastPaymentDate: new Date(paymentInfo.date_approved),
+            });
+
             return res.status(200).json({
                 success: true,
-                message: 'Pago verificado y suscripción actualizada',
+                message: 'Pago verificado y suscripción extendida',
                 data: {
                     subscription: existingActive,
                     payment: paymentInfo,
-                    updated: true,
+                    extended: true,
                 },
             });
         }
 
-        // Crear o actualizar la suscripción
+        // Crear nueva suscripción (primer pago de este restaurante)
         const planConfig = Subscription.schema.statics.getPlanConfig(plan);
         const startDate = new Date();
         const endDate = calculateEndDate(startDate, plan);

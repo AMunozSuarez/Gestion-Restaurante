@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  PrinterIcon, 
-  CheckCircleIcon, 
+import {
+  PrinterIcon,
+  CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowPathIcon,
   CogIcon,
@@ -26,10 +26,10 @@ const Configuracion = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('printers'); // 'printers', 'subscription' o 'users'
-  
+
   // Verificar si el usuario es propietario o super admin
   const isOwnerOrAdmin = user && (user.role === 'owner' || user.role === 'super_admin');
-  
+
   // Estados para impresoras
   const [printers, setPrinters] = useState([]);
   const [selectedPrinter, setSelectedPrinter] = useState('');
@@ -48,12 +48,13 @@ const Configuracion = () => {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [categoryPrintMap, setCategoryPrintMap] = useState({}); // { catId: ["cocina", "barra"] }
   const [savingPrintDestinations, setSavingPrintDestinations] = useState(false);
-  
+
   // Estados para suscripción
   const [subscription, setSubscription] = useState(null);
   const [subscriptionData, setSubscriptionData] = useState(null); // Para isInGracePeriod y otros datos
   const [loadingSubscription, setLoadingSubscription] = useState(false);
   const [cancelingSubscription, setCancelingSubscription] = useState(false);
+  const [renewingSubscription, setRenewingSubscription] = useState(false);
 
   // Estados para usuarios
   const [users, setUsers] = useState([]);
@@ -92,36 +93,36 @@ const Configuracion = () => {
   const checkServiceAndLoadPrinters = async () => {
     setLoading(true);
     setServiceStatus('checking');
-    
+
     try {
       // Verificar estado del servicio
       const healthResponse = await printingService.checkHealth();
-      
+
       if (healthResponse.success) {
         setServiceStatus('online');
         // Cargar impresoras
         const printersResponse = await printingService.getPrinters();
-        
+
         if (printersResponse.success) {
           setPrinters(printersResponse.data || []);
         } else {
-          setMessage({ 
-            type: 'error', 
-            text: 'Error al cargar impresoras: ' + printersResponse.error 
+          setMessage({
+            type: 'error',
+            text: 'Error al cargar impresoras: ' + printersResponse.error
           });
         }
       } else {
         setServiceStatus('offline');
-        setMessage({ 
-          type: 'error', 
-          text: 'Servicio de impresión no disponible. Contacte al administrador del sistema.' 
+        setMessage({
+          type: 'error',
+          text: 'Servicio de impresión no disponible. Contacte al administrador del sistema.'
         });
       }
     } catch (error) {
       setServiceStatus('offline');
-      setMessage({ 
-        type: 'error', 
-        text: 'No se puede conectar al servicio de impresión. Contacte al administrador.' 
+      setMessage({
+        type: 'error',
+        text: 'No se puede conectar al servicio de impresión. Contacte al administrador.'
       });
     } finally {
       setLoading(false);
@@ -132,7 +133,7 @@ const Configuracion = () => {
   const loadSavedPrinters = () => {
     const saved = localStorage.getItem('selectedPrinter');
     const defaultSaved = printingService.getDefaultPrinter();
-    
+
     if (saved) {
       setSelectedPrinter(saved);
     }
@@ -187,9 +188,9 @@ const Configuracion = () => {
   const handlePrinterSelect = (printerName) => {
     setSelectedPrinter(printerName);
     localStorage.setItem('selectedPrinter', printerName);
-    setMessage({ 
-      type: 'success', 
-      text: `Impresora "${printerName}" seleccionada para pruebas` 
+    setMessage({
+      type: 'success',
+      text: `Impresora "${printerName}" seleccionada para pruebas`
     });
   };
 
@@ -197,9 +198,9 @@ const Configuracion = () => {
   const handleSetDefaultPrinter = (printerName) => {
     setDefaultPrinter(printerName);
     printingService.setDefaultPrinter(printerName);
-    setMessage({ 
-      type: 'success', 
-      text: `"${printerName}" establecida como impresora predeterminada para comandas de cocina` 
+    setMessage({
+      type: 'success',
+      text: `"${printerName}" establecida como impresora predeterminada para comandas de cocina`
     });
   };
 
@@ -207,18 +208,18 @@ const Configuracion = () => {
   const handleRemoveDefaultPrinter = () => {
     setDefaultPrinter('');
     printingService.removeDefaultPrinter();
-    setMessage({ 
-      type: 'info', 
-      text: 'Impresora predeterminada removida. Las comandas no se imprimirán automáticamente.' 
+    setMessage({
+      type: 'info',
+      text: 'Impresora predeterminada removida. Las comandas no se imprimirán automáticamente.'
     });
   };
 
   // Imprimir página de prueba
   const handleTestPrint = async (printerName = selectedPrinter) => {
     if (!printerName) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Error: No se especificó impresora' 
+      setMessage({
+        type: 'error',
+        text: 'Error: No se especificó impresora'
       });
       return;
     }
@@ -228,22 +229,22 @@ const Configuracion = () => {
 
     try {
       const response = await printingService.printTest(printerName);
-      
+
       if (response.success) {
-        setMessage({ 
-          type: 'success', 
-          text: `Página de prueba enviada correctamente a ${printerName}` 
+        setMessage({
+          type: 'success',
+          text: `Página de prueba enviada correctamente a ${printerName}`
         });
       } else {
-        setMessage({ 
-          type: 'error', 
-          text: 'Error al imprimir: ' + response.error 
+        setMessage({
+          type: 'error',
+          text: 'Error al imprimir: ' + response.error
         });
       }
     } catch (error) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Error al enviar página de prueba' 
+      setMessage({
+        type: 'error',
+        text: 'Error al enviar página de prueba'
       });
     } finally {
       setPrinting(false);
@@ -253,9 +254,9 @@ const Configuracion = () => {
   // Imprimir comanda de prueba
   const handleTestKitchenOrder = async () => {
     if (!defaultPrinter) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Establece una impresora predeterminada primero' 
+      setMessage({
+        type: 'error',
+        text: 'Establece una impresora predeterminada primero'
       });
       return;
     }
@@ -296,22 +297,22 @@ const Configuracion = () => {
 
     try {
       const response = await printingService.printKitchenOrder(testOrder);
-      
+
       if (response.success) {
-        setMessage({ 
-          type: 'success', 
-          text: 'Comanda de prueba enviada correctamente' 
+        setMessage({
+          type: 'success',
+          text: 'Comanda de prueba enviada correctamente'
         });
       } else {
-        setMessage({ 
-          type: 'error', 
-          text: 'Error al imprimir comanda: ' + response.error 
+        setMessage({
+          type: 'error',
+          text: 'Error al imprimir comanda: ' + response.error
         });
       }
     } catch (error) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Error al enviar comanda de prueba' 
+      setMessage({
+        type: 'error',
+        text: 'Error al enviar comanda de prueba'
       });
     } finally {
       setPrinting(false);
@@ -420,7 +421,7 @@ const Configuracion = () => {
   };
 
   // ============ FUNCIONES PARA SUSCRIPCIÓN ============
-  
+
   // Cargar información de la suscripción
   const loadSubscription = async () => {
     setLoadingSubscription(true);
@@ -430,16 +431,16 @@ const Configuracion = () => {
         setSubscription(response.data.subscription);
         setSubscriptionData(response.data); // Guardar toda la data incluyendo isInGracePeriod
       } else {
-        setMessage({ 
-          type: 'error', 
-          text: 'Error al cargar suscripción: ' + response.message 
+        setMessage({
+          type: 'error',
+          text: 'Error al cargar suscripción: ' + response.message
         });
       }
     } catch (error) {
       console.error('Error al cargar suscripción:', error);
-      setMessage({ 
-        type: 'error', 
-        text: 'Error al cargar información de suscripción' 
+      setMessage({
+        type: 'error',
+        text: 'Error al cargar información de suscripción'
       });
     } finally {
       setLoadingSubscription(false);
@@ -454,24 +455,24 @@ const Configuracion = () => {
 
     setCancelingSubscription(true);
     try {
-      const response = await subscriptionService.cancelSubscription();
+      const response = await subscriptionService.cancelSubscription(subscription._id);
       if (response.success) {
-        setMessage({ 
-          type: 'success', 
-          text: 'Suscripción cancelada exitosamente' 
+        setMessage({
+          type: 'success',
+          text: 'Suscripción cancelada exitosamente'
         });
         loadSubscription();
       } else {
-        setMessage({ 
-          type: 'error', 
-          text: 'Error al cancelar: ' + response.message 
+        setMessage({
+          type: 'error',
+          text: 'Error al cancelar: ' + response.message
         });
       }
     } catch (error) {
       console.error('Error al cancelar suscripción:', error);
-      setMessage({ 
-        type: 'error', 
-        text: 'Error al cancelar la suscripción' 
+      setMessage({
+        type: 'error',
+        text: 'Error al cancelar la suscripción'
       });
     } finally {
       setCancelingSubscription(false);
@@ -481,6 +482,36 @@ const Configuracion = () => {
   // Navegar a planes
   const handleChangePlan = () => {
     navigate('/subscription/plans');
+  };
+
+  // Pago directo: inicia checkout con plan mensual y redirige a MercadoPago
+  const handleRenewDirect = async () => {
+    try {
+      setRenewingSubscription(true);
+      setMessage({ type: 'info', text: 'Iniciando proceso de pago...' });
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const restaurantId = user.restaurant;
+      if (!restaurantId) {
+        setMessage({ type: 'error', text: 'No se encontró información del restaurante' });
+        return;
+      }
+      const response = await subscriptionService.initiateCheckout(restaurantId, 'monthly');
+      if (!response.success) {
+        setMessage({ type: 'error', text: response.message || 'Error al procesar el pago' });
+        return;
+      }
+      const initPoint = response.data?.mercadoPago?.initPoint;
+      if (initPoint) {
+        window.location.href = initPoint;
+      } else {
+        setMessage({ type: 'error', text: 'No se pudo iniciar el proceso de pago. Intenta de nuevo.' });
+      }
+    } catch (error) {
+      console.error('Error al renovar suscripción:', error);
+      setMessage({ type: 'error', text: error.message || 'Error al iniciar el pago' });
+    } finally {
+      setRenewingSubscription(false);
+    }
   };
 
   // Formatear fecha
@@ -515,16 +546,16 @@ const Configuracion = () => {
       if (response.success) {
         setUsers(response.data);
       } else {
-        setMessage({ 
-          type: 'error', 
-          text: response.message || 'Error al cargar usuarios' 
+        setMessage({
+          type: 'error',
+          text: response.message || 'Error al cargar usuarios'
         });
       }
     } catch (error) {
       console.error('Error al cargar usuarios:', error);
-      setMessage({ 
-        type: 'error', 
-        text: 'Error al cargar usuarios' 
+      setMessage({
+        type: 'error',
+        text: 'Error al cargar usuarios'
       });
     } finally {
       setLoadingUsers(false);
@@ -570,20 +601,20 @@ const Configuracion = () => {
   // Guardar usuario (crear o editar)
   const handleSaveUser = async (e) => {
     e.preventDefault();
-    
+
     // Validaciones
     if (!userFormData.userName || !userFormData.email) {
-      setMessage({ 
-        type: 'error', 
-        text: 'El nombre y correo son obligatorios' 
+      setMessage({
+        type: 'error',
+        text: 'El nombre y correo son obligatorios'
       });
       return;
     }
 
     if (!editingUser && !userFormData.password) {
-      setMessage({ 
-        type: 'error', 
-        text: 'La contraseña es obligatoria para nuevos usuarios' 
+      setMessage({
+        type: 'error',
+        text: 'La contraseña es obligatoria para nuevos usuarios'
       });
       return;
     }
@@ -610,23 +641,23 @@ const Configuracion = () => {
       }
 
       if (response.success) {
-        setMessage({ 
-          type: 'success', 
-          text: response.message 
+        setMessage({
+          type: 'success',
+          text: response.message
         });
         handleCloseModal();
         loadUsers();
       } else {
-        setMessage({ 
-          type: 'error', 
-          text: response.message 
+        setMessage({
+          type: 'error',
+          text: response.message
         });
       }
     } catch (error) {
       console.error('Error al guardar usuario:', error);
-      setMessage({ 
-        type: 'error', 
-        text: 'Error al guardar usuario' 
+      setMessage({
+        type: 'error',
+        text: 'Error al guardar usuario'
       });
     } finally {
       setLoadingUsers(false);
@@ -643,22 +674,22 @@ const Configuracion = () => {
     try {
       const response = await usersService.deleteEmployee(userId);
       if (response.success) {
-        setMessage({ 
-          type: 'success', 
-          text: response.message 
+        setMessage({
+          type: 'success',
+          text: response.message
         });
         loadUsers();
       } else {
-        setMessage({ 
-          type: 'error', 
-          text: response.message 
+        setMessage({
+          type: 'error',
+          text: response.message
         });
       }
     } catch (error) {
       console.error('Error al eliminar usuario:', error);
-      setMessage({ 
-        type: 'error', 
-        text: 'Error al eliminar usuario' 
+      setMessage({
+        type: 'error',
+        text: 'Error al eliminar usuario'
       });
     } finally {
       setLoadingUsers(false);
@@ -673,7 +704,7 @@ const Configuracion = () => {
       [name]: value
     }));
   };
-  
+
   // Limpiar mensaje después de 5 segundos
   useEffect(() => {
     if (message.text) {
@@ -702,11 +733,10 @@ const Configuracion = () => {
           <nav className="-mb-px flex space-x-4 md:space-x-8 overflow-x-auto">
             <button
               onClick={() => setActiveTab('printers')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${
-                activeTab === 'printers'
+              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${activeTab === 'printers'
                   ? 'border-green-500 text-green-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               <div className="flex items-center">
                 <PrinterIcon className="w-5 h-5 mr-2" />
@@ -716,11 +746,10 @@ const Configuracion = () => {
             {isOwnerOrAdmin && (
               <button
                 onClick={() => setActiveTab('subscription')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${
-                  activeTab === 'subscription'
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${activeTab === 'subscription'
                     ? 'border-green-500 text-green-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <div className="flex items-center">
                   <CreditCardIcon className="w-5 h-5 mr-2" />
@@ -731,11 +760,10 @@ const Configuracion = () => {
             {isOwnerOrAdmin && (
               <button
                 onClick={() => setActiveTab('users')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${
-                  activeTab === 'users'
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${activeTab === 'users'
                     ? 'border-green-500 text-green-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <div className="flex items-center">
                   <UsersIcon className="w-5 h-5 mr-2" />
@@ -748,13 +776,12 @@ const Configuracion = () => {
 
         {/* Mensaje de estado */}
         {message.text && (
-          <div className={`p-4 rounded-lg border ${
-            message.type === 'success' 
-              ? 'bg-green-50 border-green-200 text-green-800' 
+          <div className={`p-4 rounded-lg border ${message.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
               : message.type === 'error'
-              ? 'bg-red-50 border-red-200 text-red-800'
-              : 'bg-blue-50 border-blue-200 text-blue-800'
-          }`}>
+                ? 'bg-red-50 border-red-200 text-red-800'
+                : 'bg-blue-50 border-blue-200 text-blue-800'
+            }`}>
             <div className="flex items-center">
               {message.type === 'success' && <CheckCircleIcon className="w-5 h-5 mr-2" />}
               {message.type === 'error' && <ExclamationTriangleIcon className="w-5 h-5 mr-2" />}
@@ -769,28 +796,24 @@ const Configuracion = () => {
           <>
             {/* Estado de impresión automática */}
             {serviceStatus === 'online' && (
-              <div className={`p-4 rounded-lg border ${
-                defaultPrinter 
-                  ? 'bg-green-50 border-green-200' 
+              <div className={`p-4 rounded-lg border ${defaultPrinter
+                  ? 'bg-green-50 border-green-200'
                   : 'bg-orange-50 border-orange-200'
-              }`}>
+                }`}>
                 <div className="flex items-center">
-                  <div className={`w-3 h-3 rounded-full mr-3 ${
-                    defaultPrinter ? 'bg-green-500' : 'bg-orange-500'
-                  }`}></div>
+                  <div className={`w-3 h-3 rounded-full mr-3 ${defaultPrinter ? 'bg-green-500' : 'bg-orange-500'
+                    }`}></div>
                   <div>
-                    <p className={`font-medium ${
-                      defaultPrinter ? 'text-green-800' : 'text-orange-800'
-                    }`}>
-                      {defaultPrinter 
-                        ? 'Impresión automática: ACTIVADA' 
+                    <p className={`font-medium ${defaultPrinter ? 'text-green-800' : 'text-orange-800'
+                      }`}>
+                      {defaultPrinter
+                        ? 'Impresión automática: ACTIVADA'
                         : 'Impresión automática: DESACTIVADA'
                       }
                     </p>
-                    <p className={`text-sm ${
-                      defaultPrinter ? 'text-green-700' : 'text-orange-700'
-                    }`}>
-                      {defaultPrinter 
+                    <p className={`text-sm ${defaultPrinter ? 'text-green-700' : 'text-orange-700'
+                      }`}>
+                      {defaultPrinter
                         ? `Las comandas se enviarán automáticamente a "${defaultPrinter}" al crear pedidos`
                         : 'Configure una impresora predeterminada para activar la impresión automática de comandas'
                       }
@@ -800,449 +823,445 @@ const Configuracion = () => {
               </div>
             )}
 
-        {/* Sección de Impresoras */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-           <div className="flex items-center justify-between mb-6">
-             <div className="flex items-center space-x-4">
-               <PrinterIcon className="w-6 h-6 text-brown-600 mr-3" />
-               <h2 className="text-xl font-semibold text-brown-900">
-                 Configuración de Impresoras
-               </h2>
-               {/* Botón permanente para descargar el software de impresión */}
-               <a
-                 href="https://github.com/AMunozSuarez/Gestion-Restaurante/releases/download/V1.0/RestaurantPrintingServiceInstaller.exe"
-                 download="RestaurantPrintingServiceInstaller.exe"
-                 className="inline-flex items-center px-3 py-2 border border-blue-600 shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 ml-4"
-                 style={{ textDecoration: 'none' }}
-               >
-                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                 </svg>
-                 Descargar Servicio de Impresión
-               </a>
-             </div>
-             <div className="flex items-center space-x-4">
-              {/* Estado del servicio */}
-              <div className="flex items-center">
-                <div className={`w-3 h-3 rounded-full mr-2 ${
-                  serviceStatus === 'online' 
-                    ? 'bg-green-500' 
-                    : serviceStatus === 'offline'
-                    ? 'bg-red-500'
-                    : 'bg-yellow-500 animate-pulse'
-                }`}></div>
-                <span className="text-sm text-gray-600">
-                  {serviceStatus === 'online' 
-                    ? 'Servicio conectado' 
-                    : serviceStatus === 'offline'
-                    ? 'Servicio desconectado'
-                    : 'Verificando...'}
-                </span>
+            {/* Sección de Impresoras */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <PrinterIcon className="w-6 h-6 text-brown-600 mr-3" />
+                  <h2 className="text-xl font-semibold text-brown-900">
+                    Configuración de Impresoras
+                  </h2>
+                  {/* Botón permanente para descargar el software de impresión */}
+                  <a
+                    href="https://github.com/AMunozSuarez/Gestion-Restaurante/releases/download/V1.0/RestaurantPrintingServiceInstaller.exe"
+                    download="RestaurantPrintingServiceInstaller.exe"
+                    className="inline-flex items-center px-3 py-2 border border-blue-600 shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 ml-4"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Descargar Servicio de Impresión
+                  </a>
+                </div>
+                <div className="flex items-center space-x-4">
+                  {/* Estado del servicio */}
+                  <div className="flex items-center">
+                    <div className={`w-3 h-3 rounded-full mr-2 ${serviceStatus === 'online'
+                        ? 'bg-green-500'
+                        : serviceStatus === 'offline'
+                          ? 'bg-red-500'
+                          : 'bg-yellow-500 animate-pulse'
+                      }`}></div>
+                    <span className="text-sm text-gray-600">
+                      {serviceStatus === 'online'
+                        ? 'Servicio conectado'
+                        : serviceStatus === 'offline'
+                          ? 'Servicio desconectado'
+                          : 'Verificando...'}
+                    </span>
+                  </div>
+
+                  {/* Botón actualizar */}
+                  <button
+                    onClick={checkServiceAndLoadPrinters}
+                    disabled={loading}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                  >
+                    <ArrowPathIcon className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                    Actualizar
+                  </button>
+                </div>
               </div>
 
-              {/* Botón actualizar */}
-              <button
-                onClick={checkServiceAndLoadPrinters}
-                disabled={loading}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-              >
-                <ArrowPathIcon className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-                Actualizar
-              </button>
-            </div>
-          </div>
+              {/* Lista de impresoras */}
+              {serviceStatus === 'online' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Impresoras disponibles:
+                    </label>
 
-          {/* Lista de impresoras */}
-          {serviceStatus === 'online' ? (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Impresoras disponibles:
-                </label>
-                
-                {printers.length > 0 ? (
-                  <div className="grid gap-3">
-                    {printers.map((printer) => {
-                      // Manejar tanto el formato string como objeto (camelCase desde la API)
-                      const printerName = typeof printer === 'string' ? printer : (printer.printerName || printer.PrinterName);
-                      const printerStatus = typeof printer === 'object' ? (printer.status || printer.Status || 'Available') : 'Available';
-                      const isSystemDefault = typeof printer === 'object' ? (printer.isDefault || printer.IsDefault || false) : false;
-                      const isAppDefault = defaultPrinter === printerName;
-                      
-                      return (
-                        <div
-                          key={printerName}
-                          className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                              <PrinterIcon className="w-5 h-5 text-gray-500 mr-3" />
-                              <div>
+                    {printers.length > 0 ? (
+                      <div className="grid gap-3">
+                        {printers.map((printer) => {
+                          // Manejar tanto el formato string como objeto (camelCase desde la API)
+                          const printerName = typeof printer === 'string' ? printer : (printer.printerName || printer.PrinterName);
+                          const printerStatus = typeof printer === 'object' ? (printer.status || printer.Status || 'Available') : 'Available';
+                          const isSystemDefault = typeof printer === 'object' ? (printer.isDefault || printer.IsDefault || false) : false;
+                          const isAppDefault = defaultPrinter === printerName;
+
+                          return (
+                            <div
+                              key={printerName}
+                              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200"
+                            >
+                              <div className="flex items-center justify-between">
                                 <div className="flex items-center">
-                                  <span className="font-medium text-gray-900">{printerName}</span>
-                                  {isSystemDefault && (
-                                    <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                                      Predeterminada Sistema
-                                    </span>
-                                  )}
-                                  {isAppDefault && (
-                                    <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
-                                      Comandas Automáticas
-                                    </span>
+                                  <PrinterIcon className="w-5 h-5 text-gray-500 mr-3" />
+                                  <div>
+                                    <div className="flex items-center">
+                                      <span className="font-medium text-gray-900">{printerName}</span>
+                                      {isSystemDefault && (
+                                        <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                                          Predeterminada Sistema
+                                        </span>
+                                      )}
+                                      {isAppDefault && (
+                                        <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                                          Comandas Automáticas
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-gray-500">Estado: {printerStatus}</div>
+                                  </div>
+                                </div>
+
+                                {/* Botones de acción */}
+                                <div className="flex items-center space-x-2">
+                                  {/* Botón de prueba */}
+                                  <button
+                                    onClick={() => handleTestPrint(printerName)}
+                                    disabled={printing}
+                                    className="inline-flex items-center px-3 py-1 border border-blue-300 text-xs font-medium rounded text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                                  >
+                                    <PrinterIcon className="w-3 h-3 mr-1" />
+                                    {printing && selectedPrinter === printerName ? 'Imprimiendo...' : 'Prueba'}
+                                  </button>
+
+                                  {/* Botón establecer como predeterminada */}
+                                  {!isAppDefault ? (
+                                    <button
+                                      onClick={() => handleSetDefaultPrinter(printerName)}
+                                      className="inline-flex items-center px-3 py-1 border border-green-300 text-xs font-medium rounded text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                    >
+                                      Establecer como predeterminada
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={handleRemoveDefaultPrinter}
+                                      className="inline-flex items-center px-3 py-1 border border-red-300 text-xs font-medium rounded text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                    >
+                                      Quitar predeterminada
+                                    </button>
                                   )}
                                 </div>
-                                <div className="text-sm text-gray-500">Estado: {printerStatus}</div>
                               </div>
                             </div>
-                            
-                            {/* Botones de acción */}
-                            <div className="flex items-center space-x-2">
-                              {/* Botón de prueba */}
-                              <button
-                                onClick={() => handleTestPrint(printerName)}
-                                disabled={printing}
-                                className="inline-flex items-center px-3 py-1 border border-blue-300 text-xs font-medium rounded text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                              >
-                                <PrinterIcon className="w-3 h-3 mr-1" />
-                                {printing && selectedPrinter === printerName ? 'Imprimiendo...' : 'Prueba'}
-                              </button>
-                              
-                              {/* Botón establecer como predeterminada */}
-                              {!isAppDefault ? (
-                                <button
-                                  onClick={() => handleSetDefaultPrinter(printerName)}
-                                  className="inline-flex items-center px-3 py-1 border border-green-300 text-xs font-medium rounded text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                                >
-                                  Establecer como predeterminada
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={handleRemoveDefaultPrinter}
-                                  className="inline-flex items-center px-3 py-1 border border-red-300 text-xs font-medium rounded text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                                >
-                                  Quitar predeterminada
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <PrinterIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500">No se encontraron impresoras</p>
+                        <button
+                          onClick={checkServiceAndLoadPrinters}
+                          className="mt-2 text-blue-600 hover:text-blue-500"
+                        >
+                          Intentar de nuevo
+                        </button>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <PrinterIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No se encontraron impresoras</p>
-                    <button
-                      onClick={checkServiceAndLoadPrinters}
-                      className="mt-2 text-blue-600 hover:text-blue-500"
-                    >
-                      Intentar de nuevo
-                    </button>
-                  </div>
-                )}
-              </div>
 
-              {/* Botón de comanda de prueba */}
-              {defaultPrinter && (
-                <div className="border-t pt-4">
-                  <button
-                    onClick={handleTestKitchenOrder}
-                    disabled={printing}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                  {/* Botón de comanda de prueba */}
+                  {defaultPrinter && (
+                    <div className="border-t pt-4">
+                      <button
+                        onClick={handleTestKitchenOrder}
+                        disabled={printing}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                      >
+                        <PrinterIcon className="w-4 h-4 mr-2" />
+                        {printing ? 'Imprimiendo...' : 'Probar comanda de cocina'}
+                      </button>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Envía una comanda de prueba a la impresora predeterminada: <strong>{defaultPrinter}</strong>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <ExclamationTriangleIcon className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-4">
+                    No se puede conectar al servicio de impresión
+                  </p>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Es necesario instalar el servicio de impresión para poder usar las impresoras.
+                  </p>
+                  <a
+                    href="https://github.com/AMunozSuarez/Gestion-Restaurante/releases/download/V1.0/RestaurantPrintingServiceInstaller.exe"
+                    download="RestaurantPrintingServiceInstaller.exe"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
                   >
-                    <PrinterIcon className="w-4 h-4 mr-2" />
-                    {printing ? 'Imprimiendo...' : 'Probar comanda de cocina'}
-                  </button>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Envía una comanda de prueba a la impresora predeterminada: <strong>{defaultPrinter}</strong>
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Descargar Servicio de Impresión
+                  </a>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Después de descargar, ejecute el instalador, actualice y listo!
                   </p>
                 </div>
               )}
             </div>
-          ) : (
-            <div className="text-center py-8">
-              <ExclamationTriangleIcon className="w-12 h-12 text-red-400 mx-auto mb-4" />
-              <p className="text-gray-500 mb-4">
-                No se puede conectar al servicio de impresión
-              </p>
-              <p className="text-sm text-gray-600 mb-4">
-                Es necesario instalar el servicio de impresión para poder usar las impresoras.
-              </p>
-              <a
-                href="https://github.com/AMunozSuarez/Gestion-Restaurante/releases/download/V1.0/RestaurantPrintingServiceInstaller.exe"
-                download="RestaurantPrintingServiceInstaller.exe"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Descargar Servicio de Impresión
-              </a>
-              <p className="text-xs text-gray-400 mt-2">
-                Después de descargar, ejecute el instalador, actualice y listo!
-              </p>
-            </div>
-          )}
-        </div>
 
-        {/* Configuración de fuente */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center mb-4">
-            <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
-            <h2 className="text-xl font-semibold text-brown-900">Letra en comandas de cocina</h2>
-          </div>
-          <p className="text-sm text-gray-500 mb-4">
-            Configura si las comandas de cocina se imprimen en <strong>negrita</strong>. Los tickets de cliente siempre usan fuente normal.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Opción Normal */}
-            <button
-              onClick={() => handleSaveFontSettings({ fontSize: 9, bold: false })}
-              disabled={savingFont}
-              className={`p-4 rounded-lg border-2 text-left transition-all ${
-                !fontSettings.bold
-                  ? 'border-green-500 bg-green-50'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold text-gray-800">Normal</span>
-                {!fontSettings.bold && (
-                  <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                )}
+            {/* Configuración de fuente */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center mb-4">
+                <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
+                <h2 className="text-xl font-semibold text-brown-900">Letra en comandas de cocina</h2>
               </div>
-            <p className="text-xs text-gray-500">Fuente 9pt • Regular • ~32 car/línea</p>
-              <p className="mt-2 font-mono text-xs text-gray-700 border rounded p-1 bg-gray-50">
-                2x Producto         $1.200
+              <p className="text-sm text-gray-500 mb-4">
+                Configura si las comandas de cocina se imprimen en <strong>negrita</strong>. Los tickets de cliente siempre usan fuente normal.
               </p>
-            </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Opción Normal */}
+                <button
+                  onClick={() => handleSaveFontSettings({ fontSize: 9, bold: false })}
+                  disabled={savingFont}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${!fontSettings.bold
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-gray-800">Normal</span>
+                    {!fontSettings.bold && (
+                      <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">Fuente 9pt • Regular • ~32 car/línea</p>
+                  <p className="mt-2 font-mono text-xs text-gray-700 border rounded p-1 bg-gray-50">
+                    2x Producto         $1.200
+                  </p>
+                </button>
 
-            {/* Opción Grande */}
-            <button
-              onClick={() => handleSaveFontSettings({ fontSize: 10, bold: true })}
-              disabled={savingFont}
-              className={`p-4 rounded-lg border-2 text-left transition-all ${
-                fontSettings.bold
-                  ? 'border-green-500 bg-green-50'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-bold text-gray-800">Grande</span>
-                {fontSettings.bold && (
-                  <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                )}
+                {/* Opción Grande */}
+                <button
+                  onClick={() => handleSaveFontSettings({ fontSize: 10, bold: true })}
+                  disabled={savingFont}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${fontSettings.bold
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-gray-800">Grande</span>
+                    {fontSettings.bold && (
+                      <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">Negrita • Solo en comandas de cocina</p>
+                  <p className="mt-2 font-mono text-xs font-bold text-gray-700 border rounded p-1 bg-gray-50">
+                    2x Producto     $1.200
+                  </p>
+                </button>
               </div>
-            <p className="text-xs text-gray-500">Negrita • Solo en comandas de cocina</p>
-              <p className="mt-2 font-mono text-xs font-bold text-gray-700 border rounded p-1 bg-gray-50">
-                2x Producto     $1.200
-              </p>
-            </button>
-          </div>
-          {savingFont && (
-            <p className="mt-3 text-sm text-gray-500 flex items-center">
-              <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" /> Guardando...
-            </p>
-          )}
+              {savingFont && (
+                <p className="mt-3 text-sm text-gray-500 flex items-center">
+                  <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" /> Guardando...
+                </p>
+              )}
 
-          <div className="mt-4 border-t pt-4">
-            <button
-              onClick={handleFontTestPrint}
-              disabled={testingFont || !defaultPrinter}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              <PrinterIcon className="w-4 h-4 mr-2" />
-              {testingFont ? 'Imprimiendo...' : 'Imprimir prueba de fuente'}
-            </button>
-            <p className="text-xs text-gray-400 mt-1">
-              {defaultPrinter
-                ? `Imprime en: ${defaultPrinter}`
-                : 'Requiere impresora predeterminada configurada arriba'}
-            </p>
-          </div>
-        </div>
-
-        {/* Asignación de Impresoras por Sección */}
-        {serviceStatus === 'online' && printers.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center mb-4">
-              <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
-              <div>
-                <h2 className="text-xl font-semibold text-brown-900">Asignación de Impresoras por Sección</h2>
-                <p className="text-sm text-gray-500">Asigna una impresora física a cada sección del restaurante</p>
+              <div className="mt-4 border-t pt-4">
+                <button
+                  onClick={handleFontTestPrint}
+                  disabled={testingFont || !defaultPrinter}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                >
+                  <PrinterIcon className="w-4 h-4 mr-2" />
+                  {testingFont ? 'Imprimiendo...' : 'Imprimir prueba de fuente'}
+                </button>
+                <p className="text-xs text-gray-400 mt-1">
+                  {defaultPrinter
+                    ? `Imprime en: ${defaultPrinter}`
+                    : 'Requiere impresora predeterminada configurada arriba'}
+                </p>
               </div>
             </div>
 
-            <div className="grid gap-4">
-              {printerConfigService.getAvailableRoles().map(role => {
-                const roleLabels = printerConfigService.getRoleLabels();
-                const assignedPrinter = printerRoles[role] || '';
-                return (
-                  <div key={role} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-center min-w-0">
-                      <div className={`w-3 h-3 rounded-full mr-3 flex-shrink-0 ${
-                        assignedPrinter ? 'bg-green-500' : 'bg-gray-300'
-                      }`}></div>
-                      <div>
-                        <span className="font-medium text-gray-900">{roleLabels[role]}</span>
-                        {assignedPrinter && (
-                          <p className="text-xs text-gray-500">{assignedPrinter}</p>
-                        )}
+            {/* Asignación de Impresoras por Sección */}
+            {serviceStatus === 'online' && printers.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center mb-4">
+                  <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
+                  <div>
+                    <h2 className="text-xl font-semibold text-brown-900">Asignación de Impresoras por Sección</h2>
+                    <p className="text-sm text-gray-500">Asigna una impresora física a cada sección del restaurante</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4">
+                  {printerConfigService.getAvailableRoles().map(role => {
+                    const roleLabels = printerConfigService.getRoleLabels();
+                    const assignedPrinter = printerRoles[role] || '';
+                    return (
+                      <div key={role} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-center min-w-0">
+                          <div className={`w-3 h-3 rounded-full mr-3 flex-shrink-0 ${assignedPrinter ? 'bg-green-500' : 'bg-gray-300'
+                            }`}></div>
+                          <div>
+                            <span className="font-medium text-gray-900">{roleLabels[role]}</span>
+                            {assignedPrinter && (
+                              <p className="text-xs text-gray-500">{assignedPrinter}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <select
+                            value={assignedPrinter}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleSetPrinterRole(role, e.target.value);
+                              } else {
+                                handleRemovePrinterRole(role);
+                              }
+                            }}
+                            className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 text-sm"
+                          >
+                            <option value="">Sin asignar</option>
+                            {printers.map(p => {
+                              const pName = typeof p === 'string' ? p : (p.printerName || p.PrinterName);
+                              return <option key={pName} value={pName}>{pName}</option>;
+                            })}
+                          </select>
+                          {assignedPrinter && (
+                            <button
+                              onClick={() => handleTestRolePrint(role)}
+                              disabled={printing}
+                              className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-medium rounded text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+                            >
+                              <PrinterIcon className="w-3 h-3 mr-1" />
+                              Probar
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <select
-                        value={assignedPrinter}
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            handleSetPrinterRole(role, e.target.value);
-                          } else {
-                            handleRemovePrinterRole(role);
-                          }
-                        }}
-                        className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 text-sm"
-                      >
-                        <option value="">Sin asignar</option>
-                        {printers.map(p => {
-                          const pName = typeof p === 'string' ? p : (p.printerName || p.PrinterName);
-                          return <option key={pName} value={pName}>{pName}</option>;
-                        })}
-                      </select>
-                      {assignedPrinter && (
-                        <button
-                          onClick={() => handleTestRolePrint(role)}
-                          disabled={printing}
-                          className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-medium rounded text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
-                        >
-                          <PrinterIcon className="w-3 h-3 mr-1" />
-                          Probar
-                        </button>
-                      )}
+                    );
+                  })}
+                </div>
+
+                <p className="text-xs text-gray-400 mt-3">
+                  Esta configuración es local a este equipo. Cada computadora puede tener sus propias impresoras asignadas.
+                </p>
+              </div>
+            )}
+
+            {/* Impresión por Categoría */}
+            {serviceStatus === 'online' && Object.keys(printerRoles).length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center">
+                    <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
+                    <div>
+                      <h2 className="text-xl font-semibold text-brown-900">Impresión por Categoría</h2>
+                      <p className="text-sm text-gray-500">Define a qué secciones se envían los productos de cada categoría</p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-
-            <p className="text-xs text-gray-400 mt-3">
-              Esta configuración es local a este equipo. Cada computadora puede tener sus propias impresoras asignadas.
-            </p>
-          </div>
-        )}
-
-        {/* Impresión por Categoría */}
-        {serviceStatus === 'online' && Object.keys(printerRoles).length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
-                <div>
-                  <h2 className="text-xl font-semibold text-brown-900">Impresión por Categoría</h2>
-                  <p className="text-sm text-gray-500">Define a qué secciones se envían los productos de cada categoría</p>
+                  <button
+                    onClick={handleSavePrintDestinations}
+                    disabled={savingPrintDestinations}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                  >
+                    {savingPrintDestinations ? (
+                      <><ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" /> Guardando...</>
+                    ) : (
+                      <><CheckCircleIcon className="w-4 h-4 mr-2" /> Guardar cambios</>
+                    )}
+                  </button>
                 </div>
-              </div>
-              <button
-                onClick={handleSavePrintDestinations}
-                disabled={savingPrintDestinations}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-              >
-                {savingPrintDestinations ? (
-                  <><ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" /> Guardando...</>
-                ) : (
-                  <><CheckCircleIcon className="w-4 h-4 mr-2" /> Guardar cambios</>
-                )}
-              </button>
-            </div>
 
-            {loadingCategories ? (
-              <div className="text-center py-8">
-                <ArrowPathIcon className="w-8 h-8 text-gray-400 mx-auto mb-2 animate-spin" />
-                <p className="text-sm text-gray-500">Cargando categorías...</p>
-              </div>
-            ) : categories.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Categoría</th>
-                      {printerConfigService.getAvailableRoles().map(role => {
-                        const label = printerConfigService.getRoleLabels()[role];
-                        const hasPrinter = !!printerRoles[role];
-                        return (
-                          <th key={role} className="text-center py-3 px-4 text-sm font-medium text-gray-700">
-                            <div className="flex flex-col items-center">
-                              <span>{label}</span>
-                              {hasPrinter ? (
-                                <span className="text-xs text-gray-400 font-normal">{printerRoles[role]}</span>
-                              ) : (
-                                <span className="text-xs text-red-400 font-normal">Sin impresora</span>
-                              )}
-                            </div>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {categories.map((cat, index) => {
-                      const catRoles = categoryPrintMap[cat._id] || [];
-                      return (
-                        <tr key={cat._id} className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center">
-                              <span className="font-medium text-gray-900">{cat.title}</span>
-                              {!cat.isAvailable && (
-                                <span className="ml-2 px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded">Inactiva</span>
-                              )}
-                            </div>
-                          </td>
+                {loadingCategories ? (
+                  <div className="text-center py-8">
+                    <ArrowPathIcon className="w-8 h-8 text-gray-400 mx-auto mb-2 animate-spin" />
+                    <p className="text-sm text-gray-500">Cargando categorías...</p>
+                  </div>
+                ) : categories.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Categoría</th>
                           {printerConfigService.getAvailableRoles().map(role => {
-                            const isChecked = catRoles.includes(role);
+                            const label = printerConfigService.getRoleLabels()[role];
                             const hasPrinter = !!printerRoles[role];
                             return (
-                              <td key={role} className="text-center py-3 px-4">
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  disabled={!hasPrinter}
-                                  onChange={() => handleToggleCategoryRole(cat._id, role)}
-                                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-30"
-                                />
-                              </td>
+                              <th key={role} className="text-center py-3 px-4 text-sm font-medium text-gray-700">
+                                <div className="flex flex-col items-center">
+                                  <span>{label}</span>
+                                  {hasPrinter ? (
+                                    <span className="text-xs text-gray-400 font-normal">{printerRoles[role]}</span>
+                                  ) : (
+                                    <span className="text-xs text-red-400 font-normal">Sin impresora</span>
+                                  )}
+                                </div>
+                              </th>
                             );
                           })}
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody>
+                        {categories.map((cat, index) => {
+                          const catRoles = categoryPrintMap[cat._id] || [];
+                          return (
+                            <tr key={cat._id} className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center">
+                                  <span className="font-medium text-gray-900">{cat.title}</span>
+                                  {!cat.isAvailable && (
+                                    <span className="ml-2 px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded">Inactiva</span>
+                                  )}
+                                </div>
+                              </td>
+                              {printerConfigService.getAvailableRoles().map(role => {
+                                const isChecked = catRoles.includes(role);
+                                const hasPrinter = !!printerRoles[role];
+                                return (
+                                  <td key={role} className="text-center py-3 px-4">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      disabled={!hasPrinter}
+                                      onChange={() => handleToggleCategoryRole(cat._id, role)}
+                                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-30"
+                                    />
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 py-4 text-center">No hay categorías creadas aún</p>
+                )}
+
+                <p className="text-xs text-gray-400 mt-3">
+                  Las categorías sin impresora asignada se enviarán a la impresora predeterminada. Los cambios se guardan en el servidor y aplican a todos los dispositivos.
+                </p>
               </div>
-            ) : (
-              <p className="text-sm text-gray-500 py-4 text-center">No hay categorías creadas aún</p>
             )}
 
-            <p className="text-xs text-gray-400 mt-3">
-              Las categorías sin impresora asignada se enviarán a la impresora predeterminada. Los cambios se guardan en el servidor y aplican a todos los dispositivos.
-            </p>
-          </div>
-        )}
-
-        {/* Información de uso */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-start">
-            <CogIcon className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
-            <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">Cómo usar las impresoras:</p>
-              <ul className="list-disc list-inside space-y-1 text-blue-700">
-                <li><strong>Predeterminada:</strong> Se usará para imprimir cuando no haya impresoras por sección configuradas</li>
-                <li><strong>Impresoras por Sección:</strong> Asigna impresoras a Cocina, Barra y/o Caja para enviar automáticamente</li>
-                <li><strong>Impresión por Categoría:</strong> Configura a qué secciones se envían los productos de cada categoría</li>
-                <li>Si una categoría no tiene sección asignada, se imprimirá en la impresora predeterminada</li>
-              </ul>
+            {/* Información de uso */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <CogIcon className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">Cómo usar las impresoras:</p>
+                  <ul className="list-disc list-inside space-y-1 text-blue-700">
+                    <li><strong>Predeterminada:</strong> Se usará para imprimir cuando no haya impresoras por sección configuradas</li>
+                    <li><strong>Impresoras por Sección:</strong> Asigna impresoras a Cocina, Barra y/o Caja para enviar automáticamente</li>
+                    <li><strong>Impresión por Categoría:</strong> Configura a qué secciones se envían los productos de cada categoría</li>
+                    <li>Si una categoría no tiene sección asignada, se imprimirá en la impresora predeterminada</li>
+                  </ul>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
           </>
         )}
 
@@ -1311,18 +1330,17 @@ const Configuracion = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <h2 className="text-2xl font-bold mb-1">
-                          Plan {subscription.plan === 'trial' ? 'Prueba' : 
-                               subscription.plan === 'monthly' ? 'Mensual' : 
-                               subscription.plan === 'quarterly' ? 'Trimestral' : 'Anual'}
+                          Plan {subscription.plan === 'trial' ? 'Prueba' :
+                            subscription.plan === 'monthly' ? 'Mensual' :
+                              subscription.plan === 'quarterly' ? 'Trimestral' : 'Anual'}
                         </h2>
                         <p className="text-green-100">
                           Gestión completa de tu restaurante
                         </p>
                       </div>
                       <div className="text-right">
-                        <div className={`inline-flex items-center px-4 py-2 rounded-full font-semibold ${
-                          getStatusBadge(subscription.status).color
-                        }`}>
+                        <div className={`inline-flex items-center px-4 py-2 rounded-full font-semibold ${getStatusBadge(subscription.status).color
+                          }`}>
                           {getStatusBadge(subscription.status).text}
                         </div>
                       </div>
@@ -1341,7 +1359,7 @@ const Configuracion = () => {
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-start space-x-3">
                         <CalendarIcon className="w-5 h-5 text-green-600 mt-0.5" />
                         <div>
@@ -1399,13 +1417,14 @@ const Configuracion = () => {
                       {subscription.status === 'active' && subscription.plan !== 'trial' && (
                         <>
                           <button
-                            onClick={handleChangePlan}
-                            className="flex-1 min-w-[200px] inline-flex justify-center items-center px-4 py-2 border border-green-600 text-sm font-medium rounded-md text-green-600 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                            onClick={handleRenewDirect}
+                            disabled={renewingSubscription}
+                            className="flex-1 min-w-[200px] inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors disabled:opacity-50"
                           >
                             <CreditCardIcon className="w-4 h-4 mr-2" />
-                            Ver Plan
+                            {renewingSubscription ? 'Procesando...' : 'Renovar 30 días'}
                           </button>
-                          
+
                           <button
                             onClick={handleCancelSubscription}
                             disabled={cancelingSubscription}
@@ -1427,13 +1446,14 @@ const Configuracion = () => {
                         </button>
                       )}
 
-                      {(subscription.status === 'expired' || subscription.status === 'cancelled') && (
+                      {(subscription.status === 'expired' || subscription.status === 'cancelled' || subscription.status === 'suspended') && (
                         <button
-                          onClick={handleChangePlan}
-                          className="flex-1 inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                          onClick={handleRenewDirect}
+                          disabled={renewingSubscription}
+                          className="flex-1 inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors disabled:opacity-50"
                         >
                           <CreditCardIcon className="w-5 h-5 mr-2" />
-                          Renovar Suscripción
+                          {renewingSubscription ? 'Procesando...' : 'Renovar — Agregar 30 días'}
                         </button>
                       )}
                     </div>
@@ -1461,10 +1481,10 @@ const Configuracion = () => {
                             // El método de pago viene del paymentProvider de la suscripción principal
                             const paymentMethod = subscription.paymentProvider || 'manual';
                             const displayMethod = paymentMethod === 'mercadopago' ? 'MercadoPago' :
-                                                 paymentMethod === 'stripe' ? 'Stripe' :
-                                                 paymentMethod === 'paypal' ? 'PayPal' :
-                                                 'Manual';
-                            
+                              paymentMethod === 'stripe' ? 'Stripe' :
+                                paymentMethod === 'paypal' ? 'PayPal' :
+                                  'Manual';
+
                             return (
                               <tr key={index}>
                                 <td className="px-4 py-3 text-sm text-gray-900">
@@ -1477,16 +1497,15 @@ const Configuracion = () => {
                                   {displayMethod}
                                 </td>
                                 <td className="px-4 py-3 text-sm">
-                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                    payment.status === 'success' 
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${payment.status === 'success'
                                       ? 'bg-green-100 text-green-800'
                                       : payment.status === 'failed'
-                                      ? 'bg-red-100 text-red-800'
-                                      : 'bg-yellow-100 text-yellow-800'
-                                  }`}>
-                                    {payment.status === 'success' ? 'Aprobado' : 
-                                     payment.status === 'failed' ? 'Rechazado' : 
-                                     payment.status === 'refunded' ? 'Reembolsado' : payment.status}
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                    {payment.status === 'success' ? 'Aprobado' :
+                                      payment.status === 'failed' ? 'Rechazado' :
+                                        payment.status === 'refunded' ? 'Reembolsado' : payment.status}
                                   </span>
                                 </td>
                               </tr>
@@ -1596,11 +1615,10 @@ const Configuracion = () => {
                             <div className="text-sm text-gray-900">{user.phone || 'N/A'}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              user.role === 'owner' 
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'owner'
                                 ? 'bg-purple-100 text-purple-800'
                                 : 'bg-blue-100 text-blue-800'
-                            }`}>
+                              }`}>
                               {user.role === 'owner' ? 'Propietario' : 'Empleado'}
                             </span>
                           </td>
@@ -1658,7 +1676,7 @@ const Configuracion = () => {
                   {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
                 </h3>
               </div>
-              
+
               <form onSubmit={handleSaveUser} className="p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

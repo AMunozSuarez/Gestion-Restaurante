@@ -36,12 +36,14 @@ const SubscriptionPlans = () => {
       const response = await getCurrentSubscription();
       if (response.success && response.data && response.data.subscription) {
         const subscription = response.data.subscription;
-        // Solo considerar como "activa" si el estado es active o el plan es trial y está activo
+        // Solo considerar como "activa" si el estado es active o trial
         if (subscription.status === 'active' || subscription.status === 'trial') {
           setCurrentSubscription(subscription);
           setShowPlans(false); // No mostrar planes si ya tiene suscripción activa
         } else {
-          setShowPlans(true); // Mostrar planes si no tiene suscripción activa
+          // Suscripción expirada, cancelada o suspendida: guardar para mostrar banner y mostrar planes
+          setCurrentSubscription(subscription);
+          setShowPlans(true);
         }
       } else {
         setShowPlans(true); // No tiene suscripción, mostrar planes
@@ -404,17 +406,33 @@ const SubscriptionPlans = () => {
               </div>
             ) : (
               <>
-            {/* Alerta informativa si tenía suscripción pero expiró o está cancelada */}
+            {/* Alerta informativa si tenía suscripción pero expiró, fue cancelada o suspendida */}
             {currentSubscription && currentSubscription.status !== 'active' && (
               <div className="max-w-4xl mx-auto mb-8">
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-center justify-between">
+                <div className={`border rounded-lg p-4 flex items-center justify-between ${
+                  currentSubscription.status === 'suspended'
+                    ? 'bg-red-50 border-red-200'
+                    : 'bg-orange-50 border-orange-200'
+                }`}>
                   <div className="flex items-center">
-                    <svg className="w-6 h-6 text-orange-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className={`w-6 h-6 mr-3 ${
+                      currentSubscription.status === 'suspended' ? 'text-red-600' : 'text-orange-600'
+                    }`} fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
                     <div>
-                      <p className="font-semibold text-orange-900">Tu suscripción anterior ha expirado</p>
-                      <p className="text-sm text-orange-700">Plan {getPlanName(currentSubscription.plan)} - Venció el {formatDate(currentSubscription.endDate)}</p>
+                      <p className={`font-semibold ${
+                        currentSubscription.status === 'suspended' ? 'text-red-900' : 'text-orange-900'
+                      }`}>
+                        {currentSubscription.status === 'suspended'
+                          ? 'Tu cuenta está suspendida por falta de pago'
+                          : 'Tu suscripción anterior ha expirado'}
+                      </p>
+                      <p className={`text-sm ${
+                        currentSubscription.status === 'suspended' ? 'text-red-700' : 'text-orange-700'
+                      }`}>
+                        Plan {getPlanName(currentSubscription.plan)} — Venció el {formatDate(currentSubscription.endDate)}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -467,12 +485,18 @@ const SubscriptionPlans = () => {
         )}
 
         {/* Plans Grid */}
+        {/* Si hay suscripción previa no-active (expired/suspended/cancelled), filtrar el trial */}
+        {(() => {
+          const visiblePlans = (currentSubscription && currentSubscription.status !== 'active')
+            ? plans.filter(p => p.id !== 'trial')
+            : plans;
+          return (
         <div className={`mx-auto mb-16 ${
-          plans.length === 1 
+          visiblePlans.length === 1 
             ? 'max-w-xl' 
             : 'max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12'
         }`}>
-          {plans.map((plan) => (
+          {visiblePlans.map((plan) => (
             <Card
               key={plan.id}
               className={`relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:scale-105 border-2 ${
@@ -560,6 +584,8 @@ const SubscriptionPlans = () => {
                     </span>
                   ) : plan.price === 0 ? (
                     'Comenzar Prueba Gratis'
+                  ) : currentSubscription && currentSubscription.status !== 'active' ? (
+                    'Renovar — Agregar 30 días'
                   ) : (
                     'Seleccionar Plan'
                   )}
@@ -568,6 +594,8 @@ const SubscriptionPlans = () => {
             </Card>
           ))}
         </div>
+          );
+        })()}
 
         {/* Benefits Section */}
         <div className="max-w-6xl mx-auto">
