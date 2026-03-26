@@ -141,7 +141,7 @@ const createOrderController = async (req, res) => {
 
         // ── Paso 5: Populate en el documento ya guardado (evita un findById extra) ──
         await order.populate([
-            { path: 'foods.food', select: 'title price' },
+            { path: 'foods.food', select: 'title price category' },
             { path: 'buyer', select: 'name phone' },
             { path: 'waiter', select: 'userName name' },
         ]);
@@ -391,7 +391,7 @@ const updateOrderController = async (req, res) => {
             updateData,
             { new: true, runValidators: true }
         )
-            .populate('foods.food', 'title price')
+            .populate('foods.food', 'title price category')
             .populate('deletedFoods.food', 'title price')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')

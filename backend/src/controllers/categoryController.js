@@ -4,7 +4,7 @@ const foodModel = require('../models/foodModel');
 // CREATE CATEGORY
 const createCategoryController = async (req, res) => {
     try {
-        const { title } = req.body;
+        const { title, printDestinations } = req.body;
         if (!title) {
             return res.status(400).json({ 
                 success: false,
@@ -12,11 +12,17 @@ const createCategoryController = async (req, res) => {
             });
         }
 
-        const newCategory = new categoryModel({
+        const categoryData = {
             title,
-            restaurant: req.user.restaurant, // Asocia la categoría al restaurante del usuario
-        });
+            restaurant: req.user.restaurant,
+        };
 
+        // Solo incluir printDestinations si se proporcionó
+        if (Array.isArray(printDestinations)) {
+            categoryData.printDestinations = printDestinations;
+        }
+
+        const newCategory = new categoryModel(categoryData);
         await newCategory.save();
 
         res.status(201).json({ 
@@ -84,7 +90,7 @@ const getAllCategoriesController = async (req, res) => {
 // UPDATE CATEGORY
 const updateCategoryController = async (req, res) => {
     try {
-        const { title, isAvailable } = req.body;
+        const { title, isAvailable, printDestinations } = req.body;
         
         // Solo requerir title si no se está actualizando solo la disponibilidad
         if (!title && isAvailable === undefined) {
@@ -140,6 +146,9 @@ const updateCategoryController = async (req, res) => {
             if (title) category.title = title;
             if (isAvailable !== undefined) {
                 category.isAvailable = isAvailable;
+            }
+            if (Array.isArray(printDestinations)) {
+                category.printDestinations = printDestinations;
             }
             await category.save();
 
@@ -211,9 +220,49 @@ const deleteCategoryController = async (req, res) => {
 };
 
 
+// BATCH UPDATE PRINT DESTINATIONS
+const batchUpdatePrintDestinationsController = async (req, res) => {
+    try {
+        const { updates } = req.body;
+        // updates: [{ categoryId: "...", printDestinations: ["cocina", "barra"] }, ...]
+
+        if (!Array.isArray(updates) || updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Updates array is required'
+            });
+        }
+
+        const results = await Promise.all(
+            updates.map(async ({ categoryId, printDestinations }) => {
+                const category = await categoryModel.findOneAndUpdate(
+                    { _id: categoryId, restaurant: req.user.restaurant },
+                    { printDestinations: Array.isArray(printDestinations) ? printDestinations : [] },
+                    { new: true }
+                );
+                return category;
+            })
+        );
+
+        res.status(200).json({
+            success: true,
+            message: `${results.filter(Boolean).length} categories updated`,
+            categories: results.filter(Boolean)
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error in Batch Update Print Destinations',
+            error
+        });
+    }
+};
+
 module.exports = {
     createCategoryController,
     getAllCategoriesController,
     updateCategoryController,
-    deleteCategoryController
+    deleteCategoryController,
+    batchUpdatePrintDestinationsController
 };

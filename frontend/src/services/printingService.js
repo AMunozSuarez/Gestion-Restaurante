@@ -1,4 +1,5 @@
 import axios from 'axios';
+import printerConfigService from './printerConfigService';
 
 // Configuracion base para el servicio de impresion
 const PRINTING_SERVICE_URL = process.env.REACT_APP_PRINTING_SERVICE_URL || 'http://localhost:8088';
@@ -384,10 +385,128 @@ No. Orden: #${orderNumber}
     return content.trim();
   },
 
-  // Imprimir comanda de cocina automaticamente
-  async printKitchenOrder(order, options = {}) {
+  /**
+   * Generate kitchen order content for a SUBSET of items (for multi-printer routing).
+   * IMPORTANT: strips allFoods/newFoods from options so generateKitchenOrder uses the
+   * filtered order.foods instead of overriding with the full allFoods list.
+   * @param {Object} order - original order
+   * @param {Array} filteredItems - only the items destined for this printer
+   * @param {Object} options - original options (allFoods will be stripped)
+   * @param {string[]} roles - roles this printer handles (e.g. ['barra'])
+   */
+  generateKitchenOrderForItems(order, filteredItems, options = {}, roles = []) {
+    // Build a filtered order with only the items for this printer
+    const filteredOrder = {
+      ...order,
+      foods: filteredItems,
+    };
+
+    // Build a Set of food IDs in the filtered set for quick lookup
+    const filteredFoodIds = new Set(
+      filteredItems.map(item => item.food?._id || item.food).filter(Boolean)
+    );
+
+    // Strip allFoods — its presence in options would make generateKitchenOrder
+    // ignore filteredOrder.foods and render ALL items instead.
+    // Also filter newFoods to only include items going to this printer,
+    // so the "* New" asterisk markers work correctly per ticket.
+    const filteredOptions = {
+      ...options,
+      allFoods: null,
+      newFoods: options.newFoods
+        ? options.newFoods.filter(nf => {
+            const id = nf.food?._id || nf.food;
+            return id && filteredFoodIds.has(id);
+          })
+        : [],
+    };
+
+    return this.generateKitchenOrder(filteredOrder, filteredOptions);
+  },
+
+  /**
+   * Print kitchen order with multi-printer routing.
+   * Resolves which printers should receive items based on category printDestinations
+   * and the local role→printer mapping.
+   *
+   * @param {Object} order - order data with foods array
+   * @param {Object} options - { newFoods, deletedFoods, allFoods, categories }
+   *   categories: array of category objects with _id and printDestinations
+   * @returns {Object} { success, data/error, details[] }
+   */
+  async printKitchenOrderMulti(order, options = {}) {
+    const { categories = [] } = options;
+
+    // IMPORTANT: Always use order.foods for routing because it has populated category data.
+    // options.allFoods may be present (update flow) but only has {food: id-string, name}
+    // without category info — resolveOrderPrinters needs category IDs to route.
+    const routingItems = order.foods || [];
+
+    // Try multi-printer resolution using the populated order.foods
+    const printerTargets = printerConfigService.resolveOrderPrinters(routingItems, categories);
+
+    if (printerTargets.length === 0) {
+      // No multi-printer config or no items resolved → fallback to single printer
+      return this.printKitchenOrderSingle(order, options);
+    }
+
+    // Build a lookup of food ID → allFoods item (for isNew flags from cart),
+    // so we can annotate filtered items with their isNew status for display
+    const allFoodsById = {};
+    if (options.allFoods && options.allFoods.length > 0) {
+      options.allFoods.forEach(af => {
+        const id = af.food?._id || af.food;
+        if (id) allFoodsById[id] = af;
+      });
+    }
+
+    // Send to each target printer with only its items
+    const results = [];
+    for (const target of printerTargets) {
+      try {
+        // Annotate each item's food with isNew from allFoods if available
+        const annotatedItems = target.items.map(item => {
+          const foodId = item.food?._id || item.food;
+          const allFoodsItem = foodId ? allFoodsById[foodId] : null;
+          return allFoodsItem ? { ...item, _isNew: allFoodsItem.isNew || false } : item;
+        });
+
+        // Generate ticket with only the items for this printer
+        // generateKitchenOrderForItems strips allFoods so it uses filtered items
+        const content = this.generateKitchenOrderForItems(order, annotatedItems, options, target.roles);
+        const result = await this.print(target.printerName, content, 1, true);
+        results.push({ printerName: target.printerName, roles: target.roles, ...result });
+      } catch (err) {
+        console.error(`Error printing to ${target.printerName} (${target.roles.join('/')}):`, err);
+        results.push({ printerName: target.printerName, roles: target.roles, success: false, error: err.message });
+      }
+    }
+
+    const allSuccess = results.every(r => r.success);
+    return {
+      success: allSuccess,
+      data: results,
+      error: allSuccess ? null : 'Algunos tickets no se pudieron imprimir',
+      details: results,
+    };
+  },
+
+  /**
+   * Single-printer fallback for kitchen orders (original behavior)
+   */
+  async printKitchenOrderSingle(order, options = {}) {
     const content = this.generateKitchenOrder(order, options);
-    return this.printWithDefault(content, 1, true); // isKitchen=true para aplicar negrita si esta configurado
+    return this.printWithDefault(content, 1, true);
+  },
+
+  // Imprimir comanda de cocina automaticamente (entry point)
+  async printKitchenOrder(order, options = {}) {
+    // If categories are provided and multi-printer config exists, use multi-printer
+    if (options.categories && printerConfigService.hasMultiPrinterConfig()) {
+      return this.printKitchenOrderMulti(order, options);
+    }
+    // Otherwise fallback to single printer
+    return this.printKitchenOrderSingle(order, options);
   },
 
   // Generar ticket de cliente
@@ -639,6 +758,11 @@ RESUMEN
   // Imprimir ticket de cliente automaticamente
   async printCustomerTicket(order) {
     const content = this.generateCustomerTicket(order);
+    // Use caja printer if configured, otherwise default
+    const cajaPrinter = printerConfigService.getPrinterForRole('caja');
+    if (cajaPrinter) {
+      return this.print(cajaPrinter, content, 1, false);
+    }
     return this.printWithDefault(content, 1);
   },
 
@@ -764,6 +888,11 @@ ${cashRegister.comment.trim()}
   // Imprimir reporte de caja automaticamente
   async printCashRegisterReport(cashRegister, systemTotalsByPayment = {}) {
     const content = this.generateCashRegisterReport(cashRegister, systemTotalsByPayment);
+    // Use caja printer if configured, otherwise default
+    const cajaPrinter = printerConfigService.getPrinterForRole('caja');
+    if (cajaPrinter) {
+      return this.print(cajaPrinter, content, 1, false);
+    }
     return this.printWithDefault(content, 1);
   }
 };

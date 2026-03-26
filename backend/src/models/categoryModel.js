@@ -16,6 +16,11 @@ const categorySchema = new mongoose.Schema({
         type: Boolean,
         default: true,
     },
+    printDestinations: {
+        type: [String],
+        enum: ['cocina', 'barra', 'caja'],
+        default: [],
+    },
 
 }, {
     timestamps: true

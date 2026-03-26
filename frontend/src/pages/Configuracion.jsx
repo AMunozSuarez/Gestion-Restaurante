@@ -15,6 +15,8 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline';
 import printingService from '../services/printingService';
+import printerConfigService from '../services/printerConfigService';
+import { categoriesService } from '../services/categoriesService';
 import * as subscriptionService from '../services/subscriptionService';
 import usersService from '../services/usersService';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +41,13 @@ const Configuracion = () => {
   const [fontSettings, setFontSettings] = useState(() => printingService.getLocalFontSettings());
   const [savingFont, setSavingFont] = useState(false);
   const [testingFont, setTestingFont] = useState(false);
+
+  // Estados para multi-impresora
+  const [printerRoles, setPrinterRoles] = useState(() => printerConfigService.getPrinterRoles());
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [categoryPrintMap, setCategoryPrintMap] = useState({}); // { catId: ["cocina", "barra"] }
+  const [savingPrintDestinations, setSavingPrintDestinations] = useState(false);
   
   // Estados para suscripción
   const [subscription, setSubscription] = useState(null);
@@ -71,6 +80,7 @@ const Configuracion = () => {
       checkServiceAndLoadPrinters();
       loadSavedPrinters();
       loadFontSettings();
+      loadCategoriesForPrinting();
     } else if (activeTab === 'subscription' && isOwnerOrAdmin) {
       loadSubscription();
     } else if (activeTab === 'users' && isOwnerOrAdmin) {
@@ -307,6 +317,108 @@ const Configuracion = () => {
       setPrinting(false);
     }
   };
+
+  // ============ FUNCIONES PARA MULTI-IMPRESORA ============
+
+  // Cargar categorías con sus printDestinations
+  const loadCategoriesForPrinting = async () => {
+    setLoadingCategories(true);
+    try {
+      const response = await categoriesService.getCategories();
+      if (response.success && response.categories) {
+        setCategories(response.categories);
+        // Inicializar mapa de categoría → roles desde los datos de la DB
+        const map = {};
+        response.categories.forEach(cat => {
+          map[cat._id] = cat.printDestinations || [];
+        });
+        setCategoryPrintMap(map);
+      }
+    } catch (error) {
+      console.error('Error loading categories for printing:', error);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // Asignar impresora a un rol
+  const handleSetPrinterRole = (role, printerName) => {
+    printerConfigService.setPrinterForRole(role, printerName);
+    setPrinterRoles(printerConfigService.getPrinterRoles());
+    setMessage({
+      type: 'success',
+      text: `Impresora "${printerName}" asignada a ${printerConfigService.getRoleLabels()[role] || role}`
+    });
+  };
+
+  // Remover impresora de un rol
+  const handleRemovePrinterRole = (role) => {
+    printerConfigService.removePrinterRole(role);
+    setPrinterRoles(printerConfigService.getPrinterRoles());
+    setMessage({
+      type: 'info',
+      text: `Impresora removida de ${printerConfigService.getRoleLabels()[role] || role}`
+    });
+  };
+
+  // Toggle rol de impresión para una categoría
+  const handleToggleCategoryRole = (categoryId, role) => {
+    setCategoryPrintMap(prev => {
+      const current = prev[categoryId] || [];
+      const updated = current.includes(role)
+        ? current.filter(r => r !== role)
+        : [...current, role];
+      return { ...prev, [categoryId]: updated };
+    });
+  };
+
+  // Guardar destinos de impresión de todas las categorías en la DB
+  const handleSavePrintDestinations = async () => {
+    setSavingPrintDestinations(true);
+    try {
+      const updates = Object.entries(categoryPrintMap).map(([categoryId, printDestinations]) => ({
+        categoryId,
+        printDestinations
+      }));
+      await categoriesService.batchUpdatePrintDestinations(updates);
+      setMessage({
+        type: 'success',
+        text: 'Destinos de impresión guardados correctamente'
+      });
+    } catch (error) {
+      console.error('Error saving print destinations:', error);
+      setMessage({
+        type: 'error',
+        text: 'Error al guardar destinos de impresión: ' + error.message
+      });
+    } finally {
+      setSavingPrintDestinations(false);
+    }
+  };
+
+  // Imprimir prueba en una impresora de rol específico
+  const handleTestRolePrint = async (role) => {
+    const printerName = printerRoles[role];
+    if (!printerName) {
+      setMessage({ type: 'error', text: `No hay impresora asignada a ${printerConfigService.getRoleLabels()[role]}` });
+      return;
+    }
+    setPrinting(true);
+    setMessage({ type: 'info', text: `Enviando prueba a ${printerName} (${printerConfigService.getRoleLabels()[role]})...` });
+    try {
+      const result = await printingService.printTest(printerName);
+      if (result.success) {
+        setMessage({ type: 'success', text: `Prueba enviada a ${printerName}` });
+      } else {
+        setMessage({ type: 'error', text: 'Error: ' + result.error });
+      }
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Error al imprimir prueba' });
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   // ============ FUNCIONES PARA SUSCRIPCIÓN ============
   
   // Cargar información de la suscripción
@@ -951,6 +1063,171 @@ const Configuracion = () => {
           </div>
         </div>
 
+        {/* Asignación de Impresoras por Sección */}
+        {serviceStatus === 'online' && printers.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center mb-4">
+              <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
+              <div>
+                <h2 className="text-xl font-semibold text-brown-900">Asignación de Impresoras por Sección</h2>
+                <p className="text-sm text-gray-500">Asigna una impresora física a cada sección del restaurante</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              {printerConfigService.getAvailableRoles().map(role => {
+                const roleLabels = printerConfigService.getRoleLabels();
+                const assignedPrinter = printerRoles[role] || '';
+                return (
+                  <div key={role} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div className="flex items-center min-w-0">
+                      <div className={`w-3 h-3 rounded-full mr-3 flex-shrink-0 ${
+                        assignedPrinter ? 'bg-green-500' : 'bg-gray-300'
+                      }`}></div>
+                      <div>
+                        <span className="font-medium text-gray-900">{roleLabels[role]}</span>
+                        {assignedPrinter && (
+                          <p className="text-xs text-gray-500">{assignedPrinter}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <select
+                        value={assignedPrinter}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleSetPrinterRole(role, e.target.value);
+                          } else {
+                            handleRemovePrinterRole(role);
+                          }
+                        }}
+                        className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 text-sm"
+                      >
+                        <option value="">Sin asignar</option>
+                        {printers.map(p => {
+                          const pName = typeof p === 'string' ? p : (p.printerName || p.PrinterName);
+                          return <option key={pName} value={pName}>{pName}</option>;
+                        })}
+                      </select>
+                      {assignedPrinter && (
+                        <button
+                          onClick={() => handleTestRolePrint(role)}
+                          disabled={printing}
+                          className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-medium rounded text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+                        >
+                          <PrinterIcon className="w-3 h-3 mr-1" />
+                          Probar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="text-xs text-gray-400 mt-3">
+              Esta configuración es local a este equipo. Cada computadora puede tener sus propias impresoras asignadas.
+            </p>
+          </div>
+        )}
+
+        {/* Impresión por Categoría */}
+        {serviceStatus === 'online' && Object.keys(printerRoles).length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
+                <div>
+                  <h2 className="text-xl font-semibold text-brown-900">Impresión por Categoría</h2>
+                  <p className="text-sm text-gray-500">Define a qué secciones se envían los productos de cada categoría</p>
+                </div>
+              </div>
+              <button
+                onClick={handleSavePrintDestinations}
+                disabled={savingPrintDestinations}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+              >
+                {savingPrintDestinations ? (
+                  <><ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" /> Guardando...</>
+                ) : (
+                  <><CheckCircleIcon className="w-4 h-4 mr-2" /> Guardar cambios</>
+                )}
+              </button>
+            </div>
+
+            {loadingCategories ? (
+              <div className="text-center py-8">
+                <ArrowPathIcon className="w-8 h-8 text-gray-400 mx-auto mb-2 animate-spin" />
+                <p className="text-sm text-gray-500">Cargando categorías...</p>
+              </div>
+            ) : categories.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Categoría</th>
+                      {printerConfigService.getAvailableRoles().map(role => {
+                        const label = printerConfigService.getRoleLabels()[role];
+                        const hasPrinter = !!printerRoles[role];
+                        return (
+                          <th key={role} className="text-center py-3 px-4 text-sm font-medium text-gray-700">
+                            <div className="flex flex-col items-center">
+                              <span>{label}</span>
+                              {hasPrinter ? (
+                                <span className="text-xs text-gray-400 font-normal">{printerRoles[role]}</span>
+                              ) : (
+                                <span className="text-xs text-red-400 font-normal">Sin impresora</span>
+                              )}
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categories.map((cat, index) => {
+                      const catRoles = categoryPrintMap[cat._id] || [];
+                      return (
+                        <tr key={cat._id} className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center">
+                              <span className="font-medium text-gray-900">{cat.title}</span>
+                              {!cat.isAvailable && (
+                                <span className="ml-2 px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded">Inactiva</span>
+                              )}
+                            </div>
+                          </td>
+                          {printerConfigService.getAvailableRoles().map(role => {
+                            const isChecked = catRoles.includes(role);
+                            const hasPrinter = !!printerRoles[role];
+                            return (
+                              <td key={role} className="text-center py-3 px-4">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  disabled={!hasPrinter}
+                                  onChange={() => handleToggleCategoryRole(cat._id, role)}
+                                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-30"
+                                />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 py-4 text-center">No hay categorías creadas aún</p>
+            )}
+
+            <p className="text-xs text-gray-400 mt-3">
+              Las categorías sin impresora asignada se enviarán a la impresora predeterminada. Los cambios se guardan en el servidor y aplican a todos los dispositivos.
+            </p>
+          </div>
+        )}
+
         {/* Información de uso */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start">
@@ -958,9 +1235,10 @@ const Configuracion = () => {
             <div className="text-sm text-blue-800">
               <p className="font-medium mb-1">Cómo usar las impresoras:</p>
               <ul className="list-disc list-inside space-y-1 text-blue-700">
-                <li><strong>Prueba:</strong> Verifica que la impresora funcione correctamente</li>
-                <li><strong>Predeterminada:</strong> Se usará automáticamente para imprimir comandas de cocina</li>
-                <li>Cuando configures una impresora predeterminada, las comandas se imprimirán automáticamente</li>
+                <li><strong>Predeterminada:</strong> Se usará para imprimir cuando no haya impresoras por sección configuradas</li>
+                <li><strong>Impresoras por Sección:</strong> Asigna impresoras a Cocina, Barra y/o Caja para enviar automáticamente</li>
+                <li><strong>Impresión por Categoría:</strong> Configura a qué secciones se envían los productos de cada categoría</li>
+                <li>Si una categoría no tiene sección asignada, se imprimirá en la impresora predeterminada</li>
               </ul>
             </div>
           </div>

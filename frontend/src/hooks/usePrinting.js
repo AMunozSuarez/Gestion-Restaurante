@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import printingService from '../services/printingService';
+import printerConfigService from '../services/printerConfigService';
 
 export const usePrinting = () => {
   const [printers, setPrinters] = useState([]);
   const [selectedPrinter, setSelectedPrinter] = useState('');
   const [defaultPrinter, setDefaultPrinter] = useState('');
+  const [printerRoles, setPrinterRoles] = useState({});
   const [serviceStatus, setServiceStatus] = useState('checking'); // checking, online, offline
   const [loading, setLoading] = useState(false);
 
@@ -12,6 +14,7 @@ export const usePrinting = () => {
   useEffect(() => {
     const saved = localStorage.getItem('selectedPrinter');
     const defaultSaved = printingService.getDefaultPrinter();
+    const roles = printerConfigService.getPrinterRoles();
     
     if (saved) {
       setSelectedPrinter(saved);
@@ -19,6 +22,7 @@ export const usePrinting = () => {
     if (defaultSaved) {
       setDefaultPrinter(defaultSaved);
     }
+    setPrinterRoles(roles);
   }, []);
 
   // Verificar servicio y cargar impresoras
@@ -70,6 +74,18 @@ export const usePrinting = () => {
     printingService.removeDefaultPrinter();
   }, []);
 
+  // Establecer impresora para un rol
+  const setPrinterForRole = useCallback((role, printerName) => {
+    printerConfigService.setPrinterForRole(role, printerName);
+    setPrinterRoles(printerConfigService.getPrinterRoles());
+  }, []);
+
+  // Remover impresora de un rol
+  const removePrinterRole = useCallback((role) => {
+    printerConfigService.removePrinterRole(role);
+    setPrinterRoles(printerConfigService.getPrinterRoles());
+  }, []);
+
   // Imprimir contenido
   const print = useCallback(async (content, copies = 1) => {
     if (!selectedPrinter) {
@@ -112,8 +128,8 @@ export const usePrinting = () => {
   }, [selectedPrinter]);
 
   // Imprimir comanda de cocina
-  const printKitchenOrder = useCallback(async (order) => {
-    const response = await printingService.printKitchenOrder(order);
+  const printKitchenOrder = useCallback(async (order, options = {}) => {
+    const response = await printingService.printKitchenOrder(order, options);
     
     if (!response.success) {
       throw new Error(response.error);
@@ -122,23 +138,29 @@ export const usePrinting = () => {
     return response.data;
   }, []);
 
+  const hasMultiPrinterConfig = Object.keys(printerRoles).length > 0;
+
   return {
     printers,
     selectedPrinter,
     defaultPrinter,
+    printerRoles,
     serviceStatus,
     loading,
     checkServiceAndLoadPrinters,
     selectPrinter,
     setDefaultPrinter: setDefaultPrinterCallback,
     removeDefaultPrinter,
+    setPrinterForRole,
+    removePrinterRole,
     print,
     printWithDefault,
     printTest,
     printKitchenOrder,
     isServiceOnline: serviceStatus === 'online',
     hasPrinterSelected: !!selectedPrinter,
-    hasDefaultPrinter: !!defaultPrinter
+    hasDefaultPrinter: !!defaultPrinter,
+    hasMultiPrinterConfig,
   };
 };
 

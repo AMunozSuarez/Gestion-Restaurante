@@ -98,6 +98,17 @@ export const categoriesService = {
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al cambiar disponibilidad de la categoría');
     }
+  },
+
+  // Actualizar print destinations de múltiples categorías a la vez
+  batchUpdatePrintDestinations: async (updates) => {
+    try {
+      // updates: [{ categoryId: "...", printDestinations: ["cocina", "barra"] }, ...]
+      const response = await api.put('/category/print-destinations/batch', { updates });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al actualizar destinos de impresión');
+    }
   }
 };
 

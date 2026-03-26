@@ -1,5 +1,7 @@
 import api from './api';
 import printingService from './printingService';
+import printerConfigService from './printerConfigService';
+import { categoriesService } from './categoriesService';
 import { markOwnUpdate } from './socketService';
 
 // ── Caché simple para órdenes (evita re-fetch al cambiar de vista) ──
@@ -24,6 +26,28 @@ const setCachedResponse = (key, data) => {
 // Invalidar caché de órdenes (llamar después de crear/actualizar/eliminar)
 const invalidateOrderCache = () => {
   orderCache.clear();
+};
+
+// ── Caché de categorías para resolución multi-impresora ──
+let categoriesCache = null;
+let categoriesCacheTimestamp = 0;
+const CATEGORIES_CACHE_TTL = 60 * 1000; // 1 minuto
+
+const getCachedCategories = async () => {
+  if (categoriesCache && (Date.now() - categoriesCacheTimestamp < CATEGORIES_CACHE_TTL)) {
+    return categoriesCache;
+  }
+  try {
+    const response = await categoriesService.getCategories();
+    if (response.success && response.categories) {
+      categoriesCache = response.categories;
+      categoriesCacheTimestamp = Date.now();
+      return categoriesCache;
+    }
+  } catch (err) {
+    console.error('Error loading categories for printing:', err);
+  }
+  return categoriesCache || [];
 };
 
 export const ordersService = {
@@ -73,8 +97,10 @@ export const ordersService = {
       if (response.data && response.data.order && hasProducts) {
         try {
           const defaultPrinter = printingService.getDefaultPrinter();
-          if (defaultPrinter) {
-            await printingService.printKitchenOrder(response.data.order);
+          const hasMultiConfig = printerConfigService.hasMultiPrinterConfig();
+          if (defaultPrinter || hasMultiConfig) {
+            const categories = hasMultiConfig ? await getCachedCategories() : [];
+            await printingService.printKitchenOrder(response.data.order, { categories });
           }
         } catch (printError) {
           console.error('Error al imprimir comanda automáticamente:', printError);
@@ -99,11 +125,14 @@ export const ordersService = {
       if (!isCompleting && response.data && response.data.order) {
         try {
           const defaultPrinter = printingService.getDefaultPrinter();
-          if (defaultPrinter) {
+          const hasMultiConfig = printerConfigService.hasMultiPrinterConfig();
+          if (defaultPrinter || hasMultiConfig) {
+            const categories = hasMultiConfig ? await getCachedCategories() : [];
             await printingService.printKitchenOrder(response.data.order, {
               newFoods: updateData.newFoods || [],
               deletedFoods: updateData.deletedFoods || [],
-              allFoods: updateData.allFoods || null
+              allFoods: updateData.allFoods || null,
+              categories
             });
           }
         } catch (printError) {
