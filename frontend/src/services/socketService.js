@@ -5,29 +5,72 @@ const SOCKET_URL = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api'
 let socket = null;
 // Listeners registered before connectSocket is called
 const pendingListeners = [];
+let retryTimeout = null;
+
+// Re-attach all module-level and pending listeners to a fresh socket
+const reattachListeners = () => {
+  pendingListeners.forEach(({ event, callback }) => {
+    socket.on(event, callback);
+  });
+};
+
+const scheduleReconnect = (delay = 5000) => {
+  if (retryTimeout) return; // ya hay uno pendiente
+  retryTimeout = setTimeout(() => {
+    retryTimeout = null;
+    if (socket) {
+      socket.removeAllListeners();
+      socket.disconnect();
+      socket = null;
+    }
+    connectSocket();
+  }, delay);
+};
 
 export const connectSocket = () => {
   const token = localStorage.getItem('token');
-  if (!token || socket) return;
+  if (!token) return;
+
+  // Si ya hay un socket activo y conectado, no hacer nada
+  if (socket && socket.connected) return;
+
+  // Si existe pero está muerto, limpiarlo primero
+  if (socket) {
+    socket.removeAllListeners();
+    socket.disconnect();
+    socket = null;
+  }
 
   socket = io(SOCKET_URL, {
     auth: { token },
     reconnection: true,
     reconnectionDelay: 2000,
-    reconnectionAttempts: 10,
+    reconnectionDelayMax: 10000,
+    reconnectionAttempts: Infinity, // nunca rendirse automáticamente
   });
 
-  // Register any listeners that were added before socket was created
-  pendingListeners.forEach(({ event, callback }) => {
-    socket.on(event, callback);
-  });
+  // Registrar listeners pendientes (suscritos antes de que el socket existiera)
+  reattachListeners();
 
   socket.on('connect', () => {
     console.log('Socket.io conectado');
+    if (retryTimeout) {
+      clearTimeout(retryTimeout);
+      retryTimeout = null;
+    }
   });
 
   socket.on('connect_error', (err) => {
     console.error('Socket.io error de conexión:', err.message);
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.warn('Socket.io desconectado:', reason);
+    // Si el servidor cerró la conexión intencionalmente, reconectar manualmente
+    if (reason === 'io server disconnect') {
+      scheduleReconnect(3000);
+    }
+    // Para 'transport close' / 'transport error' el cliente reintenta solo (reconnection: true)
   });
 };
 
@@ -67,3 +110,21 @@ export const markOwnUpdate = (orderId) => {
 };
 
 export const isOwnUpdate = (orderId) => pendingOwnUpdates.has(String(orderId));
+
+// ─── Recuperación automática ante cambios de red ───────────────────────────
+// ERR_NETWORK_CHANGED ocurre cuando el SO cambia de interfaz de red.
+// El browser dispara el evento 'online' cuando recupera conectividad.
+window.addEventListener('online', () => {
+  console.log('Red detectada — intentando reconectar socket...');
+  if (!socket || !socket.connected) {
+    scheduleReconnect(1000);
+  }
+});
+
+// Cuando el usuario vuelve a la pestaña y el socket no está conectado, reconectar.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && socket && !socket.connected) {
+    console.log('Tab activa — intentando reconectar socket...');
+    scheduleReconnect(500);
+  }
+});
