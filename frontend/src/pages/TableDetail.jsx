@@ -40,6 +40,7 @@ const TableDetail = () => {
     const [notification, setNotification] = useState(null);
     const [cart, setCart] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState(null);
     const [comments, setComments] = useState('');
     const [commentingProduct, setCommentingProduct] = useState(null);
     const [productComment, setProductComment] = useState('');
@@ -365,7 +366,7 @@ const TableDetail = () => {
             return;
         }
 
-        const validPayments = paymentMethods.filter(p => 
+        const validPayments = paymentMethods.filter(p =>
             p.method && p.method.trim() !== '' && p.method !== 'Pendiente'
         );
 
@@ -425,18 +426,7 @@ const TableDetail = () => {
             const response = await updateOrder(table.currentOrder._id, orderData);
 
             if (response.success) {
-                // Imprimir ticket de cliente
-                try {
-                    await printingService.printCustomerTicket({
-                        ...response.order,
-                        suggestedTip,
-                        tableNumber: table.tableNumber
-                    });
-                    showNotification('Mesa cerrada exitosamente', 2000);
-                } catch (printError) {
-                    console.error('Error al imprimir ticket:', printError);
-                    showNotification('Mesa cerrada pero falló la impresión del ticket', 2000);
-                }
+                showNotification('Mesa cerrada exitosamente', 'success', 2000);
 
                 // Cerrar mesa usando el hook
                 await closeTable(tableId);
@@ -449,6 +439,26 @@ const TableDetail = () => {
             showNotification('Error al cerrar mesa: ' + error.message, 'error');
         } finally {
             setIsProcessing(false);
+        }
+    };
+
+    // Imprimir ticket del cliente manualmente
+    const handlePrintTicket = async () => {
+        if (!table.currentOrder) {
+            showNotification('No hay orden para imprimir', 'warning');
+            return;
+        }
+
+        try {
+            await printingService.printCustomerTicket({
+                ...table.currentOrder,
+                suggestedTip,
+                tableNumber: table.tableNumber
+            });
+            showNotification('Ticket impreso exitosamente', 'success', 2000);
+        } catch (error) {
+            console.error('Error al imprimir ticket:', error);
+            showNotification('Error al imprimir ticket: ' + error.message, 'error');
         }
     };
 
@@ -481,6 +491,25 @@ const TableDetail = () => {
         }
     };
 
+    // Lógica de productos (debe estar antes de los early returns)
+    const displayProducts = searchTerm.trim() ? searchResults : products;
+
+    // Obtener categorías únicas
+    const uniqueCategories = React.useMemo(() => {
+        const categoriesMap = new Map();
+        displayProducts.forEach(product => {
+            if (product.category && product.category._id) {
+                categoriesMap.set(product.category._id, product.category.title);
+            }
+        });
+        return Array.from(categoriesMap, ([id, title]) => ({ id, title }));
+    }, [displayProducts]);
+
+    // Filtrar productos por categoría seleccionada
+    const filteredProducts = selectedCategory
+        ? displayProducts.filter(product => product.category?._id === selectedCategory)
+        : displayProducts;
+
     if (tableLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 flex items-center justify-center">
@@ -504,8 +533,6 @@ const TableDetail = () => {
             </div>
         );
     }
-
-    const displayProducts = searchTerm.trim() ? searchResults : products;
 
     return (
         <div className="h-full bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 flex flex-col overflow-hidden">
@@ -604,7 +631,38 @@ const TableDetail = () => {
                     <div className="lg:col-span-2">
                         <div className="bg-white rounded-xl shadow-sm p-6">
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">Productos</h2>
-                            
+
+                            {/* Filtro por categorías */}
+                            {uniqueCategories.length > 0 && (
+                                <div className="mb-4">
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => setSelectedCategory(null)}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                selectedCategory === null
+                                                    ? 'bg-teal-600 text-white'
+                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            Todas
+                                        </button>
+                                        {uniqueCategories.map(category => (
+                                            <button
+                                                key={category.id}
+                                                onClick={() => setSelectedCategory(category.id)}
+                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                    selectedCategory === category.id
+                                                        ? 'bg-teal-600 text-white'
+                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                {category.title}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Búsqueda */}
                             <input
                                 type="text"
@@ -616,7 +674,7 @@ const TableDetail = () => {
 
                             {/* Lista de productos */}
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[600px] overflow-y-auto">
-                                {displayProducts.map(product => (
+                                {filteredProducts.map(product => (
                                     <button
                                         key={product.id}
                                         onClick={() => addToCart(product)}
@@ -975,22 +1033,34 @@ const TableDetail = () => {
                         </div>
 
                         {/* Botones */}
-                        <div className="flex gap-3">
+                        <div className="space-y-3">
+                            {/* Botón Imprimir Ticket */}
                             <Button
-                                onClick={() => setShowPaymentModal(false)}
+                                onClick={handlePrintTicket}
                                 variant="outline"
-                                className="flex-1"
+                                className="w-full border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
                             >
-                                Cancelar
+                                <PrinterIcon className="w-5 h-5 mr-2" />
+                                Imprimir Ticket
                             </Button>
-                            <Button
-                                onClick={handleCloseTable}
-                                disabled={isProcessing}
-                                className="flex-1 bg-teal-600 hover:bg-teal-700"
-                            >
-                                <CheckIcon className="w-5 h-5 mr-2" />
-                                {isProcessing ? 'Procesando...' : 'Cerrar Mesa'}
-                            </Button>
+
+                            <div className="flex gap-3">
+                                <Button
+                                    onClick={() => setShowPaymentModal(false)}
+                                    variant="outline"
+                                    className="flex-1"
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    onClick={handleCloseTable}
+                                    disabled={isProcessing}
+                                    className="flex-1 bg-teal-600 hover:bg-teal-700"
+                                >
+                                    <CheckIcon className="w-5 h-5 mr-2" />
+                                    {isProcessing ? 'Procesando...' : 'Cerrar Mesa'}
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>

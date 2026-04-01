@@ -240,13 +240,13 @@ const TableManagement = () => {
     const handleDrop = async (e, newPosition) => {
         e.preventDefault();
         setDragOverPosition(null);
-        
+
         if (!draggedTable) return;
 
-        // Verificar si hay otra mesa en la posición destino
-        const tableInPosition = tables.find(t => 
-            t._id !== draggedTable._id && 
-            t.position?.x === newPosition.x && 
+        // Verificar si hay otra mesa en la posición destino (solo en la sección actual)
+        const tableInPosition = filteredTables.find(t =>
+            t._id !== draggedTable._id &&
+            t.position?.x === newPosition.x &&
             t.position?.y === newPosition.y
         );
 
