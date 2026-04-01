@@ -808,6 +808,15 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                       <p className="text-3xl font-bold text-amber-700">
                         {formatCurrency(venta.total)}
                       </p>
+                      
+                      {/* Mostrar descuento si existe */}
+                      {venta.discount && venta.discount > 0 && (
+                        <div className="mt-2 text-sm">
+                          <span className="text-red-600 font-medium">
+                            Descuento: -{formatCurrency(venta.discount)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -825,8 +834,17 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                     {formatCurrency(venta.total)}
                   </p>
                   
+                  {/* Mostrar descuento si existe */}
+                  {venta.discount > 0 && (
+                    <div className="mt-2 text-sm">
+                      <span className="text-red-600 font-medium">
+                        Descuento: -{formatCurrency(venta.discount)}
+                      </span>
+                    </div>
+                  )}
+                  
                   {/* Mostrar propina si existe */}
-                  {venta.tip && venta.tip > 0 && (
+                  {venta.tip > 0 && (
                     <div className="mt-2 text-sm">
                       <span className="text-green-600 font-medium">
                         Propina: {formatCurrency(venta.tip)}

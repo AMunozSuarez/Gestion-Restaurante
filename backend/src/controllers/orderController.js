@@ -10,7 +10,7 @@ const { getIO } = require('../socket');
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, tableId, waiter, tip } = req.body;
+        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, tableId, waiter, tip, discount } = req.body;
 
         const restaurantId = req.user.restaurant;
         const foodIds = foods.map((item) => item.food);
@@ -100,7 +100,7 @@ const createOrderController = async (req, res) => {
             foods,
             payment: payment || null,
             paymentMethods: paymentMethods || [],
-            total,
+            total: total - (discount || 0),
             deliveryCost,
             name: !customer ? (buyer?.name || null) : null,
             buyer: customer ? customer._id : null,
@@ -108,6 +108,7 @@ const createOrderController = async (req, res) => {
             tableNumber: tableNumber || null,
             waiter: waiter || null,
             tip: tip || 0,
+            discount: discount || 0,
             section,
             status: status || 'Preparacion',
             comment: comment || '',
@@ -282,7 +283,7 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, deletedFoods, newFoods } = req.body;
+        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, discount, deletedFoods, newFoods } = req.body;
 
         const restaurantId = req.user.restaurant;
 
@@ -300,6 +301,7 @@ const updateOrderController = async (req, res) => {
         if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
         if (waiter !== undefined) updateData.waiter = waiter;
         if (tip !== undefined) updateData.tip = tip;
+        if (discount !== undefined) updateData.discount = discount;
         if (deletedFoods !== undefined && Array.isArray(deletedFoods)) {
             updateData.deletedFoods = deletedFoods;
             updateData.hasDeletedItems = deletedFoods.length > 0;
@@ -380,9 +382,17 @@ const updateOrderController = async (req, res) => {
             updateData.buyer = customer ? customer._id : null;
             updateData.foods = foods;
             if (section !== undefined) updateData.section = section;
-            updateData.total = total;
+            updateData.total = total - (discount || 0);
             updateData.deliveryCost = deliveryCost;
             updateData.selectedAddress = customer ? selectedAddress : null;
+        } else if (discount !== undefined) {
+            // Si se actualiza solo el descuento sin cambiar los foods, recalcular el total
+            const currentOrder = await orderModel.findById(req.params.id).lean();
+            if (currentOrder) {
+                // El total anterior sin descuento es: total anterior + descuento anterior
+                const totalWithoutDiscount = currentOrder.total + (currentOrder.discount || 0);
+                updateData.total = totalWithoutDiscount - discount;
+            }
         }
 
         // ── Actualizar y popular en una sola cadena (findOneAndUpdate en vez de find + findByIdAndUpdate) ──

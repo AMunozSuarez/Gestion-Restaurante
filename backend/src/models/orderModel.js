@@ -59,6 +59,10 @@ const orderSchema = new mongoose.Schema({
         type: Number,
         default: 0, // Propina
     },
+    discount: {
+        type: Number,
+        default: 0, // Descuento aplicado
+    },
     section: {
         type: String,
         enum: ['delivery', 'mostrador', 'mesas'],

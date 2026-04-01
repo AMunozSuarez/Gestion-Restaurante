@@ -679,10 +679,13 @@ Cliente: ${customer}`;
     const deliveryCost = (order.section === 'delivery' || order.order_type === 'delivery')
       ? (order.delivery_cost || order.deliveryCost || 0) : 0;
 
+    // Obtener descuento
+    const discount = order.discount || 0;
+
     // Obtener propina
     const tip = order.tip || order.suggestedTip || 0;
 
-    const total = subtotal + deliveryCost + tip;
+    const total = subtotal - discount + deliveryCost + tip;
 
     // Formatear precios en formato chileno
     const formattedSubtotal = new Intl.NumberFormat('es-CL', {
@@ -709,6 +712,19 @@ RESUMEN
     const subtotalLine = "Subtotal:";
     const subtotalPadding = ' '.repeat(Math.max(1, alignWidth - subtotalLine.length - formattedSubtotal.length));
     content += `${subtotalLine}${subtotalPadding}${formattedSubtotal}`;
+
+    if (discount > 0) {
+      const formattedDiscount = new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        minimumFractionDigits: 0
+      }).format(discount);
+
+      // Alinear descuento a la derecha
+      const discountLine = "\nDescuento:";
+      const discountPadding = ' '.repeat(Math.max(1, alignWidth - discountLine.length - formattedDiscount.length));
+      content += `${discountLine}${discountPadding}-${formattedDiscount}`;
+    }
 
     if (deliveryCost > 0) {
       const formattedDeliveryCost = new Intl.NumberFormat('es-CL', {

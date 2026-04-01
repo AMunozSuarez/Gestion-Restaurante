@@ -51,6 +51,10 @@ const TableDetail = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [showWaiterModal, setShowWaiterModal] = useState(false);
     const [selectedWaiter, setSelectedWaiter] = useState(null);
+    const [showDiscountFields, setShowDiscountFields] = useState(false);
+    const [discountType, setDiscountType] = useState('percentage');
+    const [discountValue, setDiscountValue] = useState(0);
+    const [manualPaymentEdit, setManualPaymentEdit] = useState(false);
 
     const productCommentInputRef = useRef(null);
 
@@ -119,6 +123,13 @@ const TableDetail = () => {
             productCommentInputRef.current.focus();
         }
     }, [commentingProduct]);
+
+    // Recalcular propina cuando cambia el descuento
+    useEffect(() => {
+        if (showPaymentModal) {
+            setSuggestedTip(calculateTip(0.1));
+        }
+    }, [discountValue, showPaymentModal]);
 
     // Funciones del carrito
     const addToCart = (product) => {
@@ -206,7 +217,20 @@ const TableDetail = () => {
     };
 
     const calculateTip = (percentage) => {
-        return Math.round(calculateTotal() * percentage);
+        const base = calculateSubtotalWithDiscount();
+        return Math.round(base * percentage);
+    };
+
+    const calculateDiscountAmount = () => {
+        const subtotal = calculateTotal();
+        if (discountType === 'percentage') {
+            return Math.round(subtotal * (discountValue / 100));
+        }
+        return discountValue;
+    };
+
+    const calculateSubtotalWithDiscount = () => {
+        return calculateTotal() - calculateDiscountAmount();
     };
 
     // Búsqueda de productos
@@ -318,9 +342,16 @@ const TableDetail = () => {
         }
 
         const total = calculateTotal();
-        const tip = calculateTip(0.1); // Calcular propina del 10%
-        setPaymentMethods([{ method: '', amount: total + tip }]); // Incluir propina en el monto por defecto
+        const existingDiscount = table.currentOrder?.discount || 0;
+        const subtotalWithDiscount = total - existingDiscount;
+        const tip = Math.round(subtotalWithDiscount * 0.1);
+
+        setPaymentMethods([{ method: '', amount: subtotalWithDiscount + tip }]);
         setSuggestedTip(tip);
+        setShowDiscountFields(false);
+        setDiscountType('percentage');
+        setDiscountValue(0);
+        setManualPaymentEdit(false);
         setShowPaymentModal(true);
     };
 
@@ -335,6 +366,17 @@ const TableDetail = () => {
 
     const updatePaymentMethod = (index, field, value) => {
         const processedValue = field === 'amount' ? parsePaymentInput(value) : value;
+        
+        // Si se está editando el monto del primer método de pago, marcar como edición manual
+        if (field === 'amount' && index === 0 && paymentMethods.length === 1) {
+            setManualPaymentEdit(true);
+        }
+        
+        // Si se cambia el método de pago (no el monto), resetear la edición manual
+        if (field === 'method') {
+            setManualPaymentEdit(false);
+        }
+        
         setPaymentMethods(prev =>
             prev.map((payment, i) =>
                 i === index ? { ...payment, [field]: processedValue } : payment
@@ -343,9 +385,13 @@ const TableDetail = () => {
     };
 
     const getTotalPaymentAmount = () => {
-        return paymentMethods.reduce((total, payment) => 
-            total + (parseFloat(payment.amount) || 0), 0
-        );
+        return paymentMethods.reduce((total, payment, index) => {
+            // Para el primer método de pago, si no es edición manual, usar el total calculado
+            if (index === 0 && paymentMethods.length === 1 && !manualPaymentEdit) {
+                return total + (calculateSubtotalWithDiscount() + suggestedTip);
+            }
+            return total + (parseFloat(payment.amount) || 0);
+        }, 0);
     };
 
     const formatPaymentInput = (value) => {
@@ -376,7 +422,7 @@ const TableDetail = () => {
         }
 
         const totalPaymentAmount = getTotalPaymentAmount();
-        const orderTotal = calculateTotal();
+        const orderTotal = calculateSubtotalWithDiscount();
 
         if (totalPaymentAmount < orderTotal) {
             showNotification(`Falta pagar: ${formatChileanCurrency(orderTotal - totalPaymentAmount)}`, 'warning');
@@ -414,13 +460,19 @@ const TableDetail = () => {
                     comment: item.comments || ''
                 })),
                 payment: validPayments.length === 1 ? validPayments[0].method : 'Múltiple',
-                paymentMethods: validPayments,
+                paymentMethods: validPayments.map((payment, index) => ({
+                    method: payment.method,
+                    amount: index === 0 && validPayments.length === 1 && !manualPaymentEdit
+                        ? calculateSubtotalWithDiscount() + suggestedTip
+                        : payment.amount
+                })),
                 section: 'mesas',
                 status: 'Completado',
                 comment: comments,
                 tableNumber: table.tableNumber,
                 waiter: table.waiter?._id || null,
-                tip: suggestedTip || 0
+                tip: suggestedTip || 0,
+                discount: calculateDiscountAmount()
             };
 
             const response = await updateOrder(table.currentOrder._id, orderData);
@@ -450,10 +502,22 @@ const TableDetail = () => {
         }
 
         try {
+            // Filtrar métodos de pago válidos
+            const validPayments = paymentMethods.filter(p =>
+                p.method && p.method.trim() !== '' && p.method !== 'Pendiente'
+            );
+
             await printingService.printCustomerTicket({
                 ...table.currentOrder,
                 suggestedTip,
-                tableNumber: table.tableNumber
+                discount: calculateDiscountAmount(),
+                tableNumber: table.tableNumber,
+                paymentMethods: validPayments.length > 0 ? validPayments.map((payment, index) => ({
+                    method: payment.method,
+                    amount: index === 0 && validPayments.length === 1 && !manualPaymentEdit
+                        ? calculateSubtotalWithDiscount() + suggestedTip
+                        : payment.amount
+                })) : undefined
             });
             showNotification('Ticket impreso exitosamente', 'success', 2000);
         } catch (error) {
@@ -945,13 +1009,89 @@ const TableDetail = () => {
                                 <span className="text-gray-700">Subtotal:</span>
                                 <span className="font-semibold">{formatChileanCurrency(calculateTotal())}</span>
                             </div>
+
+
+                            {/* Sección de descuento */}
+                            {!showDiscountFields ? (
+                                <button
+                                    onClick={() => {
+                                        setShowDiscountFields(true);
+                                    }}
+                                    className="text-sm text-teal-600 hover:text-teal-700 flex items-center gap-1 mb-2"
+                                >
+                                    <PlusIcon className="w-4 h-4" />
+                                    {table.currentOrder?.discount > 0 ? 'Modificar descuento' : 'Aplicar descuento'}
+                                </button>
+                            ) : (
+                                <div className="bg-white rounded-lg p-3 mb-2 border border-gray-200">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-sm font-medium text-gray-700">Descuento</span>
+                                        <button
+                                            onClick={() => {
+                                                setShowDiscountFields(false);
+                                                setDiscountValue(0);
+                                                // Recalcular propina sobre subtotal original
+                                                const newTip = Math.round(calculateTotal() * 0.1);
+                                                setSuggestedTip(newTip);
+                                            }}
+                                            className="text-gray-400 hover:text-gray-600"
+                                        >
+                                            <XMarkIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <div className="flex gap-2 mb-2">
+                                        <select
+                                            value={discountType}
+                                            onChange={(e) => {
+                                                setDiscountType(e.target.value);
+                                                setDiscountValue(0);
+                                            }}
+                                            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                                        >
+                                            <option value="percentage">Porcentaje (%)</option>
+                                            <option value="amount">Monto fijo ($)</option>
+                                        </select>
+                                        <input
+                                            type="number"
+                                            value={discountValue || ''}
+                                            onChange={(e) => {
+                                                const value = parseFloat(e.target.value) || 0;
+                                                if (discountType === 'percentage') {
+                                                    setDiscountValue(Math.min(100, Math.max(0, value)));
+                                                } else {
+                                                    setDiscountValue(Math.max(0, value));
+                                                }
+                                                setManualPaymentEdit(false);
+                                            }}
+                                            placeholder={discountType === 'percentage' ? '0-100' : 'Monto'}
+                                            className="w-24 px-2 py-1 border border-gray-300 rounded text-right text-sm"
+                                        />
+                                    </div>
+                                    {discountValue > 0 && (
+                                        <div className="text-sm text-green-700 font-medium">
+                                            Descuento: -{formatChileanCurrency(calculateDiscountAmount())}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {discountValue > 0 && (
+                                <div className="flex justify-between mb-2 text-green-700">
+                                    <span className="font-medium">Subtotal con descuento:</span>
+                                    <span className="font-semibold">{formatChileanCurrency(calculateSubtotalWithDiscount())}</span>
+                                </div>
+                            )}
+
                             <div className="flex justify-between mb-2">
                                 <span className="text-gray-700">Propina sugerida (10%):</span>
                                 <div className="flex items-center gap-2">
                                     <input
                                         type="text"
                                         value={formatPaymentInput(suggestedTip)}
-                                        onChange={(e) => setSuggestedTip(parsePaymentInput(e.target.value))}
+                                        onChange={(e) => {
+                                            setSuggestedTip(parsePaymentInput(e.target.value));
+                                            setManualPaymentEdit(false);
+                                        }}
                                         className="w-24 px-2 py-1 border border-gray-300 rounded text-right"
                                     />
                                     <span className="text-sm text-gray-600">$</span>
@@ -961,7 +1101,7 @@ const TableDetail = () => {
                                 <div className="flex justify-between">
                                     <span className="font-bold text-gray-900">Total con propina:</span>
                                     <span className="text-xl font-bold text-teal-600">
-                                        {formatChileanCurrency(calculateTotal() + suggestedTip)}
+                                        {formatChileanCurrency(calculateSubtotalWithDiscount() + suggestedTip)}
                                     </span>
                                 </div>
                             </div>
@@ -995,7 +1135,11 @@ const TableDetail = () => {
                                         </select>
                                         <input
                                             type="text"
-                                            value={formatPaymentInput(payment.amount)}
+                                            value={formatPaymentInput(
+                                                index === 0 && paymentMethods.length === 1 && !manualPaymentEdit
+                                                    ? calculateSubtotalWithDiscount() + suggestedTip
+                                                    : payment.amount
+                                            )}
                                             onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
                                             placeholder="Monto"
                                             className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-right focus:ring-2 focus:ring-teal-500"
@@ -1015,13 +1159,13 @@ const TableDetail = () => {
                             {/* Diferencia de pago */}
                             {(() => {
                                 const totalPayment = getTotalPaymentAmount();
-                                const totalWithTip = calculateTotal() + suggestedTip;
+                                const totalWithTip = calculateSubtotalWithDiscount() + suggestedTip;
                                 const difference = totalPayment - totalWithTip;
-                                
+
                                 if (Math.abs(difference) > 0.01) {
                                     return (
                                         <div className={`mt-3 p-3 rounded-lg ${difference < 0 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                                            {difference < 0 
+                                            {difference < 0
                                                 ? `Falta pagar: ${formatChileanCurrency(Math.abs(difference))}`
                                                 : `Vuelto: ${formatChileanCurrency(difference)}`
                                             }
