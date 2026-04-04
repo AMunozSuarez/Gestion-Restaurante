@@ -41,6 +41,7 @@ const Configuracion = () => {
   const [fontSettings, setFontSettings] = useState(() => printingService.getLocalFontSettings());
   const [savingFont, setSavingFont] = useState(false);
   const [testingFont, setTestingFont] = useState(false);
+  const [updatePrintMode, setUpdatePrintMode] = useState(() => printingService.getUpdatePrintMode());
 
   // Estados para multi-impresora
   const [printerRoles, setPrinterRoles] = useState(() => printerConfigService.getPrinterRoles());
@@ -182,6 +183,18 @@ const Configuracion = () => {
     } finally {
       setTestingFont(false);
     }
+  };
+
+  // Cambiar modo de impresión de actualizaciones
+  const handleUpdatePrintModeChange = (mode) => {
+    setUpdatePrintMode(mode);
+    printingService.setUpdatePrintMode(mode);
+    setMessage({ 
+      type: 'success', 
+      text: mode === 'new-only' 
+        ? 'Al actualizar comandas, se imprimirán solo los productos nuevos' 
+        : 'Al actualizar comandas, se imprimirá toda la comanda con productos nuevos marcados con *'
+    });
   };
 
   // Guardar impresora seleccionada
@@ -1079,6 +1092,70 @@ const Configuracion = () => {
                   {defaultPrinter
                     ? `Imprime en: ${defaultPrinter}`
                     : 'Requiere impresora predeterminada configurada arriba'}
+                </p>
+              </div>
+            </div>
+
+            {/* Modo de impresión al actualizar comandas */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center mb-4">
+                <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
+                <h2 className="text-xl font-semibold text-brown-900">Actualizacion de comandas</h2>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                Configura como se imprimen las comandas cuando se agregan productos nuevos a un pedido existente.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Opción: Solo productos nuevos */}
+                <button
+                  onClick={() => handleUpdatePrintModeChange('new-only')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${updatePrintMode === 'new-only'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-gray-800">Solo productos nuevos</span>
+                    {updatePrintMode === 'new-only' && (
+                      <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mb-2">Imprime unicamente los productos que se acaban de agregar</p>
+                  <div className="mt-2 text-xs text-gray-700 border rounded p-2 bg-gray-50 font-mono">
+                    <div className="font-bold">ACTUALIZACION PEDIDO</div>
+                    <div className="mt-1">2x Bebida Extra</div>
+                    <div>1x Postre Nuevo</div>
+                  </div>
+                </button>
+
+                {/* Opción: Toda la comanda */}
+                <button
+                  onClick={() => handleUpdatePrintModeChange('all')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${updatePrintMode === 'all'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-gray-800">Toda la comanda</span>
+                    {updatePrintMode === 'all' && (
+                      <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mb-2">Imprime todos los productos, los nuevos marcados con *</p>
+                  <div className="mt-2 text-xs text-gray-700 border rounded p-2 bg-gray-50 font-mono">
+                    <div className="font-bold">ACTUALIZACION PEDIDO</div>
+                    <div className="mt-1">2x Hamburguesa</div>
+                    <div>1x Papas Fritas</div>
+                    <div>* 2x Bebida Extra</div>
+                    <div>* 1x Postre Nuevo</div>
+                  </div>
+                </button>
+              </div>
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  <strong>Recomendacion:</strong> "Solo productos nuevos" es mas eficiente y evita confusion en cocina. 
+                  Usa "Toda la comanda" si necesitas ver el contexto completo del pedido.
                 </p>
               </div>
             </div>

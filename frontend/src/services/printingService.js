@@ -13,6 +13,24 @@ const printingApi = axios.create({
   timeout: 10000, // 10 segundos de timeout
 });
 
+// Funcion auxiliar para normalizar texto y eliminar caracteres especiales
+const normalizeText = (text) => {
+  if (!text) return text;
+  return text
+    .replace(/ñ/g, 'n')
+    .replace(/Ñ/g, 'N')
+    .replace(/á/g, 'a')
+    .replace(/é/g, 'e')
+    .replace(/í/g, 'i')
+    .replace(/ó/g, 'o')
+    .replace(/ú/g, 'u')
+    .replace(/Á/g, 'A')
+    .replace(/É/g, 'E')
+    .replace(/Í/g, 'I')
+    .replace(/Ó/g, 'O')
+    .replace(/Ú/g, 'U');
+};
+
 // Servicio de impresion
 export const printingService = {
   // Verificar el estado del servicio de impresion
@@ -77,7 +95,7 @@ export const printingService = {
   async printTest(printerName) {
     const testContent = `
 ================================
-        PÁGINA DE PRUEBA
+        PAGINA DE PRUEBA
 ================================
 
 Fecha: ${new Date().toLocaleString()}
@@ -199,6 +217,23 @@ la fuente esta configurada bien.
     }
   },
 
+  // Obtener modo de impresion de actualizaciones
+  getUpdatePrintMode() {
+    try {
+      const saved = localStorage.getItem('updatePrintMode');
+      // 'all' = imprimir toda la comanda con asteriscos (original)
+      // 'new-only' = imprimir solo productos nuevos
+      return saved || 'all';
+    } catch {
+      return 'all';
+    }
+  },
+
+  // Guardar modo de impresion de actualizaciones
+  setUpdatePrintMode(mode) {
+    localStorage.setItem('updatePrintMode', mode);
+  },
+
   // Generar comanda de cocina
   generateKitchenOrder(order, options = {}) {
 
@@ -209,16 +244,16 @@ la fuente esta configurada bien.
     let customer = 'Cliente';
     if (order.buyer && typeof order.buyer === 'object' && order.buyer.name) {
       // Cliente populated desde la base de datos
-      customer = order.buyer.name || order.name;
+      customer = normalizeText(order.buyer.name || order.name);
     } else if (order.name) {
       // Cliente sin guardar (campo name directamente en el pedido)
-      customer = order.name;
+      customer = normalizeText(order.name);
     } else if (order.customer_name) {
       // Formato alternativo
-      customer = order.customer_name;
+      customer = normalizeText(order.customer_name);
     } else if (order.customerName) {
       // Formato alternativo
-      customer = order.customerName;
+      customer = normalizeText(order.customerName);
     }
 
     const orderType = order.section || order.order_type || order.orderType || 'Mostrador';
@@ -228,9 +263,9 @@ la fuente esta configurada bien.
     const tableNumber = order.tableNumber || '';
     let waiterName = '';
     if (order.waiter && typeof order.waiter === 'object') {
-      waiterName = order.waiter.userName || order.waiter.name || '';
+      waiterName = normalizeText(order.waiter.userName || order.waiter.name || '');
     } else if (order.waiterName) {
-      waiterName = order.waiterName;
+      waiterName = normalizeText(order.waiterName);
     }
 
     const isUpdate = (options.newFoods && options.newFoods.length > 0) ||
@@ -276,7 +311,7 @@ No. Orden: #${orderNumber}
     }
 
     // Agregar notas generales del pedido si existen (antes de productos)
-    const orderNotes = order.comment || order.notes || '';
+    const orderNotes = normalizeText(order.comment || order.notes || '');
     if (orderNotes && orderNotes.trim()) {
       // Manejar notas generales con saltos de linea
       const noteLines = orderNotes.trim().split('\n');
@@ -361,13 +396,27 @@ No. Orden: #${orderNumber}
       }));
     }
 
+    // Si es una actualización (update), verificar el modo de impresión configurado
+    if (isUpdate && options.newFoods && options.newFoods.length > 0) {
+      const updateMode = this.getUpdatePrintMode();
+      // Solo filtrar productos nuevos si el modo es 'new-only'
+      if (updateMode === 'new-only') {
+        items = items.filter(item => item.isNew === true);
+      }
+      // Si es 'all', se imprimen todos los productos (con asterisco en los nuevos)
+    }
+
     // Agregar cada producto al contenido (marcado para negrita si esta configurado)
     content += `[BOLD]`;
     items.forEach(item => {
-      content += `${item.isNew ? '* ' : ''}${item.quantity}x ${item.product_name}\n`;
+      // Normalizar nombre del producto para eliminar caracteres especiales
+      const normalizedProductName = normalizeText(item.product_name);
+      content += `${item.isNew ? '* ' : ''}${item.quantity}x ${normalizedProductName}\n`;
       if (item.notes && item.notes.trim()) {
+        // Normalizar notas del producto
+        const normalizedNotes = normalizeText(item.notes);
         // Manejar comentarios con saltos de linea
-        const noteLines = item.notes.trim().split('\n');
+        const noteLines = normalizedNotes.trim().split('\n');
         noteLines.forEach((line, index) => {
           if (index === 0) {
             content += `   Nota: ${line}\n`;
@@ -518,13 +567,13 @@ No. Orden: #${orderNumber}
     // Extraer nombre del cliente
     let customer = 'Cliente';
     if (order.buyer && typeof order.buyer === 'object' && order.buyer.name) {
-      customer = order.buyer.name || order.name;
+      customer = normalizeText(order.buyer.name || order.name);
     } else if (order.name) {
-      customer = order.name;
+      customer = normalizeText(order.name);
     } else if (order.customer_name) {
-      customer = order.customer_name;
+      customer = normalizeText(order.customer_name);
     } else if (order.customerName) {
-      customer = order.customerName;
+      customer = normalizeText(order.customerName);
     }
 
     // Extraer telefono del cliente
@@ -544,24 +593,24 @@ No. Orden: #${orderNumber}
     if (order.selectedAddress) {
       // selectedAddress puede ser string o objeto
       if (typeof order.selectedAddress === 'string') {
-        address = order.selectedAddress;
+        address = normalizeText(order.selectedAddress);
       } else if (typeof order.selectedAddress === 'object') {
         const addr = order.selectedAddress;
-        address = `${addr.street || ''} ${addr.number || ''}, ${addr.neighborhood || ''}`.trim();
+        address = normalizeText(`${addr.street || ''} ${addr.number || ''}, ${addr.neighborhood || ''}`.trim());
         if (addr.reference) {
-          address += `\nRef: ${addr.reference}`;
+          address += `\nRef: ${normalizeText(addr.reference)}`;
         }
       }
     } else if (order.address && typeof order.address === 'object') {
       const addr = order.address;
-      address = `${addr.street || ''} ${addr.number || ''}, ${addr.neighborhood || ''}`.trim();
+      address = normalizeText(`${addr.street || ''} ${addr.number || ''}, ${addr.neighborhood || ''}`.trim());
       if (addr.reference) {
-        address += `\nRef: ${addr.reference}`;
+        address += `\nRef: ${normalizeText(addr.reference)}`;
       }
     } else if (order.address_text) {
-      address = order.address_text;
+      address = normalizeText(order.address_text);
     } else if (order.addressText) {
-      address = order.addressText;
+      address = normalizeText(order.addressText);
     }
 
     const orderType = order.section || order.order_type || order.orderType || 'Mostrador';
@@ -588,7 +637,7 @@ Cliente: ${customer}`;
     let paymentMethod = 'No especificado';
     if (Array.isArray(order.paymentMethods) && order.paymentMethods.length > 0) {
       paymentMethod = order.paymentMethods.map(pm => {
-        const method = pm.method || pm.name || 'Metodo';
+        const method = normalizeText(pm.method || pm.name || 'Metodo');
         const amount = pm.amount ? `(${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(pm.amount)})` : '';
         return `${method} ${amount}`.trim();
       }).join(' + ');
@@ -596,7 +645,7 @@ Cliente: ${customer}`;
     content += `\nMetodo de pago: ${paymentMethod}`;
 
     // Agregar comentarios generales si existen
-    const orderNotes = order.comment || order.notes || '';
+    const orderNotes = normalizeText(order.comment || order.notes || '');
     if (orderNotes && orderNotes.trim()) {
       content += `\nComentarios: ${orderNotes.trim()}`;
     }
@@ -641,6 +690,9 @@ Cliente: ${customer}`;
       const itemTotal = item.quantity * item.price;
       subtotal += itemTotal;
       
+      // Normalizar nombre del producto
+      const normalizedProductName = normalizeText(item.product_name);
+      
       // Formato chileno para el precio total del producto
       const formattedTotal = new Intl.NumberFormat('es-CL', {
         style: 'currency',
@@ -649,7 +701,7 @@ Cliente: ${customer}`;
       }).format(itemTotal);
       
       // Crear linea del producto con precio alineado a la derecha
-      const productLine = `${item.quantity}x ${item.product_name}`;
+      const productLine = `${item.quantity}x ${normalizedProductName}`;
       const fontSettings = this.getLocalFontSettings();
       const lineWidth = fontSettings.bold ? 26 : 32;
       // Truncar nombre si excede el espacio disponible
@@ -663,7 +715,8 @@ Cliente: ${customer}`;
       content += `${displayLine}${padding}${formattedTotal}\n`;
       
       if (item.notes && item.notes.trim()) {
-        const noteLines = item.notes.trim().split('\n');
+        const normalizedNotes = normalizeText(item.notes);
+        const noteLines = normalizedNotes.trim().split('\n');
         noteLines.forEach((line, index) => {
           if (index === 0) {
             content += `   Nota: ${line}\n`;
@@ -747,7 +800,7 @@ RESUMEN
       }).format(tip);
 
       // Alinear propina a la derecha
-      const tipLine = "\nPropina:";
+      const tipLine = "\nPropina (10%):";
       const tipPadding = ' '.repeat(Math.max(1, alignWidth - tipLine.length + 1 - formattedTip.length));
       content += `${tipLine}${tipPadding}${formattedTip}`;
     }
