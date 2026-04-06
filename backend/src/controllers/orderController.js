@@ -549,6 +549,15 @@ const updateOrderController = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Pedido no encontrado o no pertenece a este restaurante' });
         }
 
+        // Debug: verificar selectedExtras después de guardar
+        const savedFoodsWithExtras = populatedOrder.foods?.filter(f => f.selectedExtras && f.selectedExtras.length > 0) || [];
+        console.log('🔍 DEBUG updateOrder - Después de guardar, foods con selectedExtras:', savedFoodsWithExtras.length);
+        if (savedFoodsWithExtras.length > 0) {
+            console.log('🔍 DEBUG updateOrder - selectedExtras guardados:', JSON.stringify(savedFoodsWithExtras.map(f => ({ food: f.food?._id || f.food, selectedExtras: f.selectedExtras })), null, 2));
+        } else {
+            console.log('⚠️ DEBUG updateOrder - NO HAY selectedExtras en la orden guardada. updateData.foods tenía:', JSON.stringify(updateData.foods?.map(f => ({ food: f.food, selectedExtras: f.selectedExtras })), null, 2));
+        }
+
         // Emit socket event for real-time updates
         try {
             const senderSocketId = req.headers['x-socket-id'] || null;

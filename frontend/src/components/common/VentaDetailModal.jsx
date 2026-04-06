@@ -58,7 +58,8 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
               title: typeof item.food === 'object' ? item.food.title : `Producto`,
               quantity: item.quantity || 1,
               comment: item.comment || '',
-              price: typeof item.food === 'object' ? item.food.price : 0
+              price: typeof item.food === 'object' ? item.food.price : 0,
+              selectedExtras: item.selectedExtras || []
             }))
           : [],
         deletedFoods: (venta.deletedFoods && Array.isArray(venta.deletedFoods))
@@ -68,6 +69,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
               quantity: item.quantity || 1,
               comment: item.comment || '',
               price: typeof item.food === 'object' ? item.food.price : 0,
+              selectedExtras: item.selectedExtras || [],
               deleted: true
             }))
           : []
@@ -214,7 +216,8 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
         foods: (editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : []).filter(food => food.title && food.title !== '').map(food => ({
           food: food.id || food.title, // Si no hay ID, usar el título
           quantity: Number(food.quantity) || 1,
-          comment: food.comment || ''
+          comment: food.comment || '',
+          selectedExtras: food.selectedExtras || []
         }))
       };
 
@@ -621,7 +624,12 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
             (isEditing && editingData.deletedFoods?.length > 0)) ? (
             <div className="space-y-3">
               {(isEditing ? (editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : []) : (venta.foods && Array.isArray(venta.foods) ? venta.foods : [])).map((item, index) => {
-                // Calcular precio unitario estimado desde el total del pedido
+                // Calcular precio de extras
+                const extrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+                const unitPrice = isEditing ? (item.price || 0) : (typeof item.food === 'object' ? item.food?.price || 0 : 0);
+                const totalWithExtras = (unitPrice + extrasTotal) * (item.quantity || 1);
+                
+                // Calcular precio unitario estimado desde el total del pedido (fallback si no hay precio)
                 const estimatedUnitPrice = !isEditing && venta.total && venta.foods.length === 1 ? 
                   venta.total / item.quantity : 
                   !isEditing && venta.total ? venta.total / venta.foods.reduce((sum, food) => sum + food.quantity, 0) : 0;
@@ -629,87 +637,111 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                 return (
                   <div 
                     key={index} 
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    className="flex flex-col p-4 bg-gray-50 rounded-lg"
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg font-medium text-gray-900">
-                          {isEditing ? item.title : (typeof item.food === 'object' && item.food?.title ? 
-                            item.food.title : 
-                            `Producto ${index + 1}`
-                          )}
-                        </span>
-                        {isEditing ? (
-                          <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1">
-                            <button
-                              onClick={() => handleDecreaseQuantity(index)}
-                              className="p-1 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                              disabled={item.quantity <= 1}
-                            >
-                              <MinusIcon className="h-4 w-4" />
-                            </button>
-                            <span className="text-sm font-medium text-gray-900 min-w-[2rem] text-center">
-                              {item.quantity}
-                            </span>
-                            <button
-                              onClick={() => handleIncreaseQuantity(index)}
-                              className="p-1 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                            >
-                              <PlusIcon className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-500">
-                            x{item.quantity}
-                          </span>
-                        )}
-                      </div>
-                      {item.comment && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          <span className="font-medium">Comentario:</span> {item.comment}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right flex items-center gap-3">
-                      <div>
-                        {isEditing ? (
-                          <>
-                            <p className="text-lg font-semibold text-gray-900">
-                              {formatCurrency((item.price || 0) * (item.quantity || 1))}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {formatCurrency(item.price || 0)} c/u
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            {typeof item.food === 'object' && item.food?.price ? (
-                              <p className="text-lg font-semibold text-gray-900">
-                                {formatCurrency(item.food.price * item.quantity)}
-                              </p>
-                            ) : (
-                              <>
-                                <p className="text-lg font-semibold text-gray-900">
-                                  {formatCurrency(estimatedUnitPrice * item.quantity)}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                  {formatCurrency(estimatedUnitPrice)} c/u (estimado)
-                                </p>
-                              </>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-medium text-gray-900">
+                            {isEditing ? item.title : (typeof item.food === 'object' && item.food?.title ? 
+                              item.food.title : 
+                              `Producto ${index + 1}`
                             )}
-                          </>
+                          </span>
+                          {isEditing ? (
+                            <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1">
+                              <button
+                                onClick={() => handleDecreaseQuantity(index)}
+                                className="p-1 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                disabled={item.quantity <= 1}
+                              >
+                                <MinusIcon className="h-4 w-4" />
+                              </button>
+                              <span className="text-sm font-medium text-gray-900 min-w-[2rem] text-center">
+                                {item.quantity}
+                              </span>
+                              <button
+                                onClick={() => handleIncreaseQuantity(index)}
+                                className="p-1 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                              >
+                                <PlusIcon className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-500">
+                              x{item.quantity}
+                            </span>
+                          )}
+                        </div>
+                        {item.comment && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            <span className="font-medium">Comentario:</span> {item.comment}
+                          </p>
                         )}
                       </div>
-                      {isEditing && (
-                        <button
-                          onClick={() => handleRemoveFood(index)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Eliminar producto"
-                        >
-                          <XMarkIcon className="h-5 w-5" />
-                        </button>
-                      )}
+                      <div className="text-right flex items-center gap-3">
+                        <div>
+                          {isEditing ? (
+                            <>
+                              <p className="text-lg font-semibold text-gray-900">
+                                {formatCurrency((item.price || 0) * (item.quantity || 1))}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {formatCurrency(item.price || 0)} c/u
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              {typeof item.food === 'object' && item.food?.price ? (
+                                <>
+                                  <p className="text-lg font-semibold text-gray-900">
+                                    {formatCurrency(totalWithExtras)}
+                                  </p>
+                                  {extrasTotal > 0 && (
+                                    <p className="text-xs text-orange-600">
+                                      (Base: {formatCurrency(unitPrice)} + Extras: {formatCurrency(extrasTotal)}) x{item.quantity}
+                                    </p>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-lg font-semibold text-gray-900">
+                                    {formatCurrency(estimatedUnitPrice * item.quantity)}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    {formatCurrency(estimatedUnitPrice)} c/u (estimado)
+                                  </p>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        {isEditing && (
+                          <button
+                            onClick={() => handleRemoveFood(index)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Eliminar producto"
+                          >
+                            <XMarkIcon className="h-5 w-5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
+                    
+                    {/* Mostrar extras seleccionados */}
+                    {item.selectedExtras && item.selectedExtras.length > 0 && (
+                      <div className="mt-2 ml-4 p-2 bg-orange-50 border border-orange-200 rounded">
+                        <div className="text-xs font-medium text-orange-800 mb-1">Extras:</div>
+                        <div className="space-y-0.5">
+                          {item.selectedExtras.map((extra, idx) => (
+                            <div key={idx} className="text-xs text-orange-700 flex justify-between">
+                              <span>• {extra.extraName}</span>
+                              {extra.price > 0 && <span className="font-medium">+{formatCurrency(extra.price)}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}

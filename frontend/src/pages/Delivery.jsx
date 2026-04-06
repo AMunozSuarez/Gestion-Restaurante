@@ -1412,13 +1412,15 @@ const Delivery = () => {
       foods: activeFoodsForComplete.map(item => ({
         food: item.id,
         quantity: item.quantity,
-        comment: item.comments || ''
+        comment: item.comments || '',
+        selectedExtras: item.selectedExtras || []
       })),
       deletedFoods: editCart.filter(item => item.isOriginal && item.deleted).map(item => ({
         food: item.id,
         name: item.name,
         quantity: item.quantity,
-        comment: item.comments || ''
+        comment: item.comments || '',
+        selectedExtras: item.selectedExtras || []
       })),
       payment: validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple',
       paymentMethods: validEditPayments,
@@ -2923,7 +2925,12 @@ const Delivery = () => {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          {selectedCompletedOrder.foods?.map((food, index) => (
+                          {selectedCompletedOrder.foods?.map((food, index) => {
+                            const extrasTotal = (food.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+                            const unitPrice = food.food?.price || 0;
+                            const totalWithExtras = (unitPrice + extrasTotal) * (food.quantity || 1);
+                            
+                            return (
                             <div key={index} className="bg-white rounded p-3 border border-gray-200">
                               <div className="flex items-center justify-between mb-1">
                                 <div className="flex-1">
@@ -2931,7 +2938,8 @@ const Delivery = () => {
                                     {food.food?.title || 'Producto'}
                                   </div>
                                   <div className="text-xs text-gray-500">
-                                    {formatChileanCurrency(food.food?.price || 0)} c/u
+                                    {formatChileanCurrency(unitPrice)} c/u
+                                    {extrasTotal > 0 && <span className="text-orange-600"> (+{formatChileanCurrency(extrasTotal)} extras)</span>}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -2939,10 +2947,25 @@ const Delivery = () => {
                                     Cantidad: {food.quantity || 1}
                                   </span>
                                   <span className="text-sm font-semibold text-gray-800">
-                                    {formatChileanCurrency((food.food?.price || 0) * (food.quantity || 1))}
+                                    {formatChileanCurrency(totalWithExtras)}
                                   </span>
                                 </div>
                               </div>
+                              
+                              {/* Extras seleccionados */}
+                              {food.selectedExtras && food.selectedExtras.length > 0 && (
+                                <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                                  <div className="text-xs font-medium text-orange-800 mb-1">Extras:</div>
+                                  <div className="space-y-0.5">
+                                    {food.selectedExtras.map((extra, idx) => (
+                                      <div key={idx} className="text-xs text-orange-700 flex justify-between">
+                                        <span>• {extra.extraName}</span>
+                                        {extra.price > 0 && <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                               
                               {/* Comentarios del producto */}
                               {food.comment && (
@@ -2954,7 +2977,8 @@ const Delivery = () => {
                                 </div>
                               )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
