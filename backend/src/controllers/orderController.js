@@ -14,6 +14,7 @@ const createOrderController = async (req, res) => {
 
         const restaurantId = req.user.restaurant;
         const foodIds = foods.map((item) => item.food);
+        const uniqueFoodIds = [...new Set(foodIds)];
 
         // ── Paso 1: Ejecutar queries independientes en paralelo ──
         // Customer lookup, food validation y cash register search son independientes
@@ -54,7 +55,7 @@ const createOrderController = async (req, res) => {
 
         const [customer, existingFoods, currentCashRegister, table] = await Promise.all([
             customerPromise,
-            foodModel.find({ _id: { $in: foodIds }, restaurant: restaurantId }).select('_id price extraSections').lean(),
+            foodModel.find({ _id: { $in: uniqueFoodIds }, restaurant: restaurantId }).select('_id price extraSections').lean(),
             cashRegisterModel.findOne({ restaurant: restaurantId, status: 'Abierta' }).select('_id').lean(),
             tablePromise,
         ]);
@@ -64,7 +65,7 @@ const createOrderController = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Cliente no encontrado o no pertenece a este restaurante' });
         }
 
-        if (existingFoods.length !== foods.length) {
+        if (existingFoods.length !== uniqueFoodIds.length) {
             return res.status(400).json({ success: false, message: 'Uno o más alimentos no pertenecen a este restaurante' });
         }
 
