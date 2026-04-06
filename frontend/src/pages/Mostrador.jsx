@@ -6,6 +6,7 @@ import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../store/CashRegisterContext';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import ProductModal from '../components/common/ProductModal';
+import ProductExtrasModal from '../components/common/ProductExtrasModal';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import printingService from '../services/printingService';
 
@@ -24,6 +25,10 @@ const Mostrador = () => {
   const [isCreatingOrder, setIsCreatingOrder] = React.useState(false);
   const [showCashAlert, setShowCashAlert] = React.useState(false);
   const [showProductModal, setShowProductModal] = React.useState(false);
+  const [showExtrasModal, setShowExtrasModal] = React.useState(false);
+  const [selectedProductForExtras, setSelectedProductForExtras] = React.useState(null);
+  const [extrasModalMode, setExtrasModalMode] = React.useState('create'); // 'create' or 'edit'
+  const [editingCartItem, setEditingCartItem] = React.useState(null);
   
   // Estados del formulario de pedido
   const [customerName, setCustomerName] = React.useState('');
@@ -147,15 +152,24 @@ const Mostrador = () => {
 
   // Funciones para manejo del carrito
   const addToCart = (product) => {
+    // Si el producto tiene extras, abrir modal
+    if (product.extraSections && product.extraSections.length > 0) {
+      setSelectedProductForExtras(product);
+      setExtrasModalMode('create');
+      setShowExtrasModal(true);
+      return;
+    }
+
+    // Si no tiene extras, agregar directamente
     setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.id === product.id);
+      const existingItem = prevCart.find(item => item.id === product.id && !item.selectedExtras?.length);
       if (existingItem) {
         // Mostrar notificación de cantidad actualizada
         setAddedProductNotification(`${product.name} - Cantidad actualizada`);
         setTimeout(() => setAddedProductNotification(null), 2000);
         
         return prevCart.map(item =>
-          item.id === product.id
+          item.id === product.id && !item.selectedExtras?.length
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
@@ -165,12 +179,74 @@ const Mostrador = () => {
       setAddedProductNotification(`${product.name} agregado al carrito`);
       setTimeout(() => setAddedProductNotification(null), 2000);
       
-      return [...prevCart, { ...product, quantity: 1, comments: '' }];
+      return [...prevCart, { ...product, quantity: 1, comments: '', selectedExtras: [] }];
     });
+  };
+
+  // Manejar confirmación de extras desde el modal
+  const handleExtrasConfirm = (selectedExtras) => {
+    if (extrasModalMode === 'create') {
+      // Agregar nuevo producto con extras al carrito
+      const cartId = `${selectedProductForExtras.id}_${Date.now()}`;
+      const newItem = {
+        ...selectedProductForExtras,
+        cartId,
+        quantity: 1,
+        comments: '',
+        selectedExtras
+      };
+      setCart(prevCart => [...prevCart, newItem]);
+      setAddedProductNotification(`${selectedProductForExtras.name} con extras agregado`);
+      setTimeout(() => setAddedProductNotification(null), 2000);
+    } else if (extrasModalMode === 'create-edit') {
+      // Agregar producto con extras en modo edición de orden
+      const cartId = `new_${selectedProductForExtras.id}_${Date.now()}`;
+      const newItem = {
+        ...selectedProductForExtras,
+        cartId,
+        quantity: 1,
+        comments: '',
+        selectedExtras,
+        isNew: true,
+        isOriginal: false,
+        deleted: false
+      };
+      setEditCart(prevCart => [...prevCart, newItem]);
+      setAddedProductNotification(`${selectedProductForExtras.name} con extras agregado`);
+      setTimeout(() => setAddedProductNotification(null), 2000);
+    } else if (extrasModalMode === 'edit' && editingCartItem) {
+      // Editar extras de un item existente
+      setCart(prevCart => prevCart.map(item => {
+        // Comparar por cartId si existe, sino por id
+        const matches = editingCartItem.cartId 
+          ? item.cartId === editingCartItem.cartId
+          : item.id === editingCartItem.id;
+        
+        return matches ? { ...item, selectedExtras } : item;
+      }));
+    } else if (extrasModalMode === 'edit-order' && editingCartItem) {
+      // Editar extras en modo edición de orden
+      setEditCart(prevCart => prevCart.map(item =>
+        item.cartId === editingCartItem.cartId
+          ? { ...item, selectedExtras }
+          : item
+      ));
+    }
+    setShowExtrasModal(false);
+    setSelectedProductForExtras(null);
+    setEditingCartItem(null);
   };
 
   // Funciones para edición - manejo del carrito de edición
   const addToEditCart = (product) => {
+    // Si el producto tiene extras, abrir modal para edición
+    if (product.extraSections && product.extraSections.length > 0) {
+      setSelectedProductForExtras(product);
+      setExtrasModalMode('create-edit'); // modo especial para edición de orden
+      setShowExtrasModal(true);
+      return;
+    }
+
     // Siempre crear nueva entrada separada (nunca fusionar con existente)
     const cartId = `new_${product.id}_${Date.now()}`;
     setAddedProductNotification(`${product.name} agregado al carrito`);
@@ -180,6 +256,7 @@ const Mostrador = () => {
       cartId,
       quantity: 1,
       comments: '',
+      selectedExtras: [],
       isNew: true,
       isOriginal: false,
       deleted: false,
@@ -187,13 +264,19 @@ const Mostrador = () => {
   };
 
   // Función para agregar comentarios a productos en el carrito
-  const addCommentToProduct = (productId, comment) => {
+  const addCommentToProduct = (productId, comment, cartId = null) => {
     setCart(prevCart =>
-      prevCart.map(item =>
-        item.id === productId
-          ? { ...item, comments: comment }
-          : item
-      )
+      prevCart.map(item => {
+        // Si tiene cartId, usarlo para identificar
+        if (cartId && item.cartId === cartId) {
+          return { ...item, comments: comment };
+        }
+        // Si no tiene cartId, usar id
+        if (!cartId && item.id === productId) {
+          return { ...item, comments: comment };
+        }
+        return item;
+      })
     );
   };
 
@@ -220,7 +303,7 @@ const Mostrador = () => {
 
   const saveComment = () => {
     if (commentingProduct) {
-      addCommentToProduct(commentingProduct.id, productComment);
+      addCommentToProduct(commentingProduct.id, productComment, commentingProduct.cartId);
       setCommentingProduct(null);
       setProductComment('');
     }
@@ -244,8 +327,15 @@ const Mostrador = () => {
     setEditProductComment('');
   };
 
-  const removeFromCart = (productId) => {
-    setCart(prevCart => prevCart.filter(item => item.id !== productId));
+  const removeFromCart = (productId, cartId = null) => {
+    setCart(prevCart => {
+      // Si tiene cartId (productos con extras), usar cartId para identificar
+      if (cartId) {
+        return prevCart.filter(item => item.cartId !== cartId);
+      }
+      // Si no tiene cartId, usar id (productos sin extras)
+      return prevCart.filter(item => item.id !== productId);
+    });
   };
 
   const removeFromEditCart = (cartId) => {
@@ -261,17 +351,23 @@ const Mostrador = () => {
     });
   };
 
-  const updateQuantity = (productId, newQuantity) => {
+  const updateQuantity = (productId, newQuantity, cartId = null) => {
     if (newQuantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(productId, cartId);
       return;
     }
     setCart(prevCart =>
-      prevCart.map(item =>
-        item.id === productId
-          ? { ...item, quantity: newQuantity }
-          : item
-      )
+      prevCart.map(item => {
+        // Si tiene cartId, usarlo para identificar (productos con extras)
+        if (cartId && item.cartId === cartId) {
+          return { ...item, quantity: newQuantity };
+        }
+        // Si no tiene cartId, usar id (productos sin extras)
+        if (!cartId && item.id === productId) {
+          return { ...item, quantity: newQuantity };
+        }
+        return item;
+      })
     );
   };
 
@@ -290,11 +386,23 @@ const Mostrador = () => {
   };
 
   const calculateTotal = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return cart.reduce((total, item) => {
+      const basePrice = item.price * item.quantity;
+      const extrasPrice = (item.selectedExtras || []).reduce((sum, extra) => 
+        sum + (extra.price || 0) * item.quantity, 0
+      );
+      return total + basePrice + extrasPrice;
+    }, 0);
   };
 
   const calculateEditTotal = () => {
-    return editCart.filter(item => !item.deleted).reduce((total, item) => total + (item.price * item.quantity), 0);
+    return editCart.filter(item => !item.deleted).reduce((total, item) => {
+      const basePrice = item.price * item.quantity;
+      const extrasPrice = (item.selectedExtras || []).reduce((sum, extra) => 
+        sum + (extra.price || 0) * item.quantity, 0
+      );
+      return total + basePrice + extrasPrice;
+    }, 0);
   };
 
   // Funciones para manejo de métodos de pago múltiples
@@ -472,10 +580,6 @@ const Mostrador = () => {
 
   // Función para seleccionar pedido para editar
   const handleSelectOrderToEdit = (order) => {
-    console.log('🔍 DEBUG: Pedido seleccionado para editar:', order);
-    console.log('🔍 DEBUG: paymentMethods del pedido:', order.paymentMethods);
-    console.log('🔍 DEBUG: payment del pedido:', order.payment);
-    
     setSelectedOrder(order);
     setIsEditingOrder(true);
     
@@ -496,16 +600,10 @@ const Mostrador = () => {
     
     // Cargar métodos de pago - priorizar paymentMethods si existe
     if (order.paymentMethods && Array.isArray(order.paymentMethods) && order.paymentMethods.length > 0) {
-      // Si tiene múltiples métodos de pago, cargar el array completo
-      console.log('✅ DEBUG: Cargando múltiples métodos de pago:', order.paymentMethods);
       setEditPaymentMethods(order.paymentMethods);
     } else if (order.payment && order.payment !== '' && order.payment !== 'Pendiente') {
-      // Si solo tiene un método de pago tradicional válido, convertir a formato array
-      console.log('✅ DEBUG: Convirtiendo método único a array:', order.payment);
       setEditPaymentMethods([{ method: order.payment, amount: order.total || 0 }]);
     } else {
-      // Si no tiene métodos de pago, inicializar con un método vacío
-      console.log('⚠️ DEBUG: No hay métodos de pago, inicializando vacío');
       setEditPaymentMethods([{ method: '', amount: 0 }]);
     }
     
@@ -530,7 +628,9 @@ const Mostrador = () => {
         price: food.food?.price || 0,
         quantity: food.quantity || 1,
         comments: food.comment || '',
+        selectedExtras: food.selectedExtras || [],
         category: food.food?.category,
+        extraSections: food.food?.extraSections || [],
         isOriginal: true,
         isNew: false,
         deleted: false,
@@ -554,6 +654,7 @@ const Mostrador = () => {
         price: food.food?.price || 0,
         quantity: food.quantity || 1,
         comments: food.comment || '',
+        selectedExtras: food.selectedExtras || [],
         category: food.food?.category,
         isOriginal: true,
         isNew: false,
@@ -596,7 +697,8 @@ const Mostrador = () => {
         foods: cart.map(item => ({
           food: item.id,
           quantity: item.quantity,
-          comment: item.comments || ''
+          comment: item.comments || '',
+          selectedExtras: item.selectedExtras || []
         })),
         payment: validPayments.length === 0 ? 'Pendiente' : (validPayments.length === 1 ? validPayments[0].method : 'Múltiple'),
         paymentMethods: validPayments.length > 0 ? validPayments : [],
@@ -690,25 +792,29 @@ const Mostrador = () => {
         foods: activeFoods.map(item => ({
           food: item.id,
           quantity: item.quantity,
-          comment: item.comments || ''
+          comment: item.comments || '',
+          selectedExtras: item.selectedExtras || []
         })),
         deletedFoods: deletedFoods.map(item => ({
           food: item.id,
           name: item.name,
           quantity: item.quantity,
-          comment: item.comments || ''
+          comment: item.comments || '',
+          selectedExtras: item.selectedExtras || []
         })),
         newFoods: newFoods.map(item => ({
           food: item.id,
           name: item.name,
           quantity: item.quantity,
-          comment: item.comments || ''
+          comment: item.comments || '',
+          selectedExtras: item.selectedExtras || []
         })),
         allFoods: activeFoods.map(item => ({
           food: item.id,
           name: item.name,
           quantity: item.quantity,
           comment: item.comments || '',
+          selectedExtras: item.selectedExtras || [],
           isNew: item.isNew || false
         })),
         payment: validEditPayments.length === 0 ? 'Pendiente' : (validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple'),
@@ -1059,37 +1165,102 @@ const Mostrador = () => {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          {cart.map((item) => (
-                            <div key={item.id} className="bg-gray-50 rounded p-3">
+                          {cart.map((item, itemIndex) => {
+                            const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) => 
+                              sum + (extra.price || 0), 0
+                            );
+                            const itemTotalPrice = item.price + itemExtrasTotal;
+                            const itemIdentifier = item.cartId || item.id;
+                            
+                            return (
+                            <div key={itemIdentifier || itemIndex} className="bg-gray-50 rounded p-3">
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex-1">
                                   <div className="text-sm font-medium">{item.name}</div>
                                   <div className="text-xs text-gray-500">
                                     {formatChileanCurrency(item.price || 0)} c/u
+                                    {itemExtrasTotal > 0 && (
+                                      <span className="text-orange-600 font-semibold ml-1">
+                                        + {formatChileanCurrency(itemExtrasTotal)} extras
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                    onClick={() => updateQuantity(item.id, item.quantity - 1, item.cartId)}
                                     className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
                                   >
                                     -
                                   </button>
                                   <span className="w-8 text-center text-sm">{item.quantity}</span>
                                   <button
-                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                    onClick={() => updateQuantity(item.id, item.quantity + 1, item.cartId)}
                                     className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
                                   >
                                     +
                                   </button>
                                   <button
-                                    onClick={() => removeFromCart(item.id)}
+                                    onClick={() => removeFromCart(item.id, item.cartId)}
                                     className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs"
                                   >
                                     <TrashIcon className="w-3 h-3 mx-auto" />
                                   </button>
                                 </div>
                               </div>
+                              
+                              {/* Extras seleccionados */}
+                              {item.selectedExtras && item.selectedExtras.length > 0 && (
+                                <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1">
+                                      <div className="text-xs font-medium text-orange-800 mb-1">
+                                        Extras seleccionados:
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        {item.selectedExtras.map((extra, idx) => (
+                                          <div key={idx} className="text-xs text-orange-700 flex items-center justify-between">
+                                            <span>• {extra.extraName}</span>
+                                            {extra.price > 0 && (
+                                              <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    {/* Botón para editar extras */}
+                                    <button
+                                      onClick={() => {
+                                        setSelectedProductForExtras(item);
+                                        setEditingCartItem(item);
+                                        setExtrasModalMode('edit');
+                                        setShowExtrasModal(true);
+                                      }}
+                                      className="text-xs bg-orange-200 hover:bg-orange-300 text-orange-800 px-2 py-1 rounded whitespace-nowrap"
+                                      title="Editar extras"
+                                    >
+                                      Editar
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Botón para agregar extras si el producto los tiene pero no hay seleccionados */}
+                              {item.extraSections && item.extraSections.length > 0 && (!item.selectedExtras || item.selectedExtras.length === 0) && (
+                                <div className="mb-2">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedProductForExtras(item);
+                                      setEditingCartItem(item);
+                                      setExtrasModalMode('edit');
+                                      setShowExtrasModal(true);
+                                    }}
+                                    className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded"
+                                  >
+                                    + Agregar extras
+                                  </button>
+                                </div>
+                              )}
                               
                               {/* Comentarios del producto */}
                               <div className="flex items-center gap-2">
@@ -1109,7 +1280,8 @@ const Mostrador = () => {
                                 )}
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -1527,7 +1699,12 @@ const Mostrador = () => {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          {editCart.map((item) => (
+                          {editCart.map((item) => {
+                            const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) => 
+                              sum + (extra.price || 0), 0
+                            );
+                            
+                            return (
                             <div
                               key={item.cartId || item.id}
                               className={`rounded p-3 border transition-all ${
@@ -1548,6 +1725,11 @@ const Mostrador = () => {
                                   </div>
                                   <div className={`text-xs ${item.deleted ? 'line-through text-red-300' : 'text-gray-500'}`}>
                                     {formatChileanCurrency(item.price)} c/u
+                                    {itemExtrasTotal > 0 && !item.deleted && (
+                                      <span className="text-orange-600 font-semibold ml-1">
+                                        + {formatChileanCurrency(itemExtrasTotal)} extras
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -1584,6 +1766,61 @@ const Mostrador = () => {
                                 </div>
                               </div>
                               
+                              {/* Extras seleccionados */}
+                              {!item.deleted && item.selectedExtras && item.selectedExtras.length > 0 && (
+                                <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1">
+                                      <div className="text-xs font-medium text-orange-800 mb-1">
+                                        Extras seleccionados:
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        {item.selectedExtras.map((extra, idx) => (
+                                          <div key={idx} className="text-xs text-orange-700 flex items-center justify-between">
+                                            <span>• {extra.extraName}</span>
+                                            {extra.price > 0 && (
+                                              <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    {/* Botón para editar extras */}
+                                    {item.isNew && (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedProductForExtras(item);
+                                          setEditingCartItem(item);
+                                          setExtrasModalMode('edit-order');
+                                          setShowExtrasModal(true);
+                                        }}
+                                        className="text-xs bg-orange-200 hover:bg-orange-300 text-orange-800 px-2 py-1 rounded whitespace-nowrap"
+                                        title="Editar extras"
+                                      >
+                                        Editar
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Botón para agregar extras si el producto los tiene pero no hay seleccionados */}
+                              {!item.deleted && item.isNew && item.extraSections && item.extraSections.length > 0 && (!item.selectedExtras || item.selectedExtras.length === 0) && (
+                                <div className="mb-2">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedProductForExtras(item);
+                                      setEditingCartItem(item);
+                                      setExtrasModalMode('edit-order');
+                                      setShowExtrasModal(true);
+                                    }}
+                                    className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded"
+                                  >
+                                    + Agregar extras
+                                  </button>
+                                </div>
+                              )}
+                              
                               {/* Comentarios del producto */}
                               {!item.deleted && (
                                 <div className="flex items-center gap-2">
@@ -1604,7 +1841,8 @@ const Mostrador = () => {
                                 </div>
                               )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -2093,6 +2331,19 @@ const Mostrador = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de selección de extras */}
+      <ProductExtrasModal
+        isOpen={showExtrasModal}
+        onClose={() => {
+          setShowExtrasModal(false);
+          setSelectedProductForExtras(null);
+          setEditingCartItem(null);
+        }}
+        onConfirm={handleExtrasConfirm}
+        product={selectedProductForExtras}
+        initialSelectedExtras={editingCartItem?.selectedExtras}
+      />
     </>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button, Input, Modal } from '../ui';
+import ExtraSectionsManager from './ExtraSectionsManager';
 
 const ProductFormModal = ({ 
   isOpen, 
@@ -16,7 +17,8 @@ const ProductFormModal = ({
     price: '',
     imageUrl: '',
     category: '',
-    isAvailable: true
+    isAvailable: true,
+    extraSections: []
   });
 
   const [errors, setErrors] = useState({});
@@ -30,7 +32,8 @@ const ProductFormModal = ({
         price: product.price || '',
         imageUrl: product.imageUrl || '',
         category: product.category?._id || product.category || '',
-        isAvailable: product.isAvailable !== undefined ? product.isAvailable : true
+        isAvailable: product.isAvailable !== undefined ? product.isAvailable : true,
+        extraSections: product.extraSections || []
       });
     } else {
       setFormData({
@@ -39,7 +42,8 @@ const ProductFormModal = ({
         price: '',
         imageUrl: '',
         category: '',
-        isAvailable: true
+        isAvailable: true,
+        extraSections: []
       });
     }
     setErrors({});
@@ -76,6 +80,25 @@ const ProductFormModal = ({
       newErrors.category = 'La categoría es requerida';
     }
 
+    // Validar extraSections si existen
+    if (formData.extraSections && formData.extraSections.length > 0) {
+      formData.extraSections.forEach((section, sectionIndex) => {
+        if (!section.sectionName || !section.sectionName.trim()) {
+          newErrors.extraSections = `La sección ${sectionIndex + 1} debe tener un nombre`;
+        }
+        if (section.extras && section.extras.length > 0) {
+          section.extras.forEach((extra, extraIndex) => {
+            if (!extra.name || !extra.name.trim()) {
+              newErrors.extraSections = `Todos los extras deben tener un nombre (Sección: ${section.sectionName || sectionIndex + 1})`;
+            }
+            if (extra.price < 0) {
+              newErrors.extraSections = `Los precios no pueden ser negativos (Sección: ${section.sectionName || sectionIndex + 1})`;
+            }
+          });
+        }
+      });
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -89,7 +112,8 @@ const ProductFormModal = ({
 
     const productData = {
       ...formData,
-      price: parseFloat(formData.price)
+      price: parseFloat(formData.price),
+      extraSections: formData.extraSections || []
     };
 
     await onSubmit(productData);
@@ -190,6 +214,20 @@ const ProductFormModal = ({
                 Producto disponible
               </label>
             </div>
+          </div>
+
+          {/* Gestor de Extras por Secciones */}
+          <div className="md:col-span-2">
+            <ExtraSectionsManager
+              extraSections={formData.extraSections}
+              onChange={(newSections) => setFormData(prev => ({
+                ...prev,
+                extraSections: newSections
+              }))}
+            />
+            {errors.extraSections && (
+              <p className="text-sm text-red-600 mt-2">{errors.extraSections}</p>
+            )}
           </div>
         </div>
 

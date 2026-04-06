@@ -83,7 +83,8 @@ export const productsService = {
           price: food.price,
           category: food.category,
           isAvailable: food.isAvailable,
-          imageUrl: food.imageUrl
+          imageUrl: food.imageUrl,
+          extraSections: food.extraSections || [] // ✅ Agregar extraSections
         }))
       };
       

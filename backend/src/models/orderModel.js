@@ -10,6 +10,11 @@ const orderSchema = new mongoose.Schema({
             food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
             quantity: { type: Number, required: true },
             comment: { type: String, default: '' },
+            selectedExtras: [{
+                sectionName: { type: String, required: true },
+                extraName: { type: String, required: true },
+                price: { type: Number, default: 0 }
+            }]
         },
     ],
     payment: {
@@ -83,6 +88,11 @@ const orderSchema = new mongoose.Schema({
             quantity: { type: Number },
             comment: { type: String, default: '' },
             name: { type: String, default: '' },
+            selectedExtras: [{
+                sectionName: { type: String },
+                extraName: { type: String },
+                price: { type: Number, default: 0 }
+            }]
         },
     ],
     hasDeletedItems: {

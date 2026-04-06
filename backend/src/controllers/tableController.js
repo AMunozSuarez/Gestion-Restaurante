@@ -27,8 +27,8 @@ const getTableById = async (req, res) => {
             .populate({
                 path: 'currentOrder',
                 populate: [
-                    { path: 'foods.food', model: 'Food' },
-                    { path: 'deletedFoods.food', model: 'Food' }
+                    { path: 'foods.food', model: 'Food', select: 'title price category extraSections' },
+                    { path: 'deletedFoods.food', model: 'Food', select: 'title price extraSections' }
                 ]
             })
             .populate('waiter', 'userName email');
@@ -289,7 +289,8 @@ const assignOrderToTable = async (req, res) => {
                 path: 'currentOrder',
                 populate: {
                     path: 'foods.food',
-                    model: 'Food'
+                    model: 'Food',
+                    select: 'title price category extraSections'
                 }
             })
             .populate('waiter', 'userName email');
@@ -329,7 +330,8 @@ const assignWaiterToTable = async (req, res) => {
                 path: 'currentOrder',
                 populate: {
                     path: 'foods.food',
-                    model: 'Food'
+                    model: 'Food',
+                    select: 'title price category extraSections'
                 }
             })
             .populate('waiter', 'name email');

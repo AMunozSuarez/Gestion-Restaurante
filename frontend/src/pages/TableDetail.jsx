@@ -21,6 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button } from '../components/ui';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
+import ProductExtrasModal from '../components/common/ProductExtrasModal';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import printingService from '../services/printingService';
 
@@ -55,6 +56,10 @@ const TableDetail = () => {
     const [discountType, setDiscountType] = useState('percentage');
     const [discountValue, setDiscountValue] = useState(0);
     const [manualPaymentEdit, setManualPaymentEdit] = useState(false);
+    const [showExtrasModal, setShowExtrasModal] = useState(false);
+    const [selectedProductForExtras, setSelectedProductForExtras] = useState(null);
+    const [extrasModalMode, setExtrasModalMode] = useState('create');
+    const [editingCartItem, setEditingCartItem] = useState(null);
 
     const productCommentInputRef = useRef(null);
 
@@ -75,6 +80,8 @@ const TableDetail = () => {
                 price: food.food?.price || 0,
                 quantity: food.quantity || 1,
                 comments: food.comment || '',
+                selectedExtras: food.selectedExtras || [],
+                extraSections: food.food?.extraSections || [],
                 category: food.food?.category,
                 isOriginal: true,
                 isNew: false,
@@ -91,6 +98,8 @@ const TableDetail = () => {
                     price: food.food?.price || 0,
                     quantity: food.quantity || 1,
                     comments: food.comment || '',
+                    selectedExtras: food.selectedExtras || [],
+                    extraSections: food.food?.extraSections || [],
                     category: food.food?.category,
                     isOriginal: true,
                     isNew: false,
@@ -133,10 +142,19 @@ const TableDetail = () => {
 
     // Funciones del carrito
     const addToCart = (product) => {
-        // Solo buscar en items NUEVOS (no originales) para sumar cantidad
-        const existingNewItem = cart.find(item => item.id === product.id && !item.deleted && !item.isOriginal);
+        // Si el producto tiene extras, abrir modal
+        if (product.extraSections && product.extraSections.length > 0) {
+            setSelectedProductForExtras(product);
+            setExtrasModalMode('create');
+            setShowExtrasModal(true);
+            return;
+        }
+
+        // Solo buscar en items NUEVOS (no originales) sin extras para sumar cantidad
+        const existingNewItem = cart.find(item => 
+            item.id === product.id && !item.deleted && !item.isOriginal && !item.selectedExtras?.length
+        );
         if (existingNewItem) {
-            // Si ya hay un item nuevo con el mismo producto, sumar cantidad
             setCart(prev =>
                 prev.map(item =>
                     item.cartId === existingNewItem.cartId
@@ -147,22 +165,49 @@ const TableDetail = () => {
             setAddedProductNotification(`${product.name} agregado`);
             setTimeout(() => setAddedProductNotification(null), 2000);
         } else {
-            // Crear entrada nueva (separada de productos originales)
-            // isNew: true si ya hay una orden existente (para impresión diferenciada)
-            // isOriginal: false porque es un producto nuevo agregado por el usuario
             const newProduct = {
                 ...product,
                 cartId: `new_${Date.now()}_${product.id}`,
                 quantity: 1,
                 comments: '',
+                selectedExtras: [],
                 isOriginal: false,
-                isNew: true, // Siempre true para productos agregados manualmente
+                isNew: true,
                 deleted: false
             };
             setCart(prev => [...prev, newProduct]);
             setAddedProductNotification(`${product.name} agregado`);
             setTimeout(() => setAddedProductNotification(null), 2000);
         }
+    };
+
+    // Manejar confirmación de extras desde el modal
+    const handleExtrasConfirm = (selectedExtras) => {
+        if (extrasModalMode === 'create') {
+            const cartId = `new_${Date.now()}_${selectedProductForExtras.id}`;
+            const newItem = {
+                ...selectedProductForExtras,
+                cartId,
+                quantity: 1,
+                comments: '',
+                selectedExtras,
+                isOriginal: false,
+                isNew: true,
+                deleted: false
+            };
+            setCart(prev => [...prev, newItem]);
+            setAddedProductNotification(`${selectedProductForExtras.name} con extras agregado`);
+            setTimeout(() => setAddedProductNotification(null), 2000);
+        } else if (extrasModalMode === 'edit' && editingCartItem) {
+            setCart(prev => prev.map(item =>
+                item.cartId === editingCartItem.cartId
+                    ? { ...item, selectedExtras }
+                    : item
+            ));
+        }
+        setShowExtrasModal(false);
+        setSelectedProductForExtras(null);
+        setEditingCartItem(null);
     };
 
     const removeFromCart = (cartId) => {
@@ -213,7 +258,10 @@ const TableDetail = () => {
     };
 
     const calculateTotal = () => {
-        return cart.filter(item => !item.deleted).reduce((total, item) => total + (item.price * item.quantity), 0);
+        return cart.filter(item => !item.deleted).reduce((total, item) => {
+            const extrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+            return total + ((item.price + extrasTotal) * item.quantity);
+        }, 0);
     };
 
     const calculateTip = (percentage) => {
@@ -270,19 +318,22 @@ const TableDetail = () => {
                 foods: activeFoods.map(item => ({
                     food: item.id,
                     quantity: item.quantity,
-                    comment: item.comments || ''
+                    comment: item.comments || '',
+                    selectedExtras: item.selectedExtras || []
                 })),
                 deletedFoods: deletedFoods.map(item => ({
                     food: item.id,
                     name: item.name,
                     quantity: item.quantity,
-                    comment: item.comments || ''
+                    comment: item.comments || '',
+                    selectedExtras: item.selectedExtras || []
                 })),
                 newFoods: newFoods.map(item => ({
                     food: item.id,
                     name: item.name,
                     quantity: item.quantity,
-                    comment: item.comments || ''
+                    comment: item.comments || '',
+                    selectedExtras: item.selectedExtras || []
                 })),
                 payment: 'Pendiente',
                 paymentMethods: [],
@@ -445,19 +496,22 @@ const TableDetail = () => {
                 foods: activeFoods.map(item => ({
                     food: item.id,
                     quantity: item.quantity,
-                    comment: item.comments || ''
+                    comment: item.comments || '',
+                    selectedExtras: item.selectedExtras || []
                 })),
                 deletedFoods: deletedFoods.map(item => ({
                     food: item.id,
                     name: item.name,
                     quantity: item.quantity,
-                    comment: item.comments || ''
+                    comment: item.comments || '',
+                    selectedExtras: item.selectedExtras || []
                 })),
                 newFoods: newFoods.map(item => ({
                     food: item.id,
                     name: item.name,
                     quantity: item.quantity,
-                    comment: item.comments || ''
+                    comment: item.comments || '',
+                    selectedExtras: item.selectedExtras || []
                 })),
                 payment: validPayments.length === 1 ? validPayments[0].method : 'Múltiple',
                 paymentMethods: validPayments.map((payment, index) => ({
@@ -601,6 +655,19 @@ const TableDetail = () => {
     return (
         <div className="h-full bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 flex flex-col overflow-hidden">
             {showCashAlert && <CashRegisterAlert isOpen={!isCashOpen} onClose={() => setShowCashAlert(false)} />}
+
+            {/* Modal de extras para productos */}
+            <ProductExtrasModal
+                isOpen={showExtrasModal}
+                onClose={() => {
+                    setShowExtrasModal(false);
+                    setSelectedProductForExtras(null);
+                    setEditingCartItem(null);
+                }}
+                product={selectedProductForExtras}
+                onConfirm={handleExtrasConfirm}
+                initialSelectedExtras={editingCartItem?.selectedExtras}
+            />
 
             {/* Notificación toast */}
             {notification && (
@@ -778,7 +845,9 @@ const TableDetail = () => {
                                     {cart.filter(item => item.isNew && !item.deleted).length > 0 && (
                                         <div className="mb-3">
                                             <p className="text-xs text-green-600 font-medium mb-2">Por enviar</p>
-                                            {cart.filter(item => item.isNew && !item.deleted).map(item => (
+                                            {cart.filter(item => item.isNew && !item.deleted).map(item => {
+                                                const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+                                                return (
                                                 <div key={item.cartId} className="border border-green-300 bg-green-50 rounded-lg p-3 mb-2">
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div className="flex-1">
@@ -788,6 +857,11 @@ const TableDetail = () => {
                                                             </div>
                                                             <div className="text-teal-600 text-sm">
                                                                 {formatChileanCurrency(item.price)}
+                                                                {itemExtrasTotal > 0 && (
+                                                                    <span className="text-orange-600 ml-1">
+                                                                        + {formatChileanCurrency(itemExtrasTotal)} extras
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         <button
@@ -798,6 +872,54 @@ const TableDetail = () => {
                                                             <TrashIcon className="w-4 h-4 text-red-600" />
                                                         </button>
                                                     </div>
+
+                                                    {/* Extras seleccionados */}
+                                                    {item.selectedExtras && item.selectedExtras.length > 0 && (
+                                                        <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                                                            <div className="flex items-start justify-between gap-2">
+                                                                <div className="flex-1">
+                                                                    <div className="text-xs font-medium text-orange-800 mb-1">Extras:</div>
+                                                                    <div className="space-y-0.5">
+                                                                        {item.selectedExtras.map((extra, idx) => (
+                                                                            <div key={idx} className="text-xs text-orange-700 flex justify-between">
+                                                                                <span>• {extra.extraName}</span>
+                                                                                {extra.price > 0 && <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSelectedProductForExtras(item);
+                                                                        setEditingCartItem(item);
+                                                                        setExtrasModalMode('edit');
+                                                                        setShowExtrasModal(true);
+                                                                    }}
+                                                                    className="text-xs bg-orange-200 hover:bg-orange-300 text-orange-800 px-2 py-1 rounded"
+                                                                >
+                                                                    Editar
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Botón para agregar extras */}
+                                                    {item.extraSections && item.extraSections.length > 0 && (!item.selectedExtras || item.selectedExtras.length === 0) && (
+                                                        <div className="mb-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedProductForExtras(item);
+                                                                    setEditingCartItem(item);
+                                                                    setExtrasModalMode('edit');
+                                                                    setShowExtrasModal(true);
+                                                                }}
+                                                                className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded"
+                                                            >
+                                                                + Agregar extras
+                                                            </button>
+                                                        </div>
+                                                    )}
+
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             onClick={() => updateQuantity(item.cartId, item.quantity - 1)}
@@ -825,7 +947,8 @@ const TableDetail = () => {
                                                         </div>
                                                     )}
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
 
@@ -833,13 +956,20 @@ const TableDetail = () => {
                                     {cart.filter(item => item.isOriginal && !item.deleted).length > 0 && (
                                         <div className="mb-3">
                                             <p className="text-xs text-gray-500 font-medium mb-2">En cocina</p>
-                                            {cart.filter(item => item.isOriginal && !item.deleted).map(item => (
+                                            {cart.filter(item => item.isOriginal && !item.deleted).map(item => {
+                                                const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+                                                return (
                                                 <div key={item.cartId} className="border border-gray-200 rounded-lg p-3 mb-2">
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div className="flex-1">
                                                             <div className="font-medium text-sm">{item.name}</div>
                                                             <div className="text-teal-600 text-sm">
                                                                 {formatChileanCurrency(item.price)}
+                                                                {itemExtrasTotal > 0 && (
+                                                                    <span className="text-orange-600 ml-1">
+                                                                        + {formatChileanCurrency(itemExtrasTotal)} extras
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         <button
@@ -850,6 +980,22 @@ const TableDetail = () => {
                                                             <TrashIcon className="w-4 h-4 text-red-600" />
                                                         </button>
                                                     </div>
+
+                                                    {/* Extras de productos originales (solo lectura) */}
+                                                    {item.selectedExtras && item.selectedExtras.length > 0 && (
+                                                        <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                                                            <div className="text-xs font-medium text-orange-800 mb-1">Extras:</div>
+                                                            <div className="space-y-0.5">
+                                                                {item.selectedExtras.map((extra, idx) => (
+                                                                    <div key={idx} className="text-xs text-orange-700 flex justify-between">
+                                                                        <span>• {extra.extraName}</span>
+                                                                        {extra.price > 0 && <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-sm text-gray-500">x{item.quantity}</span>
                                                         <button
@@ -865,7 +1011,8 @@ const TableDetail = () => {
                                                         </div>
                                                     )}
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
 

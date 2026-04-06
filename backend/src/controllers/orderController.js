@@ -54,7 +54,7 @@ const createOrderController = async (req, res) => {
 
         const [customer, existingFoods, currentCashRegister, table] = await Promise.all([
             customerPromise,
-            foodModel.find({ _id: { $in: foodIds }, restaurant: restaurantId }).select('_id price').lean(),
+            foodModel.find({ _id: { $in: foodIds }, restaurant: restaurantId }).select('_id price extraSections').lean(),
             cashRegisterModel.findOne({ restaurant: restaurantId, status: 'Abierta' }).select('_id').lean(),
             tablePromise,
         ]);
@@ -72,6 +72,66 @@ const createOrderController = async (req, res) => {
             return res.status(400).json({ success: false, message: 'No hay una caja abierta. Por favor, abre una caja antes de crear órdenes.' });
         }
 
+        // ── Validar extras seleccionados ──
+        const foodMap = new Map(existingFoods.map(f => [f._id.toString(), f]));
+        for (const orderItem of foods) {
+            if (orderItem.selectedExtras && orderItem.selectedExtras.length > 0) {
+                const food = foodMap.get(orderItem.food);
+                if (!food || !food.extraSections || food.extraSections.length === 0) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'Uno de los productos seleccionados no tiene extras configurados' 
+                    });
+                }
+
+                // Validar cada extra seleccionado
+                for (const selectedExtra of orderItem.selectedExtras) {
+                    const section = food.extraSections.find(s => s.sectionName === selectedExtra.sectionName);
+                    if (!section) {
+                        return res.status(400).json({ 
+                            success: false, 
+                            message: `Sección de extras "${selectedExtra.sectionName}" no válida` 
+                        });
+                    }
+
+                    const extra = section.extras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
+                    if (!extra) {
+                        return res.status(400).json({ 
+                            success: false, 
+                            message: `Extra "${selectedExtra.extraName}" no disponible en sección "${selectedExtra.sectionName}"` 
+                        });
+                    }
+
+                    // Verificar que el precio coincida (seguridad)
+                    if (selectedExtra.price !== extra.price) {
+                        return res.status(400).json({ 
+                            success: false, 
+                            message: `Precio de extra "${selectedExtra.extraName}" no coincide` 
+                        });
+                    }
+                }
+
+                // Validar límite de selección por sección
+                const extrasBySection = {};
+                orderItem.selectedExtras.forEach(extra => {
+                    if (!extrasBySection[extra.sectionName]) {
+                        extrasBySection[extra.sectionName] = 0;
+                    }
+                    extrasBySection[extra.sectionName]++;
+                });
+
+                for (const [sectionName, count] of Object.entries(extrasBySection)) {
+                    const section = food.extraSections.find(s => s.sectionName === sectionName);
+                    if (section.maxSelection !== null && section.maxSelection !== undefined && count > section.maxSelection) {
+                        return res.status(400).json({ 
+                            success: false, 
+                            message: `Excedido el límite de selección para la sección "${sectionName}". Máximo: ${section.maxSelection}` 
+                        });
+                    }
+                }
+            }
+        }
+
         // ── Calcular delivery cost ──
         let deliveryCost = 0;
         if (selectedAddress && customer && customer.addresses) {
@@ -84,7 +144,15 @@ const createOrderController = async (req, res) => {
         // ── Calcular total con Map para O(n) en vez de O(n²) ──
         const foodPriceMap = new Map(existingFoods.map(f => [f._id.toString(), f.price]));
         const total = foods.reduce((sum, item) => {
-            return sum + (foodPriceMap.get(item.food) * item.quantity);
+            // Calcular precio base del producto
+            const basePrice = foodPriceMap.get(item.food) * item.quantity;
+            
+            // Calcular precio de extras seleccionados
+            const extrasPrice = (item.selectedExtras || []).reduce((extSum, extra) => {
+                return extSum + ((extra.price || 0) * item.quantity);
+            }, 0);
+            
+            return sum + basePrice + extrasPrice;
         }, 0) + deliveryCost;
 
         // ── Paso 2: Obtener número de orden (depende de cashRegister) ──
@@ -204,8 +272,8 @@ const getAllOrdersController = async (req, res) => {
         let query = orderModel
             .find(filters)
             .sort({ [validSortBy]: -1 })
-            .populate('foods.food', 'title price category')
-            .populate('deletedFoods.food', 'title price')
+            .populate('foods.food', 'title price category extraSections')
+            .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
             .lean();
@@ -230,8 +298,8 @@ const getOrderByIdController = async (req, res) => {
     try {
         const order = await orderModel
             .findOne({ _id: req.params.id, restaurant: req.user.restaurant })
-            .populate('foods.food', 'title price category')
-            .populate('deletedFoods.food', 'title price')
+            .populate('foods.food', 'title price category extraSections')
+            .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
             .lean();
@@ -263,8 +331,8 @@ const getOrderByNumberController = async (req, res) => {
 
         const order = await orderModel
             .findOne({ orderNumber, cashRegister: currentCashRegister._id })
-            .populate('foods.food', 'title price category')
-            .populate('deletedFoods.food', 'title price')
+            .populate('foods.food', 'title price category extraSections')
+            .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
             .lean();
@@ -358,11 +426,71 @@ const updateOrderController = async (req, res) => {
 
             const [customer, existingFoods] = await Promise.all([
                 customerPromise,
-                foodModel.find({ _id: { $in: uniqueFoodIds }, restaurant: restaurantId }).select('_id price').lean(),
+                foodModel.find({ _id: { $in: uniqueFoodIds }, restaurant: restaurantId }).select('_id price extraSections').lean(),
             ]);
 
             if (existingFoods.length !== uniqueFoodIds.length) {
                 return res.status(400).json({ success: false, message: 'Uno o más alimentos no pertenecen a este restaurante' });
+            }
+
+            // ── Validar extras seleccionados ──
+            const foodMap = new Map(existingFoods.map(f => [f._id.toString(), f]));
+            for (const orderItem of foods) {
+                if (orderItem.selectedExtras && orderItem.selectedExtras.length > 0) {
+                    const food = foodMap.get(orderItem.food);
+                    if (!food || !food.extraSections || food.extraSections.length === 0) {
+                        return res.status(400).json({ 
+                            success: false, 
+                            message: 'Uno de los productos seleccionados no tiene extras configurados' 
+                        });
+                    }
+
+                    // Validar cada extra seleccionado
+                    for (const selectedExtra of orderItem.selectedExtras) {
+                        const section = food.extraSections.find(s => s.sectionName === selectedExtra.sectionName);
+                        if (!section) {
+                            return res.status(400).json({ 
+                                success: false, 
+                                message: `Sección de extras "${selectedExtra.sectionName}" no válida` 
+                            });
+                        }
+
+                        const extra = section.extras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
+                        if (!extra) {
+                            return res.status(400).json({ 
+                                success: false, 
+                                message: `Extra "${selectedExtra.extraName}" no disponible en sección "${selectedExtra.sectionName}"` 
+                            });
+                        }
+
+                        // Verificar que el precio coincida (seguridad)
+                        if (selectedExtra.price !== extra.price) {
+                            return res.status(400).json({ 
+                                success: false, 
+                                message: `Precio de extra "${selectedExtra.extraName}" no coincide` 
+                            });
+                        }
+                    }
+
+                    // Validar límite de selección por sección
+                    const extrasBySection = {};
+                    orderItem.selectedExtras.forEach(extra => {
+                        if (!extrasBySection[extra.sectionName]) {
+                            extrasBySection[extra.sectionName] = 0;
+                        }
+                        extrasBySection[extra.sectionName]++;
+                    });
+
+                    for (const [sectionName, count] of Object.entries(extrasBySection)) {
+                        const section = food.extraSections.find(s => s.sectionName === sectionName);
+                        if (section.maxSelection !== null && section.maxSelection !== undefined && count > section.maxSelection) {
+                            return res.status(400).json({ 
+                                success: false, 
+                                message: `Excedido el límite de selección para la sección "${sectionName}". Máximo: ${section.maxSelection}` 
+                            });
+                        }
+                    }
+                }
             }
 
             let deliveryCost = 0;
@@ -376,7 +504,17 @@ const updateOrderController = async (req, res) => {
 
             // Calcular total con Map para O(n) en vez de O(n²)
             const foodPriceMap = new Map(existingFoods.map(f => [f._id.toString(), f.price]));
-            const total = foods.reduce((sum, item) => sum + (foodPriceMap.get(item.food) * item.quantity), 0) + deliveryCost;
+            const total = foods.reduce((sum, item) => {
+                // Calcular precio base del producto
+                const basePrice = foodPriceMap.get(item.food) * item.quantity;
+                
+                // Calcular precio de extras seleccionados
+                const extrasPrice = (item.selectedExtras || []).reduce((extSum, extra) => {
+                    return extSum + ((extra.price || 0) * item.quantity);
+                }, 0);
+                
+                return sum + basePrice + extrasPrice;
+            }, 0) + deliveryCost;
 
             updateData.name = !customer && buyer ? buyer.name : null;
             updateData.buyer = customer ? customer._id : null;
@@ -401,8 +539,8 @@ const updateOrderController = async (req, res) => {
             updateData,
             { new: true, runValidators: true }
         )
-            .populate('foods.food', 'title price category')
-            .populate('deletedFoods.food', 'title price')
+            .populate('foods.food', 'title price category extraSections')
+            .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
             .lean();
@@ -497,8 +635,8 @@ const getFilteredOrders = async (req, res) => {
 
         const orders = await orderModel.find(filters)
             .sort({ createdAt: -1 })
-            .populate('foods.food', 'title price')
-            .populate('deletedFoods.food', 'title price')
+            .populate('foods.food', 'title price extraSections')
+            .populate('deletedFoods.food', 'title price extraSections')
             .populate('waiter', 'userName name')
             .populate('buyer', 'name phone')
             .populate('cashRegister', 'dateOpened dateClosed status')
@@ -545,7 +683,7 @@ const getRecentOrders = async (req, res) => {
         const orders = await orderModel.find(filters)
             .sort({ [sortBy]: -1 })
             .limit(Number(limit) || 10)
-            .populate('foods.food', 'title price category')
+            .populate('foods.food', 'title price category extraSections')
             .populate('buyer', 'name phone')
             .lean();
 
@@ -582,15 +720,15 @@ const getSectionOrders = async (req, res) => {
         const [active, recent] = await Promise.all([
             orderModel.find({ ...baseFilter, status: 'Preparacion' })
                 .sort({ createdAt: -1 })
-                .populate('foods.food', 'title price category')
-                .populate('deletedFoods.food', 'title price')
+                .populate('foods.food', 'title price category extraSections')
+                .populate('deletedFoods.food', 'title price extraSections')
                 .populate('buyer', 'name phone addresses')
                 .populate('waiter', 'userName name')
                 .lean(),
             orderModel.find({ ...baseFilter, status: { $in: recentStatusList } })
                 .sort({ updatedAt: -1 })
                 .limit(Number(recentLimit))
-                .populate('foods.food', 'title price category')
+                .populate('foods.food', 'title price category extraSections')
                 .populate('buyer', 'name phone')
                 .lean(),
         ]);
@@ -662,8 +800,8 @@ const getAllSalesController = async (req, res) => {
             .sort({ [validSortBy]: -1 })
             .skip(skip)
             .limit(pageSize)
-            .populate('foods.food', 'title price')
-            .populate('deletedFoods.food', 'title price')
+            .populate('foods.food', 'title price extraSections')
+            .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
             .lean();
@@ -822,7 +960,7 @@ const printTicketController = async (req, res) => {
     try {
         const order = await orderModel
             .findOne({ _id: req.params.id, restaurant: req.restaurantId })
-            .populate('foods.food', 'title price')
+            .populate('foods.food', 'title price extraSections')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
             .lean();

@@ -8,6 +8,7 @@ import { useCustomers } from '../hooks/useCustomers';
 import { useCustomerSearch } from '../hooks/useCustomerSearch';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import ProductModal from '../components/common/ProductModal';
+import ProductExtrasModal from '../components/common/ProductExtrasModal';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import AddressModal from '../components/common/AddressModal';
 import printingService from '../services/printingService';
@@ -28,6 +29,10 @@ const Delivery = () => {
   const [isCreatingOrder, setIsCreatingOrder] = React.useState(false);
   const [showCashAlert, setShowCashAlert] = React.useState(false);
   const [showProductModal, setShowProductModal] = React.useState(false);
+  const [showExtrasModal, setShowExtrasModal] = React.useState(false);
+  const [selectedProductForExtras, setSelectedProductForExtras] = React.useState(null);
+  const [extrasModalMode, setExtrasModalMode] = React.useState('create');
+  const [editingCartItem, setEditingCartItem] = React.useState(null);
   
   // Estados del formulario de pedido (incluye campos específicos de delivery)
   const [customerName, setCustomerName] = React.useState('');
@@ -251,30 +256,93 @@ const Delivery = () => {
 
   // Funciones para manejo del carrito
   const addToCart = (product) => {
+    // Si el producto tiene extras, abrir modal
+    if (product.extraSections && product.extraSections.length > 0) {
+      setSelectedProductForExtras(product);
+      setExtrasModalMode('create');
+      setShowExtrasModal(true);
+      return;
+    }
+
+    // Si no tiene extras, agregar directamente
     setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.id === product.id);
+      const existingItem = prevCart.find(item => item.id === product.id && !item.selectedExtras?.length);
       if (existingItem) {
-        // Mostrar notificación de cantidad actualizada
         setAddedProductNotification(`${product.name} - Cantidad actualizada`);
         setTimeout(() => setAddedProductNotification(null), 2000);
         
         return prevCart.map(item =>
-          item.id === product.id
+          item.id === product.id && !item.selectedExtras?.length
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
       
-      // Mostrar notificación de producto agregado
       setAddedProductNotification(`${product.name} agregado al carrito`);
       setTimeout(() => setAddedProductNotification(null), 2000);
       
-      return [...prevCart, { ...product, quantity: 1, comments: '' }];
+      return [...prevCart, { ...product, quantity: 1, comments: '', selectedExtras: [] }];
     });
+  };
+
+  // Manejar confirmación de extras desde el modal
+  const handleExtrasConfirm = (selectedExtras) => {
+    if (extrasModalMode === 'create') {
+      const cartId = `${selectedProductForExtras.id}_${Date.now()}`;
+      const newItem = {
+        ...selectedProductForExtras,
+        cartId,
+        quantity: 1,
+        comments: '',
+        selectedExtras
+      };
+      setCart(prevCart => [...prevCart, newItem]);
+      setAddedProductNotification(`${selectedProductForExtras.name} con extras agregado`);
+      setTimeout(() => setAddedProductNotification(null), 2000);
+    } else if (extrasModalMode === 'create-edit') {
+      const cartId = `new_${selectedProductForExtras.id}_${Date.now()}`;
+      const newItem = {
+        ...selectedProductForExtras,
+        cartId,
+        quantity: 1,
+        comments: '',
+        selectedExtras,
+        isNew: true,
+        isOriginal: false,
+        deleted: false
+      };
+      setEditCart(prevCart => [...prevCart, newItem]);
+      setAddedProductNotification(`${selectedProductForExtras.name} con extras agregado`);
+      setTimeout(() => setAddedProductNotification(null), 2000);
+    } else if (extrasModalMode === 'edit' && editingCartItem) {
+      setCart(prevCart => prevCart.map(item => {
+        const matches = editingCartItem.cartId 
+          ? item.cartId === editingCartItem.cartId
+          : item.id === editingCartItem.id;
+        return matches ? { ...item, selectedExtras } : item;
+      }));
+    } else if (extrasModalMode === 'edit-order' && editingCartItem) {
+      setEditCart(prevCart => prevCart.map(item =>
+        item.cartId === editingCartItem.cartId
+          ? { ...item, selectedExtras }
+          : item
+      ));
+    }
+    setShowExtrasModal(false);
+    setSelectedProductForExtras(null);
+    setEditingCartItem(null);
   };
 
   // Funciones para edición - manejo del carrito de edición
   const addToEditCart = (product) => {
+    // Si el producto tiene extras, abrir modal para edición
+    if (product.extraSections && product.extraSections.length > 0) {
+      setSelectedProductForExtras(product);
+      setExtrasModalMode('create-edit');
+      setShowExtrasModal(true);
+      return;
+    }
+
     // Siempre agregar como nueva entrada separada (nunca agrupar)
     const cartId = `new_${product.id}_${Date.now()}`;
     setAddedProductNotification(`${product.name} agregado al carrito`);
@@ -284,6 +352,7 @@ const Delivery = () => {
       cartId,
       quantity: 1,
       comments: '',
+      selectedExtras: [],
       isNew: true,
       isOriginal: false,
       deleted: false
@@ -348,8 +417,11 @@ const Delivery = () => {
     setEditProductComment('');
   };
 
-  const removeFromCart = (productId) => {
-    setCart(prevCart => prevCart.filter(item => item.id !== productId));
+  const removeFromCart = (productId, cartId = null) => {
+    setCart(prevCart => prevCart.filter(item => {
+      if (cartId) return item.cartId !== cartId;
+      return item.id !== productId;
+    }));
   };
 
   const removeFromEditCart = (cartId) => {
@@ -365,17 +437,18 @@ const Delivery = () => {
     });
   };
 
-  const updateQuantity = (productId, newQuantity) => {
+  const updateQuantity = (productId, newQuantity, cartId = null) => {
     if (newQuantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(productId, cartId);
       return;
     }
     setCart(prevCart =>
-      prevCart.map(item =>
-        item.id === productId
-          ? { ...item, quantity: newQuantity }
-          : item
-      )
+      prevCart.map(item => {
+        const matches = cartId 
+          ? item.cartId === cartId
+          : item.id === productId && !item.selectedExtras?.length;
+        return matches ? { ...item, quantity: newQuantity } : item;
+      })
     );
   };
 
@@ -394,21 +467,33 @@ const Delivery = () => {
   };
 
   const calculateTotal = () => {
-    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce((total, item) => {
+      const extrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+      return total + ((item.price + extrasTotal) * item.quantity);
+    }, 0);
     return subtotal + getCurrentDeliveryCost();
   };
 
   const calculateEditTotal = () => {
-    const subtotal = editCart.filter(item => !item.deleted).reduce((total, item) => total + (item.price * item.quantity), 0);
+    const subtotal = editCart.filter(item => !item.deleted).reduce((total, item) => {
+      const extrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+      return total + ((item.price + extrasTotal) * item.quantity);
+    }, 0);
     return subtotal + getEditCurrentDeliveryCost();
   };
 
   const calculateSubtotal = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return cart.reduce((total, item) => {
+      const extrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+      return total + ((item.price + extrasTotal) * item.quantity);
+    }, 0);
   };
 
   const calculateEditSubtotal = () => {
-    return editCart.filter(item => !item.deleted).reduce((total, item) => total + (item.price * item.quantity), 0);
+    return editCart.filter(item => !item.deleted).reduce((total, item) => {
+      const extrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+      return total + ((item.price + extrasTotal) * item.quantity);
+    }, 0);
   };
 
   // Funciones para manejo de métodos de pago múltiples
@@ -922,6 +1007,8 @@ const Delivery = () => {
         price: food.food?.price || 0,
         quantity: food.quantity || 1,
         comments: food.comment || '',
+        selectedExtras: food.selectedExtras || [],
+        extraSections: food.food?.extraSections || [],
         category: food.food?.category,
         isOriginal: true,
         isNew: false,
@@ -946,6 +1033,8 @@ const Delivery = () => {
         price: food.food?.price || 0,
         quantity: food.quantity || 1,
         comments: food.comment || '',
+        selectedExtras: food.selectedExtras || [],
+        extraSections: food.food?.extraSections || [],
         category: food.food?.category,
         isOriginal: true,
         isNew: false,
@@ -1026,7 +1115,8 @@ const Delivery = () => {
         foods: cart.map(item => ({
           food: item.id,
           quantity: item.quantity,
-          comment: item.comments || ''
+          comment: item.comments || '',
+          selectedExtras: item.selectedExtras || []
         })),
         payment: validPayments.length === 0 ? 'Pendiente' : (validPayments.length === 1 ? validPayments[0].method : 'Múltiple'),
         paymentMethods: validPayments.length > 0 ? validPayments : [],
@@ -1140,26 +1230,30 @@ const Delivery = () => {
           return {
             food: item.id,
             quantity: item.quantity,
-            comment: item.comments || ''
+            comment: item.comments || '',
+            selectedExtras: item.selectedExtras || []
           };
         }),
         deletedFoods: deletedFoods.map(item => ({
           food: item.id,
           name: item.name,
           quantity: item.quantity,
-          comment: item.comments || ''
+          comment: item.comments || '',
+          selectedExtras: item.selectedExtras || []
         })),
         newFoods: newFoods.map(item => ({
           food: item.id,
           name: item.name,
           quantity: item.quantity,
-          comment: item.comments || ''
+          comment: item.comments || '',
+          selectedExtras: item.selectedExtras || []
         })),
         allFoods: activeFoods.map(item => ({
           food: item.id,
           name: item.name,
           quantity: item.quantity,
           comment: item.comments || '',
+          selectedExtras: item.selectedExtras || [],
           isNew: item.isNew || false
         })),
         payment: validEditPayments.length === 0 ? 'Pendiente' : (validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple'),
@@ -1747,37 +1841,91 @@ const Delivery = () => {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          {cart.map((item) => (
-                            <div key={item.id} className="bg-white rounded p-3 border border-blue-100">
+                          {cart.map((item) => {
+                            const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+                            return (
+                            <div key={item.cartId || item.id} className="bg-white rounded p-3 border border-blue-100">
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex-1">
                                   <div className="text-sm font-medium">{item.name}</div>
                                   <div className="text-xs text-gray-500">
                                     {formatChileanCurrency(item.price)} c/u
+                                    {itemExtrasTotal > 0 && (
+                                      <span className="text-orange-600 font-semibold ml-1">
+                                        + {formatChileanCurrency(itemExtrasTotal)} extras
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                    onClick={() => updateQuantity(item.id, item.quantity - 1, item.cartId)}
                                     className="w-6 h-6 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-xs"
                                   >
                                     -
                                   </button>
                                   <span className="w-8 text-center text-sm">{item.quantity}</span>
                                   <button
-                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                    onClick={() => updateQuantity(item.id, item.quantity + 1, item.cartId)}
                                     className="w-6 h-6 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-xs"
                                   >
                                     +
                                   </button>
                                   <button
-                                    onClick={() => removeFromCart(item.id)}
+                                    onClick={() => removeFromCart(item.id, item.cartId)}
                                     className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs"
                                   >
                                     <TrashIcon className="w-3 h-3 mx-auto" />
                                   </button>
                                 </div>
                               </div>
+                              
+                              {/* Extras seleccionados */}
+                              {item.selectedExtras && item.selectedExtras.length > 0 && (
+                                <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1">
+                                      <div className="text-xs font-medium text-orange-800 mb-1">Extras:</div>
+                                      <div className="space-y-0.5">
+                                        {item.selectedExtras.map((extra, idx) => (
+                                          <div key={idx} className="text-xs text-orange-700 flex justify-between">
+                                            <span>• {extra.extraName}</span>
+                                            {extra.price > 0 && <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        setSelectedProductForExtras(item);
+                                        setEditingCartItem(item);
+                                        setExtrasModalMode('edit');
+                                        setShowExtrasModal(true);
+                                      }}
+                                      className="text-xs bg-orange-200 hover:bg-orange-300 text-orange-800 px-2 py-1 rounded"
+                                    >
+                                      Editar
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Botón para agregar extras si el producto los tiene */}
+                              {item.extraSections && item.extraSections.length > 0 && (!item.selectedExtras || item.selectedExtras.length === 0) && (
+                                <div className="mb-2">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedProductForExtras(item);
+                                      setEditingCartItem(item);
+                                      setExtrasModalMode('edit');
+                                      setShowExtrasModal(true);
+                                    }}
+                                    className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded"
+                                  >
+                                    + Agregar extras
+                                  </button>
+                                </div>
+                              )}
                               
                               {/* Comentarios del producto */}
                               <div className="flex items-center gap-2">
@@ -1797,7 +1945,8 @@ const Delivery = () => {
                                 )}
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -2381,7 +2530,9 @@ const Delivery = () => {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          {editCart.map((item) => (
+                          {editCart.map((item) => {
+                            const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+                            return (
                             <div
                               key={item.cartId || item.id}
                               className={`rounded p-3 border transition-all ${
@@ -2402,6 +2553,11 @@ const Delivery = () => {
                                   </div>
                                   <div className={`text-xs ${item.deleted ? 'line-through text-red-300' : 'text-gray-500'}`}>
                                     {formatChileanCurrency(item.price)} c/u
+                                    {itemExtrasTotal > 0 && !item.deleted && (
+                                      <span className="text-orange-600 font-semibold ml-1">
+                                        + {formatChileanCurrency(itemExtrasTotal)} extras
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -2438,6 +2594,55 @@ const Delivery = () => {
                                 </div>
                               </div>
                               
+                              {/* Extras seleccionados */}
+                              {!item.deleted && item.selectedExtras && item.selectedExtras.length > 0 && (
+                                <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1">
+                                      <div className="text-xs font-medium text-orange-800 mb-1">Extras:</div>
+                                      <div className="space-y-0.5">
+                                        {item.selectedExtras.map((extra, idx) => (
+                                          <div key={idx} className="text-xs text-orange-700 flex justify-between">
+                                            <span>• {extra.extraName}</span>
+                                            {extra.price > 0 && <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    {item.isNew && (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedProductForExtras(item);
+                                          setEditingCartItem(item);
+                                          setExtrasModalMode('edit-order');
+                                          setShowExtrasModal(true);
+                                        }}
+                                        className="text-xs bg-orange-200 hover:bg-orange-300 text-orange-800 px-2 py-1 rounded"
+                                      >
+                                        Editar
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Botón para agregar extras */}
+                              {!item.deleted && item.isNew && item.extraSections && item.extraSections.length > 0 && (!item.selectedExtras || item.selectedExtras.length === 0) && (
+                                <div className="mb-2">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedProductForExtras(item);
+                                      setEditingCartItem(item);
+                                      setExtrasModalMode('edit-order');
+                                      setShowExtrasModal(true);
+                                    }}
+                                    className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded"
+                                  >
+                                    + Agregar extras
+                                  </button>
+                                </div>
+                              )}
+                              
                               {/* Comentarios del producto */}
                               {!item.deleted && (
                                 <div className="flex items-center gap-2">
@@ -2458,7 +2663,8 @@ const Delivery = () => {
                                 </div>
                               )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -2869,6 +3075,19 @@ const Delivery = () => {
         products={products}
         onAddToCart={isEditingOrder ? addToEditCart : addToCart}
         isLoading={productsLoading}
+      />
+
+      {/* Modal de extras para productos */}
+      <ProductExtrasModal
+        isOpen={showExtrasModal}
+        onClose={() => {
+          setShowExtrasModal(false);
+          setSelectedProductForExtras(null);
+          setEditingCartItem(null);
+        }}
+        product={selectedProductForExtras}
+        onConfirm={handleExtrasConfirm}
+        initialSelectedExtras={editingCartItem?.selectedExtras}
       />
 
       {/* Notificación de producto agregado */}

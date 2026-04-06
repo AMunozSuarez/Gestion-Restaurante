@@ -64,7 +64,7 @@ const printOrderTicket = async (req, res) => {
     const { printerName, copies = 1, printOrderNumber = true } = req.body;
 
     const order = await Order.findById(orderId)
-      .populate('foods.food')
+      .populate('foods.food', 'title price category extraSections')
       .populate('buyer')
       .populate('restaurant');
 
@@ -111,7 +111,7 @@ const printKitchenTicket = async (req, res) => {
     const { printerName, copies = 1 } = req.body;
 
     const order = await Order.findById(orderId)
-      .populate('foods.food')
+      .populate('foods.food', 'title price category extraSections')
       .populate('buyer')
       .populate('restaurant');
 

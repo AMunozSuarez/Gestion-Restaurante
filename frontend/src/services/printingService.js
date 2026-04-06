@@ -337,6 +337,7 @@ No. Orden: #${orderNumber}
         product_name: item.name || 'Producto',
         quantity: item.quantity || 1,
         notes: item.comment || '',
+        selectedExtras: item.selectedExtras || [],
         isNew: item.isNew || false
       }));
     }
@@ -347,6 +348,7 @@ No. Orden: #${orderNumber}
         product_id: item.food?._id || item.food,
         quantity: item.quantity || 1,
         notes: item.comment || '',
+        selectedExtras: item.selectedExtras || [],
         isNew: false
       }));
 
@@ -383,6 +385,7 @@ No. Orden: #${orderNumber}
         product_name: item.product_name || item.name || item.title || 'Producto',
         quantity: item.quantity || 1,
         notes: item.notes || item.comment || '',
+        selectedExtras: item.selectedExtras || [],
         isNew: false
       }));
     }
@@ -392,6 +395,7 @@ No. Orden: #${orderNumber}
         product_name: item.product_name || item.name || item.title || 'Producto',
         quantity: item.quantity || 1,
         notes: item.notes || item.comment || '',
+        selectedExtras: item.selectedExtras || [],
         isNew: false
       }));
     }
@@ -412,6 +416,30 @@ No. Orden: #${orderNumber}
       // Normalizar nombre del producto para eliminar caracteres especiales
       const normalizedProductName = normalizeText(item.product_name);
       content += `${item.isNew ? '* ' : ''}${item.quantity}x ${normalizedProductName}\n`;
+      
+      // Agregar extras si existen
+      if (item.selectedExtras && Array.isArray(item.selectedExtras) && item.selectedExtras.length > 0) {
+        // Agrupar extras por sección
+        const extrasBySection = {};
+        item.selectedExtras.forEach(extra => {
+          const section = extra.sectionName || 'Extras';
+          if (!extrasBySection[section]) {
+            extrasBySection[section] = [];
+          }
+          extrasBySection[section].push(extra);
+        });
+        
+        // Imprimir extras agrupados por sección
+        Object.keys(extrasBySection).forEach(sectionName => {
+          const normalizedSection = normalizeText(sectionName);
+          content += `   ${normalizedSection}:\n`;
+          extrasBySection[sectionName].forEach(extra => {
+            const normalizedExtraName = normalizeText(extra.extraName);
+            content += `     - ${normalizedExtraName}\n`;
+          });
+        });
+      }
+      
       if (item.notes && item.notes.trim()) {
         // Normalizar notas del producto
         const normalizedNotes = normalizeText(item.notes);
@@ -667,27 +695,32 @@ Cliente: ${customer}`;
         product_name: item.food?.title || item.food?.name || 'Producto',
         quantity: item.quantity || 1,
         price: item.food?.price || 0,
-        notes: item.comment || ''
+        notes: item.comment || '',
+        selectedExtras: item.selectedExtras || []
       }));
     } else if (order.items && Array.isArray(order.items)) {
       items = order.items.map(item => ({
         product_name: item.product_name || item.name || item.title || 'Producto',
         quantity: item.quantity || 1,
         price: item.price || 0,
-        notes: item.notes || item.comment || ''
+        notes: item.notes || item.comment || '',
+        selectedExtras: item.selectedExtras || []
       }));
     } else if (order.order_items && Array.isArray(order.order_items)) {
       items = order.order_items.map(item => ({
         product_name: item.product_name || item.name || item.title || 'Producto',
         quantity: item.quantity || 1,
         price: item.price || 0,
-        notes: item.notes || item.comment || ''
+        notes: item.notes || item.comment || '',
+        selectedExtras: item.selectedExtras || []
       }));
     }
 
     // Agregar cada producto al contenido
     items.forEach(item => {
-      const itemTotal = item.quantity * item.price;
+      // Calcular precio de extras
+      const extrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+      const itemTotal = item.quantity * (item.price + extrasTotal);
       subtotal += itemTotal;
       
       // Normalizar nombre del producto
@@ -713,6 +746,23 @@ Cliente: ${customer}`;
       const padding = ' '.repeat(paddingLength);
       
       content += `${displayLine}${padding}${formattedTotal}\n`;
+      
+      // Agregar extras si existen
+      if (item.selectedExtras && Array.isArray(item.selectedExtras) && item.selectedExtras.length > 0) {
+        item.selectedExtras.forEach(extra => {
+          const normalizedExtraName = normalizeText(extra.extraName);
+          if (extra.price > 0) {
+            const formattedExtraPrice = new Intl.NumberFormat('es-CL', {
+              style: 'currency',
+              currency: 'CLP',
+              minimumFractionDigits: 0
+            }).format(extra.price);
+            content += `   + ${normalizedExtraName} ${formattedExtraPrice}\n`;
+          } else {
+            content += `   + ${normalizedExtraName}\n`;
+          }
+        });
+      }
       
       if (item.notes && item.notes.trim()) {
         const normalizedNotes = normalizeText(item.notes);

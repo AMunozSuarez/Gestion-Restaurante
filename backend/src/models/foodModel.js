@@ -41,6 +41,32 @@ const foodSchema = new mongoose.Schema({
         ref: 'Restaurant',
         required: true
     },
+    extraSections: [{
+        sectionName: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        maxSelection: {
+            type: Number,
+            default: null // null = ilimitado, número = máximo de extras permitidos en esta sección
+        },
+        extras: [{
+            name: {
+                type: String,
+                required: true,
+                trim: true
+            },
+            price: {
+                type: Number,
+                default: 0
+            },
+            isAvailable: {
+                type: Boolean,
+                default: true
+            }
+        }]
+    }],
 
 
 

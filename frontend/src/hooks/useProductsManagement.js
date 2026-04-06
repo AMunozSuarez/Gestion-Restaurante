@@ -26,6 +26,7 @@ export const useProductsManagement = () => {
           category: food.category,
           isAvailable: food.isAvailable,
           imageUrl: food.imageUrl,
+          extraSections: food.extraSections || [], // ✅ Agregar extraSections
           createdAt: food.createdAt,
           updatedAt: food.updatedAt
         }));

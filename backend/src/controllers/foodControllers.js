@@ -5,13 +5,51 @@ const categoryModel = require('../models/categoryModel');
 // CREATE A NEW FOOD
 const createFoodController = async (req, res) => {
     try {
-        const { title, description, price, imageUrl, foodTags, category, code, isAvailable } = req.body;
+        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, extraSections } = req.body;
 
         if (!title || !price || !category) {
             return res.status(400).send({ 
                 success: false,
                 message: 'Please enter the food title, price and category' 
             });
+        }
+
+        // Validar extraSections si se proporcionan
+        if (extraSections && Array.isArray(extraSections)) {
+            for (const section of extraSections) {
+                if (!section.sectionName || !section.sectionName.trim()) {
+                    return res.status(400).send({
+                        success: false,
+                        message: 'Each extra section must have a section name'
+                    });
+                }
+                if (section.maxSelection !== null && section.maxSelection !== undefined && section.maxSelection < 0) {
+                    return res.status(400).send({
+                        success: false,
+                        message: 'maxSelection must be null (unlimited) or a positive number'
+                    });
+                }
+                if (!section.extras || !Array.isArray(section.extras)) {
+                    return res.status(400).send({
+                        success: false,
+                        message: 'Each extra section must have an extras array'
+                    });
+                }
+                for (const extra of section.extras) {
+                    if (!extra.name || !extra.name.trim()) {
+                        return res.status(400).send({
+                            success: false,
+                            message: 'Each extra must have a name'
+                        });
+                    }
+                    if (extra.price !== undefined && extra.price < 0) {
+                        return res.status(400).send({
+                            success: false,
+                            message: 'Extra price cannot be negative'
+                        });
+                    }
+                }
+            }
         }
 
         const food = new foodModel({
@@ -23,7 +61,8 @@ const createFoodController = async (req, res) => {
             category,
             code,
             isAvailable,
-            restaurant: req.user.restaurant // Asocia el alimento al restaurante del usuario logueado
+            extraSections: extraSections || [], // Array vacío por defecto
+            restaurant: req.user.restaurant
         });
 
         await food.save();
@@ -144,7 +183,45 @@ const getFoodByRestaurantIdController = async (req, res) => {
 // UPDATE A FOOD BY ID
 const updateFoodController = async (req, res) => {
     try {
-        const { title, description, price, imageUrl, foodTags, category, code, isAvailable } = req.body;
+        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, extraSections } = req.body;
+
+        // Validar extraSections si se proporcionan
+        if (extraSections && Array.isArray(extraSections)) {
+            for (const section of extraSections) {
+                if (!section.sectionName || !section.sectionName.trim()) {
+                    return res.status(400).send({
+                        success: false,
+                        message: 'Each extra section must have a section name'
+                    });
+                }
+                if (section.maxSelection !== null && section.maxSelection !== undefined && section.maxSelection < 0) {
+                    return res.status(400).send({
+                        success: false,
+                        message: 'maxSelection must be null (unlimited) or a positive number'
+                    });
+                }
+                if (!section.extras || !Array.isArray(section.extras)) {
+                    return res.status(400).send({
+                        success: false,
+                        message: 'Each extra section must have an extras array'
+                    });
+                }
+                for (const extra of section.extras) {
+                    if (!extra.name || !extra.name.trim()) {
+                        return res.status(400).send({
+                            success: false,
+                            message: 'Each extra must have a name'
+                        });
+                    }
+                    if (extra.price !== undefined && extra.price < 0) {
+                        return res.status(400).send({
+                            success: false,
+                            message: 'Extra price cannot be negative'
+                        });
+                    }
+                }
+            }
+        }
 
         // Si se está intentando activar el producto, verificar que la categoría esté activa
         if (isAvailable === true) {
@@ -179,9 +256,17 @@ const updateFoodController = async (req, res) => {
             }
         }
 
+        // Preparar objeto de actualización
+        const updateData = { title, description, price, imageUrl, foodTags, category, code, isAvailable };
+        
+        // Solo actualizar extraSections si se proporciona
+        if (extraSections !== undefined) {
+            updateData.extraSections = extraSections;
+        }
+
         const updatedFood = await foodModel.findOneAndUpdate(
-            { _id: req.params.id, restaurant: req.user.restaurant }, // Filtra por restaurante
-            { title, description, price, imageUrl, foodTags, category, code, isAvailable },
+            { _id: req.params.id, restaurant: req.user.restaurant },
+            updateData,
             { new: true }
         );
 
