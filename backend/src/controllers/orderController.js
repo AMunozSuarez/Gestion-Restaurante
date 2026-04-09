@@ -356,10 +356,6 @@ const updateOrderController = async (req, res) => {
 
         const restaurantId = req.user.restaurant;
 
-        // Log temporal para debug
-        if (newFoods && newFoods.length > 0) {
-            console.log('📲 newFoods recibido:', JSON.stringify(newFoods, null, 2));
-        }
 
         // Preparar objeto de actualización con campos simples
         const updateData = {};
@@ -550,14 +546,6 @@ const updateOrderController = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Pedido no encontrado o no pertenece a este restaurante' });
         }
 
-        // Debug: verificar selectedExtras después de guardar
-        const savedFoodsWithExtras = populatedOrder.foods?.filter(f => f.selectedExtras && f.selectedExtras.length > 0) || [];
-        console.log('🔍 DEBUG updateOrder - Después de guardar, foods con selectedExtras:', savedFoodsWithExtras.length);
-        if (savedFoodsWithExtras.length > 0) {
-            console.log('🔍 DEBUG updateOrder - selectedExtras guardados:', JSON.stringify(savedFoodsWithExtras.map(f => ({ food: f.food?._id || f.food, selectedExtras: f.selectedExtras })), null, 2));
-        } else {
-            console.log('⚠️ DEBUG updateOrder - NO HAY selectedExtras en la orden guardada. updateData.foods tenía:', JSON.stringify(updateData.foods?.map(f => ({ food: f.food, selectedExtras: f.selectedExtras })), null, 2));
-        }
 
         // Emit socket event for real-time updates
         try {
@@ -566,6 +554,10 @@ const updateOrderController = async (req, res) => {
             if (newFoods && Array.isArray(newFoods) && newFoods.length > 0) {
                 payload.newFoods = newFoods;
                 console.log('📡 Emitiendo socket con newFoods:', newFoods.length, 'items');
+            }
+            if (deletedFoods && Array.isArray(deletedFoods) && deletedFoods.length > 0) {
+                payload.deletedFoods = deletedFoods;
+                console.log('📡 Emitiendo socket con deletedFoods:', deletedFoods.length, 'items');
             }
             getIO().to(`restaurant:${restaurantId}`).emit('order:updated', payload);
         } catch (socketErr) {

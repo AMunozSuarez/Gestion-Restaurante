@@ -29,6 +29,7 @@ const Configuracion = () => {
 
   // Verificar si el usuario es propietario o super admin
   const isOwnerOrAdmin = user && (user.role === 'owner' || user.role === 'super_admin');
+  const isOwner = user && user.role === 'owner';
 
   // Estados para impresoras
   const [printers, setPrinters] = useState([]);
@@ -42,6 +43,10 @@ const Configuracion = () => {
   const [savingFont, setSavingFont] = useState(false);
   const [testingFont, setTestingFont] = useState(false);
   const [updatePrintMode, setUpdatePrintMode] = useState(() => printingService.getUpdatePrintMode());
+  const [reprintTicketOnCloseTable, setReprintTicketOnCloseTable] = useState(() => printingService.getReprintTicketOnCloseTable());
+  const [printOnDeletedItemsUpdate, setPrintOnDeletedItemsUpdate] = useState(() => printingService.getPrintOnDeletedItemsUpdate());
+  const [onlyOwnerCanCloseTable, setOnlyOwnerCanCloseTable] = useState(() => printingService.getOnlyOwnerCanCloseTable());
+  const [avoidDuplicateKitchenUpdatePrint, setAvoidDuplicateKitchenUpdatePrint] = useState(() => printingService.getAvoidDuplicateKitchenUpdatePrint());
 
   // Estados para multi-impresora
   const [printerRoles, setPrinterRoles] = useState(() => printerConfigService.getPrinterRoles());
@@ -83,6 +88,11 @@ const Configuracion = () => {
       loadSavedPrinters();
       loadFontSettings();
       loadCategoriesForPrinting();
+      setUpdatePrintMode(printingService.getUpdatePrintMode());
+      setReprintTicketOnCloseTable(printingService.getReprintTicketOnCloseTable());
+      setPrintOnDeletedItemsUpdate(printingService.getPrintOnDeletedItemsUpdate());
+      setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
+      setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
     } else if (activeTab === 'subscription' && isOwnerOrAdmin) {
       loadSubscription();
     } else if (activeTab === 'users' && isOwnerOrAdmin) {
@@ -194,6 +204,54 @@ const Configuracion = () => {
       text: mode === 'new-only' 
         ? 'Al actualizar comandas, se imprimirán solo los productos nuevos' 
         : 'Al actualizar comandas, se imprimirá toda la comanda con productos nuevos marcados con *'
+    });
+  };
+
+  // Activar o desactivar reimpresion de ticket al cerrar mesa
+  const handleReprintTicketOnCloseTableChange = (enabled) => {
+    setReprintTicketOnCloseTable(enabled);
+    printingService.setReprintTicketOnCloseTable(enabled);
+    setMessage({
+      type: 'success',
+      text: enabled
+        ? 'Al cerrar mesa se reimprimirá el ticket de cliente automáticamente'
+        : 'Reimpresión automática de ticket al cerrar mesa desactivada'
+    });
+  };
+
+  // Activar o desactivar impresion de actualizacion cuando hay productos eliminados
+  const handlePrintOnDeletedItemsUpdateChange = (enabled) => {
+    setPrintOnDeletedItemsUpdate(enabled);
+    printingService.setPrintOnDeletedItemsUpdate(enabled);
+    setMessage({
+      type: 'success',
+      text: enabled
+        ? 'Se imprimirá actualización de cocina cuando se eliminen productos'
+        : 'No se imprimirá actualización cuando solo se eliminen productos'
+    });
+  };
+
+  // Activar o desactivar cierre de mesa solo para owner
+  const handleOnlyOwnerCanCloseTableChange = (enabled) => {
+    setOnlyOwnerCanCloseTable(enabled);
+    printingService.setOnlyOwnerCanCloseTable(enabled);
+    setMessage({
+      type: 'success',
+      text: enabled
+        ? 'Solo el dueño podrá cerrar mesas desde este equipo'
+        : 'Cualquier usuario con acceso podrá cerrar mesas'
+    });
+  };
+
+  // Activar o desactivar prevención de reimpresión duplicada en actualizaciones
+  const handleAvoidDuplicateKitchenUpdatePrintChange = (enabled) => {
+    setAvoidDuplicateKitchenUpdatePrint(enabled);
+    printingService.setAvoidDuplicateKitchenUpdatePrint(enabled);
+    setMessage({
+      type: 'success',
+      text: enabled
+        ? 'No se reimprimirá la misma comanda al actualizar o reenviar a cocina'
+        : 'Se permitirá reimprimir la comanda al actualizar o reenviar'
     });
   };
 
@@ -888,7 +946,13 @@ const Configuracion = () => {
               </div>
 
               {/* Lista de impresoras */}
-              {serviceStatus === 'online' ? (
+              {serviceStatus === 'checking' ? (
+                <div className="text-center py-8">
+                  <ArrowPathIcon className="w-10 h-10 text-yellow-500 mx-auto mb-3 animate-spin" />
+                  <p className="text-gray-600 font-medium">Verificando servicio de impresión...</p>
+                  <p className="text-sm text-gray-500 mt-1">Espera un momento mientras se detectan impresoras</p>
+                </div>
+              ) : serviceStatus === 'online' ? (
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -1158,6 +1222,99 @@ const Configuracion = () => {
                   Usa "Toda la comanda" si necesitas ver el contexto completo del pedido.
                 </p>
               </div>
+
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Imprimir al eliminar productos</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Si está activo, al reenviar/actualizar a cocina se imprimirá también cuando solo elimines productos.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handlePrintOnDeletedItemsUpdateChange(!printOnDeletedItemsUpdate)}
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${printOnDeletedItemsUpdate ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                      aria-pressed={printOnDeletedItemsUpdate}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${printOnDeletedItemsUpdate ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Reimprimir ticket al cerrar mesa</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Si está activo, al completar y cerrar una mesa se volverá a imprimir el ticket del cliente automáticamente.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleReprintTicketOnCloseTableChange(!reprintTicketOnCloseTable)}
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${reprintTicketOnCloseTable ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                      aria-pressed={reprintTicketOnCloseTable}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${reprintTicketOnCloseTable ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {isOwner && (
+                <div className="mt-4 p-4 border border-amber-200 rounded-lg bg-amber-50">
+                  <p className="text-sm font-semibold text-amber-900 mb-3">Opciones avanzadas (solo dueño)</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 border border-amber-200 rounded-lg bg-white">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Solo dueño puede cerrar mesa</p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Si está activo, usuarios que no sean dueño no podrán cerrar mesas.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOnlyOwnerCanCloseTableChange(!onlyOwnerCanCloseTable)}
+                          className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${onlyOwnerCanCloseTable ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                          aria-pressed={onlyOwnerCanCloseTable}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${onlyOwnerCanCloseTable ? 'translate-x-5' : 'translate-x-0.5'}`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-4 border border-amber-200 rounded-lg bg-white">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">No reimprimir al actualizar/reenviar</p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Evita reimprimir la misma actualización de comanda cuando se envía de nuevo sin cambios.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleAvoidDuplicateKitchenUpdatePrintChange(!avoidDuplicateKitchenUpdatePrint)}
+                          className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${avoidDuplicateKitchenUpdatePrint ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                          aria-pressed={avoidDuplicateKitchenUpdatePrint}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${avoidDuplicateKitchenUpdatePrint ? 'translate-x-5' : 'translate-x-0.5'}`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Asignación de Impresoras por Sección */}

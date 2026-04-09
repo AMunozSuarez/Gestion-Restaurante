@@ -31,6 +31,41 @@ const normalizeText = (text) => {
     .replace(/Ú/g, 'U');
 };
 
+const normalizePrintItemsForSignature = (items = []) => {
+  if (!Array.isArray(items)) return [];
+
+  return items
+    .map((item) => {
+      const foodId = item?.food?._id || item?.food || item?.id || '';
+      const foodName = item?.name || item?.food?.title || item?.food?.name || '';
+      const quantity = Number(item?.quantity || 0);
+      const comment = item?.comment || '';
+      const extras = Array.isArray(item?.selectedExtras)
+        ? item.selectedExtras
+            .map((extra) => ({
+              sectionName: extra?.sectionName || '',
+              extraName: extra?.extraName || '',
+              price: Number(extra?.price || 0),
+            }))
+            .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+        : [];
+
+      return {
+        foodId: String(foodId),
+        foodName: String(foodName),
+        quantity,
+        comment: String(comment),
+        extras,
+      };
+    })
+    .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+};
+
+const getSinglePrintItemSignature = (item = {}) => {
+  const [normalizedItem] = normalizePrintItemsForSignature([item]);
+  return JSON.stringify(normalizedItem || {});
+};
+
 // Servicio de impresion
 export const printingService = {
   // Verificar el estado del servicio de impresion
@@ -234,6 +269,246 @@ la fuente esta configurada bien.
     localStorage.setItem('updatePrintMode', mode);
   },
 
+  // Obtener si se debe reimprimir ticket al cerrar mesa
+  getReprintTicketOnCloseTable() {
+    try {
+      return localStorage.getItem('reprintTicketOnCloseTable') === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  // Guardar preferencia de reimpresion de ticket al cerrar mesa
+  setReprintTicketOnCloseTable(enabled) {
+    localStorage.setItem('reprintTicketOnCloseTable', String(Boolean(enabled)));
+  },
+
+  // Obtener si se imprime actualizacion al eliminar productos
+  getPrintOnDeletedItemsUpdate() {
+    try {
+      return localStorage.getItem('printOnDeletedItemsUpdate') === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  // Guardar preferencia para imprimir actualizaciones con productos eliminados
+  setPrintOnDeletedItemsUpdate(enabled) {
+    localStorage.setItem('printOnDeletedItemsUpdate', String(Boolean(enabled)));
+  },
+
+  // Obtener si solo el dueño puede cerrar mesas
+  getOnlyOwnerCanCloseTable() {
+    try {
+      return localStorage.getItem('onlyOwnerCanCloseTable') === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  // Guardar preferencia para permitir cierre de mesa solo a owner
+  setOnlyOwnerCanCloseTable(enabled) {
+    localStorage.setItem('onlyOwnerCanCloseTable', String(Boolean(enabled)));
+  },
+
+  // Obtener si se evita reimprimir la misma comanda al actualizar/reenviar
+  getAvoidDuplicateKitchenUpdatePrint() {
+    try {
+      return localStorage.getItem('avoidDuplicateKitchenUpdatePrint') === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  // Guardar preferencia para evitar reimpresiones duplicadas de actualizaciones
+  setAvoidDuplicateKitchenUpdatePrint(enabled) {
+    localStorage.setItem('avoidDuplicateKitchenUpdatePrint', String(Boolean(enabled)));
+  },
+
+  // Firma estable para detectar reenvíos idénticos en actualizaciones de cocina
+  getKitchenUpdatePrintSignature(orderId, options = {}) {
+    const payload = {
+      orderId: String(orderId || ''),
+      newFoods: normalizePrintItemsForSignature(options.newFoods || []),
+      deletedFoods: normalizePrintItemsForSignature(options.deletedFoods || []),
+      allFoods: normalizePrintItemsForSignature(options.allFoods || []),
+    };
+    return JSON.stringify(payload);
+  },
+
+  // Verifica si la actualización ya fue impresa antes (con opción habilitada)
+  shouldSkipDuplicateKitchenUpdatePrint(orderId, options = {}) {
+    if (!this.getAvoidDuplicateKitchenUpdatePrint()) return false;
+    if (!orderId) return false;
+
+    try {
+      const key = `lastKitchenUpdatePrint:${orderId}`;
+      const currentSignature = this.getKitchenUpdatePrintSignature(orderId, options);
+      const previousSignature = localStorage.getItem(key);
+      return Boolean(previousSignature && previousSignature === currentSignature);
+    } catch {
+      return false;
+    }
+  },
+
+  // Guarda la última firma impresa de actualización
+  markKitchenUpdatePrint(orderId, options = {}) {
+    if (!orderId) return;
+    try {
+      const key = `lastKitchenUpdatePrint:${orderId}`;
+      const signature = this.getKitchenUpdatePrintSignature(orderId, options);
+      localStorage.setItem(key, signature);
+    } catch {
+      // No-op si localStorage no está disponible
+    }
+  },
+
+  // Obtiene solo productos eliminados que aun no se han impreso para esta orden
+  getUnprintedDeletedFoodsForOrder(orderId, deletedFoods = []) {
+    if (!orderId || !Array.isArray(deletedFoods) || deletedFoods.length === 0) return [];
+
+    try {
+      const key = `printedDeletedFoods:${orderId}`;
+      const stored = JSON.parse(localStorage.getItem(key) || '[]');
+      const printedSet = new Set(Array.isArray(stored) ? stored : []);
+
+      return deletedFoods.filter((item) => {
+        const signature = getSinglePrintItemSignature(item);
+        return !printedSet.has(signature);
+      });
+    } catch {
+      return deletedFoods;
+    }
+  },
+
+  // Marca productos eliminados como ya impresos para evitar reimpresiones
+  markDeletedFoodsPrintedForOrder(orderId, deletedFoods = []) {
+    if (!orderId || !Array.isArray(deletedFoods) || deletedFoods.length === 0) return;
+
+    try {
+      const key = `printedDeletedFoods:${orderId}`;
+      const stored = JSON.parse(localStorage.getItem(key) || '[]');
+      const printedSet = new Set(Array.isArray(stored) ? stored : []);
+
+      deletedFoods.forEach((item) => {
+        printedSet.add(getSinglePrintItemSignature(item));
+      });
+
+      localStorage.setItem(key, JSON.stringify(Array.from(printedSet)));
+    } catch {
+      // No-op si localStorage no está disponible
+    }
+  },
+
+  // Generar comanda de cancelacion (solo productos eliminados)
+  generateKitchenCancellationOrder(order, deletedFoods = []) {
+    const date = new Date();
+    const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
+
+    let customer = 'Cliente';
+    if (order.buyer && typeof order.buyer === 'object' && order.buyer.name) {
+      customer = normalizeText(order.buyer.name || order.name);
+    } else if (order.name) {
+      customer = normalizeText(order.name);
+    } else if (order.customer_name) {
+      customer = normalizeText(order.customer_name);
+    } else if (order.customerName) {
+      customer = normalizeText(order.customerName);
+    }
+
+    const orderType = order.section || order.order_type || order.orderType || 'Mostrador';
+    const isMesas = orderType.toLowerCase() === 'mesas';
+
+    const tableNumber = order.tableNumber || '';
+    let waiterName = '';
+    if (order.waiter && typeof order.waiter === 'object') {
+      waiterName = normalizeText(order.waiter.userName || order.waiter.name || '');
+    } else if (order.waiterName) {
+      waiterName = normalizeText(order.waiterName);
+    }
+
+    let content = `
+================================
+    *** CANCELACION PEDIDO ***
+================================
+
+No. Orden: #${orderNumber}
+`;
+
+    if (isMesas) {
+      if (tableNumber) content += `Mesa: ${tableNumber}\n`;
+      if (waiterName) content += `Garzon: ${waiterName}\n`;
+    } else {
+      content += `Cliente: ${customer}\n`;
+      content += `Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}\n`;
+    }
+
+    content += `Hora: ${date.toLocaleTimeString()}
+`;
+
+    content += `
+================================
+     PRODUCTOS CANCELADOS
+================================
+
+[BOLD]`;
+
+    deletedFoods.forEach((item) => {
+      const deletedName = normalizeText(item.name || item.food?.title || item.food?.name || 'Producto');
+      const deletedQty = item.quantity || 1;
+      content += `- ${deletedQty}x ${deletedName}\n`;
+
+      if (item.selectedExtras && Array.isArray(item.selectedExtras) && item.selectedExtras.length > 0) {
+        const extrasBySection = {};
+        item.selectedExtras.forEach(extra => {
+          const section = extra.sectionName || 'Extras';
+          if (!extrasBySection[section]) {
+            extrasBySection[section] = [];
+          }
+          extrasBySection[section].push(extra);
+        });
+
+        Object.keys(extrasBySection).forEach(sectionName => {
+          const normalizedSection = normalizeText(sectionName);
+          content += `   ${normalizedSection}:\n`;
+
+          const groupedExtras = {};
+          extrasBySection[sectionName].forEach(extra => {
+            const normalizedExtraName = normalizeText(extra.extraName || 'Extra');
+            const key = normalizedExtraName;
+            if (!groupedExtras[key]) {
+              groupedExtras[key] = { name: normalizedExtraName, count: 0 };
+            }
+            groupedExtras[key].count += 1;
+          });
+
+          Object.values(groupedExtras).forEach(extraGroup => {
+            const prefix = extraGroup.count > 1 ? `${extraGroup.count}x ` : '';
+            content += `     - ${prefix}${extraGroup.name}\n`;
+          });
+        });
+      }
+
+      const deletedComment = item.comment || '';
+      if (deletedComment.trim()) {
+        const normalizedNotes = normalizeText(deletedComment);
+        const noteLines = normalizedNotes.trim().split('\n');
+        noteLines.forEach((line, index) => {
+          if (index === 0) {
+            content += `   Nota: ${line}\n`;
+          } else {
+            content += `         ${line}\n`;
+          }
+        });
+      }
+
+      content += '\n';
+    });
+
+    content += `[/BOLD]\n================================`;
+    return content.trim();
+  },
+
   // Generar comanda de cocina
   generateKitchenOrder(order, options = {}) {
 
@@ -402,7 +677,7 @@ No. Orden: #${orderNumber}
 
     // Si es una actualización (update), verificar el modo de impresión configurado
     if (isUpdate && options.newFoods && options.newFoods.length > 0) {
-      const updateMode = this.getUpdatePrintMode();
+      const updateMode = options.forceNewOnly ? 'new-only' : this.getUpdatePrintMode();
       // Solo filtrar productos nuevos si el modo es 'new-only'
       if (updateMode === 'new-only') {
         items = items.filter(item => item.isNew === true);
@@ -433,9 +708,21 @@ No. Orden: #${orderNumber}
         Object.keys(extrasBySection).forEach(sectionName => {
           const normalizedSection = normalizeText(sectionName);
           content += `   ${normalizedSection}:\n`;
+
+          // Consolidar extras repetidos (misma sección + mismo nombre)
+          const groupedExtras = {};
           extrasBySection[sectionName].forEach(extra => {
-            const normalizedExtraName = normalizeText(extra.extraName);
-            content += `     - ${normalizedExtraName}\n`;
+            const normalizedExtraName = normalizeText(extra.extraName || 'Extra');
+            const key = normalizedExtraName;
+            if (!groupedExtras[key]) {
+              groupedExtras[key] = { name: normalizedExtraName, count: 0 };
+            }
+            groupedExtras[key].count += 1;
+          });
+
+          Object.values(groupedExtras).forEach(extraGroup => {
+            const prefix = extraGroup.count > 1 ? `${extraGroup.count}x ` : '';
+            content += `     - ${prefix}${extraGroup.name}\n`;
           });
         });
       }
@@ -584,6 +871,48 @@ No. Orden: #${orderNumber}
     }
     // Otherwise fallback to single printer
     return this.printKitchenOrderSingle(order, options);
+  },
+
+  // Imprimir ticket de cancelacion para productos eliminados
+  async printKitchenCancellationOrder(order, options = {}) {
+    const deletedFoods = Array.isArray(options.deletedFoods) ? options.deletedFoods : [];
+    if (deletedFoods.length === 0) {
+      return { success: false, error: 'No hay productos eliminados para imprimir' };
+    }
+
+    const content = this.generateKitchenCancellationOrder(order, deletedFoods);
+    const defaultPrinter = this.getDefaultPrinter();
+
+    if (defaultPrinter) {
+      return this.print(defaultPrinter, content, 1, true);
+    }
+
+    if (printerConfigService.hasMultiPrinterConfig()) {
+      const printerRoles = printerConfigService.getPrinterRoles();
+      const uniquePrinters = [...new Set(Object.values(printerRoles).filter(Boolean))];
+
+      if (uniquePrinters.length > 0) {
+        const results = [];
+        for (const printerName of uniquePrinters) {
+          try {
+            const result = await this.print(printerName, content, 1, true);
+            results.push({ printerName, ...result });
+          } catch (err) {
+            results.push({ printerName, success: false, error: err.message });
+          }
+        }
+
+        const allSuccess = results.every(r => r.success);
+        return {
+          success: allSuccess,
+          data: results,
+          error: allSuccess ? null : 'Algunas cancelaciones no se pudieron imprimir',
+          details: results,
+        };
+      }
+    }
+
+    return this.printWithDefault(content, 1, true);
   },
 
   // Generar ticket de cliente

@@ -24,12 +24,14 @@ import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import ProductExtrasModal from '../components/common/ProductExtrasModal';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import printingService from '../services/printingService';
+import { useAuth } from '../hooks/useAuth';
 
 const TableDetail = () => {
     const { tableId } = useParams();
     const navigate = useNavigate();
     const { table, isLoading: tableLoading, refetch: refetchTable } = useTable(tableId);
     const { closeTable, assignOrderToTable, assignWaiterToTable } = useTables();
+    const { user } = useAuth();
     const { isOpen: isCashOpen, isLoading: cashLoading } = useCashRegister();
     const { products } = useProducts({ available: true });
     const { searchResults, searchProducts } = useProductSearch();
@@ -67,6 +69,12 @@ const TableDetail = () => {
     const showNotification = (message, type = 'success', duration = 3000) => {
         setNotification({ message, type });
         setTimeout(() => setNotification(null), duration);
+    };
+
+    const canCurrentUserCloseTable = () => {
+        const onlyOwnerCanClose = printingService.getOnlyOwnerCanCloseTable();
+        if (!onlyOwnerCanClose) return true;
+        return user?.role === 'owner';
     };
 
     // Cargar pedido actual de la mesa si existe
@@ -375,6 +383,11 @@ const TableDetail = () => {
 
     // Abrir modal de pago o cerrar mesa vacía
     const handleOpenPayment = async () => {
+        if (!canCurrentUserCloseTable()) {
+            showNotification('Solo el dueño puede cerrar mesa con la configuración actual', 'warning');
+            return;
+        }
+
         // Si la mesa está vacía, cerrar directamente sin pago
         if (cart.length === 0) {
             try {
@@ -458,6 +471,11 @@ const TableDetail = () => {
 
     // Cerrar mesa y completar pago
     const handleCloseTable = async () => {
+        if (!canCurrentUserCloseTable()) {
+            showNotification('Solo el dueño puede cerrar mesa con la configuración actual', 'warning');
+            return;
+        }
+
         if (!isCashOpen) {
             setShowCashAlert(true);
             return;
@@ -532,10 +550,33 @@ const TableDetail = () => {
             const response = await updateOrder(table.currentOrder._id, orderData);
 
             if (response.success) {
-                showNotification('Mesa cerrada exitosamente', 'success', 2000);
+                let reprintFailed = false;
+
+                if (printingService.getReprintTicketOnCloseTable()) {
+                    try {
+                        await printingService.printCustomerTicket({
+                            ...(response.order || table.currentOrder),
+                            tableNumber: table.tableNumber,
+                            tip: suggestedTip || 0,
+                            discount: calculateDiscountAmount(),
+                            paymentMethods: orderData.paymentMethods,
+                        });
+                    } catch (printError) {
+                        reprintFailed = true;
+                        console.error('Error al reimprimir ticket al cerrar mesa:', printError);
+                    }
+                }
 
                 // Cerrar mesa usando el hook
                 await closeTable(tableId);
+
+                showNotification(
+                    reprintFailed
+                        ? 'Mesa cerrada. No se pudo reimprimir el ticket.'
+                        : 'Mesa cerrada exitosamente',
+                    reprintFailed ? 'warning' : 'success',
+                    2500
+                );
 
                 setTimeout(() => {
                     navigate('/mesas');

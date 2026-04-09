@@ -122,18 +122,47 @@ export const ordersService = {
       invalidateOrderCache(); // Invalidar caché tras actualizar
       markOwnUpdate(id); // Evitar doble impresión cuando llega el evento socket
       const isCompleting = updateData.status === 'Completado' || updateData.status === 'completed';
+      const newFoodsToPrint = Array.isArray(updateData.newFoods) ? updateData.newFoods : [];
+      const hasNewFoods = newFoodsToPrint.length > 0;
+      const rawDeletedFoods = Array.isArray(updateData.deletedFoods) ? updateData.deletedFoods : [];
+      const deletedFoodsToPrint = printingService.getUnprintedDeletedFoodsForOrder(id, rawDeletedFoods);
+      const shouldPrintDeletedUpdate = deletedFoodsToPrint.length > 0 && printingService.getPrintOnDeletedItemsUpdate();
+      const newFoodsPrintOptions = {
+        newFoods: newFoodsToPrint,
+        deletedFoods: [],
+        allFoods: updateData.allFoods || null,
+        forceNewOnly: true,
+      };
+      const skipDuplicateNewFoodsPrint = printingService.shouldSkipDuplicateKitchenUpdatePrint(id, newFoodsPrintOptions);
+
       if (!isCompleting && response.data && response.data.order) {
         try {
           const defaultPrinter = printingService.getDefaultPrinter();
           const hasMultiConfig = printerConfigService.hasMultiPrinterConfig();
           if (defaultPrinter || hasMultiConfig) {
             const categories = hasMultiConfig ? await getCachedCategories() : [];
-            await printingService.printKitchenOrder(response.data.order, {
-              newFoods: updateData.newFoods || [],
-              deletedFoods: updateData.deletedFoods || [],
-              allFoods: updateData.allFoods || null,
-              categories
-            });
+
+            // 1) Si hay productos nuevos, enviar inmediatamente comanda de actualización (solo nuevos/all según modo)
+            if (hasNewFoods && !skipDuplicateNewFoodsPrint) {
+              const newFoodsPrintResult = await printingService.printKitchenOrder(response.data.order, {
+                ...newFoodsPrintOptions,
+                categories,
+              });
+              if (newFoodsPrintResult?.success) {
+                printingService.markKitchenUpdatePrint(id, newFoodsPrintOptions);
+              }
+            }
+
+            // 2) Si hay productos eliminados, enviar comanda APARTE de cancelación
+            if (shouldPrintDeletedUpdate) {
+              const cancelPrintResult = await printingService.printKitchenCancellationOrder(response.data.order, {
+                deletedFoods: deletedFoodsToPrint,
+                categories,
+              });
+              if (cancelPrintResult?.success) {
+                printingService.markDeletedFoodsPrintedForOrder(id, deletedFoodsToPrint);
+              }
+            }
           }
         } catch (printError) {
           console.error('Error al imprimir comanda actualizada automáticamente:', printError);

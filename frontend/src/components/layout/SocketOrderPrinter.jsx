@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect } from 'react';
 import { onSocketEvent, getSocketId, isOwnUpdate } from '../../services/socketService';
 import printingService from '../../services/printingService';
 import printerConfigService from '../../services/printerConfigService';
@@ -48,9 +48,10 @@ const SocketOrderPrinter = () => {
       try {
         const hasMultiConfig = printerConfigService.hasMultiPrinterConfig();
         const categories = hasMultiConfig ? await getCachedCategories() : [];
-        await printingService.printKitchenOrder(order, { ...options, categories });
+        return await printingService.printKitchenOrder(order, { ...options, categories });
       } catch (err) {
         console.error('Error al imprimir comanda automática:', err);
+        return { success: false, error: err.message };
       }
     };
 
@@ -67,21 +68,40 @@ const SocketOrderPrinter = () => {
       }
     });
 
-    const unsubUpdated = onSocketEvent('order:updated', ({ order, newFoods, _fromSocketId }) => {
+    const unsubUpdated = onSocketEvent('order:updated', async ({ order, newFoods, deletedFoods, _fromSocketId }) => {
       if (!order) return;
+      const orderId = order._id || order.id;
       // Ignorar actualizaciones de este mismo cliente
       if (_fromSocketId && _fromSocketId === getSocketId()) return;
-      if (isOwnUpdate(order._id)) return;
+      if (isOwnUpdate(orderId)) return;
       // No imprimir si se está completando/cancelando
       if (order.status === 'Completado' || order.status === 'Cancelado') return;
 
-      // Solo imprimir si hay productos nuevos para agregar
       const hasNewFoods = Array.isArray(newFoods) && newFoods.length > 0;
-      if (!hasNewFoods) return;
+      const rawDeletedFoods = Array.isArray(deletedFoods) ? deletedFoods : [];
+      const deletedFoodsToPrint = printingService.getUnprintedDeletedFoodsForOrder(orderId, rawDeletedFoods);
+      const shouldPrintDeletedUpdates = printingService.getPrintOnDeletedItemsUpdate() && deletedFoodsToPrint.length > 0;
+      if (!hasNewFoods && !shouldPrintDeletedUpdates) return;
 
       if (canPrint()) {
-        // Pasar newFoods para que imprima solo los nuevos con asterisco
-        printOrder(order, { newFoods });
+        // 1) Comanda de actualización para productos nuevos
+        const newFoodsPrintOptions = { newFoods: newFoods || [], deletedFoods: [], forceNewOnly: true };
+        if (hasNewFoods && !printingService.shouldSkipDuplicateKitchenUpdatePrint(orderId, newFoodsPrintOptions)) {
+          const newFoodsPrintResult = await printOrder(order, newFoodsPrintOptions);
+          if (newFoodsPrintResult?.success) {
+            printingService.markKitchenUpdatePrint(orderId, newFoodsPrintOptions);
+          }
+        }
+
+        // 2) Comanda de cancelación separada para productos eliminados
+        if (shouldPrintDeletedUpdates) {
+          const cancelPrintResult = await printingService.printKitchenCancellationOrder(order, {
+            deletedFoods: deletedFoodsToPrint,
+          });
+          if (cancelPrintResult?.success) {
+            printingService.markDeletedFoodsPrintedForOrder(orderId, deletedFoodsToPrint);
+          }
+        }
       }
     });
 
