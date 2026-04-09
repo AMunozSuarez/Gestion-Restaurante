@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { formatChileanCurrency } from '../../utils/dateUtils';
 
-const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading }) => {
+const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading, cartItems = [] }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   if (!isOpen) return null;
@@ -22,6 +22,26 @@ const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading }) => 
   const filteredProducts = selectedCategory === 'all' 
     ? products 
     : categorizedProducts[selectedCategory] || [];
+
+  const getEntityId = (entity) => {
+    return entity?.id ?? entity?._id ?? entity?.food?._id ?? entity?.food;
+  };
+
+  const productQuantities = (Array.isArray(cartItems) ? cartItems : []).reduce((acc, item) => {
+    if (item?.deleted) {
+      return acc;
+    }
+
+    const itemId = getEntityId(item);
+    if (itemId === undefined || itemId === null) {
+      return acc;
+    }
+
+    const key = String(itemId);
+    const itemQuantity = Number(item?.quantity) > 0 ? Number(item.quantity) : 1;
+    acc[key] = (acc[key] || 0) + itemQuantity;
+    return acc;
+  }, {});
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -91,8 +111,25 @@ const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading }) => 
                   <div
                     key={product.id}
                     onClick={() => onAddToCart(product)}
-                    className="border border-gray-200 rounded-lg p-4 hover:border-orange-300 hover:shadow-md transition-all cursor-pointer group"
+                    className="relative border border-gray-200 rounded-lg p-4 hover:border-orange-300 hover:shadow-md transition-all cursor-pointer group"
                   >
+                    {(() => {
+                      const productId = getEntityId(product);
+                      const quantity = productId !== undefined && productId !== null
+                        ? (productQuantities[String(productId)] || 0)
+                        : 0;
+
+                      if (quantity <= 0) {
+                        return null;
+                      }
+
+                      return (
+                        <span className="absolute top-2 right-2 inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-orange-600 px-2 text-xs font-bold text-white shadow-sm">
+                          {quantity}
+                        </span>
+                      );
+                    })()}
+
                     <div className="text-xs text-gray-500 mb-1 uppercase tracking-wide">
                       {product.category?.title || product.category?.name || 'Sin categoría'}
                     </div>

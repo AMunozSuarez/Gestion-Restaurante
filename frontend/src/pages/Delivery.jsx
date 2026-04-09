@@ -3098,6 +3098,7 @@ const Delivery = () => {
         onClose={() => setShowProductModal(false)}
         products={products}
         onAddToCart={isEditingOrder ? addToEditCart : addToCart}
+        cartItems={isEditingOrder ? editCart : cart}
         isLoading={productsLoading}
       />
 

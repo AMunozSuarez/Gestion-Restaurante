@@ -978,6 +978,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
             onClose={() => setShowProductModal(false)}
             products={products}
             onAddToCart={handleAddProductFromModal}
+            cartItems={editingData.foods || []}
             isLoading={productsLoading}
           />
         )}

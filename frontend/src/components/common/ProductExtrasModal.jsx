@@ -14,6 +14,45 @@ const ProductExtrasModal = ({
   const wasOpenRef = useRef(false);
   const initialExtrasRef = useRef(initialSelectedExtras);
 
+  const normalizeInitialExtras = (extras = []) => {
+    const extrasMap = new Map();
+
+    extras.forEach((extra) => {
+      if (!extra?.sectionName || !extra?.extraName) {
+        return;
+      }
+
+      const key = `${extra.sectionName}|${extra.extraName}`;
+      const quantity = extra.quantity && extra.quantity > 0 ? extra.quantity : 1;
+
+      if (extrasMap.has(key)) {
+        const existing = extrasMap.get(key);
+        existing.quantity += quantity;
+      } else {
+        extrasMap.set(key, {
+          sectionName: extra.sectionName,
+          extraName: extra.extraName,
+          price: extra.price || 0,
+          quantity
+        });
+      }
+    });
+
+    return Array.from(extrasMap.values());
+  };
+
+  const flattenSelectedExtras = (extras = []) => {
+    return extras.flatMap((extra) => {
+      const quantity = extra.quantity || 0;
+
+      return Array.from({ length: quantity }, () => ({
+        sectionName: extra.sectionName,
+        extraName: extra.extraName,
+        price: extra.price || 0
+      }));
+    });
+  };
+
   // Mantener referencia actualizada de initialSelectedExtras
   initialExtrasRef.current = initialSelectedExtras;
 
@@ -21,7 +60,7 @@ const ProductExtrasModal = ({
     // Inicializar cuando el modal se abre (transición de cerrado a abierto)
     if (isOpen && !wasOpenRef.current) {
       const extras = Array.isArray(initialExtrasRef.current) ? initialExtrasRef.current : [];
-      setSelectedExtras(extras);
+      setSelectedExtras(normalizeInitialExtras(extras));
       setSectionErrors({});
     }
     // Limpiar cuando el modal se cierra (transición de abierto a cerrado)
@@ -36,72 +75,120 @@ const ProductExtrasModal = ({
     return null;
   }
 
-  const handleToggleExtra = (sectionName, extra) => {
-    const extraKey = `${sectionName}|${extra.name}`;
-    const isSelected = selectedExtras.some(e => 
-      e.sectionName === sectionName && e.extraName === extra.name
-    );
-
-    if (isSelected) {
-      // Deseleccionar
-      setSelectedExtras(prev => prev.filter(e => 
-        !(e.sectionName === sectionName && e.extraName === extra.name)
-      ));
-      // Limpiar error de esta sección si existe
-      setSectionErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[sectionName];
-        return newErrors;
-      });
-    } else {
-      // Verificar límite de selección
-      const section = product.extraSections.find(s => s.sectionName === sectionName);
-      const currentCount = selectedExtras.filter(e => e.sectionName === sectionName).length;
-      
-      if (section.maxSelection !== null && section.maxSelection !== undefined && currentCount >= section.maxSelection) {
-        // Mostrar error
-        setSectionErrors(prev => ({
-          ...prev,
-          [sectionName]: `Máximo ${section.maxSelection} ${section.maxSelection === 1 ? 'opción' : 'opciones'} permitida${section.maxSelection === 1 ? '' : 's'}`
-        }));
-        return;
-      }
-
-      // Seleccionar
-      setSelectedExtras(prev => [...prev, {
-        sectionName,
-        extraName: extra.name,
-        price: extra.price
-      }]);
-      // Limpiar error de esta sección si existe
-      setSectionErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[sectionName];
-        return newErrors;
-      });
-    }
+  const getSectionSelectedCount = (sectionName, extrasState = selectedExtras) => {
+    return extrasState
+      .filter(e => e.sectionName === sectionName)
+      .reduce((sum, extra) => sum + (extra.quantity || 0), 0);
   };
 
-  const isExtraSelected = (sectionName, extraName) => {
-    return selectedExtras.some(e => 
+  const getExtraQuantity = (sectionName, extraName) => {
+    const selectedExtra = selectedExtras.find(e => 
       e.sectionName === sectionName && e.extraName === extraName
     );
+
+    return selectedExtra?.quantity || 0;
   };
 
-  const getSectionSelectedCount = (sectionName) => {
-    return selectedExtras.filter(e => e.sectionName === sectionName).length;
+  const clearSectionError = (sectionName) => {
+    setSectionErrors(prev => {
+      if (!prev[sectionName]) {
+        return prev;
+      }
+
+      const newErrors = { ...prev };
+      delete newErrors[sectionName];
+      return newErrors;
+    });
+  };
+
+  const setSectionLimitError = (sectionName, maxSelection) => {
+    setSectionErrors(prev => ({
+      ...prev,
+      [sectionName]: `Máximo ${maxSelection} ${maxSelection === 1 ? 'opción' : 'opciones'} permitida${maxSelection === 1 ? '' : 's'}`
+    }));
+  };
+
+  const handleIncrementExtra = (section, extra) => {
+    const sectionName = section.sectionName;
+    const maxSelection = section.maxSelection;
+
+    setSelectedExtras(prev => {
+      const currentCount = getSectionSelectedCount(sectionName, prev);
+      const hasMaxSelection = maxSelection !== null && maxSelection !== undefined;
+
+      if (hasMaxSelection && currentCount >= maxSelection) {
+        setSectionLimitError(sectionName, maxSelection);
+        return prev;
+      }
+
+      const existingIndex = prev.findIndex(e =>
+        e.sectionName === sectionName && e.extraName === extra.name
+      );
+
+      let updated;
+      if (existingIndex >= 0) {
+        updated = prev.map((selectedExtra, index) =>
+          index === existingIndex
+            ? { ...selectedExtra, quantity: (selectedExtra.quantity || 0) + 1 }
+            : selectedExtra
+        );
+      } else {
+        updated = [
+          ...prev,
+          {
+            sectionName,
+            extraName: extra.name,
+            price: extra.price || 0,
+            quantity: 1
+          }
+        ];
+      }
+
+      clearSectionError(sectionName);
+      return updated;
+    });
+  };
+
+  const handleDecrementExtra = (sectionName, extraName) => {
+    setSelectedExtras(prev => {
+      const existingIndex = prev.findIndex(e =>
+        e.sectionName === sectionName && e.extraName === extraName
+      );
+
+      if (existingIndex < 0) {
+        return prev;
+      }
+
+      const target = prev[existingIndex];
+      if ((target.quantity || 0) <= 1) {
+        return prev.filter((_, index) => index !== existingIndex);
+      }
+
+      return prev.map((selectedExtra, index) =>
+        index === existingIndex
+          ? { ...selectedExtra, quantity: (selectedExtra.quantity || 0) - 1 }
+          : selectedExtra
+      );
+    });
+
+    clearSectionError(sectionName);
   };
 
   const calculateExtrasTotal = () => {
-    return selectedExtras.reduce((sum, extra) => sum + (extra.price || 0), 0);
+    return selectedExtras.reduce((sum, extra) => sum + ((extra.price || 0) * (extra.quantity || 0)), 0);
+  };
+
+  const getTotalSelectedExtras = () => {
+    return selectedExtras.reduce((sum, extra) => sum + (extra.quantity || 0), 0);
   };
 
   const handleConfirm = () => {
-    onConfirm(selectedExtras);
+    onConfirm(flattenSelectedExtras(selectedExtras));
     onClose();
   };
 
   const extrasTotal = calculateExtrasTotal();
+  const totalSelectedExtras = getTotalSelectedExtras();
   const totalWithExtras = (product.price || 0) + extrasTotal;
 
   return (
@@ -151,38 +238,82 @@ const ProductExtrasModal = ({
               {/* Lista de extras */}
               <div className="space-y-2">
                 {availableExtras.map((extra, extraIndex) => {
-                  const isSelected = isExtraSelected(section.sectionName, extra.name);
-                  const isDisabled = !isSelected && hasMaxSelection && selectedCount >= section.maxSelection;
+                  const quantity = getExtraQuantity(section.sectionName, extra.name);
+                  const isSelected = quantity > 0;
+                  const disableIncrement = hasMaxSelection && selectedCount >= section.maxSelection;
 
                   return (
-                    <label
+                    <div
                       key={extraIndex}
                       className={`
-                        flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all
+                        flex items-center justify-between p-3 rounded-lg border-2 transition-all
                         ${isSelected 
                           ? 'border-orange-500 bg-orange-50' 
-                          : isDisabled 
-                            ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                          : disableIncrement 
+                            ? 'border-gray-200 bg-gray-50 opacity-60'
                             : 'border-gray-200 hover:border-orange-300 bg-white'
                         }
                       `}
+                      onClick={() => {
+                        if (!disableIncrement) {
+                          handleIncrementExtra(section, extra);
+                        }
+                      }}
                     >
-                      <div className="flex items-center flex-1">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleExtra(section.sectionName, extra)}
-                          disabled={isDisabled}
-                          className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
-                        />
-                        <span className="ml-3 text-sm font-medium text-gray-900">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {isSelected ? (
+                          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-orange-600 px-2 text-xs font-bold text-white">
+                            {quantity}
+                          </span>
+                        ) : (
+                          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-gray-300 text-xs font-semibold text-gray-500">
+                            0
+                          </span>
+                        )}
+                        <span className="text-sm font-medium text-gray-900 truncate">
                           {extra.name}
                         </span>
                       </div>
-                      <span className={`text-sm font-semibold ${isSelected ? 'text-orange-600' : 'text-gray-600'}`}>
-                        {extra.price > 0 ? `+${formatChileanCurrency(extra.price)}` : 'Gratis'}
-                      </span>
-                    </label>
+
+                      <div className="flex items-center gap-2 ml-3">
+                        <span className={`text-sm font-semibold ${isSelected ? 'text-orange-600' : 'text-gray-600'}`}>
+                          {extra.price > 0 ? `+${formatChileanCurrency(extra.price)}` : 'Gratis'}
+                        </span>
+
+                        {quantity > 0 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDecrementExtra(section.sectionName, extra.name);
+                            }}
+                            className="h-7 w-7 rounded-full border border-orange-300 text-orange-600 hover:bg-orange-100"
+                            aria-label={`Quitar una unidad de ${extra.name}`}
+                          >
+                            -
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!disableIncrement) {
+                              handleIncrementExtra(section, extra);
+                            }
+                          }}
+                          disabled={disableIncrement}
+                          className={`h-7 w-7 rounded-full border font-semibold ${
+                            disableIncrement
+                              ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                              : 'border-orange-300 text-orange-600 hover:bg-orange-100'
+                          }`}
+                          aria-label={`Agregar una unidad de ${extra.name}`}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -222,7 +353,7 @@ const ProductExtrasModal = ({
           type="button"
           onClick={handleConfirm}
         >
-          Confirmar ({selectedExtras.length} extra{selectedExtras.length === 1 ? '' : 's'})
+          Confirmar ({totalSelectedExtras} extra{totalSelectedExtras === 1 ? '' : 's'})
         </Button>
       </div>
     </Modal>
