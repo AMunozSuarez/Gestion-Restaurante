@@ -93,7 +93,8 @@ const TableDetail = () => {
                 category: food.food?.category,
                 isOriginal: true,
                 isNew: false,
-                deleted: false
+                deleted: false,
+                isPendingDelete: false
             }));
 
             // Cargar productos eliminados si existen
@@ -111,7 +112,8 @@ const TableDetail = () => {
                     category: food.food?.category,
                     isOriginal: true,
                     isNew: false,
-                    deleted: true
+                    deleted: true,
+                    isPendingDelete: false
                 };
             });
 
@@ -223,13 +225,22 @@ const TableDetail = () => {
             if (item.cartId === cartId) {
                 // Si es un producto original de la orden, marcarlo como deleted
                 if (item.isOriginal && table.currentOrder) {
-                    return { ...item, deleted: true };
+                    return { ...item, deleted: true, isPendingDelete: true };
                 }
                 // Si es un producto nuevo, eliminarlo completamente
                 return null;
             }
             return item;
         }).filter(Boolean));
+    };
+
+    const restoreDeletedItem = (cartId) => {
+        setCart(prev => prev.map(item => {
+            if (item.cartId === cartId && item.deleted && item.isPendingDelete) {
+                return { ...item, deleted: false, isPendingDelete: false };
+            }
+            return item;
+        }));
     };
 
     const updateQuantity = (cartId, newQuantity) => {
@@ -1067,7 +1078,18 @@ const TableDetail = () => {
                                                 <div key={item.cartId} className="border border-red-200 bg-red-50 rounded-lg p-2 mb-2 opacity-60">
                                                     <div className="flex justify-between items-center">
                                                         <span className="text-sm line-through text-gray-500">{item.name} x{item.quantity}</span>
-                                                        <span className="text-xs text-red-600">{formatChileanCurrency(item.price * item.quantity)}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-red-600">{formatChileanCurrency(item.price * item.quantity)}</span>
+                                                            {item.isPendingDelete && (
+                                                                <button
+                                                                    onClick={() => restoreDeletedItem(item.cartId)}
+                                                                    className="text-xs px-2 py-1 rounded bg-red-100 hover:bg-red-200 text-red-700"
+                                                                    title="Deshacer eliminación"
+                                                                >
+                                                                    Deshacer
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}

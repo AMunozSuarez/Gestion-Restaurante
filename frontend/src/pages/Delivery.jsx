@@ -430,11 +430,23 @@ const Delivery = () => {
       if (!item) return prevCart;
       // Ítems originales: marcar como eliminado visualmente (no remover)
       if (item.isOriginal) {
-        return prevCart.map(i => i.cartId === cartId ? { ...i, deleted: true } : i);
+        return prevCart.map(i => i.cartId === cartId
+          ? { ...i, deleted: true, isPendingDelete: true }
+          : i);
       }
       // Ítems nuevos: remover directamente
       return prevCart.filter(i => i.cartId !== cartId);
     });
+  };
+
+  const restoreFromEditCart = (cartId) => {
+    setEditCart(prevCart =>
+      prevCart.map(item =>
+        item.cartId === cartId && item.deleted && item.isPendingDelete
+          ? { ...item, deleted: false, isPendingDelete: false }
+          : item
+      )
+    );
   };
 
   const updateQuantity = (productId, newQuantity, cartId = null) => {
@@ -1013,6 +1025,7 @@ const Delivery = () => {
         isOriginal: true,
         isNew: false,
         deleted: false,
+        isPendingDelete: false,
       };
     }) || [];
 
@@ -1039,6 +1052,7 @@ const Delivery = () => {
         isOriginal: true,
         isNew: false,
         deleted: true,
+        isPendingDelete: false,
       };
     });
     
@@ -2584,6 +2598,15 @@ const Delivery = () => {
                                   ) : item.deleted ? (
                                     <span className="text-xs text-red-400 line-through w-16 text-center">x{item.quantity}</span>
                                   ) : null}
+                                  {item.deleted && item.isPendingDelete && (
+                                    <button
+                                      onClick={() => restoreFromEditCart(item.cartId || item.id)}
+                                      className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-xs"
+                                      title="Deshacer eliminación"
+                                    >
+                                      Deshacer
+                                    </button>
+                                  )}
                                   {!item.deleted && (
                                     <button
                                       onClick={() => removeFromEditCart(item.cartId || item.id)}
