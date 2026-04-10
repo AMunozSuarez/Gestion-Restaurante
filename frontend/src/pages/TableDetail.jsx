@@ -74,7 +74,7 @@ const TableDetail = () => {
     const canCurrentUserCloseTable = () => {
         const onlyOwnerCanClose = printingService.getOnlyOwnerCanCloseTable();
         if (!onlyOwnerCanClose) return true;
-        return user?.role === 'owner';
+        return user?.role === 'owner' || user?.role === 'super_admin';
     };
 
     // Cargar pedido actual de la mesa si existe
@@ -384,7 +384,7 @@ const TableDetail = () => {
     // Abrir modal de pago o cerrar mesa vacía
     const handleOpenPayment = async () => {
         if (!canCurrentUserCloseTable()) {
-            showNotification('Solo el dueño puede cerrar mesa con la configuración actual', 'warning');
+            showNotification('Solo el dueño o super admin puede cerrar mesa con la configuración actual', 'warning');
             return;
         }
 
@@ -472,7 +472,7 @@ const TableDetail = () => {
     // Cerrar mesa y completar pago
     const handleCloseTable = async () => {
         if (!canCurrentUserCloseTable()) {
-            showNotification('Solo el dueño puede cerrar mesa con la configuración actual', 'warning');
+            showNotification('Solo el dueño o super admin puede cerrar mesa con la configuración actual', 'warning');
             return;
         }
 

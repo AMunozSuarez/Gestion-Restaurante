@@ -1,5 +1,6 @@
 import axios from 'axios';
 import printerConfigService from './printerConfigService';
+import restaurantService from './restaurantService';
 
 // Configuracion base para el servicio de impresion
 const PRINTING_SERVICE_URL = process.env.REACT_APP_PRINTING_SERVICE_URL || 'http://localhost:8088';
@@ -12,6 +13,151 @@ const printingApi = axios.create({
   },
   timeout: 10000, // 10 segundos de timeout
 });
+
+const RESTAURANT_SETTINGS_STORAGE_KEYS = {
+  updatePrintMode: 'updatePrintMode',
+  reprintTicketOnCloseTable: 'reprintTicketOnCloseTable',
+  printOnDeletedItemsUpdate: 'printOnDeletedItemsUpdate',
+  onlyOwnerCanCloseTable: 'onlyOwnerCanCloseTable',
+  avoidDuplicateKitchenUpdatePrint: 'avoidDuplicateKitchenUpdatePrint',
+};
+
+const DEFAULT_RESTAURANT_SETTINGS = {
+  updatePrintMode: 'all',
+  reprintTicketOnCloseTable: false,
+  printOnDeletedItemsUpdate: false,
+  onlyOwnerCanCloseTable: false,
+  avoidDuplicateKitchenUpdatePrint: false,
+};
+
+let restaurantSettingsCache = null;
+let restaurantSettingsSyncPromise = null;
+
+const parseBooleanValue = (value, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return fallback;
+};
+
+const readBooleanFromStorage = (key, fallback = false) => {
+  try {
+    return localStorage.getItem(key) === 'true';
+  } catch {
+    return fallback;
+  }
+};
+
+const readStringFromStorage = (key, fallback = '') => {
+  try {
+    return localStorage.getItem(key) || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const normalizeRestaurantSettings = (settings = {}) => {
+  const printing = settings?.printing || {};
+  const permissions = settings?.permissions || {};
+
+  const updatePrintMode = printing.updatePrintMode || settings.updatePrintMode || DEFAULT_RESTAURANT_SETTINGS.updatePrintMode;
+
+  return {
+    updatePrintMode: updatePrintMode === 'new-only' ? 'new-only' : 'all',
+    reprintTicketOnCloseTable: parseBooleanValue(
+      printing.reprintTicketOnCloseTable ?? settings.reprintTicketOnCloseTable,
+      DEFAULT_RESTAURANT_SETTINGS.reprintTicketOnCloseTable,
+    ),
+    printOnDeletedItemsUpdate: parseBooleanValue(
+      printing.printOnDeletedItemsUpdate ?? settings.printOnDeletedItemsUpdate,
+      DEFAULT_RESTAURANT_SETTINGS.printOnDeletedItemsUpdate,
+    ),
+    onlyOwnerCanCloseTable: parseBooleanValue(
+      permissions.onlyOwnerCanCloseTable ?? settings.onlyOwnerCanCloseTable,
+      DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanCloseTable,
+    ),
+    avoidDuplicateKitchenUpdatePrint: parseBooleanValue(
+      printing.avoidDuplicateKitchenUpdatePrint ?? settings.avoidDuplicateKitchenUpdatePrint,
+      DEFAULT_RESTAURANT_SETTINGS.avoidDuplicateKitchenUpdatePrint,
+    ),
+  };
+};
+
+const getRestaurantSettingsFromStorage = () => ({
+  updatePrintMode: readStringFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.updatePrintMode,
+    DEFAULT_RESTAURANT_SETTINGS.updatePrintMode,
+  ) === 'new-only'
+    ? 'new-only'
+    : 'all',
+  reprintTicketOnCloseTable: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.reprintTicketOnCloseTable,
+    DEFAULT_RESTAURANT_SETTINGS.reprintTicketOnCloseTable,
+  ),
+  printOnDeletedItemsUpdate: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.printOnDeletedItemsUpdate,
+    DEFAULT_RESTAURANT_SETTINGS.printOnDeletedItemsUpdate,
+  ),
+  onlyOwnerCanCloseTable: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanCloseTable,
+    DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanCloseTable,
+  ),
+  avoidDuplicateKitchenUpdatePrint: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
+    DEFAULT_RESTAURANT_SETTINGS.avoidDuplicateKitchenUpdatePrint,
+  ),
+});
+
+const getRestaurantSettingsSnapshot = () => {
+  if (!restaurantSettingsCache) {
+    restaurantSettingsCache = getRestaurantSettingsFromStorage();
+  }
+  return { ...restaurantSettingsCache };
+};
+
+const applyRestaurantSettingsLocally = (settings = {}) => {
+  const normalized = normalizeRestaurantSettings(settings);
+  restaurantSettingsCache = normalized;
+
+  try {
+    localStorage.setItem(RESTAURANT_SETTINGS_STORAGE_KEYS.updatePrintMode, normalized.updatePrintMode);
+    localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.reprintTicketOnCloseTable,
+      String(Boolean(normalized.reprintTicketOnCloseTable)),
+    );
+    localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.printOnDeletedItemsUpdate,
+      String(Boolean(normalized.printOnDeletedItemsUpdate)),
+    );
+    localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanCloseTable,
+      String(Boolean(normalized.onlyOwnerCanCloseTable)),
+    );
+    localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
+      String(Boolean(normalized.avoidDuplicateKitchenUpdatePrint)),
+    );
+  } catch {
+    // No-op si localStorage no está disponible
+  }
+
+  return normalized;
+};
+
+const buildRestaurantSettingsPayload = (settings = {}) => {
+  const normalized = normalizeRestaurantSettings(settings);
+  return {
+    printing: {
+      updatePrintMode: normalized.updatePrintMode,
+      reprintTicketOnCloseTable: normalized.reprintTicketOnCloseTable,
+      printOnDeletedItemsUpdate: normalized.printOnDeletedItemsUpdate,
+      avoidDuplicateKitchenUpdatePrint: normalized.avoidDuplicateKitchenUpdatePrint,
+    },
+    permissions: {
+      onlyOwnerCanCloseTable: normalized.onlyOwnerCanCloseTable,
+    },
+  };
+};
 
 // Funcion auxiliar para normalizar texto y eliminar caracteres especiales
 const normalizeText = (text) => {
@@ -254,75 +400,122 @@ la fuente esta configurada bien.
 
   // Obtener modo de impresion de actualizaciones
   getUpdatePrintMode() {
-    try {
-      const saved = localStorage.getItem('updatePrintMode');
-      // 'all' = imprimir toda la comanda con asteriscos (original)
-      // 'new-only' = imprimir solo productos nuevos
-      return saved || 'all';
-    } catch {
-      return 'all';
-    }
+    return getRestaurantSettingsSnapshot().updatePrintMode;
   },
 
   // Guardar modo de impresion de actualizaciones
   setUpdatePrintMode(mode) {
-    localStorage.setItem('updatePrintMode', mode);
+    const normalizedMode = mode === 'new-only' ? 'new-only' : 'all';
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      updatePrintMode: normalizedMode,
+    });
   },
 
   // Obtener si se debe reimprimir ticket al cerrar mesa
   getReprintTicketOnCloseTable() {
-    try {
-      return localStorage.getItem('reprintTicketOnCloseTable') === 'true';
-    } catch {
-      return false;
-    }
+    return getRestaurantSettingsSnapshot().reprintTicketOnCloseTable;
   },
 
   // Guardar preferencia de reimpresion de ticket al cerrar mesa
   setReprintTicketOnCloseTable(enabled) {
-    localStorage.setItem('reprintTicketOnCloseTable', String(Boolean(enabled)));
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      reprintTicketOnCloseTable: Boolean(enabled),
+    });
   },
 
   // Obtener si se imprime actualizacion al eliminar productos
   getPrintOnDeletedItemsUpdate() {
-    try {
-      return localStorage.getItem('printOnDeletedItemsUpdate') === 'true';
-    } catch {
-      return false;
-    }
+    return getRestaurantSettingsSnapshot().printOnDeletedItemsUpdate;
   },
 
   // Guardar preferencia para imprimir actualizaciones con productos eliminados
   setPrintOnDeletedItemsUpdate(enabled) {
-    localStorage.setItem('printOnDeletedItemsUpdate', String(Boolean(enabled)));
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      printOnDeletedItemsUpdate: Boolean(enabled),
+    });
   },
 
   // Obtener si solo el dueño puede cerrar mesas
   getOnlyOwnerCanCloseTable() {
-    try {
-      return localStorage.getItem('onlyOwnerCanCloseTable') === 'true';
-    } catch {
-      return false;
-    }
+    return getRestaurantSettingsSnapshot().onlyOwnerCanCloseTable;
   },
 
   // Guardar preferencia para permitir cierre de mesa solo a owner
   setOnlyOwnerCanCloseTable(enabled) {
-    localStorage.setItem('onlyOwnerCanCloseTable', String(Boolean(enabled)));
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      onlyOwnerCanCloseTable: Boolean(enabled),
+    });
   },
 
   // Obtener si se evita reimprimir la misma comanda al actualizar/reenviar
   getAvoidDuplicateKitchenUpdatePrint() {
-    try {
-      return localStorage.getItem('avoidDuplicateKitchenUpdatePrint') === 'true';
-    } catch {
-      return false;
-    }
+    return getRestaurantSettingsSnapshot().avoidDuplicateKitchenUpdatePrint;
   },
 
   // Guardar preferencia para evitar reimpresiones duplicadas de actualizaciones
   setAvoidDuplicateKitchenUpdatePrint(enabled) {
-    localStorage.setItem('avoidDuplicateKitchenUpdatePrint', String(Boolean(enabled)));
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      avoidDuplicateKitchenUpdatePrint: Boolean(enabled),
+    });
+  },
+
+  // Sincronizar configuración compartida desde backend hacia caché/localStorage
+  async syncRestaurantSettingsFromBackend(force = false) {
+    if (!force && restaurantSettingsSyncPromise) {
+      return restaurantSettingsSyncPromise;
+    }
+
+    restaurantSettingsSyncPromise = (async () => {
+      try {
+        const response = await restaurantService.getMyRestaurantSettings();
+        const normalized = applyRestaurantSettingsLocally(response?.settings || {});
+        return { success: true, data: normalized };
+      } catch (error) {
+        return {
+          success: false,
+          data: getRestaurantSettingsSnapshot(),
+          error: error.message || 'No se pudo sincronizar la configuración del restaurante',
+        };
+      } finally {
+        restaurantSettingsSyncPromise = null;
+      }
+    })();
+
+    return restaurantSettingsSyncPromise;
+  },
+
+  // Guardar configuración compartida en backend y sincronizar caché/localStorage
+  async saveRestaurantSettingsToBackend(partialSettings = {}) {
+    const nextSnapshot = {
+      ...getRestaurantSettingsSnapshot(),
+      ...partialSettings,
+    };
+
+    applyRestaurantSettingsLocally(nextSnapshot);
+
+    try {
+      const payload = buildRestaurantSettingsPayload(nextSnapshot);
+      const response = await restaurantService.updateMyRestaurantSettings(payload);
+      const normalized = applyRestaurantSettingsLocally(response?.settings || payload);
+      return { success: true, data: normalized };
+    } catch (error) {
+      return {
+        success: false,
+        data: getRestaurantSettingsSnapshot(),
+        error: error.message || 'No se pudo guardar la configuración compartida',
+      };
+    }
+  },
+
+  // Limpiar caché en cambios de sesión/autenticación
+  clearRestaurantSettingsCache() {
+    restaurantSettingsCache = null;
+    restaurantSettingsSyncPromise = null;
   },
 
   // Firma estable para detectar reenvíos idénticos en actualizaciones de cocina
@@ -970,8 +1163,6 @@ No. Orden: #${orderNumber}
       address = normalizeText(order.addressText);
     }
 
-    const orderType = order.section || order.order_type || order.orderType || 'Mostrador';
-    
     let content = `
 ================================
         TICKET CLIENTE

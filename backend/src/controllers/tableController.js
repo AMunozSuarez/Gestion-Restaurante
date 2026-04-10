@@ -1,5 +1,6 @@
 const Table = require('../models/tableModel');
 const Order = require('../models/orderModel');
+const Restaurant = require('../models/restaurantModel');
 const { getIO } = require('../socket');
 
 // Obtener todas las mesas del restaurante
@@ -194,6 +195,17 @@ const closeTable = async (req, res) => {
         
         if (!table) {
             return res.status(404).json({ message: 'Mesa no encontrada' });
+        }
+
+        const restaurant = await Restaurant.findById(req.restaurantId).select('settings');
+        const settings = Restaurant.normalizeSettings(restaurant?.settings || {});
+        const onlyOwnerCanCloseTable = Boolean(settings?.permissions?.onlyOwnerCanCloseTable);
+        const userRole = req.user?.role;
+
+        if (onlyOwnerCanCloseTable && userRole !== 'owner' && userRole !== 'super_admin') {
+            return res.status(403).json({
+                message: 'Solo el dueño puede cerrar mesas según la configuración del restaurante.',
+            });
         }
         
         // Si hay una orden, completarla primero

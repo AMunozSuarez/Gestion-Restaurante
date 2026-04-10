@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import authService from '../services/authService';
 import { connectSocket, disconnectSocket } from '../services/socketService';
+import printingService from '../services/printingService';
 
 // Crear contexto de autenticación
 const AuthContext = createContext();
@@ -21,9 +22,13 @@ export const AuthProvider = ({ children }) => {
           setUser(currentUser);
           setIsAuthenticated(true);
           connectSocket();
+          printingService.syncRestaurantSettingsFromBackend().catch((error) => {
+            console.error('No se pudo sincronizar configuración compartida al restaurar sesión:', error);
+          });
         } else {
           // Token expirado o no existe, limpiar
           authService.logout();
+          printingService.clearRestaurantSettingsCache();
           setUser(null);
           setIsAuthenticated(false);
         }
@@ -44,10 +49,13 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       setIsLoading(true);
-      const { token, user: userData } = await authService.login(credentials);
+      const { user: userData } = await authService.login(credentials);
       setUser(userData);
       setIsAuthenticated(true);
       connectSocket();
+      printingService.syncRestaurantSettingsFromBackend(true).catch((error) => {
+        console.error('No se pudo sincronizar configuración compartida después del login:', error);
+      });
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -60,6 +68,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     authService.logout();
     disconnectSocket();
+    printingService.clearRestaurantSettingsCache();
     setUser(null);
     setIsAuthenticated(false);
   };

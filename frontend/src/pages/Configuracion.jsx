@@ -88,17 +88,39 @@ const Configuracion = () => {
       loadSavedPrinters();
       loadFontSettings();
       loadCategoriesForPrinting();
-      setUpdatePrintMode(printingService.getUpdatePrintMode());
-      setReprintTicketOnCloseTable(printingService.getReprintTicketOnCloseTable());
-      setPrintOnDeletedItemsUpdate(printingService.getPrintOnDeletedItemsUpdate());
-      setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
-      setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
+      loadRestaurantPrintSettings();
     } else if (activeTab === 'subscription' && isOwnerOrAdmin) {
       loadSubscription();
     } else if (activeTab === 'users' && isOwnerOrAdmin) {
       loadUsers();
     }
   }, [activeTab, isOwnerOrAdmin]);
+
+  const loadRestaurantPrintSettings = async () => {
+    const syncResult = await printingService.syncRestaurantSettingsFromBackend();
+
+    setUpdatePrintMode(printingService.getUpdatePrintMode());
+    setReprintTicketOnCloseTable(printingService.getReprintTicketOnCloseTable());
+    setPrintOnDeletedItemsUpdate(printingService.getPrintOnDeletedItemsUpdate());
+    setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
+    setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
+
+    if (!syncResult.success) {
+      setMessage({
+        type: 'error',
+        text: 'No se pudo sincronizar la configuración compartida. Se muestran valores locales.',
+      });
+    }
+  };
+
+  const rollbackRestaurantSettingsFromBackend = async () => {
+    await printingService.syncRestaurantSettingsFromBackend(true);
+    setUpdatePrintMode(printingService.getUpdatePrintMode());
+    setReprintTicketOnCloseTable(printingService.getReprintTicketOnCloseTable());
+    setPrintOnDeletedItemsUpdate(printingService.getPrintOnDeletedItemsUpdate());
+    setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
+    setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
+  };
 
   // Verificar servicio y cargar impresoras
   const checkServiceAndLoadPrinters = async () => {
@@ -196,9 +218,20 @@ const Configuracion = () => {
   };
 
   // Cambiar modo de impresión de actualizaciones
-  const handleUpdatePrintModeChange = (mode) => {
+  const handleUpdatePrintModeChange = async (mode) => {
     setUpdatePrintMode(mode);
     printingService.setUpdatePrintMode(mode);
+    const result = await printingService.saveRestaurantSettingsToBackend({ updatePrintMode: mode });
+
+    if (!result.success) {
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: `No se pudo guardar en el restaurante: ${result.error}. Se restauró el valor compartido.`,
+      });
+      return;
+    }
+
     setMessage({ 
       type: 'success', 
       text: mode === 'new-only' 
@@ -208,9 +241,20 @@ const Configuracion = () => {
   };
 
   // Activar o desactivar reimpresion de ticket al cerrar mesa
-  const handleReprintTicketOnCloseTableChange = (enabled) => {
+  const handleReprintTicketOnCloseTableChange = async (enabled) => {
     setReprintTicketOnCloseTable(enabled);
     printingService.setReprintTicketOnCloseTable(enabled);
+    const result = await printingService.saveRestaurantSettingsToBackend({ reprintTicketOnCloseTable: enabled });
+
+    if (!result.success) {
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: `No se pudo guardar en el restaurante: ${result.error}. Se restauró el valor compartido.`,
+      });
+      return;
+    }
+
     setMessage({
       type: 'success',
       text: enabled
@@ -220,9 +264,20 @@ const Configuracion = () => {
   };
 
   // Activar o desactivar impresion de actualizacion cuando hay productos eliminados
-  const handlePrintOnDeletedItemsUpdateChange = (enabled) => {
+  const handlePrintOnDeletedItemsUpdateChange = async (enabled) => {
     setPrintOnDeletedItemsUpdate(enabled);
     printingService.setPrintOnDeletedItemsUpdate(enabled);
+    const result = await printingService.saveRestaurantSettingsToBackend({ printOnDeletedItemsUpdate: enabled });
+
+    if (!result.success) {
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: `No se pudo guardar en el restaurante: ${result.error}. Se restauró el valor compartido.`,
+      });
+      return;
+    }
+
     setMessage({
       type: 'success',
       text: enabled
@@ -232,21 +287,43 @@ const Configuracion = () => {
   };
 
   // Activar o desactivar cierre de mesa solo para owner
-  const handleOnlyOwnerCanCloseTableChange = (enabled) => {
+  const handleOnlyOwnerCanCloseTableChange = async (enabled) => {
     setOnlyOwnerCanCloseTable(enabled);
     printingService.setOnlyOwnerCanCloseTable(enabled);
+    const result = await printingService.saveRestaurantSettingsToBackend({ onlyOwnerCanCloseTable: enabled });
+
+    if (!result.success) {
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: `No se pudo guardar en el restaurante: ${result.error}. Se restauró el valor compartido.`,
+      });
+      return;
+    }
+
     setMessage({
       type: 'success',
       text: enabled
-        ? 'Solo el dueño podrá cerrar mesas desde este equipo'
+        ? 'Solo el dueño podrá cerrar mesas en todo el restaurante'
         : 'Cualquier usuario con acceso podrá cerrar mesas'
     });
   };
 
   // Activar o desactivar prevención de reimpresión duplicada en actualizaciones
-  const handleAvoidDuplicateKitchenUpdatePrintChange = (enabled) => {
+  const handleAvoidDuplicateKitchenUpdatePrintChange = async (enabled) => {
     setAvoidDuplicateKitchenUpdatePrint(enabled);
     printingService.setAvoidDuplicateKitchenUpdatePrint(enabled);
+    const result = await printingService.saveRestaurantSettingsToBackend({ avoidDuplicateKitchenUpdatePrint: enabled });
+
+    if (!result.success) {
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: `No se pudo guardar en el restaurante: ${result.error}. Se restauró el valor compartido.`,
+      });
+      return;
+    }
+
     setMessage({
       type: 'success',
       text: enabled

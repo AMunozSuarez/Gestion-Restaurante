@@ -29,6 +29,26 @@ const restaurantService = {
     } catch (error) {
       throw new Error(error.message || 'Error al obtener información del restaurante');
     }
+  },
+
+  // Obtener configuración compartida del restaurante actual
+  getMyRestaurantSettings: async () => {
+    try {
+      const response = await api.get('/restaurant/settings/me');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al obtener configuración del restaurante');
+    }
+  },
+
+  // Actualizar configuración compartida del restaurante actual
+  updateMyRestaurantSettings: async (payload) => {
+    try {
+      const response = await api.put('/restaurant/settings/me', payload);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al actualizar configuración del restaurante');
+    }
   }
 };
 
