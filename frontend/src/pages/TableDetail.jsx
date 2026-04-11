@@ -62,6 +62,7 @@ const TableDetail = () => {
     const [selectedProductForExtras, setSelectedProductForExtras] = useState(null);
     const [extrasModalMode, setExtrasModalMode] = useState('create');
     const [editingCartItem, setEditingCartItem] = useState(null);
+    const [mobilePanel, setMobilePanel] = useState('products');
 
     const productCommentInputRef = useRef(null);
 
@@ -713,7 +714,7 @@ const TableDetail = () => {
     }
 
     return (
-        <div className="h-full bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 flex flex-col overflow-hidden">
+        <div className="h-full min-h-0 bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50 flex flex-col overflow-hidden">
             {showCashAlert && <CashRegisterAlert isOpen={!isCashOpen} onClose={() => setShowCashAlert(false)} />}
 
             {/* Modal de extras para productos */}
@@ -754,19 +755,19 @@ const TableDetail = () => {
             {/* Header */}
             <div className="bg-white shadow-sm border-b border-gray-200">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex items-start gap-3 lg:items-center lg:gap-4 min-w-0">
                             <button
                                 onClick={() => navigate('/mesas')}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                             >
                                 <ArrowLeftIcon className="w-6 h-6 text-gray-600" />
                             </button>
-                            <div>
-                                <h1 className="text-2xl font-bold text-teal-900">
+                            <div className="min-w-0">
+                                <h1 className="text-xl lg:text-2xl font-bold text-teal-900 truncate">
                                     Mesa {table.tableNumber}
                                 </h1>
-                                <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-gray-600">
                                     <div className="flex items-center gap-1">
                                         <UserGroupIcon className="w-4 h-4" />
                                         <span>{table.currentGuests || 0} / {table.capacity}</span>
@@ -786,22 +787,24 @@ const TableDetail = () => {
                                     </div>                                </div>
                             </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="grid grid-cols-2 gap-2 w-full lg:w-auto lg:flex lg:gap-2">
                             <Button
                                 onClick={handleSaveOrder}
                                 disabled={cart.length === 0 || isProcessing}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                className="bg-blue-600 hover:bg-blue-700 justify-center"
                             >
                                 <PrinterIcon className="w-5 h-5 mr-2" />
-                                Enviar a Cocina
+                                <span className="hidden sm:inline">Enviar a Cocina</span>
+                                <span className="sm:hidden">Cocina</span>
                             </Button>
                             <Button
                                 onClick={handleOpenPayment}
                                 disabled={isProcessing}
-                                className="bg-teal-600 hover:bg-teal-700"
+                                className="bg-teal-600 hover:bg-teal-700 justify-center"
                             >
                                 <CurrencyDollarIcon className="w-5 h-5 mr-2" />
-                                {cart.length === 0 ? 'Cerrar Mesa' : 'Cobrar y Cerrar'}
+                                <span className="hidden sm:inline">{cart.length === 0 ? 'Cerrar Mesa' : 'Cobrar y Cerrar'}</span>
+                                <span className="sm:hidden">{cart.length === 0 ? 'Cerrar' : 'Cobrar'}</span>
                             </Button>
                         </div>
                     </div>
@@ -815,13 +818,37 @@ const TableDetail = () => {
                 </div>
             )}
 
-            <div className="flex-1 overflow-auto">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="flex-1 min-h-0 overflow-auto lg:overflow-hidden">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 lg:py-4 h-full min-h-0">
+                <div className="lg:hidden mb-3">
+                    <div className="grid grid-cols-2 gap-2 bg-white/70 p-1 rounded-xl border border-teal-100">
+                        <button
+                            onClick={() => setMobilePanel('products')}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium ${mobilePanel === 'products' ? 'bg-teal-600 text-white' : 'text-gray-700'}`}
+                        >
+                            Productos
+                        </button>
+                        <button
+                            onClick={() => setMobilePanel('order')}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium ${mobilePanel === 'order' ? 'bg-teal-600 text-white' : 'text-gray-700'}`}
+                        >
+                            Pedido ({cart.filter(i => !i.deleted).length})
+                        </button>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 lg:h-full lg:min-h-0">
                     {/* Productos */}
-                    <div className="lg:col-span-2">
-                        <div className="bg-white rounded-xl shadow-sm p-6">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Productos</h2>
+                    <div className={`${mobilePanel === 'products' ? 'block' : 'hidden'} lg:block lg:col-span-2 lg:min-h-0`}>
+                        <div className="bg-white rounded-xl shadow-sm p-4 lg:p-6 lg:h-full flex flex-col lg:min-h-0">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-semibold text-gray-900">Productos</h2>
+                                <button
+                                    onClick={() => setMobilePanel('order')}
+                                    className="lg:hidden text-sm text-teal-700 font-medium"
+                                >
+                                    Ver pedido
+                                </button>
+                            </div>
 
                             {/* Filtro por categorías */}
                             {uniqueCategories.length > 0 && (
@@ -864,7 +891,7 @@ const TableDetail = () => {
                             />
 
                             {/* Lista de productos */}
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[600px] overflow-y-auto">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto max-h-[58vh] lg:max-h-none lg:flex-1 lg:min-h-0 content-start pr-1">
                                 {filteredProducts.map(product => (
                                     <button
                                         key={product.id}
@@ -884,8 +911,16 @@ const TableDetail = () => {
                     </div>
 
                     {/* Carrito */}
-                    <div className="lg:col-span-1">
-                        <div className="bg-white rounded-xl shadow-sm p-6 sticky top-6">
+                    <div className={`${mobilePanel === 'order' ? 'block' : 'hidden'} lg:block lg:col-span-1 lg:min-h-0`}>
+                        <div className="bg-white rounded-xl shadow-sm p-4 lg:p-6 lg:h-full flex flex-col lg:min-h-0">
+                            <div className="flex justify-end mb-2 lg:hidden">
+                                <button
+                                    onClick={() => setMobilePanel('products')}
+                                    className="text-sm text-teal-700 font-medium"
+                                >
+                                    Ver productos
+                                </button>
+                            </div>
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">
                                 Pedido ({cart.filter(i => !i.deleted).length} items)
                                 {cart.some(i => i.deleted) && (
@@ -896,11 +931,11 @@ const TableDetail = () => {
                             </h2>
 
                             {cart.length === 0 ? (
-                                <p className="text-gray-500 text-center py-8">
+                                <p className="text-gray-500 text-center py-8 lg:flex-1 lg:flex lg:items-center lg:justify-center">
                                     Agrega productos al pedido
                                 </p>
                             ) : (
-                                <div className="space-y-3 mb-4 max-h-[400px] overflow-y-auto">
+                                <div className="space-y-3 mb-4 overflow-y-auto max-h-[52vh] lg:max-h-none lg:flex-1 lg:min-h-0 pr-1">
                                     {/* Sección: Productos nuevos (Por enviar) */}
                                     {cart.filter(item => item.isNew && !item.deleted).length > 0 && (
                                         <div className="mb-3">
@@ -1110,7 +1145,7 @@ const TableDetail = () => {
                             )}
 
                             {/* Total */}
-                            <div className="border-t border-gray-200 pt-4">
+                            <div className="border-t border-gray-200 pt-4 flex-shrink-0">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="font-semibold text-gray-900">Total:</span>
                                     <span className="text-xl font-bold text-teal-600">

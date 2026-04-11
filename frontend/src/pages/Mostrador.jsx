@@ -11,16 +11,16 @@ import { formatChileanCurrency } from '../utils/dateUtils';
 import printingService from '../services/printingService';
 
 const Mostrador = () => {
-    // Estado para forzar actualización de tiempo cada minuto
-    const [now, setNow] = React.useState(Date.now());
+  // Estado para forzar actualización de tiempo cada minuto
+  const [now, setNow] = React.useState(Date.now());
 
-    // Efecto para actualizar el estado 'now' cada minuto
-    React.useEffect(() => {
-      const interval = setInterval(() => {
-        setNow(Date.now());
-      }, 60000); // 1 minuto
-      return () => clearInterval(interval);
-    }, []);
+  // Efecto para actualizar el estado 'now' cada minuto
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 60000); // 1 minuto
+    return () => clearInterval(interval);
+  }, []);
   // Estado para crear pedido
   const [isCreatingOrder, setIsCreatingOrder] = React.useState(false);
   const [showCashAlert, setShowCashAlert] = React.useState(false);
@@ -29,7 +29,7 @@ const Mostrador = () => {
   const [selectedProductForExtras, setSelectedProductForExtras] = React.useState(null);
   const [extrasModalMode, setExtrasModalMode] = React.useState('create'); // 'create' or 'edit'
   const [editingCartItem, setEditingCartItem] = React.useState(null);
-  
+
   // Estados del formulario de pedido
   const [customerName, setCustomerName] = React.useState('');
   const [comments, setComments] = React.useState('');
@@ -89,19 +89,19 @@ const Mostrador = () => {
   // Estados para ver detalle de pedidos completados/cancelados
   const [isViewingCompletedOrder, setIsViewingCompletedOrder] = React.useState(false);
   const [selectedCompletedOrder, setSelectedCompletedOrder] = React.useState(null);
-  
+
   // Hook para caja registradora
-  const { 
-    isOpen: isCashOpen, 
-    isLoading: cashLoading, 
+  const {
+    isOpen: isCashOpen,
+    isLoading: cashLoading,
     openCashRegister,
     refreshCashRegisterStatus
   } = useCashRegister();
-  
+
   // Hooks para productos
   const { products, isLoading: productsLoading } = useProducts({ available: true });
   const { searchResults, searchProducts } = useProductSearch();
-  
+
   // Callbacks para manejar la limpieza del formulario cuando se actualiza un pedido
   const orderCallbacks = {
     onOrderRemoved: (order) => {
@@ -117,18 +117,18 @@ const Mostrador = () => {
   };
 
   // Hook combinado: obtiene pedidos activos + recientes en una sola llamada
-  const { 
-    orders, 
+  const {
+    orders,
     completedOrders,
-    isLoading: ordersLoading, 
+    isLoading: ordersLoading,
     error: ordersError,
     updateOrderStatus,
     createOrder,
     updateOrder,
     updateOrderWithoutPrint,
-  } = useSectionOrders('mostrador', { 
-    recentLimit: 10, 
-    recentStatuses: 'Completado,Cancelado' 
+  } = useSectionOrders('mostrador', {
+    recentLimit: 10,
+    recentStatuses: 'Completado,Cancelado'
   }, orderCallbacks);
 
   const formatTime = (dateString) => {
@@ -167,18 +167,18 @@ const Mostrador = () => {
         // Mostrar notificación de cantidad actualizada
         setAddedProductNotification(`${product.name} - Cantidad actualizada`);
         setTimeout(() => setAddedProductNotification(null), 2000);
-        
+
         return prevCart.map(item =>
           item.id === product.id && !item.selectedExtras?.length
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      
+
       // Mostrar notificación de producto agregado
       setAddedProductNotification(`${product.name} agregado al carrito`);
       setTimeout(() => setAddedProductNotification(null), 2000);
-      
+
       return [...prevCart, { ...product, quantity: 1, comments: '', selectedExtras: [] }];
     });
   };
@@ -218,10 +218,10 @@ const Mostrador = () => {
       // Editar extras de un item existente
       setCart(prevCart => prevCart.map(item => {
         // Comparar por cartId si existe, sino por id
-        const matches = editingCartItem.cartId 
+        const matches = editingCartItem.cartId
           ? item.cartId === editingCartItem.cartId
           : item.id === editingCartItem.id;
-        
+
         return matches ? { ...item, selectedExtras } : item;
       }));
     } else if (extrasModalMode === 'edit-order' && editingCartItem) {
@@ -409,7 +409,7 @@ const Mostrador = () => {
   const calculateTotal = () => {
     return cart.reduce((total, item) => {
       const basePrice = item.price * item.quantity;
-      const extrasPrice = (item.selectedExtras || []).reduce((sum, extra) => 
+      const extrasPrice = (item.selectedExtras || []).reduce((sum, extra) =>
         sum + (extra.price || 0) * item.quantity, 0
       );
       return total + basePrice + extrasPrice;
@@ -419,7 +419,7 @@ const Mostrador = () => {
   const calculateEditTotal = () => {
     return editCart.filter(item => !item.deleted).reduce((total, item) => {
       const basePrice = item.price * item.quantity;
-      const extrasPrice = (item.selectedExtras || []).reduce((sum, extra) => 
+      const extrasPrice = (item.selectedExtras || []).reduce((sum, extra) =>
         sum + (extra.price || 0) * item.quantity, 0
       );
       return total + basePrice + extrasPrice;
@@ -440,8 +440,8 @@ const Mostrador = () => {
   const updatePaymentMethod = (index, field, value) => {
     // Si es el campo amount, parsear el valor formateado
     const processedValue = field === 'amount' ? parsePaymentInput(value) : value;
-    setPaymentMethods(prev => 
-      prev.map((payment, i) => 
+    setPaymentMethods(prev =>
+      prev.map((payment, i) =>
         i === index ? { ...payment, [field]: processedValue } : payment
       )
     );
@@ -460,8 +460,8 @@ const Mostrador = () => {
   const updateEditPaymentMethod = (index, field, value) => {
     // Si es el campo amount, parsear el valor formateado
     const processedValue = field === 'amount' ? parsePaymentInput(value) : value;
-    setEditPaymentMethods(prev => 
-      prev.map((payment, i) => 
+    setEditPaymentMethods(prev =>
+      prev.map((payment, i) =>
         i === index ? { ...payment, [field]: processedValue } : payment
       )
     );
@@ -509,7 +509,7 @@ const Mostrador = () => {
         setPaymentMethods([{ ...paymentMethods[0], amount: total }]);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart, paymentMethods.length]);
 
   // Actualizar el monto del primer método de pago cuando cambia el total del carrito en edición
@@ -521,7 +521,7 @@ const Mostrador = () => {
         setEditPaymentMethods([{ ...editPaymentMethods[0], amount: total }]);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editCart, editPaymentMethods.length]);
 
   // Funciones para búsqueda de productos
@@ -580,12 +580,12 @@ const Mostrador = () => {
   const handleSelectCompletedOrder = (order) => {
     setSelectedCompletedOrder(order);
     setIsViewingCompletedOrder(true);
-    
+
     // Cerrar la vista de crear pedido sin limpiar estados
     if (isCreatingOrder) {
       setIsCreatingOrder(false);
     }
-    
+
     // Si hay un pedido en edición, cerrarlo
     if (isEditingOrder) {
       setIsEditingOrder(false);
@@ -603,22 +603,22 @@ const Mostrador = () => {
   const handleSelectOrderToEdit = (order) => {
     setSelectedOrder(order);
     setIsEditingOrder(true);
-    
+
     // Cerrar la vista de crear pedido sin limpiar estados
     if (isCreatingOrder) {
       setIsCreatingOrder(false);
     }
-    
+
     // Si hay un pedido completado en vista, cerrarlo
     if (isViewingCompletedOrder) {
       setIsViewingCompletedOrder(false);
       setSelectedCompletedOrder(null);
     }
-    
+
     // Cargar datos del pedido en el formulario de edición
     setEditCustomerName(getCustomerName(order));
     setEditComments(order.comment || '');
-    
+
     // Cargar métodos de pago - priorizar paymentMethods si existe
     if (order.paymentMethods && Array.isArray(order.paymentMethods) && order.paymentMethods.length > 0) {
       setEditPaymentMethods(order.paymentMethods);
@@ -627,10 +627,10 @@ const Mostrador = () => {
     } else {
       setEditPaymentMethods([{ method: '', amount: 0 }]);
     }
-    
+
     // Cargar productos del pedido en el carrito de edición
     const orderProducts = order.foods?.map((food, index) => {
-      
+
       // Determinar el ID del producto
       let productId;
       if (typeof food.food === 'string') {
@@ -641,7 +641,7 @@ const Mostrador = () => {
         console.warn('Estructura de food inesperada:', food);
         productId = food.food;
       }
-      
+
       return {
         id: productId,
         cartId: `orig_${index}_${productId}`,
@@ -684,31 +684,31 @@ const Mostrador = () => {
         isPendingDelete: false,
       };
     });
-    
+
     setEditCart([...orderProducts, ...deletedProducts]);
   };
 
   // Función para crear el pedido
   const handleCreateOrder = async () => {
     if (isCreatingOrderRequest) return; // Prevenir clicks múltiples
-    
+
     // Verificar si la caja está abierta
     if (!isCashOpen) {
       setShowCashAlert(true);
       return;
     }
-    
+
     try {
       setIsCreatingOrderRequest(true);
-      
+
       // Validar métodos de pago (opcional)
       const validPayments = paymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Método' && p.method !== 'Pendiente');
-      
+
       // Solo validar montos si hay métodos de pago especificados
       if (validPayments.length > 0) {
         const totalPaymentAmount = getTotalPaymentAmount(validPayments);
         const orderTotal = calculateTotal();
-        
+
         if (totalPaymentAmount < orderTotal - 0.01) {
           alert(`⚠️ El monto pagado (${formatChileanCurrency(totalPaymentAmount)}) es menor al total del pedido (${formatChileanCurrency(orderTotal)})`);
           return;
@@ -734,18 +734,18 @@ const Mostrador = () => {
         comment: comments
       };
 
-      
+
       const response = await createOrder(orderData);
-      
+
       if (response.success) {
         // Mostrar notificación de éxito
         setAddedProductNotification(`Pedido #${response.order?.orderNumber || 'N/A'} creado exitosamente`);
         setTimeout(() => setAddedProductNotification(null), 3000);
-        
+
         // Limpiar formulario y cerrar
         clearForm();
         setIsCreatingOrder(false);
-        
+
         // El estado ya se actualiza automáticamente en el hook useOrders
         // No necesitamos refetchOrders() aquí
       } else {
@@ -762,7 +762,7 @@ const Mostrador = () => {
   // Función para manejar caja registradora y notificaciones al completar pedido
   const handleCompleteOrderWithCash = async (orderId, orderData, successMessage = 'Pedido completado exitosamente') => {
     const response = await updateOrderWithoutPrint(orderId, orderData);
-    
+
     if (response.success) {
       // Refrescar el estado de la caja registradora si está abierta
       // (La orden ya se crea automáticamente con el campo cashRegister)
@@ -774,35 +774,35 @@ const Mostrador = () => {
           console.error('Error al refrescar estado de caja:', error);
         }
       }
-      
+
       // Mostrar notificación de éxito
       setAddedProductNotification(successMessage);
       setTimeout(() => setAddedProductNotification(null), 2000);
     }
-    
+
     return response;
   };
 
   // Función para manejar notificaciones al cancelar pedido
   const handleCancelOrderWithNotification = async (orderId) => {
     const result = await updateOrderStatus(orderId, 'Cancelado');
-    
+
     if (result.success) {
       // Mostrar notificación de éxito
       setAddedProductNotification('Pedido cancelado exitosamente');
       setTimeout(() => setAddedProductNotification(null), 2000);
     }
-    
+
     return result;
   };
 
   // Función para actualizar el pedido
   const handleUpdateOrder = async () => {
     if (isUpdatingOrderRequest || !selectedOrder) return;
-    
+
     try {
       setIsUpdatingOrderRequest(true);
-      
+
       // Preparar métodos de pago para actualizar (sin validaciones estrictas)
       const validEditPayments = editPaymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Pendiente');
 
@@ -851,7 +851,7 @@ const Mostrador = () => {
         comment: editComments
       };
 
-      
+
       // Validar que todos los productos tengan IDs válidos
       const invalidFoods = orderData.foods.filter(food => !food.food || typeof food.food !== 'string');
       if (invalidFoods.length > 0) {
@@ -859,33 +859,33 @@ const Mostrador = () => {
         throw new Error('Algunos productos no tienen IDs válidos');
       }
 
-      
+
       // Obtener el ID correcto del pedido
       const orderId = selectedOrder._id || selectedOrder.id;
-      
+
       if (!orderId) {
         throw new Error('ID del pedido no válido');
       }
-      
+
       // Llamar a la función updateOrder del hook
       const response = await updateOrder(orderId, orderData);
-      
+
       if (response.success) {
         // Mostrar notificación de éxito
         setAddedProductNotification(`Pedido #${selectedOrder.orderNumber} actualizado exitosamente`);
         setTimeout(() => setAddedProductNotification(null), 3000);
-        
+
         // Limpiar formulario y cerrar
         clearEditForm();
         setIsEditingOrder(false);
         setSelectedOrder(null);
-        
+
         // El estado ya se actualiza automáticamente en el hook useOrders
         // No necesitamos refetchOrders() aquí
       } else {
         alert('Error al actualizar el pedido: ' + (response.error || 'Error desconocido'));
       }
-      
+
     } catch (error) {
       console.error('Error updating order:', error);
       alert('Error al actualizar el pedido: ' + error.message);
@@ -899,70 +899,70 @@ const Mostrador = () => {
       if (!orderId) alert('Error: ID del pedido no válido');
       return;
     }
-    
+
     try {
       setIsCompletingOrder(true);
-    
-    // Validaciones simples
-    const activeFoodsForComplete = editCart.filter(item => !item.deleted);
-    if (!activeFoodsForComplete || activeFoodsForComplete.length === 0) {
-      alert('⚠️ Debe agregar al menos un producto al pedido');
-      return;
-    }
-    
-    // Validar que todos los métodos de pago tengan método seleccionado
-    const invalidPayments = editPaymentMethods.filter(p => !p.method || p.method.trim() === '' || p.method === 'Método' || p.method === 'Pendiente');
-    if (invalidPayments.length > 0) {
-      alert('⚠️ Todos los métodos de pago deben tener un método seleccionado. Por favor, complete todos los campos o elimine los métodos vacíos.');
-      return;
-    }
-    
-    // Validar métodos de pago
-    const validEditPayments = editPaymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Método' && p.method !== 'Pendiente');
-    if (validEditPayments.length === 0) {
-      alert('⚠️ Debe agregar al menos un método de pago');
-      return;
-    }
 
-    const totalEditPaymentAmount = getTotalPaymentAmount(validEditPayments);
-    const editOrderTotal = calculateEditTotal();
-    
-    if (totalEditPaymentAmount < editOrderTotal - 0.01) {
-      alert(`⚠️ El monto pagado (${formatChileanCurrency(totalEditPaymentAmount)}) es menor al total del pedido (${formatChileanCurrency(editOrderTotal)})`);
-      return;
-    }
-    
-    // Preparar los datos del pedido actualizado antes de completar
-    const completedDeletedFoods = editCart.filter(item => item.isOriginal && item.deleted);
-    const orderData = {
-      foods: activeFoodsForComplete.map(item => ({
-        food: item.id,
-        quantity: item.quantity,
-        comment: item.comments || '',
-        selectedExtras: item.selectedExtras || []
-      })),
-      deletedFoods: completedDeletedFoods.map(item => ({
-        food: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        comment: item.comments || '',
-        selectedExtras: item.selectedExtras || []
-      })),
-      payment: validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple',
-      paymentMethods: validEditPayments,
-      buyer: {
-        name: editCustomerName,
-        phone: getCustomerPhone(selectedOrder),
-      },
-      section: 'mostrador',
-      status: 'Completado', // Cambiar directamente a completado
-      comment: editComments
-    };
+      // Validaciones simples
+      const activeFoodsForComplete = editCart.filter(item => !item.deleted);
+      if (!activeFoodsForComplete || activeFoodsForComplete.length === 0) {
+        alert('⚠️ Debe agregar al menos un producto al pedido');
+        return;
+      }
+
+      // Validar que todos los métodos de pago tengan método seleccionado
+      const invalidPayments = editPaymentMethods.filter(p => !p.method || p.method.trim() === '' || p.method === 'Método' || p.method === 'Pendiente');
+      if (invalidPayments.length > 0) {
+        alert('⚠️ Todos los métodos de pago deben tener un método seleccionado. Por favor, complete todos los campos o elimine los métodos vacíos.');
+        return;
+      }
+
+      // Validar métodos de pago
+      const validEditPayments = editPaymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Método' && p.method !== 'Pendiente');
+      if (validEditPayments.length === 0) {
+        alert('⚠️ Debe agregar al menos un método de pago');
+        return;
+      }
+
+      const totalEditPaymentAmount = getTotalPaymentAmount(validEditPayments);
+      const editOrderTotal = calculateEditTotal();
+
+      if (totalEditPaymentAmount < editOrderTotal - 0.01) {
+        alert(`⚠️ El monto pagado (${formatChileanCurrency(totalEditPaymentAmount)}) es menor al total del pedido (${formatChileanCurrency(editOrderTotal)})`);
+        return;
+      }
+
+      // Preparar los datos del pedido actualizado antes de completar
+      const completedDeletedFoods = editCart.filter(item => item.isOriginal && item.deleted);
+      const orderData = {
+        foods: activeFoodsForComplete.map(item => ({
+          food: item.id,
+          quantity: item.quantity,
+          comment: item.comments || '',
+          selectedExtras: item.selectedExtras || []
+        })),
+        deletedFoods: completedDeletedFoods.map(item => ({
+          food: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          comment: item.comments || '',
+          selectedExtras: item.selectedExtras || []
+        })),
+        payment: validEditPayments.length === 1 ? validEditPayments[0].method : 'Múltiple',
+        paymentMethods: validEditPayments,
+        buyer: {
+          name: editCustomerName,
+          phone: getCustomerPhone(selectedOrder),
+        },
+        section: 'mostrador',
+        status: 'Completado', // Cambiar directamente a completado
+        comment: editComments
+      };
 
       // Actualizar el pedido con estado completado usando la función wrapper
       const orderId = selectedOrder._id || selectedOrder.id;
       const response = await handleCompleteOrderWithCash(orderId, orderData, 'Pedido completado exitosamente');
-      
+
       if (!response.success) {
         alert('Error al completar el pedido: ' + (response.error || 'Error desconocido'));
         return;
@@ -980,7 +980,7 @@ const Mostrador = () => {
       if (!orderId) alert('Error: ID del pedido no válido');
       return;
     }
-    
+
     try {
       setIsCancelingOrder(true);
       const result = await handleCancelOrderWithNotification(orderId);
@@ -1051,7 +1051,7 @@ const Mostrador = () => {
       <div className="h-full flex items-center justify-center bg-professional">
         <div className="text-center card-professional p-12 border-red-200">
           <p className="text-red-600 mb-6 font-medium">Error al cargar pedidos: {ordersError}</p>
-          <Button 
+          <Button
             onClick={() => window.location.reload()}
             className="btn-professional-primary"
           >
@@ -1064,13 +1064,12 @@ const Mostrador = () => {
 
   return (
     <>
-      <div className="h-full bg-professional flex flex-col gap-2 lg:gap-4 p-2 lg:p-4 overflow-hidden">
+      <div className="h-full bg-professional flex flex-col gap-2 lg:gap-4 p-2 pb-1 lg:p-4 lg:pb-1 overflow-hidden">
         {/* Header con botón crear pedido */}
-        <div className={`flex justify-between items-center flex-shrink-0 ${
-          !isCreatingOrder && !isEditingOrder && !isViewingCompletedOrder 
-            ? 'max-w-6xl mx-auto w-full' 
-            : ''
-        }`}>
+        <div className={`flex justify-between items-center flex-shrink-0 ${!isCreatingOrder && !isEditingOrder && !isViewingCompletedOrder
+          ? 'max-w-6xl mx-auto w-full'
+          : ''
+          }`}>
           <h1 className="text-professional-title text-xl lg:text-[28px]">Mostrador</h1>
           <Button
             onClick={() => {
@@ -1099,729 +1098,751 @@ const Mostrador = () => {
 
         {/* Contenido principal con altura fija */}
         <div className="flex-1 flex flex-col lg:flex-row gap-2 lg:gap-4 overflow-hidden min-h-0">
-        {/* Columna izquierda - Formulario de creación (cuando está activo) */}
-        {isCreatingOrder && (
-          <div className="mobile-overlay-panel">
-            <div className="h-full flex flex-col card-professional p-3 lg:p-4">
-              <h2 className="text-professional-subtitle mb-3 flex-shrink-0">Creando Nuevo Pedido</h2>
-              
-              {/* Formulario temporal con scroll independiente */}
-              <div className="flex-1 min-h-0">
-                <div className="h-full space-y-3 scrollbar-professional overflow-y-auto pr-2">
-                  <div>
-                    <label className="block text-sm font-medium text-professional-body mb-1">
-                      Nombre del Cliente
-                    </label>
-                    <input
-                      type="text"
-                      className="input-professional"
-                      placeholder="Ingrese el nombre del cliente"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      ref={customerNameInputRef}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-professional-body mb-1">
-                      Comentario
-                    </label>
-                    <textarea
-                      className="input-professional resize-none"
-                      rows="2"
-                      placeholder="Comentarios adicionales"
-                      value={comments}
-                      onChange={(e) => setComments(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-professional-body mb-1">
-                      Buscar Productos
-                    </label>
-                    <input
-                      type="text"
-                      className="input-professional mb-2"
-                      placeholder="Buscar productos..."
-                      value={searchTerm}
-                      onChange={handleSearchChange}
-                    />
-                    {/* Resultados de búsqueda */}
-                    {searchTerm && searchResults.length > 0 && (
-                      <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md mb-2">
-                        {searchResults.map((product) => (
-                          <div
-                            key={product.id}
-                            className="p-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => {
-                              addToCart(product);
-                              setSearchTerm('');
-                            }}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <span className="text-sm font-medium">{product.name}</span>
-                                <div className="text-xs text-gray-500">{product.category?.title || product.category?.name || 'Sin categoría'}</div>
-                              </div>
-                              <span className="text-sm font-semibold text-orange-600">
-                                {formatChileanCurrency(product.price || 0)}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <button 
-                      className="w-full btn-professional-outline"
-                      onClick={() => setShowProductModal(true)}
-                    >
-                      Ver Productos
-                    </button>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-professional-body mb-1">
-                      Carrito ({cart.length} items)
-                    </label>
-                    <div className="product-list">
-                      {cart.length === 0 ? (
-                        <div className="flex items-center justify-center py-8">
-                          <p className="text-professional-body text-center text-sm">El carrito está vacío</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {cart.map((item, itemIndex) => {
-                            const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) => 
-                              sum + (extra.price || 0), 0
-                            );
-                            const itemTotalPrice = item.price + itemExtrasTotal;
-                            const itemIdentifier = item.cartId || item.id;
-                            
-                            return (
-                            <div key={itemIdentifier || itemIndex} className="bg-gray-50 rounded p-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium">{item.name}</div>
-                                  <div className="text-xs text-gray-500">
-                                    {formatChileanCurrency(item.price || 0)} c/u
-                                    {itemExtrasTotal > 0 && (
-                                      <span className="text-orange-600 font-semibold ml-1">
-                                        + {formatChileanCurrency(itemExtrasTotal)} extras
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => updateQuantity(item.id, item.quantity - 1, item.cartId)}
-                                    className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                                  >
-                                    -
-                                  </button>
-                                  <span className="w-8 text-center text-sm">{item.quantity}</span>
-                                  <button
-                                    onClick={() => updateQuantity(item.id, item.quantity + 1, item.cartId)}
-                                    className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
-                                  >
-                                    +
-                                  </button>
-                                  <button
-                                    onClick={() => removeFromCart(item.id, item.cartId)}
-                                    className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs"
-                                  >
-                                    <TrashIcon className="w-3 h-3 mx-auto" />
-                                  </button>
-                                </div>
-                              </div>
-                              
-                              {/* Extras seleccionados */}
-                              {item.selectedExtras && item.selectedExtras.length > 0 && (
-                                <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="flex-1">
-                                      <div className="text-xs font-medium text-orange-800 mb-1">
-                                        Extras seleccionados:
-                                      </div>
-                                      <div className="space-y-0.5">
-                                        {item.selectedExtras.map((extra, idx) => (
-                                          <div key={idx} className="text-xs text-orange-700 flex items-center justify-between">
-                                            <span>• {extra.extraName}</span>
-                                            {extra.price > 0 && (
-                                              <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                    {/* Botón para editar extras */}
-                                    <button
-                                      onClick={() => {
-                                        setSelectedProductForExtras(item);
-                                        setEditingCartItem(item);
-                                        setExtrasModalMode('edit');
-                                        setShowExtrasModal(true);
-                                      }}
-                                      className="text-xs bg-orange-200 hover:bg-orange-300 text-orange-800 px-2 py-1 rounded whitespace-nowrap"
-                                      title="Editar extras"
-                                    >
-                                      Editar
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Botón para agregar extras si el producto los tiene pero no hay seleccionados */}
-                              {item.extraSections && item.extraSections.length > 0 && (!item.selectedExtras || item.selectedExtras.length === 0) && (
-                                <div className="mb-2">
-                                  <button
-                                    onClick={() => {
-                                      setSelectedProductForExtras(item);
-                                      setEditingCartItem(item);
-                                      setExtrasModalMode('edit');
-                                      setShowExtrasModal(true);
-                                    }}
-                                    className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded"
-                                  >
-                                    + Agregar extras
-                                  </button>
-                                </div>
-                              )}
-                              
-                              {/* Comentarios del producto */}
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => openCommentModal(item)}
-                                  className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center gap-1"
-                                >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1.586l-4.707 4.707z" />
-                                  </svg>
-                                  {item.comments ? 'Editar' : 'Agregar'} comentario
-                                </button>
-                                {item.comments && (
-                                  <div className="flex-1 text-xs text-gray-600 italic">
-                                    "{item.comments}"
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="flex items-center justify-between text-sm font-medium text-professional-body mb-1">
-                      Métodos de Pago
-                      <button
-                        type="button"
-                        onClick={addPaymentMethod}
-                        className="bg-green-600 hover:bg-green-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
-                        title="Agregar método de pago"
-                      >
-                        +
-                      </button>
-                    </label>
-                    <div className="space-y-2">
-                      {paymentMethods.map((payment, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <select 
-                            className="input-professional flex-1"
-                            value={payment.method}
-                            onChange={(e) => updatePaymentMethod(index, 'method', e.target.value)}
-                          >
-                            <option value="">Método</option>
-                            <option value="Efectivo">Efectivo</option>
-                            <option value="Debito">Débito</option>
-                            <option value="Transferencia">Transferencia</option>
-                          </select>
-                          <input
-                            type="text"
-                            className="input-professional flex-1"
-                            placeholder="Monto"
-                            value={formatPaymentInput(payment.amount)}
-                            onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
-                            onKeyDown={(e) => {
-                              // Solo permitir números, backspace, delete, tab
-                              if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                                e.preventDefault();
-                              }
-                            }}
-                          />
-                          {paymentMethods.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removePaymentMethod(index)}
-                              className="bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
-                              title="Eliminar método de pago"
-                            >
-                              -
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      {paymentMethods.length > 0 && (
-                        <div className="text-xs mt-1 space-y-1">
-                          <div className="text-gray-600">
-                            Total pagado: {formatChileanCurrency(getTotalPaymentAmount(paymentMethods))}
-                          </div>
-                          {(() => {
-                            const totalPaid = getTotalPaymentAmount(paymentMethods);
-                            const orderTotal = calculateTotal();
-                            const difference = getPaymentDifference(totalPaid, orderTotal);
-                            const differenceText = getPaymentDifferenceText(difference);
-                            
-                            return differenceText && (
-                              <div className={`font-medium ${
-                                difference < 0 ? 'text-red-600' : 'text-green-600'
-                              }`}>
-                                {differenceText}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="total-highlight">
-                    <div className="flex justify-between text-lg">
-                      <span>Total:</span>
-                      <span>{formatChileanCurrency(calculateTotal())}</span>
-                    </div>
-                  </div>
-
-                  {/* Botón al final del scroll */}
-                  <div className="pt-3">
-                    <button 
-                      className="w-full btn-professional-primary"
-                      onClick={handleCreateOrder}
-                    >
-                      {isCreatingOrderRequest ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Creando...
-                        </div>
-                      ) : (
-                        'Crear Pedido'
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Columna derecha - Lista de pedidos con altura controlada */}
-        <div className={`${
-          isCreatingOrder ? 'hidden lg:flex flex-1' : 
-          (isEditingOrder || isViewingCompletedOrder) ? 'hidden lg:flex flex-1' : 
-          'w-full max-w-6xl mx-auto flex'
-        } flex-col gap-2 lg:gap-3 min-h-0`}>
-          {/* Pedidos en preparación - 60% de la altura */}
-          <div className="flex-[60] min-h-0">
-            <div className="h-full flex flex-col card-professional p-2 lg:p-4">
-              <h2 className="text-professional-subtitle text-base lg:text-xl mb-2 lg:mb-3 flex-shrink-0 flex items-center gap-2 lg:gap-3">
-                <ClockIcon className="w-5 h-5 lg:w-6 lg:h-6 text-orange-600" />
-                Pedidos en Preparación
-              </h2>
-              
-              <div className="flex-1 min-h-0 flex flex-col">
-                {/* Encabezado de la tabla - fijo (solo desktop) */}
-                <div className="hidden lg:grid table-header-professional grid-cols-6 gap-3 mb-2 flex-shrink-0 px-2">
-                  <div className="text-center font-semibold text-sm">#</div>
-                  <div className="text-center font-semibold text-sm">Fecha/Hora</div>
-                  <div className="text-center font-semibold text-sm">Tiempo</div>
-                  <div className="text-center font-semibold text-sm">Cliente</div>
-                  <div className="text-center font-semibold text-sm">Estado</div>
-                  <div className="text-center font-semibold text-sm">Total</div>
-                </div>
-                
-                {/* Lista de pedidos con scroll independiente */}
-                <div className="flex-1 overflow-y-auto scrollbar-professional space-y-1 pr-1">
-                  {orders.map((order, index) => (
-                    <React.Fragment key={order._id || order.id}>
-                    {/* Desktop row */}
-                    <div 
-                      className={`hidden lg:grid grid-cols-6 gap-3 p-3 rounded-lg border transition-all duration-200 cursor-pointer hover:shadow-md ${
-                        (selectedOrder?._id || selectedOrder?.id) === (order._id || order.id)
-                          ? 'bg-yellow-100 shadow-md border-yellow-300' 
-                          : 'bg-yellow-50 hover:bg-yellow-100'
-                      }`}
-                      onClick={() => handleSelectOrderToEdit(order)}
-                    >
-                      <div className="text-center font-semibold text-gray-800 text-sm">
-                        {order.orderNumber}
-                      </div>
-                      <div className="text-center text-xs text-gray-600">
-                        {new Date(order.createdAt).toLocaleDateString('es-ES', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric'
-                        })}, {formatTime(order.createdAt)}
-                      </div>
-                      <div className="text-center">
-                        <span className="text-orange-500 font-medium text-xs">
-                          {Math.max(0, Math.floor((now - new Date(order.createdAt)) / 60000))} min
-                        </span>
-                      </div>
-                      <div className="text-center text-gray-800 font-medium text-sm truncate">
-                        {getCustomerName(order)}
-                      </div>
-                      <div className="text-center">
-                        <span className="status-preparing text-xs">
-                          Preparación
-                        </span>
-                      </div>
-                      <div className="text-center font-semibold text-gray-800 text-sm">
-                        {formatChileanCurrency(order.total || 0)}
-                      </div>
-                    </div>
-                    {/* Mobile card */}
-                    <div 
-                      className={`lg:hidden mobile-order-card ${
-                        (selectedOrder?._id || selectedOrder?.id) === (order._id || order.id)
-                          ? 'bg-yellow-100 border-yellow-300 shadow-md' 
-                          : 'bg-yellow-50'
-                      }`}
-                      onClick={() => handleSelectOrderToEdit(order)}
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-gray-800 text-sm">#{order.orderNumber}</span>
-                          <span className="status-preparing text-xs">Preparación</span>
-                        </div>
-                        <span className="font-semibold text-gray-800 text-sm">{formatChileanCurrency(order.total || 0)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-800 font-medium truncate mr-2">{getCustomerName(order)}</span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-orange-500 font-medium text-xs">
-                            {Math.max(0, Math.floor((now - new Date(order.createdAt)) / 60000))} min
-                          </span>
-                          <span className="text-xs text-gray-500">{formatTime(order.createdAt)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    </React.Fragment>
-                  ))}
-                  
-                  {orders.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      No hay pedidos en preparación
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Pedidos completados recientes - 40% de la altura */}
-          <div className="flex-[40] min-h-0">
-            <div className="h-full flex flex-col card-professional p-2 lg:p-4">
-              <h2 className="text-professional-subtitle text-base lg:text-xl mb-2 lg:mb-3 flex-shrink-0">
-                Pedidos Completados/Cancelados
-              </h2>
-              
-              <div className="flex-1 min-h-0 flex flex-col">
-                {/* Encabezado de la tabla - fijo (solo desktop) */}
-                <div className="hidden lg:grid bg-green-700 text-white grid-cols-5 gap-3 p-2 rounded-t-lg mb-1 flex-shrink-0">
-                  <div className="text-center font-semibold text-xs">#</div>
-                  <div className="text-center font-semibold text-xs">Fecha/Hora</div>
-                  <div className="text-center font-semibold text-xs">Cliente</div>
-                  <div className="text-center font-semibold text-xs">Estado</div>
-                  <div className="text-center font-semibold text-xs">Total</div>
-                </div>
-                
-                {/* Lista de pedidos completados con scroll independiente */}
-                <div className="flex-1 overflow-y-auto scrollbar-professional space-y-1 pr-1">
-                  {completedOrders.map((order, index) => (
-                    <React.Fragment key={order.id}>
-                    {/* Desktop row */}
-                    <div 
-                      className={`hidden lg:grid grid-cols-5 gap-3 p-2 rounded transition-colors cursor-pointer ${
-                        (selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
-                          ? (order.status === 'Completado' ? 'bg-green-200 border-green-400' : 'bg-red-200 border-red-400')
-                          : (order.status === 'Completado' ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100')
-                      } border-l-4 ${
-                        (selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
-                          ? (order.status === 'Completado' ? 'border-green-500' : 'border-red-500')
-                          : (order.status === 'Completado' ? 'border-green-500' : 'border-red-500')
-                      }`}
-                      onClick={() => handleSelectCompletedOrder(order)}
-                    >
-                      <div className="text-center font-medium text-gray-800 text-sm">
-                        #{order.orderNumber}
-                      </div>
-                      <div className="text-center text-xs text-gray-600">
-                        {new Date(order.createdAt).toLocaleDateString('es-ES', {
-                          day: '2-digit',
-                          month: '2-digit'
-                        })}, {formatTime(order.createdAt)}
-                      </div>
-                      <div className="text-center text-xs text-gray-800 font-medium truncate">
-                        {getCustomerName(order)?.toUpperCase()}
-                      </div>
-                      <div className="text-center">
-                        <span className={order.status === 'Completado' ? 'status-completed text-xs' : 'bg-red-100 border-red-300 text-red-600 rounded-full px-1 py-0.5 text-xs font-medium'}>
-                          {order.status}
-                        </span>
-                      </div>
-                      <div className="text-center font-semibold text-gray-800 text-xs">
-                        {formatChileanCurrency(order.total || 0)}
-                      </div>
-                    </div>
-                    {/* Mobile card */}
-                    <div 
-                      className={`lg:hidden p-2 rounded-lg cursor-pointer border-l-4 ${
-                        (selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
-                          ? (order.status === 'Completado' ? 'bg-green-200 border-green-500' : 'bg-red-200 border-red-500')
-                          : (order.status === 'Completado' ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500')
-                      }`}
-                      onClick={() => handleSelectCompletedOrder(order)}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-800 text-sm">#{order.orderNumber}</span>
-                          <span className={order.status === 'Completado' ? 'status-completed text-xs' : 'bg-red-100 border-red-300 text-red-600 rounded-full px-1 py-0.5 text-xs font-medium'}>
-                            {order.status}
-                          </span>
-                        </div>
-                        <span className="font-semibold text-gray-800 text-sm">{formatChileanCurrency(order.total || 0)}</span>
-                      </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-xs text-gray-800 font-medium truncate mr-2">{getCustomerName(order)?.toUpperCase()}</span>
-                        <span className="text-xs text-gray-500 flex-shrink-0">{formatTime(order.createdAt)}</span>
-                      </div>
-                    </div>
-                    </React.Fragment>
-                  ))}
-                  
-                  {completedOrders.length === 0 && (
-                    <div className="text-center py-4 text-gray-500 text-sm">
-                      No hay pedidos completados recientes
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Columna de edición - Formulario de edición (cuando está activo) */}
-        {isEditingOrder && selectedOrder && (
-          <div className="mobile-overlay-panel">
-            <div className="h-full flex flex-col card-professional p-3 lg:p-4">
-              <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
-                <span>Editando Pedido #{selectedOrder.orderNumber}</span>
-                <div className="flex items-center gap-2">
+          {/* Columna izquierda - Formulario de creación (cuando está activo) */}
+          {isCreatingOrder && (
+            <div className="mobile-overlay-panel">
+              <div className="h-full flex flex-col card-professional p-3 lg:p-4">
+                <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
+                  <span>Creando Nuevo Pedido</span>
                   <button
-                    onClick={() => handlePrintCustomerTicket(selectedOrder)}
-                    className="text-blue-600 hover:text-blue-body text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
-                    title="Imprimir ticket de cliente"
-                  >
-                    <PrinterIcon className="w-4 h-4" />
-                    Ticket
-                  </button>
-                  <button
-                    onClick={handleCancelEditOrder}
-                    className="text-gray-500 hover:text-gray-700 text-sm"
+                    onClick={handleCancelNewOrder}
+                    className="lg:hidden text-gray-500 hover:text-gray-700 text-sm"
                   >
                     ✕ Cerrar
                   </button>
-                </div>
-              </h2>
-              
-              {/* Formulario de edición con scroll independiente */}
-              <div className="flex-1 min-h-0">
-                <div className="h-full space-y-3 scrollbar-professional overflow-y-auto pr-2">
-                  <div>
-                    <label className="block text-sm font-medium text-professional-body mb-1">
-                      Nombre del Cliente
-                    </label>
-                    <input
-                      type="text"
-                      className="input-professional"
-                      placeholder="Ingrese el nombre del cliente"
-                      value={editCustomerName}
-                      onChange={(e) => setEditCustomerName(e.target.value)}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-professional-body mb-1">
-                      Comentario
-                    </label>
-                    <textarea
-                      className="input-professional resize-none"
-                      rows="2"
-                      placeholder="Comentarios adicionales"
-                      value={editComments}
-                      onChange={(e) => setEditComments(e.target.value)}
-                    />
-                  </div>
+                </h2>
 
-                  <div>
-                    <label className="block text-sm font-medium text-professional-body mb-1">
-                      Buscar Productos
-                    </label>
-                    <input
-                      type="text"
-                      className="input-professional mb-2"
-                      placeholder="Buscar productos..."
-                      value={editSearchTerm}
-                      onChange={handleEditSearchChange}
-                    />
-                    {/* Resultados de búsqueda para edición */}
-                    {editSearchTerm && searchResults.length > 0 && (
-                      <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md mb-2">
-                        {searchResults.map((product) => (
-                          <div
-                            key={product.id}
-                            className="p-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => {
-                              addToEditCart(product);
-                              setEditSearchTerm('');
-                            }}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <span className="text-sm font-medium">{product.name}</span>
-                                <div className="text-xs text-gray-500">{product.category?.title || product.category?.name || 'Sin categoría'}</div>
-                              </div>
-                              <span className="text-sm font-semibold text-orange-600">
-                                {formatChileanCurrency(product.price || 0)}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <button 
-                      className="w-full btn-professional-outline"
-                      onClick={() => setShowProductModal(true)}
-                    >
-                      Ver Productos
-                    </button>
-                  </div>
+                {/* Formulario temporal con scroll independiente */}
+                <div className="flex-1 min-h-0">
+                  <div className="h-full space-y-3 scrollbar-professional overflow-y-auto pr-2 pb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-professional-body mb-1">
+                        Nombre del Cliente
+                      </label>
+                      <input
+                        type="text"
+                        className="input-professional"
+                        placeholder="Ingrese el nombre del cliente"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        ref={customerNameInputRef}
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-professional-body mb-1">
-                      Carrito ({editCart.filter(i => !i.deleted).length} items)
-                      {editCart.some(i => i.deleted) && (
-                        <span className="ml-2 text-xs text-red-500 font-normal">
-                          ({editCart.filter(i => i.deleted).length} eliminado{editCart.filter(i => i.deleted).length > 1 ? 's' : ''})
-                        </span>
-                      )}
-                    </label>
-                    <div className="product-list">
-                      {editCart.filter(i => !i.deleted).length === 0 && editCart.filter(i => i.deleted).length === 0 ? (
-                        <div className="flex items-center justify-center py-8">
-                          <p className="text-professional-body text-center text-sm">El carrito está vacío</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {editCart.map((item) => {
-                            const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) => 
-                              sum + (extra.price || 0), 0
-                            );
-                            const canDeleteCurrentItem = item.isNew || printingService.canCurrentUserDeleteOrderItems();
-                            
-                            return (
+                    <div>
+                      <label className="block text-sm font-medium text-professional-body mb-1">
+                        Comentario
+                      </label>
+                      <textarea
+                        className="input-professional resize-none"
+                        rows="2"
+                        placeholder="Comentarios adicionales"
+                        value={comments}
+                        onChange={(e) => setComments(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-professional-body mb-1">
+                        Buscar Productos
+                      </label>
+                      <input
+                        type="text"
+                        className="input-professional mb-2"
+                        placeholder="Buscar productos..."
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                      />
+                      {/* Resultados de búsqueda */}
+                      {searchTerm && searchResults.length > 0 && (
+                        <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md mb-2">
+                          {searchResults.map((product) => (
                             <div
-                              key={item.cartId || item.id}
-                              className={`rounded p-3 border transition-all ${
-                                item.deleted
-                                  ? 'bg-red-50 border-red-200 opacity-70'
-                                  : item.isNew
-                                  ? 'bg-green-50 border-green-200'
-                                  : 'bg-gray-50 border-gray-200'
-                              }`}
+                              key={product.id}
+                              className="p-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                              onClick={() => {
+                                addToCart(product);
+                                setSearchTerm('');
+                              }}
                             >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className={`text-sm font-medium flex items-center gap-2 ${item.deleted ? 'line-through text-red-400' : ''}`}>
-                                    {item.name}
-                                    {item.isNew && !item.deleted && (
-                                      <span className="text-xs bg-green-100 text-green-700 border border-green-300 px-1.5 py-0.5 rounded-full font-semibold">NUEVO</span>
-                                    )}
-                                  </div>
-                                  <div className={`text-xs ${item.deleted ? 'line-through text-red-300' : 'text-gray-500'}`}>
-                                    {formatChileanCurrency(item.price)} c/u
-                                    {itemExtrasTotal > 0 && !item.deleted && (
-                                      <span className="text-orange-600 font-semibold ml-1">
-                                        + {formatChileanCurrency(itemExtrasTotal)} extras
-                                      </span>
-                                    )}
-                                  </div>
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <span className="text-sm font-medium">{product.name}</span>
+                                  <div className="text-xs text-gray-500">{product.category?.title || product.category?.name || 'Sin categoría'}</div>
                                 </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {item.isNew && !item.deleted ? (
-                                    <>
+                                <span className="text-sm font-semibold text-orange-600">
+                                  {formatChileanCurrency(product.price || 0)}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        className="w-full btn-professional-outline"
+                        onClick={() => setShowProductModal(true)}
+                      >
+                        Ver Productos
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-professional-body mb-1">
+                        Carrito ({cart.length} items)
+                      </label>
+                      <div className="product-list">
+                        {cart.length === 0 ? (
+                          <div className="flex items-center justify-center py-8">
+                            <p className="text-professional-body text-center text-sm">El carrito está vacío</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {cart.map((item, itemIndex) => {
+                              const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) =>
+                                sum + (extra.price || 0), 0
+                              );
+                              const itemTotalPrice = item.price + itemExtrasTotal;
+                              const itemIdentifier = item.cartId || item.id;
+
+                              return (
+                                <div key={itemIdentifier || itemIndex} className="bg-gray-50 rounded p-3">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium">{item.name}</div>
+                                      <div className="text-xs text-gray-500">
+                                        {formatChileanCurrency(item.price || 0)} c/u
+                                        {itemExtrasTotal > 0 && (
+                                          <span className="text-orange-600 font-semibold ml-1">
+                                            + {formatChileanCurrency(itemExtrasTotal)} extras
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
                                       <button
-                                        onClick={() => updateEditQuantity(item.cartId, item.quantity - 1)}
+                                        onClick={() => updateQuantity(item.id, item.quantity - 1, item.cartId)}
                                         className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
                                       >
                                         -
                                       </button>
                                       <span className="w-8 text-center text-sm">{item.quantity}</span>
                                       <button
-                                        onClick={() => updateEditQuantity(item.cartId, item.quantity + 1)}
+                                        onClick={() => updateQuantity(item.id, item.quantity + 1, item.cartId)}
                                         className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
                                       >
                                         +
                                       </button>
-                                    </>
-                                  ) : item.isOriginal && !item.deleted ? (
-                                    <span className="text-sm text-gray-500 w-16 text-center">x{item.quantity}</span>
-                                  ) : item.deleted ? (
-                                    <span className="text-xs text-red-400 line-through w-16 text-center">x{item.quantity}</span>
-                                  ) : null}
-                                  {item.deleted && item.isPendingDelete && (
-                                    <button
-                                      onClick={() => restoreFromEditCart(item.cartId || item.id)}
-                                      className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-xs"
-                                      title="Deshacer eliminación"
-                                    >
-                                      Deshacer
-                                    </button>
-                                  )}
-                                  {!item.deleted && canDeleteCurrentItem && (
-                                    <button
-                                      onClick={() => removeFromEditCart(item.cartId || item.id)}
-                                      className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs"
-                                      title={item.isOriginal ? 'Marcar como eliminado' : 'Quitar del carrito'}
-                                    >
-                                      <TrashIcon className="w-3 h-3 mx-auto" />
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              {/* Extras seleccionados */}
-                              {!item.deleted && item.selectedExtras && item.selectedExtras.length > 0 && (
-                                <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="flex-1">
-                                      <div className="text-xs font-medium text-orange-800 mb-1">
-                                        Extras seleccionados:
-                                      </div>
-                                      <div className="space-y-0.5">
-                                        {item.selectedExtras.map((extra, idx) => (
-                                          <div key={idx} className="text-xs text-orange-700 flex items-center justify-between">
-                                            <span>• {extra.extraName}</span>
-                                            {extra.price > 0 && (
-                                              <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>
-                                            )}
+                                      <button
+                                        onClick={() => removeFromCart(item.id, item.cartId)}
+                                        className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs"
+                                      >
+                                        <TrashIcon className="w-3 h-3 mx-auto" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Extras seleccionados */}
+                                  {item.selectedExtras && item.selectedExtras.length > 0 && (
+                                    <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="flex-1">
+                                          <div className="text-xs font-medium text-orange-800 mb-1">
+                                            Extras seleccionados:
                                           </div>
-                                        ))}
+                                          <div className="space-y-0.5">
+                                            {item.selectedExtras.map((extra, idx) => (
+                                              <div key={idx} className="text-xs text-orange-700 flex items-center justify-between">
+                                                <span>• {extra.extraName}</span>
+                                                {extra.price > 0 && (
+                                                  <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>
+                                                )}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                        {/* Botón para editar extras */}
+                                        <button
+                                          onClick={() => {
+                                            setSelectedProductForExtras(item);
+                                            setEditingCartItem(item);
+                                            setExtrasModalMode('edit');
+                                            setShowExtrasModal(true);
+                                          }}
+                                          className="text-xs bg-orange-200 hover:bg-orange-300 text-orange-800 px-2 py-1 rounded whitespace-nowrap"
+                                          title="Editar extras"
+                                        >
+                                          Editar
+                                        </button>
                                       </div>
                                     </div>
-                                    {/* Botón para editar extras */}
-                                    {item.isNew && (
+                                  )}
+
+                                  {/* Botón para agregar extras si el producto los tiene pero no hay seleccionados */}
+                                  {item.extraSections && item.extraSections.length > 0 && (!item.selectedExtras || item.selectedExtras.length === 0) && (
+                                    <div className="mb-2">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedProductForExtras(item);
+                                          setEditingCartItem(item);
+                                          setExtrasModalMode('edit');
+                                          setShowExtrasModal(true);
+                                        }}
+                                        className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded"
+                                      >
+                                        + Agregar extras
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {/* Comentarios del producto */}
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => openCommentModal(item)}
+                                      className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center gap-1"
+                                    >
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1.586l-4.707 4.707z" />
+                                      </svg>
+                                      {item.comments ? 'Editar' : 'Agregar'} comentario
+                                    </button>
+                                    {item.comments && (
+                                      <div className="flex-1 text-xs text-gray-600 italic">
+                                        "{item.comments}"
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="flex items-center justify-between text-sm font-medium text-professional-body mb-1">
+                        Métodos de Pago
+                        <button
+                          type="button"
+                          onClick={addPaymentMethod}
+                          className="bg-green-600 hover:bg-green-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                          title="Agregar método de pago"
+                        >
+                          +
+                        </button>
+                      </label>
+                      <div className="space-y-2">
+                        {paymentMethods.map((payment, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <select
+                              className="input-professional flex-1"
+                              value={payment.method}
+                              onChange={(e) => updatePaymentMethod(index, 'method', e.target.value)}
+                            >
+                              <option value="">Método</option>
+                              <option value="Efectivo">Efectivo</option>
+                              <option value="Debito">Débito</option>
+                              <option value="Transferencia">Transferencia</option>
+                            </select>
+                            <input
+                              type="text"
+                              className="input-professional flex-1"
+                              placeholder="Monto"
+                              value={formatPaymentInput(payment.amount)}
+                              onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
+                              onKeyDown={(e) => {
+                                // Solo permitir números, backspace, delete, tab
+                                if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                                  e.preventDefault();
+                                }
+                              }}
+                            />
+                            {paymentMethods.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removePaymentMethod(index)}
+                                className="bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                                title="Eliminar método de pago"
+                              >
+                                -
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {paymentMethods.length > 0 && (
+                          <div className="text-xs mt-1 space-y-1">
+                            <div className="text-gray-600">
+                              Total pagado: {formatChileanCurrency(getTotalPaymentAmount(paymentMethods))}
+                            </div>
+                            {(() => {
+                              const totalPaid = getTotalPaymentAmount(paymentMethods);
+                              const orderTotal = calculateTotal();
+                              const difference = getPaymentDifference(totalPaid, orderTotal);
+                              const differenceText = getPaymentDifferenceText(difference);
+
+                              return differenceText && (
+                                <div className={`font-medium ${difference < 0 ? 'text-red-600' : 'text-green-600'
+                                  }`}>
+                                  {differenceText}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="total-highlight">
+                      <div className="flex justify-between text-lg">
+                        <span>Total:</span>
+                        <span>{formatChileanCurrency(calculateTotal())}</span>
+                      </div>
+                    </div>
+
+                    {/* Botón al final del scroll */}
+                    <div className="pt-3">
+                      <button
+                        className="w-full btn-professional-primary"
+                        onClick={handleCreateOrder}
+                      >
+                        {isCreatingOrderRequest ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            Creando...
+                          </div>
+                        ) : (
+                          'Crear Pedido'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Columna derecha - Lista de pedidos con scroll unificado */}
+          <div className={`${isCreatingOrder ? 'hidden lg:flex flex-1' :
+            (isEditingOrder || isViewingCompletedOrder) ? 'hidden lg:flex flex-1' :
+              'w-full max-w-6xl mx-auto flex flex-1'
+            } flex-col min-h-0`}>
+            <div className="flex-1 overflow-y-auto scrollbar-professional space-y-2 lg:space-y-3 pr-1 pb-4 lg:pb-1">
+              {/* Pedidos en preparación */}
+              <div>
+                <div className="flex flex-col card-professional p-2 lg:p-4">
+                  <h2 className="text-professional-subtitle text-base lg:text-xl mb-2 lg:mb-3 flex-shrink-0 flex items-center gap-2 lg:gap-3">
+                    <ClockIcon className="w-5 h-5 lg:w-6 lg:h-6 text-orange-600" />
+                    Pedidos en Preparación
+                  </h2>
+
+                  <div className="flex-1 min-h-0 flex flex-col">
+                    {/* Encabezado de la tabla - fijo (solo desktop) */}
+                    <div className="hidden lg:grid table-header-professional grid-cols-6 gap-3 mb-2 flex-shrink-0 px-2">
+                      <div className="text-center font-semibold text-sm">#</div>
+                      <div className="text-center font-semibold text-sm">Fecha/Hora</div>
+                      <div className="text-center font-semibold text-sm">Tiempo</div>
+                      <div className="text-center font-semibold text-sm">Cliente</div>
+                      <div className="text-center font-semibold text-sm">Estado</div>
+                      <div className="text-center font-semibold text-sm">Total</div>
+                    </div>
+
+                    {/* Lista de pedidos */}
+                    <div className={`space-y-1 ${orders.length <= 1 ? 'min-h-[200px] lg:min-h-[260px]' : 'min-h-[120px]'}`}>
+                      {orders.map((order, index) => (
+                        <React.Fragment key={order._id || order.id}>
+                          {/* Desktop row */}
+                          <div
+                            className={`hidden lg:grid grid-cols-6 gap-3 p-3 rounded-lg border cursor-pointer hover:shadow-md ${(selectedOrder?._id || selectedOrder?.id) === (order._id || order.id)
+                              ? 'bg-yellow-100 shadow-md border-yellow-300'
+                              : 'bg-yellow-50 hover:bg-yellow-100'
+                              }`}
+                            onClick={() => handleSelectOrderToEdit(order)}
+                          >
+                            <div className="text-center font-semibold text-gray-800 text-sm">
+                              {order.orderNumber}
+                            </div>
+                            <div className="text-center text-xs text-gray-600">
+                              {new Date(order.createdAt).toLocaleDateString('es-ES', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                              })}, {formatTime(order.createdAt)}
+                            </div>
+                            <div className="text-center">
+                              <span className="text-orange-500 font-medium text-xs">
+                                {Math.max(0, Math.floor((now - new Date(order.createdAt)) / 60000))} min
+                              </span>
+                            </div>
+                            <div className="text-center text-gray-800 font-medium text-sm truncate">
+                              {getCustomerName(order)}
+                            </div>
+                            <div className="text-center">
+                              <span className="status-preparing text-xs">
+                                Preparación
+                              </span>
+                            </div>
+                            <div className="text-center font-semibold text-gray-800 text-sm">
+                              {formatChileanCurrency(order.total || 0)}
+                            </div>
+                          </div>
+                          {/* Mobile card */}
+                          <div
+                            className={`lg:hidden mobile-order-card ${(selectedOrder?._id || selectedOrder?.id) === (order._id || order.id)
+                              ? 'bg-yellow-100 border-yellow-300 shadow-md'
+                              : 'bg-yellow-50'
+                              }`}
+                            onClick={() => handleSelectOrderToEdit(order)}
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-gray-800 text-sm">#{order.orderNumber}</span>
+                                <span className="status-preparing text-xs">Preparación</span>
+                              </div>
+                              <span className="font-semibold text-gray-800 text-sm">{formatChileanCurrency(order.total || 0)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-800 font-medium truncate mr-2">{getCustomerName(order)}</span>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="text-orange-500 font-medium text-xs">
+                                  {Math.max(0, Math.floor((now - new Date(order.createdAt)) / 60000))} min
+                                </span>
+                                <span className="text-xs text-gray-500">{formatTime(order.createdAt)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </React.Fragment>
+                      ))}
+
+                      {orders.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          No hay pedidos en preparación
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pedidos completados recientes */}
+              <div>
+                <div className="flex flex-col card-professional p-2 lg:p-4">
+                  <h2 className="text-professional-subtitle text-base lg:text-xl mb-2 lg:mb-3 flex-shrink-0">
+                    Pedidos Completados/Cancelados
+                  </h2>
+
+                  <div className="flex-1 min-h-0 flex flex-col">
+                    {/* Encabezado de la tabla - fijo (solo desktop) */}
+                    <div className="hidden lg:grid bg-green-700 text-white grid-cols-5 gap-3 p-2 rounded-t-lg mb-1 flex-shrink-0">
+                      <div className="text-center font-semibold text-xs">#</div>
+                      <div className="text-center font-semibold text-xs">Fecha/Hora</div>
+                      <div className="text-center font-semibold text-xs">Cliente</div>
+                      <div className="text-center font-semibold text-xs">Estado</div>
+                      <div className="text-center font-semibold text-xs">Total</div>
+                    </div>
+
+                    {/* Lista de pedidos completados */}
+                    <div className={`space-y-1 ${completedOrders.length <= 2 ? 'min-h-[150px] lg:min-h-[190px]' : 'min-h-[80px]'}`}>
+                      {completedOrders.map((order, index) => (
+                        <React.Fragment key={order.id}>
+                          {/* Desktop row */}
+                          <div
+                            className={`hidden lg:grid grid-cols-5 gap-3 p-2 rounded cursor-pointer ${(selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
+                              ? (order.status === 'Completado' ? 'bg-green-200 border-green-400' : 'bg-red-200 border-red-400')
+                              : (order.status === 'Completado' ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100')
+                              } border-l-4 ${(selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
+                                ? (order.status === 'Completado' ? 'border-green-500' : 'border-red-500')
+                                : (order.status === 'Completado' ? 'border-green-500' : 'border-red-500')
+                              }`}
+                            onClick={() => handleSelectCompletedOrder(order)}
+                          >
+                            <div className="text-center font-medium text-gray-800 text-sm">
+                              #{order.orderNumber}
+                            </div>
+                            <div className="text-center text-xs text-gray-600">
+                              {new Date(order.createdAt).toLocaleDateString('es-ES', {
+                                day: '2-digit',
+                                month: '2-digit'
+                              })}, {formatTime(order.createdAt)}
+                            </div>
+                            <div className="text-center text-xs text-gray-800 font-medium truncate">
+                              {getCustomerName(order)?.toUpperCase()}
+                            </div>
+                            <div className="text-center">
+                              <span className={order.status === 'Completado' ? 'status-completed text-xs' : 'bg-red-100 border-red-300 text-red-600 rounded-full px-1 py-0.5 text-xs font-medium'}>
+                                {order.status}
+                              </span>
+                            </div>
+                            <div className="text-center font-semibold text-gray-800 text-xs">
+                              {formatChileanCurrency(order.total || 0)}
+                            </div>
+                          </div>
+                          {/* Mobile card */}
+                          <div
+                            className={`lg:hidden p-2 rounded-lg cursor-pointer border-l-4 ${(selectedCompletedOrder?._id || selectedCompletedOrder?.id) === (order._id || order.id)
+                              ? (order.status === 'Completado' ? 'bg-green-200 border-green-500' : 'bg-red-200 border-red-500')
+                              : (order.status === 'Completado' ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500')
+                              }`}
+                            onClick={() => handleSelectCompletedOrder(order)}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-gray-800 text-sm">#{order.orderNumber}</span>
+                                <span className={order.status === 'Completado' ? 'status-completed text-xs' : 'bg-red-100 border-red-300 text-red-600 rounded-full px-1 py-0.5 text-xs font-medium'}>
+                                  {order.status}
+                                </span>
+                              </div>
+                              <span className="font-semibold text-gray-800 text-sm">{formatChileanCurrency(order.total || 0)}</span>
+                            </div>
+                            <div className="flex justify-between items-center mt-1">
+                              <span className="text-xs text-gray-800 font-medium truncate mr-2">{getCustomerName(order)?.toUpperCase()}</span>
+                              <span className="text-xs text-gray-500 flex-shrink-0">{formatTime(order.createdAt)}</span>
+                            </div>
+                          </div>
+                        </React.Fragment>
+                      ))}
+
+                      {completedOrders.length === 0 && (
+                        <div className="text-center py-4 text-gray-500 text-sm">
+                          No hay pedidos completados recientes
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Columna de edición - Formulario de edición (cuando está activo) */}
+          {isEditingOrder && selectedOrder && (
+            <div className="mobile-overlay-panel">
+              <div className="h-full flex flex-col card-professional p-3 lg:p-4">
+                <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
+                  <span>Editando Pedido #{selectedOrder.orderNumber}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePrintCustomerTicket(selectedOrder)}
+                      className="text-blue-600 hover:text-blue-body text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                      title="Imprimir ticket de cliente"
+                    >
+                      <PrinterIcon className="w-4 h-4" />
+                      Ticket
+                    </button>
+                    <button
+                      onClick={handleCancelEditOrder}
+                      className="text-gray-500 hover:text-gray-700 text-sm"
+                    >
+                      ✕ Cerrar
+                    </button>
+                  </div>
+                </h2>
+
+                {/* Formulario de edición con scroll independiente */}
+                <div className="flex-1 min-h-0">
+                  <div className="h-full space-y-3 scrollbar-professional overflow-y-auto pr-2">
+                    <div>
+                      <label className="block text-sm font-medium text-professional-body mb-1">
+                        Nombre del Cliente
+                      </label>
+                      <input
+                        type="text"
+                        className="input-professional"
+                        placeholder="Ingrese el nombre del cliente"
+                        value={editCustomerName}
+                        onChange={(e) => setEditCustomerName(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-professional-body mb-1">
+                        Comentario
+                      </label>
+                      <textarea
+                        className="input-professional resize-none"
+                        rows="2"
+                        placeholder="Comentarios adicionales"
+                        value={editComments}
+                        onChange={(e) => setEditComments(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-professional-body mb-1">
+                        Buscar Productos
+                      </label>
+                      <input
+                        type="text"
+                        className="input-professional mb-2"
+                        placeholder="Buscar productos..."
+                        value={editSearchTerm}
+                        onChange={handleEditSearchChange}
+                      />
+                      {/* Resultados de búsqueda para edición */}
+                      {editSearchTerm && searchResults.length > 0 && (
+                        <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md mb-2">
+                          {searchResults.map((product) => (
+                            <div
+                              key={product.id}
+                              className="p-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                              onClick={() => {
+                                addToEditCart(product);
+                                setEditSearchTerm('');
+                              }}
+                            >
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <span className="text-sm font-medium">{product.name}</span>
+                                  <div className="text-xs text-gray-500">{product.category?.title || product.category?.name || 'Sin categoría'}</div>
+                                </div>
+                                <span className="text-sm font-semibold text-orange-600">
+                                  {formatChileanCurrency(product.price || 0)}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        className="w-full btn-professional-outline"
+                        onClick={() => setShowProductModal(true)}
+                      >
+                        Ver Productos
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-professional-body mb-1">
+                        Carrito ({editCart.filter(i => !i.deleted).length} items)
+                        {editCart.some(i => i.deleted) && (
+                          <span className="ml-2 text-xs text-red-500 font-normal">
+                            ({editCart.filter(i => i.deleted).length} eliminado{editCart.filter(i => i.deleted).length > 1 ? 's' : ''})
+                          </span>
+                        )}
+                      </label>
+                      <div className="product-list">
+                        {editCart.filter(i => !i.deleted).length === 0 && editCart.filter(i => i.deleted).length === 0 ? (
+                          <div className="flex items-center justify-center py-8">
+                            <p className="text-professional-body text-center text-sm">El carrito está vacío</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {editCart.map((item) => {
+                              const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) =>
+                                sum + (extra.price || 0), 0
+                              );
+                              const canDeleteCurrentItem = item.isNew || printingService.canCurrentUserDeleteOrderItems();
+
+                              return (
+                                <div
+                                  key={item.cartId || item.id}
+                                  className={`rounded p-3 border ${item.deleted
+                                    ? 'bg-red-50 border-red-200 opacity-70'
+                                    : item.isNew
+                                      ? 'bg-green-50 border-green-200'
+                                      : 'bg-gray-50 border-gray-200'
+                                    }`}
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex-1 min-w-0">
+                                      <div className={`text-sm font-medium flex items-center gap-2 ${item.deleted ? 'line-through text-red-400' : ''}`}>
+                                        {item.name}
+                                        {item.isNew && !item.deleted && (
+                                          <span className="text-xs bg-green-100 text-green-700 border border-green-300 px-1.5 py-0.5 rounded-full font-semibold">NUEVO</span>
+                                        )}
+                                      </div>
+                                      <div className={`text-xs ${item.deleted ? 'line-through text-red-300' : 'text-gray-500'}`}>
+                                        {formatChileanCurrency(item.price)} c/u
+                                        {itemExtrasTotal > 0 && !item.deleted && (
+                                          <span className="text-orange-600 font-semibold ml-1">
+                                            + {formatChileanCurrency(itemExtrasTotal)} extras
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      {item.isNew && !item.deleted ? (
+                                        <>
+                                          <button
+                                            onClick={() => updateEditQuantity(item.cartId, item.quantity - 1)}
+                                            className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
+                                          >
+                                            -
+                                          </button>
+                                          <span className="w-8 text-center text-sm">{item.quantity}</span>
+                                          <button
+                                            onClick={() => updateEditQuantity(item.cartId, item.quantity + 1)}
+                                            className="w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded text-xs"
+                                          >
+                                            +
+                                          </button>
+                                        </>
+                                      ) : item.isOriginal && !item.deleted ? (
+                                        <span className="text-sm text-gray-500 w-16 text-center">x{item.quantity}</span>
+                                      ) : item.deleted ? (
+                                        <span className="text-xs text-red-400 line-through w-16 text-center">x{item.quantity}</span>
+                                      ) : null}
+                                      {item.deleted && item.isPendingDelete && (
+                                        <button
+                                          onClick={() => restoreFromEditCart(item.cartId || item.id)}
+                                          className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-xs"
+                                          title="Deshacer eliminación"
+                                        >
+                                          Deshacer
+                                        </button>
+                                      )}
+                                      {!item.deleted && canDeleteCurrentItem && (
+                                        <button
+                                          onClick={() => removeFromEditCart(item.cartId || item.id)}
+                                          className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs"
+                                          title={item.isOriginal ? 'Marcar como eliminado' : 'Quitar del carrito'}
+                                        >
+                                          <TrashIcon className="w-3 h-3 mx-auto" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Extras seleccionados */}
+                                  {!item.deleted && item.selectedExtras && item.selectedExtras.length > 0 && (
+                                    <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="flex-1">
+                                          <div className="text-xs font-medium text-orange-800 mb-1">
+                                            Extras seleccionados:
+                                          </div>
+                                          <div className="space-y-0.5">
+                                            {item.selectedExtras.map((extra, idx) => (
+                                              <div key={idx} className="text-xs text-orange-700 flex items-center justify-between">
+                                                <span>• {extra.extraName}</span>
+                                                {extra.price > 0 && (
+                                                  <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>
+                                                )}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                        {/* Botón para editar extras */}
+                                        {item.isNew && (
+                                          <button
+                                            onClick={() => {
+                                              setSelectedProductForExtras(item);
+                                              setEditingCartItem(item);
+                                              setExtrasModalMode('edit-order');
+                                              setShowExtrasModal(true);
+                                            }}
+                                            className="text-xs bg-orange-200 hover:bg-orange-300 text-orange-800 px-2 py-1 rounded whitespace-nowrap"
+                                            title="Editar extras"
+                                          >
+                                            Editar
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Botón para agregar extras si el producto los tiene pero no hay seleccionados */}
+                                  {!item.deleted && item.isNew && item.extraSections && item.extraSections.length > 0 && (!item.selectedExtras || item.selectedExtras.length === 0) && (
+                                    <div className="mb-2">
                                       <button
                                         onClick={() => {
                                           setSelectedProductForExtras(item);
@@ -1829,429 +1850,405 @@ const Mostrador = () => {
                                           setExtrasModalMode('edit-order');
                                           setShowExtrasModal(true);
                                         }}
-                                        className="text-xs bg-orange-200 hover:bg-orange-300 text-orange-800 px-2 py-1 rounded whitespace-nowrap"
-                                        title="Editar extras"
+                                        className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded"
                                       >
-                                        Editar
+                                        + Agregar extras
                                       </button>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
+                                    </div>
+                                  )}
 
-                              {/* Botón para agregar extras si el producto los tiene pero no hay seleccionados */}
-                              {!item.deleted && item.isNew && item.extraSections && item.extraSections.length > 0 && (!item.selectedExtras || item.selectedExtras.length === 0) && (
-                                <div className="mb-2">
-                                  <button
-                                    onClick={() => {
-                                      setSelectedProductForExtras(item);
-                                      setEditingCartItem(item);
-                                      setExtrasModalMode('edit-order');
-                                      setShowExtrasModal(true);
-                                    }}
-                                    className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded"
-                                  >
-                                    + Agregar extras
-                                  </button>
-                                </div>
-                              )}
-                              
-                              {/* Comentarios del producto */}
-                              {!item.deleted && (
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => openEditCommentModal(item)}
-                                    className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center gap-1"
-                                  >
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1.586l-4.707 4.707z" />
-                                    </svg>
-                                    {item.comments ? 'Editar' : 'Agregar'} comentario
-                                  </button>
-                                  {item.comments && (
-                                    <div className="flex-1 text-xs text-gray-600 italic">
-                                      "{item.comments}"
+                                  {/* Comentarios del producto */}
+                                  {!item.deleted && (
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => openEditCommentModal(item)}
+                                        className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center gap-1"
+                                      >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1.586l-4.707 4.707z" />
+                                        </svg>
+                                        {item.comments ? 'Editar' : 'Agregar'} comentario
+                                      </button>
+                                      {item.comments && (
+                                        <div className="flex-1 text-xs text-gray-600 italic">
+                                          "{item.comments}"
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
-                              )}
-                            </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="flex items-center justify-between text-sm font-medium text-professional-body mb-1">
-                      Métodos de Pago
-                      <button
-                        type="button"
-                        onClick={addEditPaymentMethod}
-                        className="bg-green-600 hover:bg-green-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
-                        title="Agregar método de pago"
-                      >
-                        +
-                      </button>
-                    </label>
-                    <div className="space-y-2">
-                      {editPaymentMethods.map((payment, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <select 
-                            className="input-professional flex-1"
-                            value={payment.method}
-                            onChange={(e) => updateEditPaymentMethod(index, 'method', e.target.value)}
-                          >
-                            <option value="">Método</option>
-                            <option value="Efectivo">Efectivo</option>
-                            <option value="Debito">Débito</option>
-                            <option value="Transferencia">Transferencia</option>
-                          </select>
-                          <input
-                            type="text"
-                            className="input-professional flex-1"
-                            placeholder="Monto"
-                            value={formatPaymentInput(payment.amount)}
-                            onChange={(e) => updateEditPaymentMethod(index, 'amount', e.target.value)}
-                            onKeyDown={(e) => {
-                              // Solo permitir números, backspace, delete, tab
-                              if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                                e.preventDefault();
-                              }
-                            }}
-                          />
-                          {editPaymentMethods.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeEditPaymentMethod(index)}
-                              className="bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
-                              title="Eliminar método de pago"
-                            >
-                              -
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      {editPaymentMethods.length > 0 && (
-                        <div className="text-xs mt-1 space-y-1">
-                          <div className="text-gray-600">
-                            Total pagado: {formatChileanCurrency(getTotalPaymentAmount(editPaymentMethods))}
+                              );
+                            })}
                           </div>
-                          {(() => {
-                            const totalPaid = getTotalPaymentAmount(editPaymentMethods);
-                            const orderTotal = calculateEditTotal();
-                            const difference = getPaymentDifference(totalPaid, orderTotal);
-                            const differenceText = getPaymentDifferenceText(difference);
-                            
-                            return differenceText && (
-                              <div className={`font-medium ${
-                                difference < 0 ? 'text-red-600' : 'text-green-600'
-                              }`}>
-                                {differenceText}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="total-highlight">
-                    <div className="flex justify-between text-lg">
-                      <span>Total:</span>
-                      <span>{formatChileanCurrency(calculateEditTotal())}</span>
+                    <div>
+                      <label className="flex items-center justify-between text-sm font-medium text-professional-body mb-1">
+                        Métodos de Pago
+                        <button
+                          type="button"
+                          onClick={addEditPaymentMethod}
+                          className="bg-green-600 hover:bg-green-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                          title="Agregar método de pago"
+                        >
+                          +
+                        </button>
+                      </label>
+                      <div className="space-y-2">
+                        {editPaymentMethods.map((payment, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <select
+                              className="input-professional flex-1"
+                              value={payment.method}
+                              onChange={(e) => updateEditPaymentMethod(index, 'method', e.target.value)}
+                            >
+                              <option value="">Método</option>
+                              <option value="Efectivo">Efectivo</option>
+                              <option value="Debito">Débito</option>
+                              <option value="Transferencia">Transferencia</option>
+                            </select>
+                            <input
+                              type="text"
+                              className="input-professional flex-1"
+                              placeholder="Monto"
+                              value={formatPaymentInput(payment.amount)}
+                              onChange={(e) => updateEditPaymentMethod(index, 'amount', e.target.value)}
+                              onKeyDown={(e) => {
+                                // Solo permitir números, backspace, delete, tab
+                                if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                                  e.preventDefault();
+                                }
+                              }}
+                            />
+                            {editPaymentMethods.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeEditPaymentMethod(index)}
+                                className="bg-red-600 hover:bg-red-700 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                                title="Eliminar método de pago"
+                              >
+                                -
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {editPaymentMethods.length > 0 && (
+                          <div className="text-xs mt-1 space-y-1">
+                            <div className="text-gray-600">
+                              Total pagado: {formatChileanCurrency(getTotalPaymentAmount(editPaymentMethods))}
+                            </div>
+                            {(() => {
+                              const totalPaid = getTotalPaymentAmount(editPaymentMethods);
+                              const orderTotal = calculateEditTotal();
+                              const difference = getPaymentDifference(totalPaid, orderTotal);
+                              const differenceText = getPaymentDifferenceText(difference);
+
+                              return differenceText && (
+                                <div className={`font-medium ${difference < 0 ? 'text-red-600' : 'text-green-600'
+                                  }`}>
+                                  {differenceText}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Botones al final del scroll */}
-                  <div className="pt-3 space-y-2">
-                    <button 
-                      className="w-full btn-professional-primary"
-                      disabled={editCart.length === 0 || isUpdatingOrderRequest}
-                      onClick={handleUpdateOrder}
-                    >
-                      {isUpdatingOrderRequest ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Actualizando...
-                        </div>
-                      ) : (
-                        'Actualizar Pedido'
-                      )}
-                    </button>
-                    
-                    <div className="flex gap-2">
-                      <button 
-                        className={`flex-1 py-2 px-4 rounded transition-colors text-sm ${
-                          isCompletingOrder || isUpdatingOrderRequest
+                    <div className="total-highlight">
+                      <div className="flex justify-between text-lg">
+                        <span>Total:</span>
+                        <span>{formatChileanCurrency(calculateEditTotal())}</span>
+                      </div>
+                    </div>
+
+                    {/* Botones al final del scroll */}
+                    <div className="pt-3 space-y-2">
+                      <button
+                        className="w-full btn-professional-primary"
+                        disabled={editCart.length === 0 || isUpdatingOrderRequest}
+                        onClick={handleUpdateOrder}
+                      >
+                        {isUpdatingOrderRequest ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            Actualizando...
+                          </div>
+                        ) : (
+                          'Actualizar Pedido'
+                        )}
+                      </button>
+
+                      <div className="flex gap-2">
+                        <button
+                          className={`flex-1 py-2 px-4 rounded transition-colors text-sm ${isCompletingOrder || isUpdatingOrderRequest
                             ? 'bg-gray-400 cursor-not-allowed text-gray-200'
                             : 'bg-green-600 hover:bg-green-700 text-white'
-                        }`}
-                        disabled={isCompletingOrder || isUpdatingOrderRequest}
-                        onClick={() => handleCompleteOrder(selectedOrder._id || selectedOrder.id)}
-                      >
-                        {isCompletingOrder ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                            Completando...
-                          </div>
-                        ) : (
-                          'Completar'
-                        )}
-                      </button>
-                      <button 
-                        className={`flex-1 py-2 px-4 rounded transition-colors text-sm ${
-                          isCancelingOrder || isUpdatingOrderRequest
+                            }`}
+                          disabled={isCompletingOrder || isUpdatingOrderRequest}
+                          onClick={() => handleCompleteOrder(selectedOrder._id || selectedOrder.id)}
+                        >
+                          {isCompletingOrder ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                              Completando...
+                            </div>
+                          ) : (
+                            'Completar'
+                          )}
+                        </button>
+                        <button
+                          className={`flex-1 py-2 px-4 rounded transition-colors text-sm ${isCancelingOrder || isUpdatingOrderRequest
                             ? 'bg-gray-400 cursor-not-allowed text-gray-200'
                             : 'bg-red-600 hover:bg-red-700 text-white'
-                        }`}
-                        disabled={isCancelingOrder || isUpdatingOrderRequest}
-                        onClick={() => handleCancelOrder(selectedOrder._id || selectedOrder.id)}
-                      >
-                        {isCancelingOrder ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                            Cancelando...
-                          </div>
-                        ) : (
-                          'Cancelar'
-                        )}
-                      </button>
+                            }`}
+                          disabled={isCancelingOrder || isUpdatingOrderRequest}
+                          onClick={() => handleCancelOrder(selectedOrder._id || selectedOrder.id)}
+                        >
+                          {isCancelingOrder ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                              Cancelando...
+                            </div>
+                          ) : (
+                            'Cancelar'
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Columna de vista - Detalle de pedidos completados/cancelados (solo lectura) */}
-        {isViewingCompletedOrder && selectedCompletedOrder && (
-          <div className="mobile-overlay-panel">
-            <div className="h-full flex flex-col card-professional p-3 lg:p-4 bg-gray-50 border border-gray-300">
-              <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
-                <span className="text-gray-700">
-                  Detalle Pedido #{selectedCompletedOrder.orderNumber} 
-                  <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                    selectedCompletedOrder.status === 'Completado' 
-                      ? 'bg-green-100 text-green-800 border border-green-300' 
+          {/* Columna de vista - Detalle de pedidos completados/cancelados (solo lectura) */}
+          {isViewingCompletedOrder && selectedCompletedOrder && (
+            <div className="mobile-overlay-panel">
+              <div className="h-full flex flex-col card-professional p-3 lg:p-4 bg-gray-50 border border-gray-300">
+                <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
+                  <span className="text-gray-700">
+                    Detalle Pedido #{selectedCompletedOrder.orderNumber}
+                    <span className={`ml-2 px-2 py-1 text-xs rounded-full ${selectedCompletedOrder.status === 'Completado'
+                      ? 'bg-green-100 text-green-800 border border-green-300'
                       : 'bg-red-100 text-red-800 border border-red-300'
-                  }`}>
-                    {selectedCompletedOrder.status}
+                      }`}>
+                      {selectedCompletedOrder.status}
+                    </span>
                   </span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handlePrintCustomerTicket(selectedCompletedOrder)}
-                    className="text-blue-600 hover:text-blue-body text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
-                    title="Imprimir ticket de cliente"
-                  >
-                    <PrinterIcon className="w-4 h-4" />
-                    Ticket
-                  </button>
-                  <button
-                    onClick={handleCancelViewCompletedOrder}
-                    className="text-gray-500 hover:text-gray-700 text-sm"
-                  >
-                    ✕ Cerrar
-                  </button>
-                </div>
-              </h2>
-              
-              {/* Contenido de solo lectura con scroll independiente */}
-              <div className="flex-1 min-h-0">
-                <div className="h-full space-y-3 scrollbar-professional overflow-y-auto pr-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">
-                      Cliente
-                    </label>
-                    <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700">
-                      {getCustomerName(selectedCompletedOrder)}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePrintCustomerTicket(selectedCompletedOrder)}
+                      className="text-blue-600 hover:text-blue-body text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                      title="Imprimir ticket de cliente"
+                    >
+                      <PrinterIcon className="w-4 h-4" />
+                      Ticket
+                    </button>
+                    <button
+                      onClick={handleCancelViewCompletedOrder}
+                      className="text-gray-500 hover:text-gray-700 text-sm"
+                    >
+                      ✕ Cerrar
+                    </button>
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">
-                      Fecha y Hora
-                    </label>
-                    <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700">
-                      {new Date(selectedCompletedOrder.createdAt).toLocaleDateString('es-ES', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
-                      })}, {formatTime(selectedCompletedOrder.createdAt)}
-                    </div>
-                  </div>
+                </h2>
 
-                  {selectedCompletedOrder.comment && (
+                {/* Contenido de solo lectura con scroll independiente */}
+                <div className="flex-1 min-h-0">
+                  <div className="h-full space-y-3 scrollbar-professional overflow-y-auto pr-2">
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">
-                        Comentario del Pedido
+                        Cliente
                       </label>
-                      <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap">
-                        {selectedCompletedOrder.comment}
+                      <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700">
+                        {getCustomerName(selectedCompletedOrder)}
                       </div>
                     </div>
-                  )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">
-                      Productos ({selectedCompletedOrder.foods?.length || 0} items)
-                    </label>
-                    <div className="bg-gray-100 border border-gray-300 rounded min-h-[150px] max-h-[300px] overflow-y-auto p-3">
-                      {selectedCompletedOrder.foods?.length === 0 ? (
-                        <div className="flex items-center justify-center h-full">
-                          <p className="text-gray-600 text-center text-sm">No hay productos</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {selectedCompletedOrder.foods?.map((food, index) => {
-                            const extrasTotal = (food.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
-                            const unitPrice = food.food?.price || 0;
-                            const totalWithExtras = (unitPrice + extrasTotal) * (food.quantity || 1);
-                            
-                            return (
-                            <div key={index} className="bg-white rounded p-3 border border-gray-200">
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-gray-800">
-                                    {food.food?.title || 'Producto'}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {formatChileanCurrency(unitPrice)} c/u
-                                    {extrasTotal > 0 && <span className="text-orange-600"> (+{formatChileanCurrency(extrasTotal)} extras)</span>}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <span className="text-sm text-gray-600">
-                                    Cantidad: {food.quantity || 1}
-                                  </span>
-                                  <span className="text-sm font-semibold text-gray-800">
-                                    {formatChileanCurrency(totalWithExtras)}
-                                  </span>
-                                </div>
-                              </div>
-                              
-                              {/* Extras seleccionados */}
-                              {food.selectedExtras && food.selectedExtras.length > 0 && (
-                                <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
-                                  <div className="text-xs font-medium text-orange-800 mb-1">Extras:</div>
-                                  <div className="space-y-0.5">
-                                    {food.selectedExtras.map((extra, idx) => (
-                                      <div key={idx} className="text-xs text-orange-700 flex justify-between">
-                                        <span>• {extra.extraName}</span>
-                                        {extra.price > 0 && <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Comentarios del producto */}
-                              {food.comment && (
-                                <div className="mt-2 pt-2 border-t border-gray-200">
-                                  <div className="text-xs text-gray-600">
-                                    <span className="font-medium">Comentario:</span> 
-                                    <span className="whitespace-pre-wrap"> "{food.comment}"</span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {selectedCompletedOrder.deletedFoods && selectedCompletedOrder.deletedFoods.length > 0 && (
                     <div>
-                      <label className="block text-sm font-medium text-red-600 mb-1">
-                        Productos Eliminados ({selectedCompletedOrder.deletedFoods.length} items)
+                      <label className="block text-sm font-medium text-gray-600 mb-1">
+                        Fecha y Hora
                       </label>
-                      <div className="bg-red-50 border border-red-200 rounded overflow-y-auto p-3">
-                        <div className="space-y-2">
-                          {selectedCompletedOrder.deletedFoods.map((food, index) => (
-                            <div key={index} className="bg-white rounded p-3 border border-red-200">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-red-700 line-through">
-                                    {food.food?.title || food.name || 'Producto'}
+                      <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700">
+                        {new Date(selectedCompletedOrder.createdAt).toLocaleDateString('es-ES', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric'
+                        })}, {formatTime(selectedCompletedOrder.createdAt)}
+                      </div>
+                    </div>
+
+                    {selectedCompletedOrder.comment && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">
+                          Comentario del Pedido
+                        </label>
+                        <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap">
+                          {selectedCompletedOrder.comment}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">
+                        Productos ({selectedCompletedOrder.foods?.length || 0} items)
+                      </label>
+                      <div className="bg-gray-100 border border-gray-300 rounded min-h-[150px] max-h-[300px] overflow-y-auto p-3">
+                        {selectedCompletedOrder.foods?.length === 0 ? (
+                          <div className="flex items-center justify-center h-full">
+                            <p className="text-gray-600 text-center text-sm">No hay productos</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {selectedCompletedOrder.foods?.map((food, index) => {
+                              const extrasTotal = (food.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+                              const unitPrice = food.food?.price || 0;
+                              const totalWithExtras = (unitPrice + extrasTotal) * (food.quantity || 1);
+
+                              return (
+                                <div key={index} className="bg-white rounded p-3 border border-gray-200">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium text-gray-800">
+                                        {food.food?.title || 'Producto'}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        {formatChileanCurrency(unitPrice)} c/u
+                                        {extrasTotal > 0 && <span className="text-orange-600"> (+{formatChileanCurrency(extrasTotal)} extras)</span>}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-sm text-gray-600">
+                                        Cantidad: {food.quantity || 1}
+                                      </span>
+                                      <span className="text-sm font-semibold text-gray-800">
+                                        {formatChileanCurrency(totalWithExtras)}
+                                      </span>
+                                    </div>
                                   </div>
-                                  {food.food?.price != null && (
-                                    <div className="text-xs text-red-400">
-                                      {formatChileanCurrency(food.food.price)} c/u
+
+                                  {/* Extras seleccionados */}
+                                  {food.selectedExtras && food.selectedExtras.length > 0 && (
+                                    <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                                      <div className="text-xs font-medium text-orange-800 mb-1">Extras:</div>
+                                      <div className="space-y-0.5">
+                                        {food.selectedExtras.map((extra, idx) => (
+                                          <div key={idx} className="text-xs text-orange-700 flex justify-between">
+                                            <span>• {extra.extraName}</span>
+                                            {extra.price > 0 && <span className="font-medium">+{formatChileanCurrency(extra.price)}</span>}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Comentarios del producto */}
+                                  {food.comment && (
+                                    <div className="mt-2 pt-2 border-t border-gray-200">
+                                      <div className="text-xs text-gray-600">
+                                        <span className="font-medium">Comentario:</span>
+                                        <span className="whitespace-pre-wrap"> "{food.comment}"</span>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
-                                <div className="text-sm text-red-500">
-                                  Cantidad: {food.quantity || 1}
-                                </div>
-                              </div>
-                              {food.comment && (
-                                <div className="mt-2 pt-2 border-t border-red-100">
-                                  <div className="text-xs text-red-500">
-                                    <span className="font-medium">Comentario:</span>{' '}
-                                    <span className="whitespace-pre-wrap">"{food.comment}"</span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">
-                      Método de Pago
-                    </label>
-                    <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700">
-                      {selectedCompletedOrder.paymentMethods && selectedCompletedOrder.paymentMethods.length > 1 ? (
-                        <div className="space-y-1">
-                          {selectedCompletedOrder.paymentMethods.map((payment, index) => (
-                            <div key={index} className="flex justify-between">
-                              <span>{payment.method}</span>
-                              <span className="font-medium">{formatChileanCurrency(payment.amount)}</span>
-                            </div>
-                          ))}
+                    {selectedCompletedOrder.deletedFoods && selectedCompletedOrder.deletedFoods.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-red-600 mb-1">
+                          Productos Eliminados ({selectedCompletedOrder.deletedFoods.length} items)
+                        </label>
+                        <div className="bg-red-50 border border-red-200 rounded overflow-y-auto p-3">
+                          <div className="space-y-2">
+                            {selectedCompletedOrder.deletedFoods.map((food, index) => (
+                              <div key={index} className="bg-white rounded p-3 border border-red-200">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1">
+                                    <div className="text-sm font-medium text-red-700 line-through">
+                                      {food.food?.title || food.name || 'Producto'}
+                                    </div>
+                                    {food.food?.price != null && (
+                                      <div className="text-xs text-red-400">
+                                        {formatChileanCurrency(food.food.price)} c/u
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="text-sm text-red-500">
+                                    Cantidad: {food.quantity || 1}
+                                  </div>
+                                </div>
+                                {food.comment && (
+                                  <div className="mt-2 pt-2 border-t border-red-100">
+                                    <div className="text-xs text-red-500">
+                                      <span className="font-medium">Comentario:</span>{' '}
+                                      <span className="whitespace-pre-wrap">"{food.comment}"</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ) : (
-                        selectedCompletedOrder.payment || 'No especificado'
-                      )}
-                    </div>
-                  </div>
+                      </div>
+                    )}
 
-                  <div className="bg-gray-200 border border-gray-400 rounded p-3">
-                    <div className="flex justify-between text-lg font-semibold text-gray-800">
-                      <span>Total:</span>
-                      <span>{formatChileanCurrency(selectedCompletedOrder.total || 0)}</span>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">
+                        Método de Pago
+                      </label>
+                      <div className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm text-gray-700">
+                        {selectedCompletedOrder.paymentMethods && selectedCompletedOrder.paymentMethods.length > 1 ? (
+                          <div className="space-y-1">
+                            {selectedCompletedOrder.paymentMethods.map((payment, index) => (
+                              <div key={index} className="flex justify-between">
+                                <span>{payment.method}</span>
+                                <span className="font-medium">{formatChileanCurrency(payment.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          selectedCompletedOrder.payment || 'No especificado'
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Información adicional */}
-                  <div className="pt-3 border-t border-gray-300">
-                    <div className="text-xs text-gray-500 space-y-1">
-                      <div>Sección: {selectedCompletedOrder.section || 'mostrador'}</div>
-                      {selectedCompletedOrder.updatedAt && (
-                        <div>
-                          {selectedCompletedOrder.status === 'Completado' ? 'Completado' : 'Cancelado'} el: {' '}
-                          {new Date(selectedCompletedOrder.updatedAt).toLocaleDateString('es-ES', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric'
-                          })}, {formatTime(selectedCompletedOrder.updatedAt)}
-                        </div>
-                      )}
+                    <div className="bg-gray-200 border border-gray-400 rounded p-3">
+                      <div className="flex justify-between text-lg font-semibold text-gray-800">
+                        <span>Total:</span>
+                        <span>{formatChileanCurrency(selectedCompletedOrder.total || 0)}</span>
+                      </div>
+                    </div>
+
+                    {/* Información adicional */}
+                    <div className="pt-3 border-t border-gray-300">
+                      <div className="text-xs text-gray-500 space-y-1">
+                        <div>Sección: {selectedCompletedOrder.section || 'mostrador'}</div>
+                        {selectedCompletedOrder.updatedAt && (
+                          <div>
+                            {selectedCompletedOrder.status === 'Completado' ? 'Completado' : 'Cancelado'} el: {' '}
+                            {new Date(selectedCompletedOrder.updatedAt).toLocaleDateString('es-ES', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            })}, {formatTime(selectedCompletedOrder.updatedAt)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
 

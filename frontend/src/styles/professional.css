@@ -49,12 +49,10 @@
   border: 1px solid rgba(210, 180, 140, 0.3);
   border-radius: var(--radius-medium);
   box-shadow: var(--shadow-medium);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card-professional:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(139, 69, 19, 0.2);
+  box-shadow: var(--shadow-medium);
 }
 
 /* Botones profesionales */
@@ -174,14 +172,12 @@
   border-radius: var(--radius-medium);
   padding: 20px;
   margin-bottom: 16px;
-  transition: all 0.2s ease;
   box-shadow: var(--shadow-soft);
 }
 
 .order-card:hover {
-  border-color: var(--color-primary);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-medium);
+  border-color: rgba(210, 180, 140, 0.4);
+  box-shadow: var(--shadow-soft);
 }
 
 /* Scrollbar personalizada */
@@ -332,12 +328,10 @@
   border: 1px solid rgba(37, 99, 235, 0.2);
   border-radius: var(--radius-medium);
   box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
-  transition: all 0.2s ease;
 }
 
 .card-blue:hover {
-  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.15);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
 }
 
 /* Total destacado azul */
@@ -440,11 +434,10 @@
   border: 1px solid rgba(210, 180, 140, 0.4);
   background: rgba(255, 255, 255, 0.9);
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .mobile-order-card:active {
-  transform: scale(0.98);
+  transform: none;
 }
 
 .mobile-order-card-blue {
@@ -453,11 +446,10 @@
   border: 1px solid rgba(37, 99, 235, 0.3);
   background: rgba(239, 246, 255, 0.9);
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .mobile-order-card-blue:active {
-  transform: scale(0.98);
+  transform: none;
 }
 
 /* Estados de pedidos azules */

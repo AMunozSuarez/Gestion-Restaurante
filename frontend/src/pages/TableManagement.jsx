@@ -385,13 +385,33 @@ const TableManagement = () => {
     // Obtener color de estado de mesa
     const getTableStatusColor = (table) => {
         if (table.status === 'occupied') {
-            return 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg';
+            return 'bg-orange-100 border-2 border-orange-600 text-orange-800 shadow-sm';
         } else if (table.status === 'reserved') {
-            return 'bg-gradient-to-br from-blue-400 to-blue-600 text-white';
+            return 'bg-blue-100 border-2 border-blue-600 text-blue-800 shadow-sm';
         } else if (table.status === 'inactive') {
-            return 'bg-gray-300 text-gray-600';
+            return 'bg-gray-300 border-2 border-gray-400 text-gray-600';
         }
-        return 'bg-gradient-to-br from-teal-400 to-teal-600 text-white hover:from-teal-500 hover:to-teal-700';
+        return 'bg-green-100 border-2 border-green-600 text-green-800 shadow-sm';
+    };
+
+    const getTableHoverClasses = (table, isEditModeView) => {
+        if (isEditModeView) {
+            return 'cursor-move';
+        }
+
+        if (table.status === 'occupied') {
+            return 'cursor-pointer hover:bg-orange-200 hover:border-orange-700 hover:shadow-lg hover:-translate-y-0.5';
+        }
+
+        if (table.status === 'reserved') {
+            return 'cursor-pointer hover:bg-blue-200 hover:border-blue-700 hover:shadow-lg hover:-translate-y-0.5';
+        }
+
+        if (table.status === 'inactive') {
+            return 'cursor-pointer hover:bg-gray-300 hover:border-gray-500 hover:shadow-md';
+        }
+
+        return 'cursor-pointer hover:bg-green-200 hover:border-green-700 hover:shadow-lg hover:-translate-y-0.5';
     };
 
     // Calcular tiempo desde que se abrió la mesa
@@ -404,6 +424,18 @@ const TableManagement = () => {
         const hours = Math.floor(diffMins / 60);
         const mins = diffMins % 60;
         return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    };
+
+    // Duracion compacta para tarjetas mobile (ej: 50h53m)
+    const getCompactTableDuration = (openedAt) => {
+        if (!openedAt) return null;
+        const now = new Date();
+        const opened = new Date(openedAt);
+        const diffMs = now - opened;
+        const diffMins = Math.floor(diffMs / 60000);
+        const hours = Math.floor(diffMins / 60);
+        const mins = diffMins % 60;
+        return hours > 0 ? `${hours}h${mins}m` : `${mins}m`;
     };
 
     if (isLoading) {
@@ -547,95 +579,178 @@ const TableManagement = () => {
                         </Button>
                     </div>
                 ) : (
-                    // Vista de cuadrícula mostrando el layout configurado
+                    // Vista responsive: mobile en tarjetas compactas, desktop en grilla
                     <div>
-                        {isEditMode && (
-                            <div className="mb-4 text-center">
-                                <p className="text-sm text-gray-600">Arrastra las mesas para cambiar su posición</p>
-                            </div>
-                        )}
-                        <div className={`grid grid-cols-7 gap-2 p-4 rounded-xl ${
-                            isEditMode 
-                                ? 'bg-gray-100' 
-                                : 'bg-gradient-to-br from-teal-50/30 to-cyan-50/30 border-2 border-teal-100/50'
-                        }`}>
-                            {createGrid().map(({ position, table }) => (
-                                <div
-                                    key={`${position.x}-${position.y}`}
-                                    onDragOver={isEditMode ? (e) => handleDragOver(e, position) : undefined}
-                                    onDragLeave={isEditMode ? handleDragLeave : undefined}
-                                    onDrop={isEditMode ? (e) => handleDrop(e, position) : undefined}
-                                    className={`
-                                        aspect-square rounded-lg transition-all
-                                        ${isEditMode ? 'border-2 border-dashed' : !table ? 'border border-teal-200/40 bg-white/50' : ''}
-                                        ${isEditMode && dragOverPosition?.x === position.x && dragOverPosition?.y === position.y
-                                            ? 'border-teal-500 bg-teal-50'
-                                            : isEditMode ? 'border-gray-300 bg-white' : ''
-                                        }
-                                        ${isEditMode && table ? '' : isEditMode ? 'hover:border-gray-400' : ''}
-                                    `}
-                                >
-                                    {table ? (
-                                        <div
-                                            draggable={isEditMode}
-                                            onDragStart={isEditMode ? (e) => handleDragStart(e, table) : undefined}
-                                            onDragEnd={isEditMode ? handleDragEnd : undefined}
-                                            onClick={() => handleTableClick(table)}
-                                            className={`
-                                                w-full h-full rounded-lg transition-all relative
-                                                ${getTableStatusColor(table)}
-                                                ${draggedTable?._id === table._id ? 'opacity-50' : 'opacity-100'}
-                                                ${isEditMode ? 'cursor-move' : table.status === 'occupied' ? 'cursor-pointer hover:shadow-xl hover:scale-105' : 'cursor-pointer hover:shadow-lg'}
-                                            `}
-                                        >
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
-                                                <div className={`font-bold ${
-                                                    isEditMode ? 'text-xl' : 'text-2xl'
-                                                }`}>
-                                                    {table.tableNumber}
-                                                </div>
-                                                <div className={`flex items-center gap-1 ${
-                                                    isEditMode ? 'text-xs' : 'text-sm'
-                                                }`}>
-                                                    <UserGroupIcon className={isEditMode ? 'w-3 h-3' : 'w-4 h-4'} />
-                                                    <span>
-                                                        {!isEditMode && table.status === 'occupied' && table.currentGuests 
-                                                            ? `${table.currentGuests}/${table.capacity}`
-                                                            : table.capacity
-                                                        }
+                        <div className="md:hidden">
+                            {isEditMode && (
+                                <div className="mb-3 text-center">
+                                    <p className="text-xs text-gray-600">En mobile puedes editar y eliminar mesas. Para mover posiciones, usa desktop.</p>
+                                </div>
+                            )}
+
+                            <div className="flex flex-wrap gap-2">
+                                {[...filteredTables]
+                                    .sort((a, b) => a.tableNumber - b.tableNumber)
+                                    .map((table) => {
+                                        const isOccupied = table.status === 'occupied';
+                                        const isReserved = table.status === 'reserved';
+                                        const isInactive = table.status === 'inactive';
+
+                                        return (
+                                            <div
+                                                key={table._id}
+                                                className={`relative w-[56px] h-[72px] rounded-xl border-2 shadow-sm transition-all duration-200 active:scale-[0.98] ${
+                                                    isOccupied
+                                                        ? 'bg-orange-100 border-orange-600'
+                                                        : isReserved
+                                                        ? 'bg-blue-100 border-blue-600'
+                                                        : isInactive
+                                                        ? 'bg-gray-300 border-gray-400'
+                                                        : 'bg-green-100 border-green-600'
+                                                }`}
+                                            >
+                                                <button
+                                                    onClick={() => handleTableClick(table)}
+                                                    className="w-full h-full flex flex-col items-center justify-center px-1"
+                                                >
+                                                    <UserGroupIcon className={`w-3.5 h-3.5 mb-0.5 ${
+                                                        isOccupied
+                                                            ? 'text-orange-700'
+                                                            : isReserved
+                                                            ? 'text-blue-700'
+                                                            : isInactive
+                                                            ? 'text-gray-600'
+                                                            : 'text-green-800'
+                                                    }`} />
+                                                    <span className={`font-bold leading-none ${
+                                                        isOccupied
+                                                            ? 'text-orange-700'
+                                                            : isReserved
+                                                            ? 'text-blue-700'
+                                                            : isInactive
+                                                            ? 'text-gray-600'
+                                                            : 'text-green-800'
+                                                    }`}>
+                                                        {table.tableNumber}
                                                     </span>
-                                                </div>
-                                                
-                                                {/* Tiempo activo - solo en vista normal */}
-                                                {!isEditMode && table.status === 'occupied' && table.openedAt && (
-                                                    <div className="flex items-center gap-1 text-xs bg-black bg-opacity-20 rounded-full px-2 py-1 mt-1">
-                                                        <ClockIcon className="w-3 h-3" />
-                                                        <span>{getTableDuration(table.openedAt)}</span>
+                                                    {isOccupied && table.openedAt && (
+                                                            <span className="text-[10px] leading-none mt-1 text-orange-800 whitespace-nowrap">
+                                                            {getCompactTableDuration(table.openedAt)}
+                                                        </span>
+                                                    )}
+                                                </button>
+
+                                                {isEditMode && (
+                                                    <div className="absolute -top-1 -right-1 flex gap-1">
+                                                        <button
+                                                            onClick={(e) => handleEditTable(table, e)}
+                                                            className="p-0.5 bg-white rounded-full shadow"
+                                                        >
+                                                            <PencilIcon className="w-2.5 h-2.5 text-teal-600" />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleDeleteTable(table, e)}
+                                                            className="p-0.5 bg-white rounded-full shadow"
+                                                        >
+                                                            <TrashIcon className="w-2.5 h-2.5 text-red-600" />
+                                                        </button>
                                                     </div>
                                                 )}
                                             </div>
-                                            
-                                            {/* Botones de edición - solo en modo edición */}
-                                            {isEditMode && (
-                                                <div className="absolute top-1 right-1 flex gap-1">
-                                                    <button
-                                                        onClick={(e) => handleEditTable(table, e)}
-                                                        className="p-1 bg-white bg-opacity-90 hover:bg-opacity-100 rounded transition-all"
-                                                    >
-                                                        <PencilIcon className="w-3 h-3 text-teal-600" />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleDeleteTable(table, e)}
-                                                        className="p-1 bg-white bg-opacity-90 hover:bg-opacity-100 rounded transition-all"
-                                                    >
-                                                        <TrashIcon className="w-3 h-3 text-red-600" />
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : null}
+                                        );
+                                    })}
+                            </div>
+                        </div>
+
+                        <div className="hidden md:block">
+                            {isEditMode && (
+                                <div className="mb-4 text-center">
+                                    <p className="text-sm text-gray-600">Arrastra las mesas para cambiar su posición</p>
                                 </div>
-                            ))}
+                            )}
+                                <div className={`grid grid-cols-7 gap-2 p-4 rounded-xl ${
+                                isEditMode 
+                                    ? 'bg-gray-100' 
+                                        : 'bg-[#f4f6f2] border border-[#dfe6d8]'
+                            }`}>
+                                {createGrid().map(({ position, table }) => (
+                                    <div
+                                        key={`${position.x}-${position.y}`}
+                                        onDragOver={isEditMode ? (e) => handleDragOver(e, position) : undefined}
+                                        onDragLeave={isEditMode ? handleDragLeave : undefined}
+                                        onDrop={isEditMode ? (e) => handleDrop(e, position) : undefined}
+                                        className={`
+                                            aspect-square rounded-lg transition-all
+                                            ${isEditMode ? 'border-2 border-dashed' : !table ? 'border border-gray-200 bg-white/80' : ''}
+                                            ${isEditMode && dragOverPosition?.x === position.x && dragOverPosition?.y === position.y
+                                                ? 'border-green-500 bg-green-50'
+                                                : isEditMode ? 'border-gray-300 bg-white' : ''
+                                            }
+                                            ${isEditMode && table ? '' : isEditMode ? 'hover:border-gray-400' : ''}
+                                        `}
+                                    >
+                                        {table ? (
+                                            <div
+                                                draggable={isEditMode}
+                                                onDragStart={isEditMode ? (e) => handleDragStart(e, table) : undefined}
+                                                onDragEnd={isEditMode ? handleDragEnd : undefined}
+                                                onClick={() => handleTableClick(table)}
+                                                className={`
+                                                    w-full h-full rounded-lg transition-all relative
+                                                    ${getTableStatusColor(table)}
+                                                    ${draggedTable?._id === table._id ? 'opacity-50' : 'opacity-100'}
+                                                    ${getTableHoverClasses(table, isEditMode)}
+                                                `}
+                                            >
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
+                                                    <div className={`font-bold ${
+                                                        isEditMode ? 'text-xl' : 'text-2xl'
+                                                    }`}>
+                                                        {table.tableNumber}
+                                                    </div>
+                                                    <div className={`flex items-center gap-1 ${
+                                                        isEditMode ? 'text-xs' : 'text-sm'
+                                                    }`}>
+                                                        <UserGroupIcon className={isEditMode ? 'w-3 h-3' : 'w-4 h-4'} />
+                                                        <span>
+                                                            {!isEditMode && table.status === 'occupied' && table.currentGuests 
+                                                                ? `${table.currentGuests}/${table.capacity}`
+                                                                : table.capacity
+                                                            }
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {/* Tiempo activo - solo en vista normal */}
+                                                    {!isEditMode && table.status === 'occupied' && table.openedAt && (
+                                                        <div className="flex items-center gap-1 text-xs mt-1 font-semibold text-orange-800">
+                                                            <ClockIcon className="w-3 h-3" />
+                                                            <span>{getTableDuration(table.openedAt)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Botones de edición - solo en modo edición */}
+                                                {isEditMode && (
+                                                    <div className="absolute top-1 right-1 flex gap-1">
+                                                        <button
+                                                            onClick={(e) => handleEditTable(table, e)}
+                                                            className="p-1 bg-white bg-opacity-90 hover:bg-opacity-100 rounded transition-all"
+                                                        >
+                                                            <PencilIcon className="w-3 h-3 text-teal-600" />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleDeleteTable(table, e)}
+                                                            className="p-1 bg-white bg-opacity-90 hover:bg-opacity-100 rounded transition-all"
+                                                        >
+                                                            <TrashIcon className="w-3 h-3 text-red-600" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 )}
