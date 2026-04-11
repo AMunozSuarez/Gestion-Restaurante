@@ -6,11 +6,12 @@ const categoryModel = require('../models/categoryModel');
 const createFoodController = async (req, res) => {
     try {
         const { title, description, price, imageUrl, foodTags, category, code, isAvailable, extraSections } = req.body;
+        const parsedPrice = Number(price);
 
-        if (!title || !price || !category) {
+        if (!title || !category || price === undefined || price === null || Number.isNaN(parsedPrice) || parsedPrice < 0) {
             return res.status(400).send({ 
                 success: false,
-                message: 'Please enter the food title, price and category' 
+                message: 'Please enter a valid food title, non-negative price and category' 
             });
         }
 
@@ -55,7 +56,7 @@ const createFoodController = async (req, res) => {
         const food = new foodModel({
             title,
             description,
-            price,
+            price: parsedPrice,
             imageUrl,
             foodTags,
             category,
@@ -185,6 +186,16 @@ const updateFoodController = async (req, res) => {
     try {
         const { title, description, price, imageUrl, foodTags, category, code, isAvailable, extraSections } = req.body;
 
+        if (price !== undefined) {
+            const parsedPrice = Number(price);
+            if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+                return res.status(400).send({
+                    success: false,
+                    message: 'Price must be a non-negative number'
+                });
+            }
+        }
+
         // Validar extraSections si se proporcionan
         if (extraSections && Array.isArray(extraSections)) {
             for (const section of extraSections) {
@@ -257,7 +268,11 @@ const updateFoodController = async (req, res) => {
         }
 
         // Preparar objeto de actualización
-        const updateData = { title, description, price, imageUrl, foodTags, category, code, isAvailable };
+        const updateData = { title, description, imageUrl, foodTags, category, code, isAvailable };
+
+        if (price !== undefined) {
+            updateData.price = Number(price);
+        }
         
         // Solo actualizar extraSections si se proporciona
         if (extraSections !== undefined) {

@@ -67,13 +67,14 @@ const ProductFormModal = ({
 
   const validateForm = () => {
     const newErrors = {};
+    const parsedPrice = parseFloat(formData.price);
 
     if (!formData.title.trim()) {
       newErrors.title = 'El nombre del producto es requerido';
     }
 
-    if (!formData.price || parseFloat(formData.price) <= 0) {
-      newErrors.price = 'El precio debe ser mayor a 0';
+    if (formData.price === '' || Number.isNaN(parsedPrice) || parsedPrice < 0) {
+      newErrors.price = 'El precio no puede ser negativo';
     }
 
     if (!formData.category) {
