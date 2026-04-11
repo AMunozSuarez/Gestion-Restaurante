@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button, Input, Modal } from '../ui';
 import ExtraSectionsManager from './ExtraSectionsManager';
@@ -11,6 +11,7 @@ const ProductFormModal = ({
   categories = [], 
   isLoading = false 
 }) => {
+  const titleInputRef = useRef(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -48,6 +49,16 @@ const ProductFormModal = ({
     }
     setErrors({});
   }, [product, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const focusTimer = setTimeout(() => {
+      titleInputRef.current?.focus();
+    }, 0);
+
+    return () => clearTimeout(focusTimer);
+  }, [isOpen]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -131,6 +142,7 @@ const ProductFormModal = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
             <Input
+              ref={titleInputRef}
               label="Nombre del Producto"
               name="title"
               value={formData.title}

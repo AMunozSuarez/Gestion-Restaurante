@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button, Input, Modal } from '../ui';
 
@@ -9,6 +9,7 @@ const CategoryFormModal = ({
   category = null, 
   isLoading = false 
 }) => {
+  const titleInputRef = useRef(null);
   const [formData, setFormData] = useState({
     title: '',
     isAvailable: true
@@ -31,6 +32,16 @@ const CategoryFormModal = ({
     }
     setErrors({});
   }, [category, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const focusTimer = setTimeout(() => {
+      titleInputRef.current?.focus();
+    }, 0);
+
+    return () => clearTimeout(focusTimer);
+  }, [isOpen]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -84,6 +95,7 @@ const CategoryFormModal = ({
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
           <Input
+            ref={titleInputRef}
             label="Nombre de la Categoría"
             name="title"
             value={formData.title}

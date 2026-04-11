@@ -360,25 +360,68 @@ const getAllSubscriptions = async (req, res) => {
     try {
         const { status, plan, page = 1, limit = 10 } = req.query;
 
+        const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+        const limitNumber = Math.max(parseInt(limit, 10) || 10, 1);
+
         const query = {};
         if (status) query.status = status;
         if (plan) query.plan = plan;
 
-        const subscriptions = await Subscription.find(query)
-            .populate('restaurant', 'name email')
-            .sort({ createdAt: -1 })
-            .limit(limit * 1)
-            .skip((page - 1) * limit);
+        const aggregationResult = await Subscription.aggregate([
+            { $match: query },
+            { $sort: { restaurant: 1, createdAt: -1 } },
+            {
+                $group: {
+                    _id: '$restaurant',
+                    latestSubscription: { $first: '$$ROOT' },
+                },
+            },
+            { $replaceRoot: { newRoot: '$latestSubscription' } },
+            {
+                $lookup: {
+                    from: 'restaurants',
+                    localField: 'restaurant',
+                    foreignField: '_id',
+                    as: 'restaurant',
+                },
+            },
+            {
+                $unwind: {
+                    path: '$restaurant',
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $addFields: {
+                    activePriority: {
+                        $cond: [{ $in: ['$status', ['active', 'trial']] }, 0, 1],
+                    },
+                },
+            },
+            { $sort: { activePriority: 1, endDate: 1, createdAt: -1 } },
+            {
+                $facet: {
+                    data: [
+                        { $skip: (pageNumber - 1) * limitNumber },
+                        { $limit: limitNumber },
+                        { $project: { activePriority: 0 } },
+                    ],
+                    totalCount: [{ $count: 'total' }],
+                },
+            },
+        ]);
 
-        const total = await Subscription.countDocuments(query);
+        const data = aggregationResult?.[0]?.data || [];
+        const total = aggregationResult?.[0]?.totalCount?.[0]?.total || 0;
+        const totalPages = Math.ceil(total / limitNumber) || 1;
 
         res.status(200).json({
             success: true,
-            data: subscriptions,
+            data,
             pagination: {
                 total,
-                page: parseInt(page),
-                pages: Math.ceil(total / limit),
+                page: pageNumber,
+                pages: totalPages,
             },
         });
     } catch (error) {

@@ -43,6 +43,8 @@ const SuperAdminDashboard = () => {
   
   // Estados para suscripciones
   const [subscriptions, setSubscriptions] = useState([]);
+  const [subscriptionsPage, setSubscriptionsPage] = useState(1);
+  const [subscriptionsTotalPages, setSubscriptionsTotalPages] = useState(1);
   const [subscriptionStats, setSubscriptionStats] = useState(null);
   const [showAssignSubscriptionModal, setShowAssignSubscriptionModal] = useState(false);
 
@@ -71,7 +73,7 @@ const SuperAdminDashboard = () => {
       default:
         break;
     }
-  }, [activeTab, usersPage, usersSearch, usersFilter, restaurantsPage, restaurantsSearch, restaurantsFilter]);
+  }, [activeTab, usersPage, usersSearch, usersFilter, restaurantsPage, restaurantsSearch, restaurantsFilter, subscriptionsPage]);
 
   // =================== FUNCIONES DE CARGA ===================
   const loadStats = async () => {
@@ -136,12 +138,14 @@ const SuperAdminDashboard = () => {
   const loadSubscriptions = async () => {
     try {
       setLoading(true);
-      const response = await getAllSubscriptions();
+      const response = await getAllSubscriptions({ page: subscriptionsPage, limit: 10 });
       if (response.success) {
         setSubscriptions(response.data || []);
+        setSubscriptionsTotalPages(response.pagination?.pages || 1);
       }
     } catch (error) {
       console.error('Error al cargar suscripciones:', error);
+      showNotification('Error al cargar suscripciones: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -709,7 +713,7 @@ const SuperAdminDashboard = () => {
         {/* Lista de suscripciones */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800">Todas las Suscripciones</h3>
+            <h3 className="text-lg font-semibold text-gray-800">Ultima suscripcion por restaurante</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -766,7 +770,7 @@ const SuperAdminDashboard = () => {
                         {new Date(sub.endDate).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${sub.price?.toFixed(2)}
+                        ${(sub.amount ?? 0).toLocaleString('es-CL')}
                       </td>
                     </tr>
                   ))
@@ -774,6 +778,30 @@ const SuperAdminDashboard = () => {
               </tbody>
             </table>
           </div>
+
+          {subscriptionsTotalPages > 1 && (
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setSubscriptionsPage(Math.max(1, subscriptionsPage - 1))}
+                  disabled={subscriptionsPage === 1}
+                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  Anterior
+                </button>
+                <span className="text-sm text-gray-700">
+                  Pagina {subscriptionsPage} de {subscriptionsTotalPages}
+                </span>
+                <button
+                  onClick={() => setSubscriptionsPage(Math.min(subscriptionsTotalPages, subscriptionsPage + 1))}
+                  disabled={subscriptionsPage === subscriptionsTotalPages}
+                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

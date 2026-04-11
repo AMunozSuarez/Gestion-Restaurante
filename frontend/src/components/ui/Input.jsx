@@ -1,12 +1,12 @@
 import React from 'react';
 
-const Input = ({ 
+const Input = React.forwardRef(({ 
   label,
   error,
   className = '',
   type = 'text',
   ...props 
-}) => {
+}, ref) => {
   const baseClasses = 'block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500';
   const errorClasses = error ? 'border-red-500' : 'border-gray-300';
   
@@ -18,6 +18,7 @@ const Input = ({
         </label>
       )}
       <input
+        ref={ref}
         type={type}
         className={`${baseClasses} ${errorClasses} ${className}`}
         {...props}
@@ -27,6 +28,8 @@ const Input = ({
       )}
     </div>
   );
-};
+});
+
+Input.displayName = 'Input';
 
 export default Input;
