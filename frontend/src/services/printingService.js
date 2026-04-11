@@ -21,7 +21,10 @@ const RESTAURANT_SETTINGS_STORAGE_KEYS = {
   onlyOwnerCanCloseTable: 'onlyOwnerCanCloseTable',
   onlyOwnerCanDeleteOrderItems: 'onlyOwnerCanDeleteOrderItems',
   avoidDuplicateKitchenUpdatePrint: 'avoidDuplicateKitchenUpdatePrint',
+  extraSectionPrintDestinations: 'extraSectionPrintDestinations',
 };
+
+const VALID_PRINT_ROLES = ['cocina', 'barra', 'caja'];
 
 const DEFAULT_RESTAURANT_SETTINGS = {
   updatePrintMode: 'all',
@@ -30,6 +33,7 @@ const DEFAULT_RESTAURANT_SETTINGS = {
   onlyOwnerCanCloseTable: false,
   onlyOwnerCanDeleteOrderItems: false,
   avoidDuplicateKitchenUpdatePrint: false,
+  extraSectionPrintDestinations: {},
 };
 
 let restaurantSettingsCache = null;
@@ -58,11 +62,54 @@ const readStringFromStorage = (key, fallback = '') => {
   }
 };
 
+const readJsonFromStorage = (key, fallback = {}) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const normalizeExtraSectionPrintDestinations = (value = {}) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const normalized = {};
+  Object.entries(value).forEach(([rawSectionName, rawRoles]) => {
+    if (typeof rawSectionName !== 'string') {
+      return;
+    }
+
+    const sectionName = rawSectionName.trim();
+    if (!sectionName || !Array.isArray(rawRoles)) {
+      return;
+    }
+
+    const dedupedRoles = [];
+    rawRoles.forEach((role) => {
+      if (typeof role === 'string' && VALID_PRINT_ROLES.includes(role) && !dedupedRoles.includes(role)) {
+        dedupedRoles.push(role);
+      }
+    });
+
+    normalized[sectionName] = dedupedRoles;
+  });
+
+  return normalized;
+};
+
 const normalizeRestaurantSettings = (settings = {}) => {
   const printing = settings?.printing || {};
   const permissions = settings?.permissions || {};
 
   const updatePrintMode = printing.updatePrintMode || settings.updatePrintMode || DEFAULT_RESTAURANT_SETTINGS.updatePrintMode;
+  const rawExtraSectionPrintDestinations =
+    printing.extraSectionPrintDestinations ?? settings.extraSectionPrintDestinations ?? DEFAULT_RESTAURANT_SETTINGS.extraSectionPrintDestinations;
 
   return {
     updatePrintMode: updatePrintMode === 'new-only' ? 'new-only' : 'all',
@@ -86,6 +133,7 @@ const normalizeRestaurantSettings = (settings = {}) => {
       printing.avoidDuplicateKitchenUpdatePrint ?? settings.avoidDuplicateKitchenUpdatePrint,
       DEFAULT_RESTAURANT_SETTINGS.avoidDuplicateKitchenUpdatePrint,
     ),
+    extraSectionPrintDestinations: normalizeExtraSectionPrintDestinations(rawExtraSectionPrintDestinations),
   };
 };
 
@@ -115,6 +163,12 @@ const getRestaurantSettingsFromStorage = () => ({
   avoidDuplicateKitchenUpdatePrint: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
     DEFAULT_RESTAURANT_SETTINGS.avoidDuplicateKitchenUpdatePrint,
+  ),
+  extraSectionPrintDestinations: normalizeExtraSectionPrintDestinations(
+    readJsonFromStorage(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.extraSectionPrintDestinations,
+      DEFAULT_RESTAURANT_SETTINGS.extraSectionPrintDestinations,
+    ),
   ),
 });
 
@@ -151,6 +205,10 @@ const applyRestaurantSettingsLocally = (settings = {}) => {
       RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
       String(Boolean(normalized.avoidDuplicateKitchenUpdatePrint)),
     );
+    localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.extraSectionPrintDestinations,
+      JSON.stringify(normalized.extraSectionPrintDestinations || {}),
+    );
   } catch {
     // No-op si localStorage no está disponible
   }
@@ -166,6 +224,7 @@ const buildRestaurantSettingsPayload = (settings = {}) => {
       reprintTicketOnCloseTable: normalized.reprintTicketOnCloseTable,
       printOnDeletedItemsUpdate: normalized.printOnDeletedItemsUpdate,
       avoidDuplicateKitchenUpdatePrint: normalized.avoidDuplicateKitchenUpdatePrint,
+      extraSectionPrintDestinations: normalized.extraSectionPrintDestinations,
     },
     permissions: {
       onlyOwnerCanCloseTable: normalized.onlyOwnerCanCloseTable,
@@ -505,6 +564,19 @@ la fuente esta configurada bien.
     });
   },
 
+  // Obtener destinos de impresión por sección de extras
+  getExtraSectionPrintDestinations() {
+    return { ...getRestaurantSettingsSnapshot().extraSectionPrintDestinations };
+  },
+
+  // Guardar destinos de impresión por sección de extras
+  setExtraSectionPrintDestinations(extraSectionPrintDestinations = {}) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      extraSectionPrintDestinations: normalizeExtraSectionPrintDestinations(extraSectionPrintDestinations),
+    });
+  },
+
   // Sincronizar configuración compartida desde backend hacia caché/localStorage
   async syncRestaurantSettingsFromBackend(force = false) {
     if (!force && restaurantSettingsSyncPromise) {
@@ -743,6 +815,152 @@ No. Orden: #${orderNumber}
     return content.trim();
   },
 
+  /**
+   * Resolve multi-printer targets with extra-section priority.
+   * Priority rules:
+   * 1) Product base uses category printDestinations.
+   * 2) Extras use extra-section destinations when configured.
+   * 3) Extras without section config inherit product/category destinations.
+   * 4) If extra and product share printer, extras stay with product line.
+   * 5) If extra targets a different printer, it is printed as "extras para <producto>".
+   */
+  resolveOrderPrintersWithExtras(orderItems, categories = []) {
+    const printerRoles = printerConfigService.getPrinterRoles();
+    if (Object.keys(printerRoles).length === 0) {
+      return [];
+    }
+
+    const availableRoles = printerConfigService.getAvailableRoles();
+    const categoryDestinations = {};
+    categories.forEach(cat => {
+      const id = String(cat._id || cat.id || '');
+      if (!id || !Array.isArray(cat.printDestinations)) {
+        return;
+      }
+
+      const validRoles = cat.printDestinations.filter(role => availableRoles.includes(role));
+      if (validRoles.length > 0) {
+        categoryDestinations[id] = validRoles;
+      }
+    });
+
+    const extraSectionPrintDestinations = this.getExtraSectionPrintDestinations();
+    const fallbackRole = availableRoles.find(role => printerRoles[role]);
+    const fallbackPrinter = fallbackRole ? printerRoles[fallbackRole] : null;
+    const printerMap = {};
+
+    const ensurePrinterTarget = (printerName) => {
+      if (!printerMap[printerName]) {
+        printerMap[printerName] = { items: [], roles: new Set() };
+      }
+      return printerMap[printerName];
+    };
+
+    const resolveDestinations = (roles = []) => {
+      const resolvedPrinters = new Set();
+      const resolvedRoles = new Set();
+
+      (Array.isArray(roles) ? roles : []).forEach(role => {
+        if (!availableRoles.includes(role)) {
+          return;
+        }
+
+        const printerName = printerRoles[role];
+        if (!printerName) {
+          return;
+        }
+
+        resolvedPrinters.add(printerName);
+        resolvedRoles.add(role);
+      });
+
+      if (resolvedPrinters.size === 0 && fallbackPrinter) {
+        resolvedPrinters.add(fallbackPrinter);
+        if (fallbackRole) {
+          resolvedRoles.add(fallbackRole);
+        }
+      }
+
+      return {
+        printers: Array.from(resolvedPrinters),
+        roles: Array.from(resolvedRoles),
+      };
+    };
+
+    orderItems.forEach(item => {
+      const food = item.food || item;
+      const categoryId = food?.category
+        ? (typeof food.category === 'object' ? (food.category._id || food.category.id) : food.category)
+        : null;
+
+      const categoryRoles = categoryId ? (categoryDestinations[String(categoryId)] || []) : [];
+      const productTargets = resolveDestinations(categoryRoles);
+      const selectedExtras = Array.isArray(item?.selectedExtras) ? item.selectedExtras : [];
+      const extrasByPrinter = {};
+      const rolesByPrinter = {};
+
+      productTargets.printers.forEach(printerName => {
+        if (!rolesByPrinter[printerName]) {
+          rolesByPrinter[printerName] = new Set();
+        }
+        productTargets.roles.forEach(role => rolesByPrinter[printerName].add(role));
+      });
+
+      selectedExtras.forEach(extra => {
+        const sectionName = typeof extra?.sectionName === 'string' ? extra.sectionName.trim() : '';
+        const sectionRoles = sectionName && Array.isArray(extraSectionPrintDestinations[sectionName])
+          ? extraSectionPrintDestinations[sectionName]
+          : [];
+
+        const rolesForExtra = sectionRoles.length > 0 ? sectionRoles : categoryRoles;
+        const extraTargets = resolveDestinations(rolesForExtra);
+
+        extraTargets.printers.forEach(printerName => {
+          if (!extrasByPrinter[printerName]) {
+            extrasByPrinter[printerName] = [];
+          }
+          extrasByPrinter[printerName].push(extra);
+
+          if (!rolesByPrinter[printerName]) {
+            rolesByPrinter[printerName] = new Set();
+          }
+          extraTargets.roles.forEach(role => rolesByPrinter[printerName].add(role));
+        });
+      });
+
+      productTargets.printers.forEach(printerName => {
+        const target = ensurePrinterTarget(printerName);
+        (rolesByPrinter[printerName] || []).forEach(role => target.roles.add(role));
+
+        target.items.push({
+          ...item,
+          selectedExtras: extrasByPrinter[printerName] || [],
+        });
+
+        delete extrasByPrinter[printerName];
+      });
+
+      Object.entries(extrasByPrinter).forEach(([printerName, remoteExtras]) => {
+        const target = ensurePrinterTarget(printerName);
+        (rolesByPrinter[printerName] || []).forEach(role => target.roles.add(role));
+
+        target.items.push({
+          ...item,
+          selectedExtras: remoteExtras,
+          _remoteExtraOnly: true,
+          _remoteProductName: food?.title || food?.name || item?.name || 'Producto',
+          _remoteProductQuantity: Number(item?.quantity) > 0 ? Number(item.quantity) : 1,
+        });
+      });
+    });
+
+    return Object.entries(printerMap).map(([printerName, data]) => ({
+      printerName,
+      items: data.items,
+      roles: Array.from(data.roles),
+    }));
+  },
+
   // Generar comanda de cocina
   generateKitchenOrder(order, options = {}) {
 
@@ -847,7 +1065,10 @@ No. Orden: #${orderNumber}
         quantity: item.quantity || 1,
         notes: item.comment || '',
         selectedExtras: item.selectedExtras || [],
-        isNew: item.isNew || false
+        isNew: item.isNew || false,
+        isRemoteExtraOnly: false,
+        remoteProductName: '',
+        remoteProductQuantity: item.quantity || 1,
       }));
     }
     // Estructura del backend: order.foods
@@ -858,7 +1079,10 @@ No. Orden: #${orderNumber}
         quantity: item.quantity || 1,
         notes: item.comment || '',
         selectedExtras: item.selectedExtras || [],
-        isNew: false
+        isNew: Boolean(item._isNew),
+        isRemoteExtraOnly: Boolean(item._remoteExtraOnly),
+        remoteProductName: item._remoteProductName || item.food?.title || item.food?.name || 'Producto',
+        remoteProductQuantity: item._remoteProductQuantity || item.quantity || 1,
       }));
 
       // Si hay newFoods, marcar los productos nuevos usando matching inteligente
@@ -895,7 +1119,10 @@ No. Orden: #${orderNumber}
         quantity: item.quantity || 1,
         notes: item.notes || item.comment || '',
         selectedExtras: item.selectedExtras || [],
-        isNew: false
+        isNew: false,
+        isRemoteExtraOnly: false,
+        remoteProductName: '',
+        remoteProductQuantity: item.quantity || 1,
       }));
     }
     // Estructura alternativa: order.order_items
@@ -905,7 +1132,10 @@ No. Orden: #${orderNumber}
         quantity: item.quantity || 1,
         notes: item.notes || item.comment || '',
         selectedExtras: item.selectedExtras || [],
-        isNew: false
+        isNew: false,
+        isRemoteExtraOnly: false,
+        remoteProductName: '',
+        remoteProductQuantity: item.quantity || 1,
       }));
     }
 
@@ -921,44 +1151,59 @@ No. Orden: #${orderNumber}
 
     // Agregar cada producto al contenido (marcado para negrita si esta configurado)
     content += `[BOLD]`;
+
+    const appendGroupedExtras = (extras = []) => {
+      const extrasBySection = {};
+      extras.forEach(extra => {
+        const section = extra.sectionName || 'Extras';
+        if (!extrasBySection[section]) {
+          extrasBySection[section] = [];
+        }
+        extrasBySection[section].push(extra);
+      });
+
+      Object.keys(extrasBySection).forEach(sectionName => {
+        const normalizedSection = normalizeText(sectionName);
+        content += `   ${normalizedSection}:\n`;
+
+        const groupedExtras = {};
+        extrasBySection[sectionName].forEach(extra => {
+          const normalizedExtraName = normalizeText(extra.extraName || 'Extra');
+          const key = normalizedExtraName;
+          if (!groupedExtras[key]) {
+            groupedExtras[key] = { name: normalizedExtraName, count: 0 };
+          }
+          groupedExtras[key].count += 1;
+        });
+
+        Object.values(groupedExtras).forEach(extraGroup => {
+          const prefix = extraGroup.count > 1 ? `${extraGroup.count}x ` : '';
+          content += `     - ${prefix}${extraGroup.name}\n`;
+        });
+      });
+    };
+
     items.forEach(item => {
+      if (item.isRemoteExtraOnly) {
+        const remoteProductName = normalizeText(item.remoteProductName || item.product_name || 'Producto');
+        const remoteQty = Number(item.remoteProductQuantity || item.quantity || 1);
+        content += `${item.isNew ? '* ' : ''}${remoteQty}x Extras para ${remoteProductName}\n`;
+
+        if (item.selectedExtras && Array.isArray(item.selectedExtras) && item.selectedExtras.length > 0) {
+          appendGroupedExtras(item.selectedExtras);
+        }
+
+        content += '\n';
+        return;
+      }
+
       // Normalizar nombre del producto para eliminar caracteres especiales
       const normalizedProductName = normalizeText(item.product_name);
       content += `${item.isNew ? '* ' : ''}${item.quantity}x ${normalizedProductName}\n`;
       
       // Agregar extras si existen
       if (item.selectedExtras && Array.isArray(item.selectedExtras) && item.selectedExtras.length > 0) {
-        // Agrupar extras por sección
-        const extrasBySection = {};
-        item.selectedExtras.forEach(extra => {
-          const section = extra.sectionName || 'Extras';
-          if (!extrasBySection[section]) {
-            extrasBySection[section] = [];
-          }
-          extrasBySection[section].push(extra);
-        });
-        
-        // Imprimir extras agrupados por sección
-        Object.keys(extrasBySection).forEach(sectionName => {
-          const normalizedSection = normalizeText(sectionName);
-          content += `   ${normalizedSection}:\n`;
-
-          // Consolidar extras repetidos (misma sección + mismo nombre)
-          const groupedExtras = {};
-          extrasBySection[sectionName].forEach(extra => {
-            const normalizedExtraName = normalizeText(extra.extraName || 'Extra');
-            const key = normalizedExtraName;
-            if (!groupedExtras[key]) {
-              groupedExtras[key] = { name: normalizedExtraName, count: 0 };
-            }
-            groupedExtras[key].count += 1;
-          });
-
-          Object.values(groupedExtras).forEach(extraGroup => {
-            const prefix = extraGroup.count > 1 ? `${extraGroup.count}x ` : '';
-            content += `     - ${prefix}${extraGroup.name}\n`;
-          });
-        });
+        appendGroupedExtras(item.selectedExtras);
       }
       
       if (item.notes && item.notes.trim()) {
@@ -1041,7 +1286,7 @@ No. Orden: #${orderNumber}
     const routingItems = order.foods || [];
 
     // Try multi-printer resolution using the populated order.foods
-    const printerTargets = printerConfigService.resolveOrderPrinters(routingItems, categories);
+    const printerTargets = this.resolveOrderPrintersWithExtras(routingItems, categories);
 
     if (printerTargets.length === 0) {
       // No multi-printer config or no items resolved → fallback to single printer

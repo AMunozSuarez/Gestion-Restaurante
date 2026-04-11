@@ -209,9 +209,6 @@ const ExtraSectionsManager = ({ extraSections = [], onChange }) => {
                         placeholder="Ilimitado"
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
                       />
-                      <span className="text-sm text-gray-500 whitespace-nowrap">
-                        (vacío = ilimitado)
-                      </span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
                       Define cuántos extras puede elegir el cliente de esta sección

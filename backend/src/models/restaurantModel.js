@@ -1,11 +1,14 @@
 const mongoose = require('mongoose');
 
+const VALID_PRINT_ROLES = ['cocina', 'barra', 'caja'];
+
 const RESTAURANT_SETTINGS_DEFAULTS = Object.freeze({
     printing: {
         updatePrintMode: 'all',
         reprintTicketOnCloseTable: false,
         printOnDeletedItemsUpdate: false,
         avoidDuplicateKitchenUpdatePrint: false,
+        extraSectionPrintDestinations: {},
     },
     permissions: {
         onlyOwnerCanCloseTable: false,
@@ -13,18 +16,50 @@ const RESTAURANT_SETTINGS_DEFAULTS = Object.freeze({
     },
 });
 
-const normalizeRestaurantSettings = (settings = {}) => ({
-    printing: {
-        updatePrintMode: settings?.printing?.updatePrintMode === 'new-only' ? 'new-only' : RESTAURANT_SETTINGS_DEFAULTS.printing.updatePrintMode,
-        reprintTicketOnCloseTable: Boolean(settings?.printing?.reprintTicketOnCloseTable),
-        printOnDeletedItemsUpdate: Boolean(settings?.printing?.printOnDeletedItemsUpdate),
-        avoidDuplicateKitchenUpdatePrint: Boolean(settings?.printing?.avoidDuplicateKitchenUpdatePrint),
-    },
-    permissions: {
-        onlyOwnerCanCloseTable: Boolean(settings?.permissions?.onlyOwnerCanCloseTable),
-        onlyOwnerCanDeleteOrderItems: Boolean(settings?.permissions?.onlyOwnerCanDeleteOrderItems),
-    },
-});
+const normalizeRestaurantSettings = (settings = {}) => {
+    const rawExtraSectionDestinations = settings?.printing?.extraSectionPrintDestinations;
+    const sourceExtraSectionDestinations =
+        rawExtraSectionDestinations instanceof Map
+            ? Object.fromEntries(rawExtraSectionDestinations.entries())
+            : (rawExtraSectionDestinations && typeof rawExtraSectionDestinations === 'object'
+                ? rawExtraSectionDestinations
+                : RESTAURANT_SETTINGS_DEFAULTS.printing.extraSectionPrintDestinations);
+
+    const extraSectionPrintDestinations = {};
+    Object.entries(sourceExtraSectionDestinations || {}).forEach(([rawSectionName, rawRoles]) => {
+        if (typeof rawSectionName !== 'string') {
+            return;
+        }
+
+        const sectionName = rawSectionName.trim();
+        if (!sectionName || !Array.isArray(rawRoles)) {
+            return;
+        }
+
+        const dedupedRoles = [];
+        rawRoles.forEach((role) => {
+            if (typeof role === 'string' && VALID_PRINT_ROLES.includes(role) && !dedupedRoles.includes(role)) {
+                dedupedRoles.push(role);
+            }
+        });
+
+        extraSectionPrintDestinations[sectionName] = dedupedRoles;
+    });
+
+    return {
+        printing: {
+            updatePrintMode: settings?.printing?.updatePrintMode === 'new-only' ? 'new-only' : RESTAURANT_SETTINGS_DEFAULTS.printing.updatePrintMode,
+            reprintTicketOnCloseTable: Boolean(settings?.printing?.reprintTicketOnCloseTable),
+            printOnDeletedItemsUpdate: Boolean(settings?.printing?.printOnDeletedItemsUpdate),
+            avoidDuplicateKitchenUpdatePrint: Boolean(settings?.printing?.avoidDuplicateKitchenUpdatePrint),
+            extraSectionPrintDestinations,
+        },
+        permissions: {
+            onlyOwnerCanCloseTable: Boolean(settings?.permissions?.onlyOwnerCanCloseTable),
+            onlyOwnerCanDeleteOrderItems: Boolean(settings?.permissions?.onlyOwnerCanDeleteOrderItems),
+        },
+    };
+};
 
 const restaurantSchema = new mongoose.Schema({
     name: {
@@ -106,6 +141,10 @@ const restaurantSchema = new mongoose.Schema({
             avoidDuplicateKitchenUpdatePrint: {
                 type: Boolean,
                 default: RESTAURANT_SETTINGS_DEFAULTS.printing.avoidDuplicateKitchenUpdatePrint,
+            },
+            extraSectionPrintDestinations: {
+                type: mongoose.Schema.Types.Mixed,
+                default: RESTAURANT_SETTINGS_DEFAULTS.printing.extraSectionPrintDestinations,
             },
         },
         permissions: {

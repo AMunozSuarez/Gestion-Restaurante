@@ -15,6 +15,47 @@ const parseBooleanInput = (value) => {
     return null;
 };
 
+const VALID_PRINT_ROLES = ['cocina', 'barra', 'caja'];
+
+const normalizeExtraSectionPrintDestinationsInput = (value) => {
+    const rawValue = value instanceof Map ? Object.fromEntries(value.entries()) : value;
+
+    if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) {
+        return { error: 'extraSectionPrintDestinations debe ser un objeto con la forma { "Seccion": ["cocina", "barra"] }.' };
+    }
+
+    const normalized = {};
+
+    for (const [rawSectionName, rawRoles] of Object.entries(rawValue)) {
+        if (typeof rawSectionName !== 'string') {
+            return { error: 'Cada clave de extraSectionPrintDestinations debe ser un nombre de sección válido.' };
+        }
+
+        const sectionName = rawSectionName.trim();
+        if (!sectionName) {
+            continue;
+        }
+
+        if (!Array.isArray(rawRoles)) {
+            return { error: `La sección "${sectionName}" debe tener un arreglo de destinos.` };
+        }
+
+        const dedupedRoles = [];
+        for (const role of rawRoles) {
+            if (typeof role !== 'string' || !VALID_PRINT_ROLES.includes(role)) {
+                return { error: `Destino inválido en "${sectionName}". Solo se permite: cocina, barra, caja.` };
+            }
+            if (!dedupedRoles.includes(role)) {
+                dedupedRoles.push(role);
+            }
+        }
+
+        normalized[sectionName] = dedupedRoles;
+    }
+
+    return { normalized };
+};
+
 const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
     const nextSettings = {
         printing: { ...currentSettings.printing },
@@ -29,6 +70,21 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
             return { hasChanges: false, error: 'updatePrintMode debe ser "all" o "new-only".' };
         }
         nextSettings.printing.updatePrintMode = resolvedUpdatePrintMode;
+        hasChanges = true;
+    }
+
+    const resolvedExtraSectionPrintDestinations =
+        payload?.printing?.extraSectionPrintDestinations ?? payload?.extraSectionPrintDestinations;
+    if (resolvedExtraSectionPrintDestinations !== undefined) {
+        const normalizedExtraSectionResult = normalizeExtraSectionPrintDestinationsInput(
+            resolvedExtraSectionPrintDestinations,
+        );
+
+        if (normalizedExtraSectionResult.error) {
+            return { hasChanges: false, error: normalizedExtraSectionResult.error };
+        }
+
+        nextSettings.printing.extraSectionPrintDestinations = normalizedExtraSectionResult.normalized;
         hasChanges = true;
     }
 

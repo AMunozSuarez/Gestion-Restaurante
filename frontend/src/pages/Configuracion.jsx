@@ -17,6 +17,7 @@ import {
 import printingService from '../services/printingService';
 import printerConfigService from '../services/printerConfigService';
 import { categoriesService } from '../services/categoriesService';
+import productsService from '../services/productsService';
 import * as subscriptionService from '../services/subscriptionService';
 import usersService from '../services/usersService';
 import { useNavigate } from 'react-router-dom';
@@ -55,6 +56,11 @@ const Configuracion = () => {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [categoryPrintMap, setCategoryPrintMap] = useState({}); // { catId: ["cocina", "barra"] }
   const [savingPrintDestinations, setSavingPrintDestinations] = useState(false);
+  const [detectedExtraSections, setDetectedExtraSections] = useState([]);
+  const [extraSectionProductMap, setExtraSectionProductMap] = useState({});
+  const [loadingExtraSections, setLoadingExtraSections] = useState(false);
+  const [extraSectionPrintMap, setExtraSectionPrintMap] = useState(() => printingService.getExtraSectionPrintDestinations()); // { sectionName: ["cocina", "barra"] }
+  const [savingExtraSectionDestinations, setSavingExtraSectionDestinations] = useState(false);
 
   // Estados para suscripción
   const [subscription, setSubscription] = useState(null);
@@ -89,6 +95,7 @@ const Configuracion = () => {
       loadSavedPrinters();
       loadFontSettings();
       loadCategoriesForPrinting();
+      loadExtraSectionsForPrinting();
       loadRestaurantPrintSettings();
     } else if (activeTab === 'subscription' && isOwnerOrAdmin) {
       loadSubscription();
@@ -106,6 +113,7 @@ const Configuracion = () => {
     setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
+    setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
 
     if (!syncResult.success) {
       setMessage({
@@ -123,6 +131,7 @@ const Configuracion = () => {
     setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
+    setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
   };
 
   // Verificar servicio y cargar impresoras
@@ -516,6 +525,50 @@ const Configuracion = () => {
     }
   };
 
+  // Cargar secciones de extras detectadas desde productos
+  const loadExtraSectionsForPrinting = async () => {
+    setLoadingExtraSections(true);
+    try {
+      const response = await productsService.getProducts();
+      if (response.success && Array.isArray(response.foods)) {
+        const names = new Set();
+        const sectionProducts = {};
+        response.foods.forEach(food => {
+          const productName = (food?.title || food?.name || '').trim();
+          (food.extraSections || []).forEach(section => {
+            const sectionName = typeof section?.sectionName === 'string' ? section.sectionName.trim() : '';
+            if (sectionName) {
+              names.add(sectionName);
+
+              if (!sectionProducts[sectionName]) {
+                sectionProducts[sectionName] = new Set();
+              }
+
+              if (productName) {
+                sectionProducts[sectionName].add(productName);
+              }
+            }
+          });
+        });
+        setDetectedExtraSections(Array.from(names).sort((a, b) => a.localeCompare(b, 'es')));
+        const normalizedSectionProducts = {};
+        Object.entries(sectionProducts).forEach(([sectionName, products]) => {
+          normalizedSectionProducts[sectionName] = Array.from(products).sort((a, b) => a.localeCompare(b, 'es'));
+        });
+        setExtraSectionProductMap(normalizedSectionProducts);
+      } else {
+        setDetectedExtraSections([]);
+        setExtraSectionProductMap({});
+      }
+    } catch (error) {
+      console.error('Error loading extra sections for printing:', error);
+      setDetectedExtraSections([]);
+      setExtraSectionProductMap({});
+    } finally {
+      setLoadingExtraSections(false);
+    }
+  };
+
   // Asignar impresora a un rol
   const handleSetPrinterRole = (role, printerName) => {
     printerConfigService.setPrinterForRole(role, printerName);
@@ -568,6 +621,61 @@ const Configuracion = () => {
       });
     } finally {
       setSavingPrintDestinations(false);
+    }
+  };
+
+  // Toggle rol de impresión para una sección de extras
+  const handleToggleExtraSectionRole = (sectionName, role) => {
+    setExtraSectionPrintMap(prev => {
+      const current = prev[sectionName] || [];
+      const updated = current.includes(role)
+        ? current.filter(r => r !== role)
+        : [...current, role];
+      return { ...prev, [sectionName]: updated };
+    });
+  };
+
+  // Guardar destinos de impresión para secciones de extras (configuración global)
+  const handleSaveExtraSectionPrintDestinations = async () => {
+    setSavingExtraSectionDestinations(true);
+    try {
+      const payload = {};
+      Object.entries(extraSectionPrintMap).forEach(([sectionName, roles]) => {
+        const cleanName = typeof sectionName === 'string' ? sectionName.trim() : '';
+        if (!cleanName) {
+          return;
+        }
+        payload[cleanName] = Array.isArray(roles) ? roles : [];
+      });
+
+      printingService.setExtraSectionPrintDestinations(payload);
+      const result = await printingService.saveRestaurantSettingsToBackend({
+        extraSectionPrintDestinations: payload,
+      });
+
+      if (!result.success) {
+        await rollbackRestaurantSettingsFromBackend();
+        setMessage({
+          type: 'error',
+          text: `Error al guardar destinos de extras: ${result.error}`,
+        });
+        return;
+      }
+
+      setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
+      setMessage({
+        type: 'success',
+        text: 'Destinos de impresión para secciones de extras guardados correctamente',
+      });
+    } catch (error) {
+      console.error('Error saving extra section print destinations:', error);
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: 'Error al guardar destinos de impresión para extras: ' + error.message,
+      });
+    } finally {
+      setSavingExtraSectionDestinations(false);
     }
   };
 
@@ -888,6 +996,15 @@ const Configuracion = () => {
       return () => clearTimeout(timer);
     }
   }, [message]);
+
+  const extraSectionNames = Array.from(
+    new Set([
+      ...detectedExtraSections,
+      ...Object.keys(extraSectionPrintMap || {}),
+    ]),
+  )
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'es'));
 
   return (
     <div className="h-full bg-cream-50 flex flex-col gap-4 md:gap-6 p-3 md:p-6 overflow-hidden">
@@ -1601,6 +1718,109 @@ const Configuracion = () => {
 
                 <p className="text-xs text-gray-400 mt-3">
                   Las categorías sin impresora asignada se enviarán a la impresora predeterminada. Los cambios se guardan en el servidor y aplican a todos los dispositivos.
+                </p>
+              </div>
+            )}
+
+            {/* Impresión de Extras por Sección */}
+            {serviceStatus === 'online' && Object.keys(printerRoles).length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center">
+                    <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
+                    <div>
+                      <h2 className="text-xl font-semibold text-brown-900">Impresión de Extras por Sección</h2>
+                      <p className="text-sm text-gray-500">Tiene prioridad sobre la categoría del producto. Si no está configurada, el extra hereda la categoría.</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSaveExtraSectionPrintDestinations}
+                    disabled={savingExtraSectionDestinations}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                  >
+                    {savingExtraSectionDestinations ? (
+                      <><ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" /> Guardando...</>
+                    ) : (
+                      <><CheckCircleIcon className="w-4 h-4 mr-2" /> Guardar cambios</>
+                    )}
+                  </button>
+                </div>
+
+                {loadingExtraSections ? (
+                  <div className="text-center py-8">
+                    <ArrowPathIcon className="w-8 h-8 text-gray-400 mx-auto mb-2 animate-spin" />
+                    <p className="text-sm text-gray-500">Cargando secciones de extras...</p>
+                  </div>
+                ) : extraSectionNames.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Sección de extras</th>
+                          {printerConfigService.getAvailableRoles().map(role => {
+                            const label = printerConfigService.getRoleLabels()[role];
+                            const hasPrinter = !!printerRoles[role];
+                            return (
+                              <th key={role} className="text-center py-3 px-4 text-sm font-medium text-gray-700">
+                                <div className="flex flex-col items-center">
+                                  <span>{label}</span>
+                                  {hasPrinter ? (
+                                    <span className="text-xs text-gray-400 font-normal">{printerRoles[role]}</span>
+                                  ) : (
+                                    <span className="text-xs text-red-400 font-normal">Sin impresora</span>
+                                  )}
+                                </div>
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {extraSectionNames.map((sectionName, index) => {
+                          const sectionRoles = extraSectionPrintMap[sectionName] || [];
+                          const sectionProducts = extraSectionProductMap[sectionName] || [];
+                          const visibleProducts = sectionProducts.slice(0, 2);
+                          const hiddenProductsCount = sectionProducts.length - visibleProducts.length;
+
+                          return (
+                            <tr key={sectionName} className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                              <td className="py-3 px-4">
+                                <div>
+                                  <span className="font-medium text-gray-900">{sectionName}</span>
+                                  {sectionProducts.length > 0 && (
+                                    <p className="text-[11px] text-gray-400 mt-0.5">
+                                      {visibleProducts.join(', ')}{hiddenProductsCount > 0 ? ` +${hiddenProductsCount}` : ''}
+                                    </p>
+                                  )}
+                                </div>
+                              </td>
+                              {printerConfigService.getAvailableRoles().map(role => {
+                                const isChecked = sectionRoles.includes(role);
+                                const hasPrinter = !!printerRoles[role];
+                                return (
+                                  <td key={role} className="text-center py-3 px-4">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      disabled={!hasPrinter}
+                                      onChange={() => handleToggleExtraSectionRole(sectionName, role)}
+                                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-30"
+                                    />
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 py-4 text-center">No se detectaron secciones de extras en los productos.</p>
+                )}
+
+                <p className="text-xs text-gray-400 mt-3">
+                  Puedes seleccionar 1, 2 o 3 destinos para cada sección. Si una sección no tiene destinos, sus extras se imprimirán usando la categoría del producto.
                 </p>
               </div>
             )}
