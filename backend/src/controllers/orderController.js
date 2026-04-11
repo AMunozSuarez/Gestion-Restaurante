@@ -4,7 +4,7 @@ const Customer = require('../models/customerModel'); // Importar el modelo de cl
 const cashRegisterModel = require('../models/cashRegisterModel'); // Importar el modelo de caja
 const Table = require('../models/tableModel'); // Importar el modelo de mesas
 const Restaurant = require('../models/restaurantModel');
-const { getChileDate, getChileTimestamp, formatChileDate, getChileDayRange } = require('../utils/dateUtils');
+const { getChileDate, formatChileDate, getChileDayRange } = require('../utils/dateUtils');
 const { getIO } = require('../socket');
 
 const isOwnerOrSuperAdmin = (role) => role === 'owner' || role === 'super_admin';
@@ -722,11 +722,16 @@ const getFilteredOrders = async (req, res) => {
 
         // Filtrar por fecha (usando createdAt)
         if (date) {
-            // Usar la zona horaria de Chile (UTC-3 o UTC-4)
-            // Convertir la fecha recibida a inicio y fin del día en hora local de Chile
-            const startOfDay = new Date(date + 'T00:00:00-03:00'); // Inicio del día en Chile
-            const endOfDay = new Date(date + 'T23:59:59.999-03:00'); // Fin del día en Chile
-            filters.createdAt = { $gte: startOfDay, $lte: endOfDay };
+            const dateRange = getChileDayRange(date);
+
+            if (!dateRange) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Formato de fecha inválido. Usa YYYY-MM-DD',
+                });
+            }
+
+            filters.createdAt = { $gte: dateRange.start, $lte: dateRange.end };
         }
 
         // Filtrar por estado
@@ -989,16 +994,26 @@ const getTipsController = async (req, res) => {
         if (dateFrom || dateTo) {
             filters.createdAt = {};
             if (dateFrom) {
-                // Inicio del día en Chile (00:00:00)
-                const startDate = new Date(dateFrom + 'T00:00:00.000-03:00');
-                filters.createdAt.$gte = startDate;
-                console.log('📅 Fecha desde:', startDate);
+                const fromRange = getChileDayRange(dateFrom);
+                if (!fromRange) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Formato dateFrom inválido. Usa YYYY-MM-DD',
+                    });
+                }
+                filters.createdAt.$gte = fromRange.start;
+                console.log('📅 Fecha desde:', fromRange.start);
             }
             if (dateTo) {
-                // Fin del día en Chile (23:59:59.999)
-                const endDate = new Date(dateTo + 'T23:59:59.999-03:00');
-                filters.createdAt.$lte = endDate;
-                console.log('📅 Fecha hasta:', endDate);
+                const toRange = getChileDayRange(dateTo);
+                if (!toRange) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Formato dateTo inválido. Usa YYYY-MM-DD',
+                    });
+                }
+                filters.createdAt.$lte = toRange.end;
+                console.log('📅 Fecha hasta:', toRange.end);
             }
         }
 

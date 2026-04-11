@@ -2,22 +2,46 @@ const mongoose = require('mongoose');
 const orderModel = require('../models/orderModel');
 const customerModel = require('../models/customerModel');
 const foodModel = require('../models/foodModel');
+const { getChileDayRange } = require('../utils/dateUtils');
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Construye un filtro de fecha para Chile (UTC-3 / UTC-4).
+ * Construye un filtro de fecha para Chile en forma DST-safe.
  * Recibe strings YYYY-MM-DD y devuelve rango UTC que cubre el día completo en Chile.
  */
 const buildDateFilter = (startDate, endDate) => {
     const filter = {};
+
     if (startDate) {
-        filter.$gte = new Date(`${startDate}T00:00:00-04:00`);
+        const fromRange = getChileDayRange(startDate);
+        if (!fromRange) return null;
+        filter.$gte = fromRange.start;
     }
+
     if (endDate) {
-        filter.$lte = new Date(`${endDate}T23:59:59.999-03:00`);
+        const toRange = getChileDayRange(endDate);
+        if (!toRange) return null;
+        filter.$lte = toRange.end;
     }
+
     return Object.keys(filter).length ? filter : null;
+};
+
+const getChileDateKey = (date = new Date()) => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Santiago',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date);
+
+    const getPart = (type) => Number(parts.find((part) => part.type === type)?.value);
+    const year = getPart('year');
+    const month = String(getPart('month')).padStart(2, '0');
+    const day = String(getPart('day')).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
 };
 
 // ─── 1. Reporte General de Ventas ─────────────────────────────────────────────
@@ -455,15 +479,33 @@ const getDashboardReport = async (req, res) => {
         const restaurantId = new mongoose.Types.ObjectId(req.user.restaurant);
 
         const now = new Date();
-        const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/Santiago' });
-        const todayStart = new Date(`${todayStr}T00:00:00-04:00`);
-        const todayEnd = new Date(`${todayStr}T23:59:59.999-03:00`);
+        const todayStr = getChileDateKey(now);
+        const todayRange = getChileDayRange(todayStr);
+
+        if (!todayRange) {
+            return res.status(500).json({
+                success: false,
+                message: 'No se pudo calcular el rango de fecha de hoy en Chile',
+            });
+        }
+
+        const todayStart = todayRange.start;
+        const todayEnd = todayRange.end;
 
         const yesterday = new Date(now);
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toLocaleDateString('en-CA', { timeZone: 'America/Santiago' });
-        const yesterdayStart = new Date(`${yesterdayStr}T00:00:00-04:00`);
-        const yesterdayEnd = new Date(`${yesterdayStr}T23:59:59.999-03:00`);
+        const yesterdayStr = getChileDateKey(yesterday);
+        const yesterdayRange = getChileDayRange(yesterdayStr);
+
+        if (!yesterdayRange) {
+            return res.status(500).json({
+                success: false,
+                message: 'No se pudo calcular el rango de fecha de ayer en Chile',
+            });
+        }
+
+        const yesterdayStart = yesterdayRange.start;
+        const yesterdayEnd = yesterdayRange.end;
 
         const weekAgo = new Date(now);
         weekAgo.setDate(weekAgo.getDate() - 7);

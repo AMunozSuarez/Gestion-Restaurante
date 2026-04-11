@@ -2,6 +2,7 @@ const axios = require('axios');
 
 // URL del servicio de impresión local
 const PRINT_SERVICE_URL = process.env.PRINT_SERVICE_URL || 'http://localhost:8088';
+const CHILE_TIME_ZONE = 'America/Santiago';
 
 /**
  * Servicio para interactuar con la aplicación de impresión local
@@ -94,7 +95,7 @@ class PrintServiceClient {
     ticket += line + '\n';
     
     const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
-    ticket += `Fecha: ${orderDate.toLocaleString('es-ES')}\n`;
+    ticket += `Fecha: ${orderDate.toLocaleString('es-CL', { timeZone: CHILE_TIME_ZONE })}\n`;
     
     // Solo incluir número de orden si está habilitado
     if (printOrderNumber) {

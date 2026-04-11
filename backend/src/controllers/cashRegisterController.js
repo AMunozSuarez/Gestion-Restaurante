@@ -1,5 +1,6 @@
 const cashRegisterModel = require('../models/cashRegisterModel');
 const subscriptionModel = require('../models/subscriptionModel');
+const { getChileDayRange } = require('../utils/dateUtils');
 
 
 // Create a new cash register
@@ -199,9 +200,33 @@ const addCashMovement = async (req, res) => {
 const getCashMovements = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
+        const dateFilter = {};
+
+        if (startDate) {
+            const fromRange = getChileDayRange(startDate);
+            if (!fromRange) {
+                return res.status(400).send({
+                    success: false,
+                    message: 'Formato startDate inválido. Usa YYYY-MM-DD',
+                });
+            }
+            dateFilter.$gte = fromRange.start;
+        }
+
+        if (endDate) {
+            const toRange = getChileDayRange(endDate);
+            if (!toRange) {
+                return res.status(400).send({
+                    success: false,
+                    message: 'Formato endDate inválido. Usa YYYY-MM-DD',
+                });
+            }
+            dateFilter.$lte = toRange.end;
+        }
+
         const movements = await cashRegisterModel.find({
             restaurant: req.user.restaurant,
-            date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+            ...(Object.keys(dateFilter).length ? { date: dateFilter } : {}),
         });
         res.status(200).send({ success: true, movements });
     } catch (error) {
@@ -246,12 +271,24 @@ const getCashRegisterSales = async (req, res) => {
         if (dateFrom || dateTo) {
             filters.createdAt = {};
             if (dateFrom) {
-                const startDate = new Date(dateFrom + 'T00:00:00-03:00');
-                filters.createdAt.$gte = startDate;
+                const fromRange = getChileDayRange(dateFrom);
+                if (!fromRange) {
+                    return res.status(400).send({
+                        success: false,
+                        message: 'Formato dateFrom inválido. Usa YYYY-MM-DD',
+                    });
+                }
+                filters.createdAt.$gte = fromRange.start;
             }
             if (dateTo) {
-                const endDate = new Date(dateTo + 'T23:59:59.999-03:00');
-                filters.createdAt.$lte = endDate;
+                const toRange = getChileDayRange(dateTo);
+                if (!toRange) {
+                    return res.status(400).send({
+                        success: false,
+                        message: 'Formato dateTo inválido. Usa YYYY-MM-DD',
+                    });
+                }
+                filters.createdAt.$lte = toRange.end;
             }
         }
 
