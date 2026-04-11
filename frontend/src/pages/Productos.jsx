@@ -5,8 +5,8 @@ import {
   PencilIcon, 
   EyeIcon,
   EyeSlashIcon,
+  XMarkIcon,
   TagIcon,
-  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 import { Button, Card, Input, Badge } from '../components/ui';
 import ProductFormModal from '../components/common/ProductFormModal';
@@ -97,16 +97,16 @@ const Productos = () => {
         setEditingProduct(null);
         showNotification(
           editingProduct 
-            ? '✅ Producto actualizado exitosamente' 
-            : '✅ Producto creado exitosamente',
+            ? 'Producto actualizado exitosamente' 
+            : 'Producto creado exitosamente',
           'success'
         );
       } else {
-        showNotification(`❌ ${result.error}`, 'error');
+        showNotification(result.error, 'error');
       }
     } catch (error) {
       console.error('Error al procesar producto:', error);
-      showNotification(`❌ Error: ${error.message}`, 'error');
+      showNotification(`Error: ${error.message}`, 'error');
     }
   };
 
@@ -119,12 +119,12 @@ const Productos = () => {
       try {
         const result = await toggleProductAvailability(product.id, newAvailability);
         if (result.success) {
-          showNotification(`✅ Producto ${action}do exitosamente`, 'success');
+          showNotification(`Producto ${action}do exitosamente`, 'success');
         } else {
-          showNotification(`❌ ${result.error}`, 'error');
+          showNotification(result.error, 'error');
         }
       } catch (error) {
-        showNotification(`❌ Error: ${error.message}`, 'error');
+        showNotification(`Error: ${error.message}`, 'error');
       }
     }
   };
@@ -159,17 +159,6 @@ const Productos = () => {
               Nuevo Producto
             </Button>
           </div>
-
-          {/* Notificación */}
-          {notification && (
-            <div className={`p-4 rounded-lg ${
-              notification.type === 'success' 
-                ? 'bg-green-50 border border-green-200 text-green-800' 
-                : 'bg-red-50 border border-red-200 text-red-800'
-            }`}>
-              {notification.message}
-            </div>
-          )}
 
       {/* Filtros */}
       <Card className="p-6">
@@ -319,6 +308,24 @@ const Productos = () => {
             </Button>
           )}
         </Card>
+      )}
+
+      {/* Notificación toast */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg animate-fade-in ${
+          notification.type === 'error' ? 'bg-red-600' : 'bg-teal-600'
+        } text-white`}>
+          <div className="flex items-center gap-2">
+            {notification.type === 'error' ? (
+              <XMarkIcon className="w-5 h-5" />
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            {notification.message}
+          </div>
+        </div>
       )}
 
       {/* Modal de formulario */}

@@ -27,7 +27,11 @@ export const authService = {
   // Login
   login: async (credentials) => {
     try {
-      const response = await api.post('/auth/login', credentials);
+      const normalizedEmail = (credentials?.email || '').trim().toLowerCase();
+      const response = await api.post('/auth/login', {
+        ...credentials,
+        email: normalizedEmail
+      });
       const { token, message } = response.data;
       
       // Guardar token en localStorage
@@ -37,7 +41,7 @@ export const authService = {
       const decoded = decodeJWT(token);
       const user = {
         id: decoded.id,
-        email: credentials.email,
+        email: normalizedEmail,
         role: decoded.role,
         restaurant: decoded.restaurant
       };
@@ -45,7 +49,26 @@ export const authService = {
       
       return { token, user };
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Error al iniciar sesión');
+      const status = error.response?.status;
+      const serverMessage = error.response?.data?.message;
+
+      if (serverMessage) {
+        throw new Error(serverMessage);
+      }
+
+      if (!error.response) {
+        throw new Error('No fue posible conectarse al servidor. Revisa tu conexión e inténtalo nuevamente.');
+      }
+
+      if (status === 404) {
+        throw new Error('No existe una cuenta asociada a ese correo electrónico.');
+      }
+
+      if (status === 401) {
+        throw new Error('La contraseña ingresada es incorrecta.');
+      }
+
+      throw new Error('No se pudo iniciar sesión. Verifica tus credenciales e inténtalo nuevamente.');
     }
   },
 
@@ -83,7 +106,10 @@ export const authService = {
   // Registrar nuevo usuario (solo admin)
   register: async (userData) => {
     try {
-      const response = await api.post('/auth/register', userData);
+      const response = await api.post('/auth/register', {
+        ...userData,
+        email: userData?.email ? userData.email.trim().toLowerCase() : userData?.email
+      });
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al registrar usuario');

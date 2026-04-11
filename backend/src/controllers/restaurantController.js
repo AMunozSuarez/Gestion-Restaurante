@@ -3,6 +3,10 @@ const User = require('../models/userModel');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+const normalizeEmail = (email = '') => email.trim().toLowerCase();
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const buildEmailRegex = (email) => new RegExp(`^${escapeRegex(normalizeEmail(email))}$`, 'i');
+
 const getRestaurantSettingsFromDoc = (restaurantDoc) => {
     if (!restaurantDoc) return Restaurant.getDefaultSettings();
     return Restaurant.normalizeSettings(restaurantDoc.settings || {});
@@ -153,10 +157,20 @@ const createRestaurantWithUser = async (req, res) => {
 
     try {
         const { restaurantName, address, userName, email, password } = req.body;
+        const normalizedEmail = normalizeEmail(email || '');
 
         // Validar los datos requeridos
         if (!restaurantName || !address || !userName || !email || !password) {
             return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
+        }
+
+        if (!normalizedEmail) {
+            return res.status(400).json({ message: 'Debes ingresar un correo electrónico válido.' });
+        }
+
+        const existingUser = await User.findOne({ email: buildEmailRegex(normalizedEmail) }).session(session);
+        if (existingUser) {
+            return res.status(400).json({ message: 'El correo electrónico ya está registrado.' });
         }
 
         // Crear el restaurante sin el propietario
@@ -171,7 +185,7 @@ const createRestaurantWithUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10); // Encriptar la contraseña
         const newUser = new User({
             userName,
-            email,
+            email: normalizedEmail,
             password: hashedPassword, // Contraseña encriptada
             restaurant: savedRestaurant._id, // Asigna el restaurante al usuario
             role: 'owner', // El primer usuario será el propietario

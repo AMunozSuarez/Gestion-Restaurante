@@ -37,10 +37,23 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Token expirado o inválido
+      const requestUrl = error.config?.url || '';
+      const isLoginRequest = requestUrl.includes('/auth/login');
+      const isRegisterRequest = requestUrl.includes('/auth/register');
+
+      // Si el 401 viene del propio login/register, no forzar recarga/redirección.
+      if (isLoginRequest || isRegisterRequest) {
+        return Promise.reject(error);
+      }
+
+      // Token expirado o inválido en rutas protegidas
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+
+      // Evitar recargar innecesariamente si ya estamos en login
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

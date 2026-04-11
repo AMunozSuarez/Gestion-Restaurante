@@ -4,6 +4,10 @@ const Subscription = require('../models/subscriptionModel');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 
+const normalizeEmail = (email = '') => email.trim().toLowerCase();
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const buildEmailRegex = (email) => new RegExp(`^${escapeRegex(normalizeEmail(email))}$`, 'i');
+
 // =================== GESTIÓN DE USUARIOS ===================
 
 // Obtener todos los usuarios del sistema
@@ -61,6 +65,7 @@ const getAllUsers = async (req, res) => {
 const createUser = async (req, res) => {
     try {
         const { userName, email, password, role, restaurant, phone } = req.body;
+        const normalizedEmail = normalizeEmail(email || '');
 
         // Validaciones
         if (!userName || !email || !password || !role) {
@@ -70,8 +75,15 @@ const createUser = async (req, res) => {
             });
         }
 
+        if (!normalizedEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'Debes ingresar un correo electrónico válido'
+            });
+        }
+
         // Verificar si el email ya existe
-        const existingUser = await userModel.findOne({ email });
+        const existingUser = await userModel.findOne({ email: buildEmailRegex(normalizedEmail) });
         if (existingUser) {
             return res.status(400).json({
                 success: false,
@@ -97,7 +109,7 @@ const createUser = async (req, res) => {
         // Crear usuario
         const newUser = new userModel({
             userName,
-            email,
+            email: normalizedEmail,
             password: hashedPassword,
             role,
             restaurant,
@@ -132,6 +144,7 @@ const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
         const { userName, email, role, restaurant, phone, isActive } = req.body;
+        const normalizedEmail = email ? normalizeEmail(email) : null;
 
         const user = await userModel.findById(id);
         if (!user) {
@@ -142,8 +155,11 @@ const updateUser = async (req, res) => {
         }
 
         // Verificar email único si se está cambiando
-        if (email && email !== user.email) {
-            const existingUser = await userModel.findOne({ email });
+        if (normalizedEmail && normalizedEmail !== normalizeEmail(user.email || '')) {
+            const existingUser = await userModel.findOne({
+                _id: { $ne: id },
+                email: buildEmailRegex(normalizedEmail)
+            });
             if (existingUser) {
                 return res.status(400).json({
                     success: false,
@@ -155,7 +171,7 @@ const updateUser = async (req, res) => {
         // Actualizar campos
         const updateData = {};
         if (userName) updateData.userName = userName;
-        if (email) updateData.email = email;
+        if (normalizedEmail) updateData.email = normalizedEmail;
         if (role) updateData.role = role;
         if (restaurant) updateData.restaurant = restaurant;
         if (phone !== undefined) updateData.phone = phone;
@@ -280,6 +296,7 @@ const createRestaurant = async (req, res) => {
             ownerPassword,
             ownerPhone
         } = req.body;
+        const normalizedOwnerEmail = normalizeEmail(ownerEmail || '');
 
         // Validaciones
         if (!restaurantName || !address || !ownerName || !ownerEmail || !ownerPassword) {
@@ -289,8 +306,15 @@ const createRestaurant = async (req, res) => {
             });
         }
 
+        if (!normalizedOwnerEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'Debes ingresar un correo electrónico válido para el propietario'
+            });
+        }
+
         // Verificar si el email del propietario ya existe
-        const existingUser = await userModel.findOne({ email: ownerEmail });
+        const existingUser = await userModel.findOne({ email: buildEmailRegex(normalizedOwnerEmail) });
         if (existingUser) {
             return res.status(400).json({
                 success: false,
@@ -313,7 +337,7 @@ const createRestaurant = async (req, res) => {
 
         const newOwner = new userModel({
             userName: ownerName,
-            email: ownerEmail,
+            email: normalizedOwnerEmail,
             password: hashedPassword,
             phone: ownerPhone || '',
             restaurant: savedRestaurant._id,

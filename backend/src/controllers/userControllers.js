@@ -2,6 +2,10 @@ const userModel = require("../models/userModel");
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+const normalizeEmail = (email = '') => email.trim().toLowerCase();
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const buildEmailRegex = (email) => new RegExp(`^${escapeRegex(normalizeEmail(email))}$`, 'i');
+
 // GET USER INFO
 const getUserController = async (req, res) => {
     try {
@@ -198,6 +202,7 @@ const updateEmployeeController = async (req, res) => {
         const { id } = req.params;
         const { userName, email, phone, password } = req.body;
         const restaurantId = req.user.restaurant;
+        const normalizedEmail = email ? normalizeEmail(email) : null;
 
         // Verificar que el usuario pertenece al mismo restaurante
         const user = await userModel.findOne({ _id: id, restaurant: restaurantId });
@@ -209,9 +214,23 @@ const updateEmployeeController = async (req, res) => {
             });
         }
 
+        if (normalizedEmail && normalizedEmail !== normalizeEmail(user.email || '')) {
+            const existingUser = await userModel.findOne({
+                _id: { $ne: id },
+                email: buildEmailRegex(normalizedEmail)
+            });
+
+            if (existingUser) {
+                return res.status(400).send({
+                    success: false,
+                    message: 'El correo electrónico ya está registrado.'
+                });
+            }
+        }
+
         // Actualizar campos
         if (userName) user.userName = userName;
-        if (email) user.email = email;
+        if (normalizedEmail) user.email = normalizedEmail;
         if (phone !== undefined) user.phone = phone;
 
         // Si se proporciona una nueva contraseña, encriptarla
@@ -247,6 +266,7 @@ const createEmployeeController = async (req, res) => {
     try {
         const { userName, email, password, phone } = req.body;
         const restaurantId = req.user.restaurant; // Restaurante del propietario autenticado
+        const normalizedEmail = normalizeEmail(email || '');
 
         // Validar campos requeridos
         if (!userName || !email || !password) {
@@ -256,8 +276,15 @@ const createEmployeeController = async (req, res) => {
             });
         }
 
+        if (!normalizedEmail) {
+            return res.status(400).send({
+                success: false,
+                message: 'Debes ingresar un correo electrónico válido.',
+            });
+        }
+
         // Verificar si el email ya está registrado
-        const existingUser = await userModel.findOne({ email });
+        const existingUser = await userModel.findOne({ email: buildEmailRegex(normalizedEmail) });
         if (existingUser) {
             return res.status(400).send({
                 success: false,
@@ -272,7 +299,7 @@ const createEmployeeController = async (req, res) => {
         // Crear el empleado
         const employee = new userModel({
             userName,
-            email,
+            email: normalizedEmail,
             password: hashedPassword,
             phone,
             restaurant: restaurantId,
