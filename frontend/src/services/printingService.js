@@ -19,6 +19,7 @@ const RESTAURANT_SETTINGS_STORAGE_KEYS = {
   reprintTicketOnCloseTable: 'reprintTicketOnCloseTable',
   printOnDeletedItemsUpdate: 'printOnDeletedItemsUpdate',
   onlyOwnerCanCloseTable: 'onlyOwnerCanCloseTable',
+  onlyOwnerCanDeleteOrderItems: 'onlyOwnerCanDeleteOrderItems',
   avoidDuplicateKitchenUpdatePrint: 'avoidDuplicateKitchenUpdatePrint',
 };
 
@@ -27,6 +28,7 @@ const DEFAULT_RESTAURANT_SETTINGS = {
   reprintTicketOnCloseTable: false,
   printOnDeletedItemsUpdate: false,
   onlyOwnerCanCloseTable: false,
+  onlyOwnerCanDeleteOrderItems: false,
   avoidDuplicateKitchenUpdatePrint: false,
 };
 
@@ -76,6 +78,10 @@ const normalizeRestaurantSettings = (settings = {}) => {
       permissions.onlyOwnerCanCloseTable ?? settings.onlyOwnerCanCloseTable,
       DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanCloseTable,
     ),
+    onlyOwnerCanDeleteOrderItems: parseBooleanValue(
+      permissions.onlyOwnerCanDeleteOrderItems ?? settings.onlyOwnerCanDeleteOrderItems,
+      DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanDeleteOrderItems,
+    ),
     avoidDuplicateKitchenUpdatePrint: parseBooleanValue(
       printing.avoidDuplicateKitchenUpdatePrint ?? settings.avoidDuplicateKitchenUpdatePrint,
       DEFAULT_RESTAURANT_SETTINGS.avoidDuplicateKitchenUpdatePrint,
@@ -101,6 +107,10 @@ const getRestaurantSettingsFromStorage = () => ({
   onlyOwnerCanCloseTable: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanCloseTable,
     DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanCloseTable,
+  ),
+  onlyOwnerCanDeleteOrderItems: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanDeleteOrderItems,
+    DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanDeleteOrderItems,
   ),
   avoidDuplicateKitchenUpdatePrint: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
@@ -134,6 +144,10 @@ const applyRestaurantSettingsLocally = (settings = {}) => {
       String(Boolean(normalized.onlyOwnerCanCloseTable)),
     );
     localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanDeleteOrderItems,
+      String(Boolean(normalized.onlyOwnerCanDeleteOrderItems)),
+    );
+    localStorage.setItem(
       RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
       String(Boolean(normalized.avoidDuplicateKitchenUpdatePrint)),
     );
@@ -155,6 +169,7 @@ const buildRestaurantSettingsPayload = (settings = {}) => {
     },
     permissions: {
       onlyOwnerCanCloseTable: normalized.onlyOwnerCanCloseTable,
+      onlyOwnerCanDeleteOrderItems: normalized.onlyOwnerCanDeleteOrderItems,
     },
   };
 };
@@ -449,6 +464,32 @@ la fuente esta configurada bien.
       ...getRestaurantSettingsSnapshot(),
       onlyOwnerCanCloseTable: Boolean(enabled),
     });
+  },
+
+  // Obtener si solo el dueño puede eliminar productos de una orden
+  getOnlyOwnerCanDeleteOrderItems() {
+    return getRestaurantSettingsSnapshot().onlyOwnerCanDeleteOrderItems;
+  },
+
+  // Guardar preferencia para permitir eliminación de productos solo a owner
+  setOnlyOwnerCanDeleteOrderItems(enabled) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      onlyOwnerCanDeleteOrderItems: Boolean(enabled),
+    });
+  },
+
+  // Verificar si el usuario actual puede eliminar productos de una orden
+  canCurrentUserDeleteOrderItems() {
+    const onlyOwnerCanDelete = this.getOnlyOwnerCanDeleteOrderItems();
+    if (!onlyOwnerCanDelete) return true;
+
+    try {
+      const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+      return localUser?.role === 'owner' || localUser?.role === 'super_admin';
+    } catch {
+      return false;
+    }
   },
 
   // Obtener si se evita reimprimir la misma comanda al actualizar/reenviar

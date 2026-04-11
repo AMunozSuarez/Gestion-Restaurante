@@ -425,6 +425,15 @@ const Delivery = () => {
   };
 
   const removeFromEditCart = (cartId) => {
+    const targetItem = editCart.find(item => item.cartId === cartId);
+    if (!targetItem) return;
+
+    if (targetItem.isOriginal && !printingService.canCurrentUserDeleteOrderItems()) {
+      setAddedProductNotification('Solo el dueño puede eliminar productos de una orden con la configuración actual');
+      setTimeout(() => setAddedProductNotification(null), 3000);
+      return;
+    }
+
     setEditCart(prevCart => {
       const item = prevCart.find(i => i.cartId === cartId);
       if (!item) return prevCart;
@@ -2548,6 +2557,7 @@ const Delivery = () => {
                         <div className="space-y-2">
                           {editCart.map((item) => {
                             const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+                            const canDeleteCurrentItem = item.isNew || printingService.canCurrentUserDeleteOrderItems();
                             return (
                             <div
                               key={item.cartId || item.id}
@@ -2607,7 +2617,7 @@ const Delivery = () => {
                                       Deshacer
                                     </button>
                                   )}
-                                  {!item.deleted && (
+                                  {!item.deleted && canDeleteCurrentItem && (
                                     <button
                                       onClick={() => removeFromEditCart(item.cartId || item.id)}
                                       className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs"

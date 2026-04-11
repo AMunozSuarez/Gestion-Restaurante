@@ -65,6 +65,14 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
             },
             fieldName: 'onlyOwnerCanCloseTable',
         },
+        {
+            nested: payload?.permissions?.onlyOwnerCanDeleteOrderItems,
+            flat: payload?.onlyOwnerCanDeleteOrderItems,
+            assign: (value) => {
+                nextSettings.permissions.onlyOwnerCanDeleteOrderItems = value;
+            },
+            fieldName: 'onlyOwnerCanDeleteOrderItems',
+        },
     ];
 
     for (const field of booleanFieldMap) {

@@ -3,8 +3,66 @@ const foodModel = require('../models/foodModel'); // Importar el modelo de alime
 const Customer = require('../models/customerModel'); // Importar el modelo de clientes
 const cashRegisterModel = require('../models/cashRegisterModel'); // Importar el modelo de caja
 const Table = require('../models/tableModel'); // Importar el modelo de mesas
+const Restaurant = require('../models/restaurantModel');
 const { getChileDate, getChileTimestamp, formatChileDate, getChileDayRange } = require('../utils/dateUtils');
 const { getIO } = require('../socket');
+
+const isOwnerOrSuperAdmin = (role) => role === 'owner' || role === 'super_admin';
+
+const normalizeSelectedExtrasForSignature = (extras = []) => {
+    if (!Array.isArray(extras)) return [];
+
+    return extras
+        .map((extra) => ({
+            sectionName: String(extra?.sectionName || '').trim(),
+            extraName: String(extra?.extraName || '').trim(),
+            price: Number(extra?.price || 0),
+        }))
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+};
+
+const buildOrderFoodDeletionSignature = (item = {}) => {
+    const foodValue = item?.food;
+    const foodId = typeof foodValue === 'object' && foodValue !== null
+        ? (foodValue._id || foodValue.id || '')
+        : (foodValue || '');
+
+    return JSON.stringify({
+        foodId: String(foodId),
+        selectedExtras: normalizeSelectedExtrasForSignature(item?.selectedExtras),
+    });
+};
+
+const getFoodQuantitiesBySignature = (foods = []) => {
+    const quantities = new Map();
+
+    for (const item of foods) {
+        if (!item || !item.food) continue;
+
+        const signature = buildOrderFoodDeletionSignature(item);
+        const quantity = Number(item.quantity || 0);
+
+        if (quantity <= 0) continue;
+
+        quantities.set(signature, (quantities.get(signature) || 0) + quantity);
+    }
+
+    return quantities;
+};
+
+const hasReducedExistingFoodQuantities = (currentFoods = [], nextFoods = []) => {
+    const currentQuantities = getFoodQuantitiesBySignature(currentFoods);
+    const nextQuantities = getFoodQuantitiesBySignature(nextFoods);
+
+    for (const [signature, currentQty] of currentQuantities.entries()) {
+        const nextQty = nextQuantities.get(signature) || 0;
+        if (nextQty < currentQty) {
+            return true;
+        }
+    }
+
+    return false;
+};
 
 // CREATE A NEW ORDER
 
@@ -355,6 +413,52 @@ const updateOrderController = async (req, res) => {
         const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, discount, deletedFoods, newFoods } = req.body;
 
         const restaurantId = req.user.restaurant;
+        const isPrivilegedUser = isOwnerOrSuperAdmin(req.user?.role);
+        let currentOrderSnapshot = null;
+
+        if (foods !== undefined || deletedFoods !== undefined || discount !== undefined) {
+            currentOrderSnapshot = await orderModel
+                .findOne({ _id: req.params.id, restaurant: restaurantId })
+                .select('foods deletedFoods total discount')
+                .lean();
+
+            if (!currentOrderSnapshot) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Pedido no encontrado o no pertenece a este restaurante',
+                });
+            }
+        }
+
+        if (!isPrivilegedUser && (Array.isArray(foods) || Array.isArray(deletedFoods))) {
+            const restaurant = await Restaurant.findById(restaurantId)
+                .select('settings.permissions.onlyOwnerCanDeleteOrderItems')
+                .lean();
+
+            const onlyOwnerCanDeleteOrderItems =
+                restaurant?.settings?.permissions?.onlyOwnerCanDeleteOrderItems === true;
+
+            if (onlyOwnerCanDeleteOrderItems) {
+                const currentDeletedFoods = Array.isArray(currentOrderSnapshot?.deletedFoods)
+                    ? currentOrderSnapshot.deletedFoods
+                    : [];
+                const requestDeletedFoods = Array.isArray(deletedFoods)
+                    ? deletedFoods
+                    : null;
+
+                const deletedFoodsIncreased =
+                    Array.isArray(requestDeletedFoods) && requestDeletedFoods.length > currentDeletedFoods.length;
+                const reducedExistingFoods =
+                    Array.isArray(foods) && hasReducedExistingFoodQuantities(currentOrderSnapshot?.foods || [], foods);
+
+                if (deletedFoodsIncreased || reducedExistingFoods) {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'Solo el dueño puede eliminar productos de una orden con la configuración actual.',
+                    });
+                }
+            }
+        }
 
 
         // Preparar objeto de actualización con campos simples
@@ -522,7 +626,7 @@ const updateOrderController = async (req, res) => {
             updateData.selectedAddress = customer ? selectedAddress : null;
         } else if (discount !== undefined) {
             // Si se actualiza solo el descuento sin cambiar los foods, recalcular el total
-            const currentOrder = await orderModel.findById(req.params.id).lean();
+            const currentOrder = currentOrderSnapshot || await orderModel.findById(req.params.id).lean();
             if (currentOrder) {
                 // El total anterior sin descuento es: total anterior + descuento anterior
                 const totalWithoutDiscount = currentOrder.total + (currentOrder.discount || 0);

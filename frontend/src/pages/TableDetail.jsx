@@ -221,6 +221,14 @@ const TableDetail = () => {
     };
 
     const removeFromCart = (cartId) => {
+        const targetItem = cart.find(item => item.cartId === cartId);
+        if (!targetItem) return;
+
+        if (targetItem.isOriginal && table.currentOrder && !printingService.canCurrentUserDeleteOrderItems()) {
+            showNotification('Solo el dueño puede eliminar productos de una orden con la configuración actual', 'warning');
+            return;
+        }
+
         setCart(prev => prev.map(item => {
             if (item.cartId === cartId) {
                 // Si es un producto original de la orden, marcarlo como deleted
@@ -1010,6 +1018,7 @@ const TableDetail = () => {
                                             <p className="text-xs text-gray-500 font-medium mb-2">En cocina</p>
                                             {cart.filter(item => item.isOriginal && !item.deleted).map(item => {
                                                 const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+                                                const canDeleteOriginalOrderItems = printingService.canCurrentUserDeleteOrderItems();
                                                 return (
                                                 <div key={item.cartId} className="border border-gray-200 rounded-lg p-3 mb-2">
                                                     <div className="flex justify-between items-start mb-2">
@@ -1024,13 +1033,15 @@ const TableDetail = () => {
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => removeFromCart(item.cartId)}
-                                                            className="p-1 hover:bg-red-100 rounded"
-                                                            title="Marcar como eliminado"
-                                                        >
-                                                            <TrashIcon className="w-4 h-4 text-red-600" />
-                                                        </button>
+                                                        {canDeleteOriginalOrderItems && (
+                                                            <button
+                                                                onClick={() => removeFromCart(item.cartId)}
+                                                                className="p-1 hover:bg-red-100 rounded"
+                                                                title="Marcar como eliminado"
+                                                            >
+                                                                <TrashIcon className="w-4 h-4 text-red-600" />
+                                                            </button>
+                                                        )}
                                                     </div>
 
                                                     {/* Extras de productos originales (solo lectura) */}

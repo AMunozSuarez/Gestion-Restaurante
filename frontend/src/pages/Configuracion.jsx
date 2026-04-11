@@ -46,6 +46,7 @@ const Configuracion = () => {
   const [reprintTicketOnCloseTable, setReprintTicketOnCloseTable] = useState(() => printingService.getReprintTicketOnCloseTable());
   const [printOnDeletedItemsUpdate, setPrintOnDeletedItemsUpdate] = useState(() => printingService.getPrintOnDeletedItemsUpdate());
   const [onlyOwnerCanCloseTable, setOnlyOwnerCanCloseTable] = useState(() => printingService.getOnlyOwnerCanCloseTable());
+  const [onlyOwnerCanDeleteOrderItems, setOnlyOwnerCanDeleteOrderItems] = useState(() => printingService.getOnlyOwnerCanDeleteOrderItems());
   const [avoidDuplicateKitchenUpdatePrint, setAvoidDuplicateKitchenUpdatePrint] = useState(() => printingService.getAvoidDuplicateKitchenUpdatePrint());
 
   // Estados para multi-impresora
@@ -103,6 +104,7 @@ const Configuracion = () => {
     setReprintTicketOnCloseTable(printingService.getReprintTicketOnCloseTable());
     setPrintOnDeletedItemsUpdate(printingService.getPrintOnDeletedItemsUpdate());
     setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
+    setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
 
     if (!syncResult.success) {
@@ -119,6 +121,7 @@ const Configuracion = () => {
     setReprintTicketOnCloseTable(printingService.getReprintTicketOnCloseTable());
     setPrintOnDeletedItemsUpdate(printingService.getPrintOnDeletedItemsUpdate());
     setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
+    setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
   };
 
@@ -306,6 +309,29 @@ const Configuracion = () => {
       text: enabled
         ? 'Solo el dueño podrá cerrar mesas en todo el restaurante'
         : 'Cualquier usuario con acceso podrá cerrar mesas'
+    });
+  };
+
+  // Activar o desactivar eliminación de productos de orden solo para owner
+  const handleOnlyOwnerCanDeleteOrderItemsChange = async (enabled) => {
+    setOnlyOwnerCanDeleteOrderItems(enabled);
+    printingService.setOnlyOwnerCanDeleteOrderItems(enabled);
+    const result = await printingService.saveRestaurantSettingsToBackend({ onlyOwnerCanDeleteOrderItems: enabled });
+
+    if (!result.success) {
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: `No se pudo guardar en el restaurante: ${result.error}. Se restauró el valor compartido.`,
+      });
+      return;
+    }
+
+    setMessage({
+      type: 'success',
+      text: enabled
+        ? 'Solo el dueño podrá eliminar productos de pedidos en todo el restaurante'
+        : 'Los usuarios con acceso podrán eliminar productos de pedidos'
     });
   };
 
@@ -1385,6 +1411,27 @@ const Configuracion = () => {
                         >
                           <span
                             className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${avoidDuplicateKitchenUpdatePrint ? 'translate-x-5' : 'translate-x-0.5'}`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-4 border border-amber-200 rounded-lg bg-white">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Solo dueño puede eliminar productos</p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Si está activo, empleados no podrán eliminar productos de pedidos ya creados.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOnlyOwnerCanDeleteOrderItemsChange(!onlyOwnerCanDeleteOrderItems)}
+                          className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${onlyOwnerCanDeleteOrderItems ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                          aria-pressed={onlyOwnerCanDeleteOrderItems}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${onlyOwnerCanDeleteOrderItems ? 'translate-x-5' : 'translate-x-0.5'}`}
                           />
                         </button>
                       </div>
