@@ -20,13 +20,27 @@ import { categoriesService } from '../services/categoriesService';
 import productsService from '../services/productsService';
 import * as subscriptionService from '../services/subscriptionService';
 import usersService from '../services/usersService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const Configuracion = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('printers'); // 'printers', 'subscription' o 'users'
+
+  const getValidTab = (tabValue) => {
+    if (tabValue === 'printers' || tabValue === 'subscription' || tabValue === 'users') {
+      return tabValue;
+    }
+    return null;
+  };
+
+  const getTabFromSearch = (search) => {
+    const searchParams = new URLSearchParams(search);
+    return getValidTab(searchParams.get('tab'));
+  };
+
+  const [activeTab, setActiveTab] = useState(() => getTabFromSearch(location.search) || 'printers'); // 'printers', 'subscription' o 'users'
 
   // Verificar si el usuario es propietario o super admin
   const isOwnerOrAdmin = user && (user.role === 'owner' || user.role === 'super_admin');
@@ -87,6 +101,22 @@ const Configuracion = () => {
       setActiveTab('printers');
     }
   }, [activeTab, isOwnerOrAdmin]);
+
+  // Permite abrir una pestaña específica con /configuracion?tab=subscription
+  useEffect(() => {
+    const requestedTab = getTabFromSearch(location.search) || getValidTab(location.state?.tab);
+
+    if (!requestedTab) {
+      return;
+    }
+
+    if (!isOwnerOrAdmin && (requestedTab === 'subscription' || requestedTab === 'users')) {
+      setActiveTab('printers');
+      return;
+    }
+
+    setActiveTab((prev) => (prev === requestedTab ? prev : requestedTab));
+  }, [location.search, location.state, isOwnerOrAdmin]);
 
   // Cargar estado inicial
   useEffect(() => {

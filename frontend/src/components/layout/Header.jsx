@@ -19,6 +19,7 @@ import {
   Squares2X2Icon,
   PresentationChartBarIcon,
   BuildingStorefrontIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -26,10 +27,18 @@ const Header = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { restaurant, isLoading: isRestaurantLoading } = useRestaurant();
-  const { hasActiveSubscription, isLoading: isSubscriptionLoading } = useSubscription();
+  const {
+    subscription,
+    hasActiveSubscription,
+    daysRemaining: subscriptionDaysRemaining,
+    isLoading: isSubscriptionLoading,
+  } = useSubscription();
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSubscriptionNoticeOpen, setIsSubscriptionNoticeOpen] = useState(false);
   const headerRef = useRef(null);
+  const subscriptionNoticeRef = useRef(null);
+  const subscriptionNoticeCloseTimerRef = useRef(null);
 
   // Core operational nav (center)
   const navigationSections = [
@@ -72,6 +81,31 @@ const Header = () => {
     userMenuItems.push({ name: 'Admin Dashboard', href: '/admin', icon: ShieldCheckIcon });
   }
 
+  const fallbackDaysRemaining = subscription?.endDate
+    ? Math.ceil((new Date(subscription.endDate) - new Date()) / (1000 * 60 * 60 * 24))
+    : null;
+  const normalizedDaysRemaining = typeof subscriptionDaysRemaining === 'number'
+    ? Math.max(0, subscriptionDaysRemaining)
+    : (typeof fallbackDaysRemaining === 'number' ? Math.max(0, fallbackDaysRemaining) : null);
+
+  const hasSubscriptionPaymentIssue = !hasActiveSubscription;
+  const hasPendingPayment = subscription?.status === 'pending';
+  const shouldShowSubscriptionNotice = !isSubscriptionLoading && (
+    hasSubscriptionPaymentIssue ||
+    (normalizedDaysRemaining !== null && normalizedDaysRemaining <= 5)
+  );
+  const isCriticalSubscriptionNotice = hasSubscriptionPaymentIssue || (
+    normalizedDaysRemaining !== null && normalizedDaysRemaining <= 1
+  );
+
+  const subscriptionNoticeTitle = hasSubscriptionPaymentIssue
+    ? (hasPendingPayment ? 'Pago de suscripción pendiente' : 'Suscripción vencida')
+    : `Tu suscripción vence ${normalizedDaysRemaining === 1 ? 'en 1 día' : `en ${normalizedDaysRemaining} días`}`;
+
+  const subscriptionNoticeDescription = hasSubscriptionPaymentIssue
+    ? 'Debes pagar o renovar tu suscripción para seguir usando el servicio.'
+    : 'Renueva a tiempo para no perder el acceso al sistema.';
+
   const isActive = (href) => location.pathname === href;
 
   const isAnyItemActive = (items) => {
@@ -98,6 +132,10 @@ const Header = () => {
       if (headerRef.current && !headerRef.current.contains(event.target)) {
         setOpenDropdown(null);
       }
+
+      if (subscriptionNoticeRef.current && !subscriptionNoticeRef.current.contains(event.target)) {
+        setIsSubscriptionNoticeOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -110,6 +148,44 @@ const Header = () => {
     logout();
     navigate('/login');
   };
+
+  const handleGoToSubscriptionSettings = () => {
+    if (subscriptionNoticeCloseTimerRef.current) {
+      clearTimeout(subscriptionNoticeCloseTimerRef.current);
+      subscriptionNoticeCloseTimerRef.current = null;
+    }
+    setIsSubscriptionNoticeOpen(false);
+    setOpenDropdown(null);
+    setIsMobileMenuOpen(false);
+    navigate('/configuracion?tab=subscription');
+  };
+
+  const handleSubscriptionNoticeMouseEnter = () => {
+    if (subscriptionNoticeCloseTimerRef.current) {
+      clearTimeout(subscriptionNoticeCloseTimerRef.current);
+      subscriptionNoticeCloseTimerRef.current = null;
+    }
+    setIsSubscriptionNoticeOpen(true);
+  };
+
+  const handleSubscriptionNoticeMouseLeave = () => {
+    if (subscriptionNoticeCloseTimerRef.current) {
+      clearTimeout(subscriptionNoticeCloseTimerRef.current);
+    }
+
+    subscriptionNoticeCloseTimerRef.current = setTimeout(() => {
+      setIsSubscriptionNoticeOpen(false);
+      subscriptionNoticeCloseTimerRef.current = null;
+    }, 180);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (subscriptionNoticeCloseTimerRef.current) {
+        clearTimeout(subscriptionNoticeCloseTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <header ref={headerRef} className="bg-white shadow-sm border-b border-gray-200">
@@ -221,6 +297,46 @@ const Header = () => {
 
           {/* User / settings menu */}
           <div className="relative flex items-center">
+            {shouldShowSubscriptionNotice && (
+              <div
+                ref={subscriptionNoticeRef}
+                className="relative mr-2"
+                onMouseEnter={handleSubscriptionNoticeMouseEnter}
+                onMouseLeave={handleSubscriptionNoticeMouseLeave}
+              >
+                <button
+                  onClick={() => setIsSubscriptionNoticeOpen((prev) => !prev)}
+                  className={`inline-flex items-center justify-center w-9 h-9 rounded-full border transition-colors duration-200 ${
+                    isCriticalSubscriptionNotice
+                      ? 'text-red-600 border-red-200 bg-red-50 hover:bg-red-100'
+                      : 'text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100'
+                  }`}
+                  aria-label="Alerta de suscripción"
+                >
+                  <QuestionMarkCircleIcon className="w-6 h-6" />
+                </button>
+
+                <div
+                  className={`absolute top-full right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3 ${
+                    isSubscriptionNoticeOpen ? 'block' : 'hidden'
+                  }`}
+                >
+                  <p className={`text-sm font-semibold ${isCriticalSubscriptionNotice ? 'text-red-700' : 'text-amber-700'}`}>
+                    {subscriptionNoticeTitle}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    {subscriptionNoticeDescription}
+                  </p>
+                  <button
+                    onClick={handleGoToSubscriptionSettings}
+                    className="mt-3 w-full px-3 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition-colors duration-200"
+                  >
+                    Ir a Suscripción
+                  </button>
+                </div>
+              </div>
+            )}
+
             <button
               onClick={() => toggleDropdown('user')}
               className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${

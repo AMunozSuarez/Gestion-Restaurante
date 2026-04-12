@@ -4,6 +4,9 @@ import { getCurrentSubscription } from '../services/subscriptionService';
 export const useSubscription = () => {
   const [subscription, setSubscription] = useState(null);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [daysRemaining, setDaysRemaining] = useState(null);
+  const [isInGracePeriod, setIsInGracePeriod] = useState(false);
+  const [canAccess, setCanAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -18,6 +21,9 @@ export const useSubscription = () => {
       if (response.success && response.data && response.data.subscription) {
         const sub = response.data.subscription;
         setSubscription(sub);
+        setDaysRemaining(typeof response.data.daysRemaining === 'number' ? response.data.daysRemaining : null);
+        setIsInGracePeriod(Boolean(response.data.isInGracePeriod));
+        setCanAccess(Boolean(response.data.canAccess));
         
         // Considerar como activa si el estado es 'active' o 'trial'
         const isActive = sub.status === 'active' || sub.status === 'trial';
@@ -25,11 +31,17 @@ export const useSubscription = () => {
       } else {
         setSubscription(null);
         setHasActiveSubscription(false);
+        setDaysRemaining(null);
+        setIsInGracePeriod(false);
+        setCanAccess(false);
       }
     } catch (error) {
       console.error('Error al verificar suscripción:', error);
       setSubscription(null);
       setHasActiveSubscription(false);
+      setDaysRemaining(null);
+      setIsInGracePeriod(false);
+      setCanAccess(false);
     } finally {
       setIsLoading(false);
     }
@@ -42,6 +54,9 @@ export const useSubscription = () => {
   return {
     subscription,
     hasActiveSubscription,
+    daysRemaining,
+    isInGracePeriod,
+    canAccess,
     isLoading,
     refresh
   };
