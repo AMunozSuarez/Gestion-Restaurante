@@ -4,6 +4,8 @@ import {
   TrashIcon, 
   EyeIcon, 
   EyeSlashIcon, 
+  ArrowUpIcon,
+  ArrowDownIcon,
   ChevronDownIcon, 
   ChevronUpIcon,
   InformationCircleIcon 
@@ -38,10 +40,49 @@ const ExtraSectionsManager = ({ extraSections = [], onChange }) => {
     if (window.confirm('¿Estás seguro de eliminar esta sección y todos sus extras?')) {
       const newSections = extraSections.filter((_, i) => i !== index);
       onChange(newSections);
-      const newExpanded = new Set(expandedSections);
-      newExpanded.delete(index);
+      const newExpanded = new Set();
+      expandedSections.forEach((expandedIndex) => {
+        if (expandedIndex === index) {
+          return;
+        }
+
+        if (expandedIndex > index) {
+          newExpanded.add(expandedIndex - 1);
+          return;
+        }
+
+        newExpanded.add(expandedIndex);
+      });
       setExpandedSections(newExpanded);
     }
+  };
+
+  const moveSection = (index, direction) => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+    if (targetIndex < 0 || targetIndex >= extraSections.length) {
+      return;
+    }
+
+    const newSections = [...extraSections];
+    [newSections[index], newSections[targetIndex]] = [newSections[targetIndex], newSections[index]];
+    onChange(newSections);
+
+    const newExpanded = new Set();
+    expandedSections.forEach((expandedIndex) => {
+      if (expandedIndex === index) {
+        newExpanded.add(targetIndex);
+        return;
+      }
+
+      if (expandedIndex === targetIndex) {
+        newExpanded.add(index);
+        return;
+      }
+
+      newExpanded.add(expandedIndex);
+    });
+    setExpandedSections(newExpanded);
   };
 
   const updateSection = (index, field, value) => {
@@ -74,6 +115,28 @@ const ExtraSectionsManager = ({ extraSections = [], onChange }) => {
       ...newSections[sectionIndex].extras[extraIndex],
       [field]: value
     };
+    onChange(newSections);
+  };
+
+  const moveExtra = (sectionIndex, extraIndex, direction) => {
+    const targetIndex = direction === 'up' ? extraIndex - 1 : extraIndex + 1;
+    const currentExtras = Array.isArray(extraSections[sectionIndex]?.extras)
+      ? extraSections[sectionIndex].extras
+      : [];
+
+    if (targetIndex < 0 || targetIndex >= currentExtras.length) {
+      return;
+    }
+
+    const reorderedExtras = [...currentExtras];
+    [reorderedExtras[extraIndex], reorderedExtras[targetIndex]] = [reorderedExtras[targetIndex], reorderedExtras[extraIndex]];
+
+    const newSections = [...extraSections];
+    newSections[sectionIndex] = {
+      ...newSections[sectionIndex],
+      extras: reorderedExtras
+    };
+
     onChange(newSections);
   };
 
@@ -159,19 +222,47 @@ const ExtraSectionsManager = ({ extraSections = [], onChange }) => {
                   </div>
                 </div>
 
-                {/* Botón eliminar sección */}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="danger"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeSection(sectionIndex);
-                  }}
-                  className="ml-2"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                </Button>
+                <div className="ml-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveSection(sectionIndex, 'up');
+                    }}
+                    disabled={sectionIndex === 0}
+                    className="p-1.5 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Mover sección hacia arriba"
+                  >
+                    <ArrowUpIcon className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveSection(sectionIndex, 'down');
+                    }}
+                    disabled={sectionIndex === extraSections.length - 1}
+                    className="p-1.5 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Mover sección hacia abajo"
+                  >
+                    <ArrowDownIcon className="w-4 h-4" />
+                  </button>
+
+                  {/* Botón eliminar sección */}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="danger"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeSection(sectionIndex);
+                    }}
+                    className="ml-1"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
 
               {/* Contenido de la sección (colapsable) */}
@@ -303,14 +394,36 @@ const ExtraSectionsManager = ({ extraSections = [], onChange }) => {
 
                               {/* Eliminar extra */}
                               <div className="col-span-2 flex justify-center">
-                                <button
-                                  type="button"
-                                  onClick={() => removeExtra(sectionIndex, extraIndex)}
-                                  className="p-1.5 rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                                  title="Eliminar extra"
-                                >
-                                  <TrashIcon className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => moveExtra(sectionIndex, extraIndex, 'up')}
+                                    disabled={extraIndex === 0}
+                                    className="p-1.5 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title="Mover extra hacia arriba"
+                                  >
+                                    <ArrowUpIcon className="w-4 h-4" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => moveExtra(sectionIndex, extraIndex, 'down')}
+                                    disabled={extraIndex === section.extras.length - 1}
+                                    className="p-1.5 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title="Mover extra hacia abajo"
+                                  >
+                                    <ArrowDownIcon className="w-4 h-4" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => removeExtra(sectionIndex, extraIndex)}
+                                    className="p-1.5 rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                                    title="Eliminar extra"
+                                  >
+                                    <TrashIcon className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ))}
