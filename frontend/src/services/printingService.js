@@ -251,6 +251,27 @@ const normalizeText = (text) => {
     .replace(/Ú/g, 'U');
 };
 
+const getOrderedExtraSectionNames = (extrasBySection = {}, sectionDefinitions = []) => {
+  const availableSections = Object.keys(extrasBySection || {});
+  if (availableSections.length <= 1) {
+    return availableSections;
+  }
+
+  const preferredSectionOrder = (Array.isArray(sectionDefinitions) ? sectionDefinitions : [])
+    .map((section) => (typeof section?.sectionName === 'string' ? section.sectionName.trim() : ''))
+    .filter((sectionName) => Boolean(sectionName));
+
+  if (preferredSectionOrder.length === 0) {
+    return availableSections;
+  }
+
+  const preferredSet = new Set(preferredSectionOrder);
+  return [
+    ...preferredSectionOrder.filter((sectionName) => Object.prototype.hasOwnProperty.call(extrasBySection, sectionName)),
+    ...availableSections.filter((sectionName) => !preferredSet.has(sectionName)),
+  ];
+};
+
 const normalizePrintItemsForSignature = (items = []) => {
   if (!Array.isArray(items)) return [];
 
@@ -774,7 +795,11 @@ No. Orden: #${orderNumber}
           extrasBySection[section].push(extra);
         });
 
-        Object.keys(extrasBySection).forEach(sectionName => {
+        const sectionDefinitions = Array.isArray(item?.food?.extraSections)
+          ? item.food.extraSections
+          : (Array.isArray(item?.extraSections) ? item.extraSections : []);
+
+        getOrderedExtraSectionNames(extrasBySection, sectionDefinitions).forEach(sectionName => {
           const normalizedSection = normalizeText(sectionName);
           content += `   ${normalizedSection}:\n`;
 
@@ -1065,6 +1090,7 @@ No. Orden: #${orderNumber}
         quantity: item.quantity || 1,
         notes: item.comment || '',
         selectedExtras: item.selectedExtras || [],
+        extraSections: item.food?.extraSections || item.extraSections || [],
         isNew: item.isNew || false,
         isRemoteExtraOnly: false,
         remoteProductName: '',
@@ -1079,6 +1105,7 @@ No. Orden: #${orderNumber}
         quantity: item.quantity || 1,
         notes: item.comment || '',
         selectedExtras: item.selectedExtras || [],
+        extraSections: item.food?.extraSections || item.extraSections || [],
         isNew: Boolean(item._isNew),
         isRemoteExtraOnly: Boolean(item._remoteExtraOnly),
         remoteProductName: item._remoteProductName || item.food?.title || item.food?.name || 'Producto',
@@ -1119,6 +1146,7 @@ No. Orden: #${orderNumber}
         quantity: item.quantity || 1,
         notes: item.notes || item.comment || '',
         selectedExtras: item.selectedExtras || [],
+        extraSections: item.food?.extraSections || item.extraSections || [],
         isNew: false,
         isRemoteExtraOnly: false,
         remoteProductName: '',
@@ -1132,6 +1160,7 @@ No. Orden: #${orderNumber}
         quantity: item.quantity || 1,
         notes: item.notes || item.comment || '',
         selectedExtras: item.selectedExtras || [],
+        extraSections: item.food?.extraSections || item.extraSections || [],
         isNew: false,
         isRemoteExtraOnly: false,
         remoteProductName: '',
@@ -1152,7 +1181,7 @@ No. Orden: #${orderNumber}
     // Agregar cada producto al contenido (marcado para negrita si esta configurado)
     content += `[BOLD]`;
 
-    const appendGroupedExtras = (extras = []) => {
+    const appendGroupedExtras = (extras = [], sectionDefinitions = []) => {
       const extrasBySection = {};
       extras.forEach(extra => {
         const section = extra.sectionName || 'Extras';
@@ -1162,7 +1191,7 @@ No. Orden: #${orderNumber}
         extrasBySection[section].push(extra);
       });
 
-      Object.keys(extrasBySection).forEach(sectionName => {
+      getOrderedExtraSectionNames(extrasBySection, sectionDefinitions).forEach(sectionName => {
         const normalizedSection = normalizeText(sectionName);
         content += `   ${normalizedSection}:\n`;
 
@@ -1190,7 +1219,7 @@ No. Orden: #${orderNumber}
         content += `${item.isNew ? '* ' : ''}${remoteQty}x Extras para ${remoteProductName}\n`;
 
         if (item.selectedExtras && Array.isArray(item.selectedExtras) && item.selectedExtras.length > 0) {
-          appendGroupedExtras(item.selectedExtras);
+          appendGroupedExtras(item.selectedExtras, item.extraSections || []);
         }
 
         content += '\n';
@@ -1203,7 +1232,7 @@ No. Orden: #${orderNumber}
       
       // Agregar extras si existen
       if (item.selectedExtras && Array.isArray(item.selectedExtras) && item.selectedExtras.length > 0) {
-        appendGroupedExtras(item.selectedExtras);
+        appendGroupedExtras(item.selectedExtras, item.extraSections || []);
       }
       
       if (item.notes && item.notes.trim()) {
@@ -1279,6 +1308,8 @@ No. Orden: #${orderNumber}
    */
   async printKitchenOrderMulti(order, options = {}) {
     const { categories = [] } = options;
+    const newFoods = Array.isArray(options.newFoods) ? options.newFoods : [];
+    const isNewFoodsUpdate = newFoods.length > 0;
 
     // IMPORTANT: Always use order.foods for routing because it has populated category data.
     // options.allFoods may be present (update flow) but only has {food: id-string, name}
@@ -1307,6 +1338,22 @@ No. Orden: #${orderNumber}
     const results = [];
     for (const target of printerTargets) {
       try {
+        const targetFoodIds = new Set(
+          target.items.map(item => item.food?._id || item.food).filter(Boolean)
+        );
+
+        const targetNewFoods = isNewFoodsUpdate
+          ? newFoods.filter(nf => {
+              const id = nf.food?._id || nf.food;
+              return id && targetFoodIds.has(id);
+            })
+          : [];
+
+        // En actualizaciones, evitar imprimir impresoras sin productos nuevos.
+        if (isNewFoodsUpdate && targetNewFoods.length === 0) {
+          continue;
+        }
+
         // Annotate each item's food with isNew from allFoods if available
         const annotatedItems = target.items.map(item => {
           const foodId = item.food?._id || item.food;
@@ -1316,7 +1363,10 @@ No. Orden: #${orderNumber}
 
         // Generate ticket with only the items for this printer
         // generateKitchenOrderForItems strips allFoods so it uses filtered items
-        const content = this.generateKitchenOrderForItems(order, annotatedItems, options, target.roles);
+        const content = this.generateKitchenOrderForItems(order, annotatedItems, {
+          ...options,
+          newFoods: targetNewFoods,
+        }, target.roles);
         const result = await this.print(target.printerName, content, 1, true);
         results.push({ printerName: target.printerName, roles: target.roles, ...result });
       } catch (err) {
