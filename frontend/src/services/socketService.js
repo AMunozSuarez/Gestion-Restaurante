@@ -3,38 +3,61 @@ import { io } from 'socket.io-client';
 const SOCKET_URL = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace(/\/api$/, '');
 
 let socket = null;
-// Listeners registered before connectSocket is called
-const pendingListeners = [];
+// Keep all listeners so they can be re-attached after a forced reconnect.
+const listenersRegistry = [];
 let retryTimeout = null;
 
-// Re-attach all module-level and pending listeners to a fresh socket
+const addListenerToRegistry = (event, callback) => {
+  const exists = listenersRegistry.some(
+    (entry) => entry.event === event && entry.callback === callback
+  );
+  if (!exists) {
+    listenersRegistry.push({ event, callback });
+  }
+};
+
+const removeListenerFromRegistry = (event, callback) => {
+  const idx = listenersRegistry.findIndex(
+    (entry) => entry.event === event && entry.callback === callback
+  );
+  if (idx >= 0) {
+    listenersRegistry.splice(idx, 1);
+  }
+};
+
+// Re-attach all module-level listeners to a fresh socket.
 const reattachListeners = () => {
-  pendingListeners.forEach(({ event, callback }) => {
+  listenersRegistry.forEach(({ event, callback }) => {
     socket.on(event, callback);
   });
 };
 
-const scheduleReconnect = (delay = 5000) => {
+const scheduleReconnect = (delay = 5000, { forceNew = true } = {}) => {
   if (retryTimeout) return; // ya hay uno pendiente
   retryTimeout = setTimeout(() => {
     retryTimeout = null;
-    if (socket) {
-      socket.removeAllListeners();
-      socket.disconnect();
-      socket = null;
-    }
-    connectSocket();
+    connectSocket({ forceNew });
   }, delay);
 };
 
-export const connectSocket = () => {
+export const connectSocket = ({ forceNew = false } = {}) => {
   const token = localStorage.getItem('token');
   if (!token) return;
 
-  // Si ya hay un socket activo y conectado, no hacer nada
-  if (socket && socket.connected) return;
+  // Si ya hay un socket activo y conectado, no hacer nada.
+  if (socket && socket.connected && !forceNew) return;
 
-  // Si existe pero está muerto, limpiarlo primero
+  // Si ya existe socket pero está desconectado, intentar reconectar el mismo
+  // para preservar el manager interno antes de crear uno nuevo.
+  if (socket && !forceNew) {
+    socket.auth = { token };
+    if (!socket.connected) {
+      socket.connect();
+    }
+    return;
+  }
+
+  // Si existe pero vamos a recrear, limpiarlo primero.
   if (socket) {
     socket.removeAllListeners();
     socket.disconnect();
@@ -47,9 +70,10 @@ export const connectSocket = () => {
     reconnectionDelay: 2000,
     reconnectionDelayMax: 10000,
     reconnectionAttempts: Infinity, // nunca rendirse automáticamente
+    timeout: 20000,
   });
 
-  // Registrar listeners pendientes (suscritos antes de que el socket existiera)
+  // Registrar listeners del módulo y de componentes.
   reattachListeners();
 
   socket.on('connect', () => {
@@ -62,19 +86,55 @@ export const connectSocket = () => {
 
   socket.on('connect_error', (err) => {
     console.error('Socket.io error de conexión:', err.message);
+
+    // Mantener token actualizado para próximos intentos automáticos.
+    const latestToken = localStorage.getItem('token');
+    if (latestToken) {
+      socket.auth = { token: latestToken };
+    }
   });
 
   socket.on('disconnect', (reason) => {
     console.warn('Socket.io desconectado:', reason);
-    // Si el servidor cerró la conexión intencionalmente, reconectar manualmente
+
+    // No reintentar si fue desconexión explícita del cliente (logout).
+    if (reason === 'io client disconnect') return;
+
+    // Si el servidor cerró la conexión intencionalmente, reconectar manualmente.
     if (reason === 'io server disconnect') {
-      scheduleReconnect(3000);
+      scheduleReconnect(2000);
+      return;
     }
-    // Para 'transport close' / 'transport error' el cliente reintenta solo (reconnection: true)
+
+    // Fallback para casos donde el manager queda en estado muerto.
+    if (reason === 'transport close' || reason === 'transport error' || reason === 'ping timeout') {
+      scheduleReconnect(4000);
+    }
+  });
+
+  socket.io.on('reconnect_attempt', () => {
+    const latestToken = localStorage.getItem('token');
+    if (latestToken) {
+      socket.auth = { token: latestToken };
+    }
+  });
+
+  socket.io.on('reconnect_error', (err) => {
+    console.warn('Socket.io reconnect_error:', err?.message || err);
+  });
+
+  socket.io.on('reconnect_failed', () => {
+    console.error('Socket.io reconnect_failed: forzando recreación de socket...');
+    scheduleReconnect(1000, { forceNew: true });
   });
 };
 
 export const disconnectSocket = () => {
+  if (retryTimeout) {
+    clearTimeout(retryTimeout);
+    retryTimeout = null;
+  }
+
   if (socket) {
     socket.disconnect();
     socket = null;
@@ -82,18 +142,16 @@ export const disconnectSocket = () => {
 };
 
 export const onSocketEvent = (event, callback) => {
-  if (!socket) {
-    // Socket not yet initialized — queue the listener
-    const entry = { event, callback };
-    pendingListeners.push(entry);
-    return () => {
-      const idx = pendingListeners.indexOf(entry);
-      if (idx >= 0) pendingListeners.splice(idx, 1);
-      socket?.off(event, callback);
-    };
+  addListenerToRegistry(event, callback);
+
+  if (socket) {
+    socket.on(event, callback);
   }
-  socket.on(event, callback);
-  return () => socket?.off(event, callback);
+
+  return () => {
+    removeListenerFromRegistry(event, callback);
+    socket?.off(event, callback);
+  };
 };
 
 export const getSocketId = () => socket?.id || null;
@@ -117,7 +175,7 @@ export const isOwnUpdate = (orderId) => pendingOwnUpdates.has(String(orderId));
 window.addEventListener('online', () => {
   console.log('Red detectada — intentando reconectar socket...');
   if (!socket || !socket.connected) {
-    scheduleReconnect(1000);
+    scheduleReconnect(1000, { forceNew: false });
   }
 });
 
@@ -125,6 +183,6 @@ window.addEventListener('online', () => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && socket && !socket.connected) {
     console.log('Tab activa — intentando reconectar socket...');
-    scheduleReconnect(500);
+    scheduleReconnect(500, { forceNew: false });
   }
 });
