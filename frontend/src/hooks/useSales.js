@@ -5,6 +5,16 @@ import ordersService from '../services/ordersService';
 export const useSales = (filters = {}) => {
   const [sales, setSales] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, totalCount: 0, limit: 50 });
+  const [statistics, setStatistics] = useState({
+    totalVentas: 0,
+    totalMonto: 0,
+    ventasCompletadas: 0,
+    ventasCanceladas: 0,
+    montoEfectivo: 0,
+    montoTarjeta: 0,
+    montoTransferencia: 0,
+    montoDelivery: 0
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -18,6 +28,9 @@ export const useSales = (filters = {}) => {
         setSales(response.orders || []);
         if (response.pagination) {
           setPagination(response.pagination);
+        }
+        if (response.statistics) {
+          setStatistics(response.statistics);
         }
       } else {
         setSales([]);
@@ -56,6 +69,7 @@ export const useSales = (filters = {}) => {
   return {
     sales,
     pagination,
+    statistics,
     isLoading,
     error,
     refetch: fetchSales,

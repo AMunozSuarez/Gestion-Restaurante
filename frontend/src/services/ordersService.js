@@ -268,6 +268,7 @@ export const ordersService = {
       if (filters.dateTo) params.append('dateTo', filters.dateTo);
       if (filters.page) params.append('page', filters.page);
       if (filters.paymentMethod) params.append('paymentMethod', filters.paymentMethod);
+      if (filters.hasDeletedItems) params.append('hasDeletedItems', 'true');
 
       const url = `/order/getAllSales?${params.toString()}`;
 
