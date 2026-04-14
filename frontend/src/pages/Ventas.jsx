@@ -33,6 +33,7 @@ const Ventas = () => {
     dateFrom: today,
     dateTo: today,
     paymentMethod: undefined,
+    hasDeletedItems: undefined,
   });
 
   const applyFilters = () => {
@@ -42,6 +43,7 @@ const Ventas = () => {
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
       paymentMethod: paymentMethodFilter === 'all' ? undefined : paymentMethodFilter,
+      hasDeletedItems: hasDeletedItemsFilter || undefined,
     });
     setCurrentPage(1);
   };
@@ -55,7 +57,7 @@ const Ventas = () => {
   const [summaryCollapsed, setSummaryCollapsed] = useState(false);
 
   // Hook para obtener TODAS las ventas del restaurante (sin filtro de caja)
-  const { sales: ventas, pagination, isLoading, error, refetch: fetchSales } = useSales({
+  const { sales: ventas, pagination, statistics: salesStatistics, isLoading, error, refetch: fetchSales } = useSales({
     ...appliedFilters,
     page: currentPage,
     limit: ITEMS_PER_PAGE
@@ -116,68 +118,23 @@ const Ventas = () => {
       }
 
       // Filtro por órdenes con productos eliminados
-      if (hasDeletedItemsFilter) {
-        matches = matches && (venta.hasDeletedItems === true || (venta.deletedFoods && venta.deletedFoods.length > 0));
-      }
-
       return matches;
     });
-  }, [ventas, searchTerm, hasDeletedItemsFilter]);
+  }, [ventas, searchTerm]);
 
   // Calcular estadísticas usando useMemo para optimización
   const stats = useMemo(() => {
-    const completedVentas = ventasFiltradas.filter(v => ['Completado', 'Enviado'].includes(v.status));
-    const canceledVentas = ventasFiltradas.filter(v => v.status === 'Cancelado');
-
-    const totalMonto = completedVentas.reduce((sum, venta) => sum + (venta.total || 0), 0);
-
-    // Calcular montos por método de pago usando la nueva estructura paymentMethods
-    let montoEfectivo = 0;
-    let montoTarjeta = 0;
-    let montoTransferencia = 0;
-    let montoDelivery = 0;
-
-    completedVentas.forEach(venta => {
-      // Calcular monto de delivery
-      if (venta.section === 'delivery' && venta.deliveryCost) {
-        montoDelivery += venta.deliveryCost || 0;
-      }
-
-      if (venta.paymentMethods && venta.paymentMethods.length > 0) {
-        // Nueva estructura con múltiples métodos de pago
-        venta.paymentMethods.forEach(pm => {
-          if (pm.method === 'Efectivo') {
-            montoEfectivo += pm.amount || 0;
-          } else if (pm.method === 'Debito') {
-            montoTarjeta += pm.amount || 0;
-          } else if (pm.method === 'Transferencia') {
-            montoTransferencia += pm.amount || 0;
-          }
-        });
-      } else if (venta.payment) {
-        // Compatibilidad con estructura antigua
-        const amount = venta.total || 0;
-        if (venta.payment === 'Efectivo') {
-          montoEfectivo += amount;
-        } else if (venta.payment === 'Debito') {
-          montoTarjeta += amount;
-        } else if (venta.payment === 'Transferencia') {
-          montoTransferencia += amount;
-        }
-      }
-    });
-
     return {
-      totalVentas: pagination.totalCount || ventasFiltradas.length,
-      totalMonto,
-      ventasCompletadas: completedVentas.length,
-      ventasCanceladas: canceledVentas.length,
-      montoEfectivo,
-      montoTarjeta,
-      montoTransferencia,
-      montoDelivery
+      totalVentas: salesStatistics?.totalVentas || pagination.totalCount || 0,
+      totalMonto: salesStatistics?.totalMonto || 0,
+      ventasCompletadas: salesStatistics?.ventasCompletadas || 0,
+      ventasCanceladas: salesStatistics?.ventasCanceladas || 0,
+      montoEfectivo: salesStatistics?.montoEfectivo || 0,
+      montoTarjeta: salesStatistics?.montoTarjeta || 0,
+      montoTransferencia: salesStatistics?.montoTransferencia || 0,
+      montoDelivery: salesStatistics?.montoDelivery || 0
     };
-  }, [ventasFiltradas, pagination.totalCount]);
+  }, [salesStatistics, pagination.totalCount]);
 
   // Mostrar loading inicial
   if (isLoading && ventas.length === 0) {
@@ -277,7 +234,7 @@ const Ventas = () => {
     setFiltersCollapsed(false);
     setSummaryCollapsed(false);
     setCurrentPage(1);
-    setAppliedFilters({ status: undefined, section: undefined, dateFrom: todayDate, dateTo: todayDate, paymentMethod: undefined });
+    setAppliedFilters({ status: undefined, section: undefined, dateFrom: todayDate, dateTo: todayDate, paymentMethod: undefined, hasDeletedItems: undefined });
   };
 
   // Exportar datos (simulado)

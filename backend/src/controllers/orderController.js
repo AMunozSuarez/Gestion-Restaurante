@@ -4,6 +4,7 @@ const Customer = require('../models/customerModel'); // Importar el modelo de cl
 const cashRegisterModel = require('../models/cashRegisterModel'); // Importar el modelo de caja
 const Table = require('../models/tableModel'); // Importar el modelo de mesas
 const Restaurant = require('../models/restaurantModel');
+const mongoose = require('mongoose');
 const { getChileDate, formatChileDate, getChileDayRange } = require('../utils/dateUtils');
 const { getIO } = require('../socket');
 
@@ -903,24 +904,145 @@ const getAllSalesController = async (req, res) => {
         const pageNum = Math.max(1, parseInt(page) || 1);
         const pageSize = Math.min(200, Math.max(1, parseInt(limit) || 50));
         const skip = (pageNum - 1) * pageSize;
+        const aggregateFilters = { ...filters };
 
-        const totalCount = await orderModel.countDocuments(filters);
+        if (aggregateFilters.restaurant && mongoose.Types.ObjectId.isValid(String(aggregateFilters.restaurant))) {
+            aggregateFilters.restaurant = new mongoose.Types.ObjectId(String(aggregateFilters.restaurant));
+        }
 
-        const orders = await orderModel
-            .find(filters)
-            .sort({ [validSortBy]: -1 })
-            .skip(skip)
-            .limit(pageSize)
-            .populate('foods.food', 'title price extraSections')
-            .populate('deletedFoods.food', 'title price extraSections')
-            .populate('buyer', 'name phone')
-            .populate('waiter', 'userName name')
-            .lean();
+        const [totalCount, orders, summaryAgg, paymentAgg] = await Promise.all([
+            orderModel.countDocuments(filters),
+            orderModel
+                .find(filters)
+                .sort({ [validSortBy]: -1 })
+                .skip(skip)
+                .limit(pageSize)
+                .populate('foods.food', 'title price extraSections')
+                .populate('deletedFoods.food', 'title price extraSections')
+                .populate('buyer', 'name phone')
+                .populate('waiter', 'userName name')
+                .lean(),
+            orderModel.aggregate([
+                { $match: aggregateFilters },
+                {
+                    $group: {
+                        _id: null,
+                        totalVentas: { $sum: 1 },
+                        ventasCompletadas: {
+                            $sum: {
+                                $cond: [{ $in: ['$status', ['Completado', 'Enviado']] }, 1, 0],
+                            },
+                        },
+                        ventasCanceladas: {
+                            $sum: {
+                                $cond: [{ $eq: ['$status', 'Cancelado'] }, 1, 0],
+                            },
+                        },
+                        totalMonto: {
+                            $sum: {
+                                $cond: [
+                                    { $in: ['$status', ['Completado', 'Enviado']] },
+                                    { $ifNull: ['$total', 0] },
+                                    0,
+                                ],
+                            },
+                        },
+                        montoDelivery: {
+                            $sum: {
+                                $cond: [
+                                    {
+                                        $and: [
+                                            { $in: ['$status', ['Completado', 'Enviado']] },
+                                            { $eq: ['$section', 'delivery'] },
+                                        ],
+                                    },
+                                    { $ifNull: ['$deliveryCost', 0] },
+                                    0,
+                                ],
+                            },
+                        },
+                    },
+                },
+            ]),
+            orderModel.aggregate([
+                {
+                    $match: {
+                        ...aggregateFilters,
+                        status: { $in: ['Completado', 'Enviado'] },
+                    },
+                },
+                {
+                    $project: {
+                        payment: 1,
+                        total: { $ifNull: ['$total', 0] },
+                        paymentMethods: { $ifNull: ['$paymentMethods', []] },
+                    },
+                },
+                {
+                    $project: {
+                        payments: {
+                            $cond: [
+                                { $gt: [{ $size: '$paymentMethods' }, 0] },
+                                {
+                                    $map: {
+                                        input: '$paymentMethods',
+                                        as: 'pm',
+                                        in: {
+                                            method: '$$pm.method',
+                                            amount: { $ifNull: ['$$pm.amount', 0] },
+                                        },
+                                    },
+                                },
+                                [
+                                    {
+                                        method: '$payment',
+                                        amount: '$total',
+                                    },
+                                ],
+                            ],
+                        },
+                    },
+                },
+                { $unwind: '$payments' },
+                {
+                    $group: {
+                        _id: '$payments.method',
+                        amount: { $sum: { $ifNull: ['$payments.amount', 0] } },
+                    },
+                },
+            ]),
+        ]);
+
+        const summary = summaryAgg?.[0] || {};
+
+        const amountByMethod = {
+            Efectivo: 0,
+            Debito: 0,
+            Transferencia: 0,
+        };
+
+        (paymentAgg || []).forEach((item) => {
+            if (amountByMethod[item._id] !== undefined) {
+                amountByMethod[item._id] += item.amount || 0;
+            }
+        });
+
+        const statistics = {
+            totalVentas: summary.totalVentas || totalCount || 0,
+            totalMonto: summary.totalMonto || 0,
+            ventasCompletadas: summary.ventasCompletadas || 0,
+            ventasCanceladas: summary.ventasCanceladas || 0,
+            montoEfectivo: amountByMethod.Efectivo,
+            montoTarjeta: amountByMethod.Debito,
+            montoTransferencia: amountByMethod.Transferencia,
+            montoDelivery: summary.montoDelivery || 0,
+        };
 
         res.status(200).json({
             success: true,
             message: 'Todas las ventas recuperadas exitosamente',
             orders,
+            statistics,
             pagination: {
                 page: pageNum,
                 limit: pageSize,
