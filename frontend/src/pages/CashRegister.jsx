@@ -222,6 +222,13 @@ const CashRegister = () => {
     }, 0);
   };
 
+  const getCanceledOrdersStats = (statistics) => {
+    return {
+      count: statistics?.canceledOrders || 0,
+      total: statistics?.canceledTotal || 0
+    };
+  };
+
   const getDifference = (systemTotal, officialTotal) => {
     return officialTotal - systemTotal;
   };
@@ -415,6 +422,15 @@ const CashRegister = () => {
                     {formatCurrency(getSystemTotalForCashRegister(currentCashRegister))}
                   </p>
                 </div>
+
+                {getCanceledOrdersStats(currentCashStatistics).count > 0 && (
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 p-2 rounded border border-red-200">
+                    <p className="text-xs text-red-700 font-medium">Cancelados</p>
+                    <p className="text-xs lg:text-sm font-bold text-red-800">
+                      {formatCurrency(getCanceledOrdersStats(currentCashStatistics).total)}
+                    </p>
+                  </div>
+                )}
                 
                 {/* Propinas integradas */}
                 {currentTipsStatistics && currentTipsStatistics.totalTips > 0 && (
@@ -785,6 +801,29 @@ const CashRegister = () => {
               )}
             </div>
           </div>
+
+          {/* Pedidos Cancelados (control) */}
+          {getCanceledOrdersStats(selectedCashStatistics).count > 0 && (
+            <div className="mb-6">
+              <h4 className="text-professional-subtitle mb-3">Pedidos Cancelados</h4>
+              <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-red-700 font-medium">Total de pedidos cancelados</p>
+                    <p className="text-sm text-red-600">No se incluye en los totales de caja</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-red-800">
+                      {formatCurrency(getCanceledOrdersStats(selectedCashStatistics).total)}
+                    </p>
+                    <p className="text-xs text-red-700 font-medium">
+                      {getCanceledOrdersStats(selectedCashStatistics).count} pedidos
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Propinas */}
           {selectedTipsStatistics && selectedTipsStatistics.totalTips > 0 && (

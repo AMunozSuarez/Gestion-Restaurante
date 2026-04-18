@@ -312,6 +312,15 @@ const getCashRegisterSales = async (req, res) => {
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name');
 
+        // Obtener pedidos cancelados de la misma caja y rango para control administrativo.
+        const canceledFilters = {
+            ...filters,
+            status: 'Cancelado',
+        };
+        const canceledOrders = await orderModel.find(canceledFilters).select('total');
+        const canceledTotal = canceledOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+        const canceledOrdersCount = canceledOrders.length;
+
         // Calcular estadísticas
         const totalSales = orders.reduce((sum, order) => sum + (order.total || 0), 0);
         const totalOrders = orders.length;
@@ -325,6 +334,8 @@ const getCashRegisterSales = async (req, res) => {
                 totalSales,
                 totalOrders,
                 averageTicket: totalOrders > 0 ? totalSales / totalOrders : 0,
+                canceledTotal,
+                canceledOrders: canceledOrdersCount,
             }
         });
     } catch (error) {
