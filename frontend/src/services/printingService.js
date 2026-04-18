@@ -1032,12 +1032,6 @@ No. Orden: #${orderNumber}
     const date = new Date();
     const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
     const kitchenHeaderBold = Boolean(this.getLocalFontSettings().kitchenHeaderBold);
-    const kitchenUpdateHeader = kitchenHeaderBold
-      ? '[BOLD]   *** ACTUALIZACION PEDIDO ***[/BOLD]'
-      : '   *** ACTUALIZACION PEDIDO ***';
-    const kitchenOrderHeader = kitchenHeaderBold
-      ? '[BOLD]         COMANDA COCINA[/BOLD]'
-      : '         COMANDA COCINA';
 
     // Extraer nombre del cliente desde diferentes posibles campos
     let customer = 'Cliente';
@@ -1070,43 +1064,38 @@ No. Orden: #${orderNumber}
     const isUpdate = (options.newFoods && options.newFoods.length > 0) ||
                      (options.deletedFoods && options.deletedFoods.length > 0);
 
+    const headerDetailLines = [`No. Orden: #${orderNumber}`];
+    if (isMesas) {
+      if (tableNumber) headerDetailLines.push(`Mesa: ${tableNumber}`);
+      if (waiterName) headerDetailLines.push(`Garzon: ${waiterName}`);
+    } else {
+      headerDetailLines.push(`Cliente: ${customer}`);
+      headerDetailLines.push(`Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}`);
+    }
+    headerDetailLines.push(`Hora: ${date.toLocaleTimeString()}`);
+
+    const headerDetailsText = `${headerDetailLines.join('\n')}\n`;
+    const headerDetailsBlock = kitchenHeaderBold
+      ? `[BOLD]${headerDetailsText}[/BOLD]\n`
+      : headerDetailsText;
+
     let content;
     if (isUpdate) {
       content = `
 ================================
-  ${kitchenUpdateHeader}
+   *** ACTUALIZACION PEDIDO ***
 ================================
 
-No. Orden: #${orderNumber}
 `;
-      // Para sección mesas: mostrar Mesa y Garzón, NO mostrar cliente
-      if (isMesas) {
-        if (tableNumber) content += `Mesa: ${tableNumber}\n`;
-        if (waiterName) content += `Garzon: ${waiterName}\n`;
-      } else {
-        content += `Cliente: ${customer}\n`;
-        content += `Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}\n`;
-      }
-      content += `Hora: ${date.toLocaleTimeString()}
-`;
+      content += headerDetailsBlock;
     } else {
       content = `
 ================================
-${kitchenOrderHeader}
+         COMANDA COCINA
 ================================
 
-No. Orden: #${orderNumber}
 `;
-      // Para sección mesas: mostrar Mesa y Garzón, NO mostrar cliente
-      if (isMesas) {
-        if (tableNumber) content += `Mesa: ${tableNumber}\n`;
-        if (waiterName) content += `Garzon: ${waiterName}\n`;
-      } else {
-        content += `Cliente: ${customer}\n`;
-        content += `Seccion: ${orderType.charAt(0).toUpperCase() + orderType.slice(1)}\n`;
-      }
-      content += `Hora: ${date.toLocaleTimeString()}
-`;
+      content += headerDetailsBlock;
     }
 
     // Agregar notas generales del pedido si existen (antes de productos)

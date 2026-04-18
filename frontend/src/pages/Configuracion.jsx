@@ -1400,7 +1400,7 @@ const Configuracion = () => {
                   <div>
                     <p className="text-sm font-semibold text-gray-900">Encabezado de comanda en grande</p>
                     <p className="text-xs text-gray-600 mt-1">
-                      Aplica negrita al título "COMANDA COCINA" y "ACTUALIZACION PEDIDO" para que destaque igual que los productos.
+                      Aplica negrita al detalle del encabezado (N. orden, cliente/mesa, sección y hora)..
                     </p>
                   </div>
                   <button
