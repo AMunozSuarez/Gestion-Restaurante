@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import authService from '../services/authService';
-import { connectSocket, disconnectSocket } from '../services/socketService';
+import { disconnectSocket } from '../services/socketService';
 import printingService from '../services/printingService';
 
 // Crear contexto de autenticación
@@ -21,7 +21,6 @@ export const AuthProvider = ({ children }) => {
           const currentUser = authService.getCurrentUser();
           setUser(currentUser);
           setIsAuthenticated(true);
-          connectSocket();
           printingService.syncRestaurantSettingsFromBackend().catch((error) => {
             console.error('No se pudo sincronizar configuración compartida al restaurar sesión:', error);
           });
@@ -52,7 +51,6 @@ export const AuthProvider = ({ children }) => {
       const { user: userData } = await authService.login(credentials);
       setUser(userData);
       setIsAuthenticated(true);
-      connectSocket();
       printingService.syncRestaurantSettingsFromBackend(true).catch((error) => {
         console.error('No se pudo sincronizar configuración compartida después del login:', error);
       });

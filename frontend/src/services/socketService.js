@@ -144,7 +144,12 @@ export const disconnectSocket = () => {
 export const onSocketEvent = (event, callback) => {
   addListenerToRegistry(event, callback);
 
+  // Ensure listeners are registered before establishing/rehydrating
+  // the socket connection, so early events are not missed at app startup.
+  connectSocket();
+
   if (socket) {
+    socket.off(event, callback);
     socket.on(event, callback);
   }
 

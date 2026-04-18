@@ -226,11 +226,18 @@ const Configuracion = () => {
 
   // Guardar configuración de fuente
   const handleSaveFontSettings = async (newSettings) => {
+    const nextSettings = {
+      ...fontSettings,
+      ...newSettings,
+    };
+
     setSavingFont(true);
-    setFontSettings(newSettings);
-    const result = await printingService.saveSettings(newSettings);
+    setFontSettings(nextSettings);
+    const result = await printingService.saveSettings(nextSettings);
     setSavingFont(false);
+
     if (result.success) {
+      setFontSettings(printingService.getLocalFontSettings());
       setMessage({ type: 'success', text: 'Configuración de fuente guardada. Se aplicará al siguiente ticket impreso.' });
     } else {
       setMessage({ type: 'error', text: 'Error al guardar configuración de fuente. Verifique que el servicio esté activo.' });
@@ -1387,6 +1394,29 @@ const Configuracion = () => {
                   </p>
                 </button>
               </div>
+
+              <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Encabezado de comanda en grande</p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Aplica negrita al detalle del encabezado (N. orden, cliente/mesa, sección y hora)..
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveFontSettings({ kitchenHeaderBold: !fontSettings.kitchenHeaderBold })}
+                    disabled={savingFont}
+                    className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 ${fontSettings.kitchenHeaderBold ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                    aria-pressed={fontSettings.kitchenHeaderBold}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${fontSettings.kitchenHeaderBold ? 'translate-x-5' : 'translate-x-0.5'}`}
+                    />
+                  </button>
+                </div>
+              </div>
+
               {savingFont && (
                 <p className="mt-3 text-sm text-gray-500 flex items-center">
                   <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" /> Guardando...

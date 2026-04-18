@@ -74,6 +74,7 @@ const CashRegister = () => {
   // Hook para obtener propinas de la caja activa
   const {
     statistics: currentTipsStatistics,
+    isLoading: currentTipsLoading,
     refetch: refetchTips
   } = useTips({ activeOnly: isOpen });
 
@@ -222,9 +223,19 @@ const CashRegister = () => {
     }, 0);
   };
 
+  const getCanceledOrdersStats = (statistics) => {
+    return {
+      count: statistics?.canceledOrders || 0,
+      total: statistics?.canceledTotal || 0
+    };
+  };
+
   const getDifference = (systemTotal, officialTotal) => {
     return officialTotal - systemTotal;
   };
+
+  const currentCanceledStats = getCanceledOrdersStats(currentCashStatistics);
+  const currentCardsLoading = salesLoading || currentTipsLoading;
 
   // Manejadores de eventos
   const handleCreateCash = async () => {
@@ -396,49 +407,59 @@ const CashRegister = () => {
             </div>
             
             {!currentCashCollapsed && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-2">
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-2 rounded border border-green-200">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-2 lg:gap-3 auto-rows-fr">
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-2 rounded border border-green-200 min-h-[68px] flex flex-col justify-between">
                   <p className="text-xs text-green-700 font-medium">Estado</p>
                   <p className="text-xs lg:text-sm font-bold text-green-800">Abierta</p>
                 </div>
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-2 rounded border border-blue-200">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-2 rounded border border-blue-200 min-h-[68px] flex flex-col justify-between">
                   <p className="text-xs text-blue-700 font-medium">Inicial</p>
                   <p className="text-xs lg:text-sm font-bold text-blue-800">{formatCurrency(currentCashRegister.initialBalance)}</p>
                 </div>
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded border border-purple-200 col-span-2">
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded border border-purple-200 col-span-2 sm:col-span-3 lg:col-span-2 xl:col-span-1 min-h-[68px] flex flex-col justify-between">
                   <p className="text-xs text-purple-700 font-medium">Apertura</p>
                   <p className="text-xs lg:text-sm font-bold text-purple-800">{formatDate(currentCashRegister.dateOpened)}</p>
                 </div>
-                <div className="total-highlight p-2">
+                <div className="total-highlight p-2 min-h-[68px] flex flex-col justify-between">
                   <p className="text-xs font-medium">Total Sistema</p>
                   <p className="text-xs lg:text-sm font-bold">
                     {formatCurrency(getSystemTotalForCashRegister(currentCashRegister))}
                   </p>
                 </div>
+
+                <div className="bg-gradient-to-br from-red-50 to-red-100 p-2 rounded border border-red-200 min-h-[68px] flex flex-col justify-between">
+                  <p className="text-xs text-red-700 font-medium">Cancelados (control)</p>
+                  {currentCardsLoading ? (
+                    <p className="text-xs lg:text-sm font-bold text-red-800">Cargando...</p>
+                  ) : (
+                    <>
+                      <p className="text-xs lg:text-sm font-bold text-red-800">
+                        {formatCurrency(currentCanceledStats.total)}
+                      </p>
+                      <p className="text-[11px] text-red-700">{currentCanceledStats.count} pedidos</p>
+                    </>
+                  )}
+                </div>
                 
                 {/* Propinas integradas */}
-                {currentTipsStatistics && currentTipsStatistics.totalTips > 0 && (
-                  <>
-                    <div className="bg-gradient-to-br from-teal-50 to-teal-100 p-2 rounded border border-teal-200">
-                      <p className="text-xs text-teal-700 font-medium">Propinas</p>
-                      <p className="text-xs lg:text-sm font-bold text-teal-800">
-                        {formatCurrency(currentTipsStatistics.totalTips || 0)}
-                      </p>
-                    </div>
-                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-2 rounded border border-emerald-200">
-                      <p className="text-xs text-emerald-700 font-medium">Órdenes</p>
-                      <p className="text-xs lg:text-sm font-bold text-emerald-800">
-                        {currentTipsStatistics.totalOrders || 0}
-                      </p>
-                    </div>
-                    <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 p-2 rounded border border-cyan-200">
-                      <p className="text-xs text-cyan-700 font-medium">Promedio</p>
-                      <p className="text-xs lg:text-sm font-bold text-cyan-800">
-                        {formatCurrency(currentTipsStatistics.averageTip || 0)}
-                      </p>
-                    </div>
-                  </>
-                )}
+                <div className="bg-gradient-to-br from-teal-50 to-teal-100 p-2 rounded border border-teal-200 min-h-[68px] flex flex-col justify-between">
+                  <p className="text-xs text-teal-700 font-medium">Propinas</p>
+                  <p className="text-xs lg:text-sm font-bold text-teal-800">
+                    {currentCardsLoading ? 'Cargando...' : formatCurrency(currentTipsStatistics?.totalTips || 0)}
+                  </p>
+                </div>
+                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-2 rounded border border-emerald-200 min-h-[68px] flex flex-col justify-between">
+                  <p className="text-xs text-emerald-700 font-medium">Órdenes</p>
+                  <p className="text-xs lg:text-sm font-bold text-emerald-800">
+                    {currentCardsLoading ? 'Cargando...' : (currentTipsStatistics?.totalOrders || 0)}
+                  </p>
+                </div>
+                <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 p-2 rounded border border-cyan-200 min-h-[68px] flex flex-col justify-between">
+                  <p className="text-xs text-cyan-700 font-medium">Promedio</p>
+                  <p className="text-xs lg:text-sm font-bold text-cyan-800">
+                    {currentCardsLoading ? 'Cargando...' : formatCurrency(currentTipsStatistics?.averageTip || 0)}
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -785,6 +806,29 @@ const CashRegister = () => {
               )}
             </div>
           </div>
+
+          {/* Pedidos Cancelados (control) */}
+          {getCanceledOrdersStats(selectedCashStatistics).count > 0 && (
+            <div className="mb-6">
+              <h4 className="text-professional-subtitle mb-3">Pedidos Cancelados</h4>
+              <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-red-700 font-medium">Total de pedidos cancelados</p>
+                    <p className="text-sm text-red-600">No se incluye en los totales de caja</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-red-800">
+                      {formatCurrency(getCanceledOrdersStats(selectedCashStatistics).total)}
+                    </p>
+                    <p className="text-xs text-red-700 font-medium">
+                      {getCanceledOrdersStats(selectedCashStatistics).count} pedidos
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Propinas */}
           {selectedTipsStatistics && selectedTipsStatistics.totalTips > 0 && (
