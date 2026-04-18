@@ -39,6 +39,22 @@ const DEFAULT_RESTAURANT_SETTINGS = {
 let restaurantSettingsCache = null;
 let restaurantSettingsSyncPromise = null;
 
+const DEFAULT_FONT_SETTINGS = {
+  fontSize: 9,
+  bold: false,
+  kitchenHeaderBold: false,
+};
+
+const normalizeLocalFontSettings = (settings = {}) => {
+  const parsedFontSize = Number(settings?.fontSize);
+
+  return {
+    fontSize: Number.isFinite(parsedFontSize) ? parsedFontSize : DEFAULT_FONT_SETTINGS.fontSize,
+    bold: Boolean(settings?.bold),
+    kitchenHeaderBold: Boolean(settings?.kitchenHeaderBold),
+  };
+};
+
 const parseBooleanValue = (value, fallback = false) => {
   if (typeof value === 'boolean') return value;
   if (value === 'true') return true;
@@ -461,9 +477,15 @@ la fuente esta configurada bien.
   async getSettings() {
     try {
       const response = await printingApi.get('/settings');
-      // Sincronizar con localStorage
-      localStorage.setItem('printFontSettings', JSON.stringify(response.data));
-      return { success: true, data: response.data };
+      // Conservar opciones locales extendidas que el servicio C# no conoce
+      const localSettings = this.getLocalFontSettings();
+      const mergedSettings = normalizeLocalFontSettings({
+        ...response.data,
+        kitchenHeaderBold: localSettings.kitchenHeaderBold,
+      });
+
+      localStorage.setItem('printFontSettings', JSON.stringify(mergedSettings));
+      return { success: true, data: mergedSettings };
     } catch (error) {
       // Fallback a localStorage si el servicio no esta disponible
       const local = this.getLocalFontSettings();
@@ -474,9 +496,23 @@ la fuente esta configurada bien.
   // Guardar configuracion de fuente en el servicio C# y localStorage
   async saveSettings(settings) {
     try {
-      localStorage.setItem('printFontSettings', JSON.stringify(settings));
-      const response = await printingApi.post('/settings', settings);
-      return { success: true, data: response.data };
+      const normalizedSettings = normalizeLocalFontSettings(settings);
+      localStorage.setItem('printFontSettings', JSON.stringify(normalizedSettings));
+
+      // Enviar solo llaves compatibles con el servicio C#
+      const payload = {
+        fontSize: normalizedSettings.fontSize,
+        bold: normalizedSettings.bold,
+      };
+
+      const response = await printingApi.post('/settings', payload);
+      return {
+        success: true,
+        data: {
+          ...response.data,
+          kitchenHeaderBold: normalizedSettings.kitchenHeaderBold,
+        },
+      };
     } catch (error) {
       console.error('Error saving font settings:', error);
       return { success: false, error: 'Error al guardar configuracion' };
@@ -487,9 +523,13 @@ la fuente esta configurada bien.
   getLocalFontSettings() {
     try {
       const saved = localStorage.getItem('printFontSettings');
-      return saved ? JSON.parse(saved) : { fontSize: 9, bold: false };
+      if (!saved) {
+        return { ...DEFAULT_FONT_SETTINGS };
+      }
+
+      return normalizeLocalFontSettings(JSON.parse(saved));
     } catch {
-      return { fontSize: 9, bold: false };
+      return { ...DEFAULT_FONT_SETTINGS };
     }
   },
 
@@ -991,6 +1031,13 @@ No. Orden: #${orderNumber}
 
     const date = new Date();
     const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
+    const kitchenHeaderBold = Boolean(this.getLocalFontSettings().kitchenHeaderBold);
+    const kitchenUpdateHeader = kitchenHeaderBold
+      ? '[BOLD]   *** ACTUALIZACION PEDIDO ***[/BOLD]'
+      : '   *** ACTUALIZACION PEDIDO ***';
+    const kitchenOrderHeader = kitchenHeaderBold
+      ? '[BOLD]         COMANDA COCINA[/BOLD]'
+      : '         COMANDA COCINA';
 
     // Extraer nombre del cliente desde diferentes posibles campos
     let customer = 'Cliente';
@@ -1027,7 +1074,7 @@ No. Orden: #${orderNumber}
     if (isUpdate) {
       content = `
 ================================
-   *** ACTUALIZACION PEDIDO ***
+  ${kitchenUpdateHeader}
 ================================
 
 No. Orden: #${orderNumber}
@@ -1045,7 +1092,7 @@ No. Orden: #${orderNumber}
     } else {
       content = `
 ================================
-         COMANDA COCINA
+${kitchenOrderHeader}
 ================================
 
 No. Orden: #${orderNumber}
@@ -1474,6 +1521,17 @@ No. Orden: #${orderNumber}
       phone = order.customerPhone;
     }
 
+    // Extraer datos de mesa y garzón cuando existan
+    const tableNumber = order.tableNumber || order.table_number || order.table || '';
+    let waiterName = '';
+    if (order.waiter && typeof order.waiter === 'object') {
+      waiterName = normalizeText(order.waiter.userName || order.waiter.name || '');
+    } else if (order.waiterName) {
+      waiterName = normalizeText(order.waiterName);
+    } else if (order.waiter_name) {
+      waiterName = normalizeText(order.waiter_name);
+    }
+
     // Extraer direccion (para todos los tipos de pedido)
     let address = '';
     if (order.selectedAddress) {
@@ -1507,6 +1565,14 @@ No. Orden: #${orderNumber}
 No. Orden: #${orderNumber}
 Fecha: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
 Cliente: ${customer}`;
+
+    if (tableNumber) {
+      content += `\nMesa: ${tableNumber}`;
+    }
+
+    if (waiterName) {
+      content += `\nGarzon: ${waiterName}`;
+    }
 
     if (phone) {
       content += `\nTelefono: ${phone}`;
