@@ -1103,10 +1103,11 @@ No. Orden: #${orderNumber}
     if (orderNotes && orderNotes.trim()) {
       // Manejar notas generales con saltos de linea
       const noteLines = orderNotes.trim().split('\n');
-      content += `COMENTARIO GENERAL:\n`;
-      noteLines.forEach(line => {
-        content += `${line}\n`;
-      });
+      const commentLines = ['COMENTARIO GENERAL:', ...noteLines];
+      const commentBlockText = `${commentLines.join('\n')}\n`;
+      content += kitchenHeaderBold
+        ? `[BOLD]${commentBlockText}[/BOLD]\n`
+        : commentBlockText;
     }
 
     content += `
