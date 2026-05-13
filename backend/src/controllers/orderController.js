@@ -9,6 +9,7 @@ const { getChileDate, formatChileDate, getChileDayRange } = require('../utils/da
 const { getIO } = require('../socket');
 
 const isOwnerOrSuperAdmin = (role) => role === 'owner' || role === 'super_admin';
+const isOrderActive = (status) => !['Completado', 'Cancelado'].includes(status);
 
 const normalizeSelectedExtrasForSignature = (extras = []) => {
     if (!Array.isArray(extras)) return [];
@@ -132,6 +133,33 @@ const createOrderController = async (req, res) => {
             return res.status(400).json({ success: false, message: 'No hay una caja abierta. Por favor, abre una caja antes de crear órdenes.' });
         }
 
+        // ── Evitar duplicados si la mesa ya tiene un pedido activo ──
+        if (table && table.currentOrder) {
+            const currentOrderId = table.currentOrder;
+            const existingOrder = await orderModel.findById(currentOrderId).select('status orderNumber').lean();
+
+            if (!existingOrder) {
+                await Table.updateOne(
+                    { _id: table._id, restaurant: restaurantId, currentOrder: currentOrderId },
+                    { $set: { currentOrder: null } }
+                );
+                table.currentOrder = null;
+            } else if (isOrderActive(existingOrder.status)) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'La mesa ya tiene un pedido en curso',
+                    orderId: existingOrder._id,
+                    orderNumber: existingOrder.orderNumber,
+                });
+            } else {
+                await Table.updateOne(
+                    { _id: table._id, restaurant: restaurantId, currentOrder: currentOrderId },
+                    { $set: { currentOrder: null } }
+                );
+                table.currentOrder = null;
+            }
+        }
+
         // ── Validar extras seleccionados ──
         const foodMap = new Map(existingFoods.map(f => [f._id.toString(), f]));
         for (const orderItem of foods) {
@@ -249,15 +277,28 @@ const createOrderController = async (req, res) => {
         // ── Paso 4: Asignar orden a mesa si es sección "mesas" (operación atómica) ──
         let populatedTable = null;
         if (table) {
-            table.currentOrder = order._id;
+            const tableUpdate = { currentOrder: order._id };
             if (table.status === 'available') {
-                table.status = 'occupied';
-                table.openedAt = new Date();
+                tableUpdate.status = 'occupied';
+                tableUpdate.openedAt = new Date();
             }
-            await table.save();
+
+            const updatedTable = await Table.findOneAndUpdate(
+                { _id: table._id, restaurant: restaurantId, $or: [{ currentOrder: null }, { currentOrder: order._id }] },
+                { $set: tableUpdate },
+                { new: true }
+            );
+
+            if (!updatedTable) {
+                await orderModel.findByIdAndDelete(order._id);
+                return res.status(409).json({
+                    success: false,
+                    message: 'La mesa ya tiene un pedido en curso',
+                });
+            }
 
             // Populate la mesa para el evento socket
-            populatedTable = await Table.findById(table._id)
+            populatedTable = await Table.findById(updatedTable._id)
                 .populate({
                     path: 'currentOrder',
                     populate: {

@@ -52,6 +52,7 @@ const TableDetail = () => {
     const [paymentMethods, setPaymentMethods] = useState([{ method: '', amount: 0 }]);
     const [suggestedTip, setSuggestedTip] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
+    const isProcessingRef = useRef(false);
     const [showWaiterModal, setShowWaiterModal] = useState(false);
     const [selectedWaiter, setSelectedWaiter] = useState(null);
     const [showDiscountFields, setShowDiscountFields] = useState(false);
@@ -331,6 +332,11 @@ const TableDetail = () => {
             return;
         }
 
+        if (isProcessingRef.current) {
+            return;
+        }
+        isProcessingRef.current = true;
+
         try {
             setIsProcessing(true);
 
@@ -398,6 +404,7 @@ const TableDetail = () => {
             showNotification('Error al guardar orden: ' + error.message, 'error');
         } finally {
             setIsProcessing(false);
+            isProcessingRef.current = false;
         }
     };
 
@@ -567,7 +574,12 @@ const TableDetail = () => {
                 discount: calculateDiscountAmount()
             };
 
-            const response = await updateOrder(table.currentOrder._id, orderData);
+            let response;
+            if (table.currentOrder) {
+                response = await updateOrder(table.currentOrder._id, orderData);
+            } else {
+                response = await createOrder(orderData, { skipKitchenPrint: true });
+            }
 
             if (response.success) {
                 let reprintFailed = false;
@@ -601,6 +613,8 @@ const TableDetail = () => {
                 setTimeout(() => {
                     navigate('/mesas');
                 }, 500);
+            } else {
+                showNotification(response.error || response.message || 'Error al cerrar mesa', 'error');
             }
         } catch (error) {
             showNotification('Error al cerrar mesa: ' + error.message, 'error');

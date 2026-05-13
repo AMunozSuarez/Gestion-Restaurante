@@ -283,6 +283,33 @@ const assignOrderToTable = async (req, res) => {
             return res.status(404).json({ message: 'Mesa no encontrada' });
         }
         
+        if (table.currentOrder && table.currentOrder.toString() === orderId) {
+            const populatedTable = await Table.findById(table._id)
+                .populate({
+                    path: 'currentOrder',
+                    populate: {
+                        path: 'foods.food',
+                        model: 'Food',
+                        select: 'title price category extraSections'
+                    }
+                })
+                .populate('waiter', 'userName email');
+            return res.json(populatedTable);
+        }
+
+        if (table.currentOrder) {
+            const currentOrder = await Order.findById(table.currentOrder)
+                .select('status orderNumber')
+                .lean();
+            if (currentOrder && !['Completado', 'Cancelado'].includes(currentOrder.status)) {
+                return res.status(409).json({
+                    message: 'La mesa ya tiene un pedido en curso',
+                    orderId: currentOrder._id,
+                    orderNumber: currentOrder.orderNumber,
+                });
+            }
+        }
+
         const order = await Order.findById(orderId);
         if (!order) {
             return res.status(404).json({ message: 'Orden no encontrada' });
