@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '../components/ui';
-import { PlusIcon, MinusIcon, ClockIcon, TrashIcon, PrinterIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MinusIcon, ClockIcon, TrashIcon, PrinterIcon, ArrowDownTrayIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useSectionOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../store/CashRegisterContext';
@@ -9,6 +9,9 @@ import ProductModal from '../components/common/ProductModal';
 import ProductExtrasModal from '../components/common/ProductExtrasModal';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import printingService from '../services/printingService';
+
+const MOSTRADOR_CREATE_DRAFT_KEY = 'mostrador.createDraft';
+const MOSTRADOR_EDIT_DRAFT_KEY = 'mostrador.editDraft';
 
 const Mostrador = () => {
   // Estado para forzar actualización de tiempo cada minuto
@@ -53,6 +56,12 @@ const Mostrador = () => {
   const [isUpdatingOrderRequest, setIsUpdatingOrderRequest] = React.useState(false);
   const [isCompletingOrder, setIsCompletingOrder] = React.useState(false);
   const [isCancelingOrder, setIsCancelingOrder] = React.useState(false);
+  const [hasCreateDraft, setHasCreateDraft] = React.useState(false);
+  const [hasEditDraft, setHasEditDraft] = React.useState(false);
+  const [isCreateDraftLoaded, setIsCreateDraftLoaded] = React.useState(false);
+  const [isEditDraftLoaded, setIsEditDraftLoaded] = React.useState(false);
+  const [createDraftMeta, setCreateDraftMeta] = React.useState(null);
+  const [editDraftMeta, setEditDraftMeta] = React.useState(null);
 
   // Ref para el input de nombre del cliente
   const customerNameInputRef = React.useRef(null);
@@ -85,6 +94,21 @@ const Mostrador = () => {
       textarea.setSelectionRange(textarea.value.length, textarea.value.length);
     }
   }, [editCommentingProduct]);
+
+  React.useEffect(() => {
+    try {
+      const createDraftRaw = localStorage.getItem(MOSTRADOR_CREATE_DRAFT_KEY);
+      const editDraftRaw = localStorage.getItem(MOSTRADOR_EDIT_DRAFT_KEY);
+      const createDraft = createDraftRaw ? JSON.parse(createDraftRaw) : null;
+      const editDraft = editDraftRaw ? JSON.parse(editDraftRaw) : null;
+      setHasCreateDraft(!!createDraft);
+      setHasEditDraft(!!editDraft);
+      setCreateDraftMeta(createDraft);
+      setEditDraftMeta(editDraft);
+    } catch (error) {
+      console.error('Error leyendo borradores:', error);
+    }
+  }, []);
 
   // Estados para ver detalle de pedidos completados/cancelados
   const [isViewingCompletedOrder, setIsViewingCompletedOrder] = React.useState(false);
@@ -130,6 +154,144 @@ const Mostrador = () => {
     recentLimit: 10,
     recentStatuses: 'Completado,Cancelado'
   }, orderCallbacks);
+
+  const readDraftFromStorage = (key) => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      console.error('Error leyendo borrador:', error);
+      return null;
+    }
+  };
+
+  const formatDraftTime = (draft) => {
+    if (!draft?.savedAt) return '';
+    return new Date(draft.savedAt).toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const saveCreateDraft = () => {
+    const draft = {
+      savedAt: new Date().toISOString(),
+      customerName,
+      comments,
+      paymentMethods,
+      cart
+    };
+    localStorage.setItem(MOSTRADOR_CREATE_DRAFT_KEY, JSON.stringify(draft));
+    setHasCreateDraft(true);
+    setCreateDraftMeta(draft);
+    setAddedProductNotification('Borrador guardado');
+    setTimeout(() => setAddedProductNotification(null), 2000);
+  };
+
+  const saveEditDraft = () => {
+    if (!selectedOrder) {
+      setAddedProductNotification('No hay pedido seleccionado');
+      setTimeout(() => setAddedProductNotification(null), 2000);
+      return;
+    }
+    const orderId = selectedOrder._id || selectedOrder.id;
+    const draft = {
+      savedAt: new Date().toISOString(),
+      orderId,
+      orderNumber: selectedOrder.orderNumber,
+      selectedOrder,
+      editCustomerName,
+      editComments,
+      editPaymentMethods,
+      editCart
+    };
+    localStorage.setItem(MOSTRADOR_EDIT_DRAFT_KEY, JSON.stringify(draft));
+    setHasEditDraft(true);
+    setEditDraftMeta(draft);
+    setAddedProductNotification('Edicion guardada');
+    setTimeout(() => setAddedProductNotification(null), 2000);
+  };
+
+  const clearCreateDraft = () => {
+    localStorage.removeItem(MOSTRADOR_CREATE_DRAFT_KEY);
+    setHasCreateDraft(false);
+    setCreateDraftMeta(null);
+    setIsCreateDraftLoaded(false);
+  };
+
+  const clearEditDraft = () => {
+    localStorage.removeItem(MOSTRADOR_EDIT_DRAFT_KEY);
+    setHasEditDraft(false);
+    setEditDraftMeta(null);
+    setIsEditDraftLoaded(false);
+  };
+
+  const restoreCreateDraft = () => {
+    const draft = readDraftFromStorage(MOSTRADOR_CREATE_DRAFT_KEY);
+    if (!draft) return;
+
+    setIsCreatingOrder(true);
+    setIsEditingOrder(false);
+    setSelectedOrder(null);
+    setIsViewingCompletedOrder(false);
+    setSelectedCompletedOrder(null);
+
+    setCustomerName(draft.customerName || '');
+    setComments(draft.comments || '');
+    setPaymentMethods(
+      Array.isArray(draft.paymentMethods) && draft.paymentMethods.length > 0
+        ? draft.paymentMethods
+        : [{ method: '', amount: 0 }]
+    );
+    setCart(Array.isArray(draft.cart) ? draft.cart : []);
+    setSearchTerm('');
+    setCommentingProduct(null);
+    setProductComment('');
+    setIsCreateDraftLoaded(true);
+    setCreateDraftMeta(draft);
+    setAddedProductNotification('Borrador cargado');
+    setTimeout(() => setAddedProductNotification(null), 2000);
+  };
+
+  const restoreEditDraft = () => {
+    const draft = readDraftFromStorage(MOSTRADOR_EDIT_DRAFT_KEY);
+    if (!draft) return;
+
+    const draftOrderId = draft.orderId;
+    const orderFromList = orders.find(order => (order._id || order.id) === draftOrderId);
+    const order = orderFromList || draft.selectedOrder;
+
+    if (!order) {
+      setAddedProductNotification('No se encontro el pedido del borrador');
+      setTimeout(() => setAddedProductNotification(null), 2500);
+      return;
+    }
+
+    setSelectedOrder(order);
+    setIsEditingOrder(true);
+    setIsCreatingOrder(false);
+    setIsViewingCompletedOrder(false);
+    setSelectedCompletedOrder(null);
+
+    setEditCustomerName(draft.editCustomerName || '');
+    setEditComments(draft.editComments || '');
+    setEditPaymentMethods(
+      Array.isArray(draft.editPaymentMethods) && draft.editPaymentMethods.length > 0
+        ? draft.editPaymentMethods
+        : [{ method: '', amount: 0 }]
+    );
+    setEditCart(Array.isArray(draft.editCart) ? draft.editCart : []);
+    setEditSearchTerm('');
+    setEditCommentingProduct(null);
+    setEditProductComment('');
+    setIsUpdatingOrderRequest(false);
+    setIsCompletingOrder(false);
+    setIsCancelingOrder(false);
+    setIsEditDraftLoaded(true);
+    setEditDraftMeta(draft);
+    setAddedProductNotification('Borrador cargado');
+    setTimeout(() => setAddedProductNotification(null), 2000);
+  };
 
   const formatTime = (dateString) => {
     return new Date(dateString).toLocaleTimeString('es-ES', {
@@ -550,6 +712,7 @@ const Mostrador = () => {
     setCommentingProduct(null);
     setProductComment('');
     setIsCreatingOrderRequest(false);
+    setIsCreateDraftLoaded(false);
   };
 
   const clearEditForm = () => {
@@ -563,6 +726,7 @@ const Mostrador = () => {
     setIsUpdatingOrderRequest(false);
     setIsCompletingOrder(false);
     setIsCancelingOrder(false);
+    setIsEditDraftLoaded(false);
   };
 
   const handleCancelNewOrder = () => {
@@ -876,6 +1040,7 @@ const Mostrador = () => {
         setTimeout(() => setAddedProductNotification(null), 3000);
 
         // Limpiar formulario y cerrar
+        clearEditDraft();
         clearEditForm();
         setIsEditingOrder(false);
         setSelectedOrder(null);
@@ -967,6 +1132,7 @@ const Mostrador = () => {
         alert('Error al completar el pedido: ' + (response.error || 'Error desconocido'));
         return;
       }
+      clearEditDraft();
     } catch (error) {
       console.error('Error al completar el pedido:', error);
       alert('Error al completar el pedido: ' + error.message);
@@ -986,6 +1152,8 @@ const Mostrador = () => {
       const result = await handleCancelOrderWithNotification(orderId);
       if (!result.success) {
         alert('Error al cancelar el pedido: ' + result.error);
+      } else {
+        clearEditDraft();
       }
     } catch (error) {
       console.error('Error al cancelar el pedido:', error);
@@ -1062,6 +1230,9 @@ const Mostrador = () => {
     );
   }
 
+  const createDraftTime = formatDraftTime(createDraftMeta);
+  const editDraftTime = formatDraftTime(editDraftMeta);
+
   return (
     <>
       <div className="h-full bg-professional flex flex-col gap-2 lg:gap-4 p-2 pb-1 lg:p-4 lg:pb-1 overflow-hidden">
@@ -1071,29 +1242,66 @@ const Mostrador = () => {
           : ''
           }`}>
           <h1 className="text-professional-title text-xl lg:text-[28px]">Mostrador</h1>
-          <Button
-            onClick={() => {
-              if (isCreatingOrder) {
-                handleCancelNewOrder();
-              } else {
-                // Cerrar cualquier vista activa antes de crear nuevo pedido
-                if (isEditingOrder) {
-                  setIsEditingOrder(false);
-                  setSelectedOrder(null);
-                  clearEditForm();
+          <div className="flex items-center gap-2">
+            {hasEditDraft && (
+              <div className="relative inline-flex">
+                <Button
+                  onClick={restoreEditDraft}
+                  className="!bg-white !text-orange-700 border border-orange-300 hover:!bg-orange-50 hover:!text-orange-700 hover:!translate-y-0 active:!translate-y-0 shadow-sm pr-9"
+                >
+                  Retomar edicion{editDraftMeta?.orderNumber ? ` #${editDraftMeta.orderNumber}` : ''}{editDraftTime ? ` (${editDraftTime})` : ''}
+                </Button>
+                <button
+                  onClick={clearEditDraft}
+                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white border border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700 flex items-center justify-center shadow-sm"
+                  title="Descartar borrador"
+                >
+                  <XMarkIcon className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            {hasCreateDraft && (
+              <div className="relative inline-flex">
+                <Button
+                  onClick={restoreCreateDraft}
+                  className="!bg-white !text-orange-700 border border-orange-300 hover:!bg-orange-50 hover:!text-orange-700 hover:!translate-y-0 active:!translate-y-0 shadow-sm pr-9"
+                >
+                  Retomar borrador{createDraftTime ? ` (${createDraftTime})` : ''}
+                </Button>
+                <button
+                  onClick={clearCreateDraft}
+                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white border border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700 flex items-center justify-center shadow-sm"
+                  title="Descartar borrador"
+                >
+                  <XMarkIcon className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            <Button
+              onClick={() => {
+                if (isCreatingOrder) {
+                  handleCancelNewOrder();
+                } else {
+                  // Cerrar cualquier vista activa antes de crear nuevo pedido
+                  if (isEditingOrder) {
+                    setIsEditingOrder(false);
+                    setSelectedOrder(null);
+                    clearEditForm();
+                  }
+                  if (isViewingCompletedOrder) {
+                    setIsViewingCompletedOrder(false);
+                    setSelectedCompletedOrder(null);
+                  }
+                  clearForm();
+                  setIsCreatingOrder(true);
                 }
-                if (isViewingCompletedOrder) {
-                  setIsViewingCompletedOrder(false);
-                  setSelectedCompletedOrder(null);
-                }
-                setIsCreatingOrder(true);
-              }
-            }}
-            className="btn-professional-primary flex items-center gap-2"
-          >
-            {isCreatingOrder ? <MinusIcon className="w-5 h-5" /> : <PlusIcon className="w-5 h-5" />}
-            {isCreatingOrder ? 'Cancelar' : 'Crear Pedido'}
-          </Button>
+              }}
+              className="btn-professional-primary flex items-center gap-2 hover:!translate-y-0 active:!translate-y-0"
+            >
+              {isCreatingOrder ? <MinusIcon className="w-5 h-5" /> : <PlusIcon className="w-5 h-5" />}
+              {isCreatingOrder ? 'Cancelar' : 'Crear Pedido'}
+            </Button>
+          </div>
         </div>
 
         {/* Contenido principal con altura fija */}
@@ -1104,12 +1312,26 @@ const Mostrador = () => {
               <div className="h-full flex flex-col card-professional p-3 lg:p-4">
                 <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
                   <span>Creando Nuevo Pedido</span>
-                  <button
-                    onClick={handleCancelNewOrder}
-                    className="lg:hidden text-gray-500 hover:text-gray-700 text-sm"
-                  >
-                    ✕ Cerrar
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {isCreateDraftLoaded && createDraftTime && (
+                      <span className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5">Borrador {createDraftTime}</span>
+                    )}
+                    <button
+                      onClick={() => {
+                        saveCreateDraft();
+                        setIsCreatingOrder(false);
+                      }}
+                      className="text-blue-600 hover:text-blue-700 text-sm p-2 rounded hover:bg-blue-50 transition-colors"
+                      title="Guardar borrador y cerrar"
+                    >
+                      <ArrowDownTrayIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={handleCancelNewOrder}
+                      className="text-gray-500 hover:text-gray-700 text-sm"
+                    >
+                    </button>
+                  </div>
                 </h2>
 
                 {/* Formulario temporal con scroll independiente */}
@@ -1620,6 +1842,19 @@ const Mostrador = () => {
                 <h2 className="text-professional-subtitle mb-3 flex-shrink-0 flex items-center justify-between">
                   <span>Editando Pedido #{selectedOrder.orderNumber}</span>
                   <div className="flex items-center gap-2">
+                    {isEditDraftLoaded && editDraftMeta?.orderNumber && editDraftTime && (
+                      <span className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5">Borrador #{editDraftMeta.orderNumber} {editDraftTime}</span>
+                    )}
+                    <button
+                      onClick={() => {
+                        saveEditDraft();
+                        handleCancelEditOrder();
+                      }}
+                      className="text-blue-600 hover:text-blue-700 text-sm p-2 rounded hover:bg-blue-50 transition-colors"
+                      title="Guardar borrador y cerrar"
+                    >
+                      <ArrowDownTrayIcon className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => handlePrintCustomerTicket(selectedOrder)}
                       className="text-blue-600 hover:text-blue-body text-sm flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
