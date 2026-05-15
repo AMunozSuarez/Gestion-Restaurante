@@ -1316,6 +1316,22 @@ const Mostrador = () => {
                     {isCreateDraftLoaded && createDraftTime && (
                       <span className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5">Borrador {createDraftTime}</span>
                     )}
+                    {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                      <button
+                        onClick={async () => {
+                          const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
+                          const res = await printingService.openDrawer(printer);
+                          if (!res.success) {
+                            console.error('Error abriendo caja:', res.error || res.message);
+                            alert('No se pudo abrir la caja: ' + (res.error || res.message || 'Error desconocido'));
+                          }
+                        }}
+                        className="text-blue-600 hover:text-blue-700 text-sm p-2 rounded hover:bg-blue-50 transition-colors"
+                        title="Abrir caja"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 6h10v12H7z"/></svg>
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         saveCreateDraft();
@@ -1861,8 +1877,23 @@ const Mostrador = () => {
                       title="Imprimir ticket de cliente"
                     >
                       <PrinterIcon className="w-4 h-4" />
-                      Ticket
                     </button>
+                    {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                      <button
+                        onClick={async () => {
+                          const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
+                          const res = await printingService.openDrawer(printer);
+                          if (!res.success) {
+                            console.error('Error abriendo caja:', res.error || res.message);
+                            alert('No se pudo abrir la caja: ' + (res.error || res.message || 'Error desconocido'));
+                          }
+                        }}
+                        className="text-blue-600 hover:text-blue-700 text-sm p-2 rounded hover:bg-blue-50 transition-colors"
+                        title="Abrir caja"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 6h10v12H7z"/></svg>
+                      </button>
+                    )}
                     <button
                       onClick={handleCancelEditOrder}
                       className="text-gray-500 hover:text-gray-700 text-sm"
@@ -2280,7 +2311,6 @@ const Mostrador = () => {
                       title="Imprimir ticket de cliente"
                     >
                       <PrinterIcon className="w-4 h-4" />
-                      Ticket
                     </button>
                     <button
                       onClick={handleCancelViewCompletedOrder}

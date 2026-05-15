@@ -389,6 +389,23 @@ const CashRegister = () => {
                   Cerrar Caja
                 </button>
               )}
+              {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                <button
+                  onClick={async () => {
+                    const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
+                    const res = await printingService.openDrawer(printer);
+                    if (!res.success) {
+                      console.error('Error abriendo caja:', res.error || res.message);
+                      alert('No se pudo abrir la caja: ' + (res.error || res.message || 'Error desconocido'));
+                    }
+                  }}
+                  className="btn-professional-secondary flex items-center gap-2 text-sm px-3 py-2"
+                  title="Abrir caja"
+                >
+                  <svg className="w-4 h-4 lg:w-5 lg:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 6h10v12H7z"/></svg>
+                  Abrir Caja
+                </button>
+              )}
             </div>
           </div>
         </div>

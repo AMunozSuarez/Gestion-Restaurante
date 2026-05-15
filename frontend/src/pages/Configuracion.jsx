@@ -57,12 +57,18 @@ const Configuracion = () => {
   const [fontSettings, setFontSettings] = useState(() => printingService.getLocalFontSettings());
   const [savingFont, setSavingFont] = useState(false);
   const [testingFont, setTestingFont] = useState(false);
+  const [testingDrawer, setTestingDrawer] = useState(false);
   const [updatePrintMode, setUpdatePrintMode] = useState(() => printingService.getUpdatePrintMode());
   const [reprintTicketOnCloseTable, setReprintTicketOnCloseTable] = useState(() => printingService.getReprintTicketOnCloseTable());
   const [printOnDeletedItemsUpdate, setPrintOnDeletedItemsUpdate] = useState(() => printingService.getPrintOnDeletedItemsUpdate());
   const [onlyOwnerCanCloseTable, setOnlyOwnerCanCloseTable] = useState(() => printingService.getOnlyOwnerCanCloseTable());
   const [onlyOwnerCanDeleteOrderItems, setOnlyOwnerCanDeleteOrderItems] = useState(() => printingService.getOnlyOwnerCanDeleteOrderItems());
   const [avoidDuplicateKitchenUpdatePrint, setAvoidDuplicateKitchenUpdatePrint] = useState(() => printingService.getAvoidDuplicateKitchenUpdatePrint());
+  const [drawerPrinter, setDrawerPrinter] = useState(() => localStorage.getItem('drawerPrinter') || '');
+  const [drawerAlwaysOpen, setDrawerAlwaysOpen] = useState(() => printingService.getDrawerAlwaysOpen());
+  const [drawerHotkey, setDrawerHotkey] = useState(() => printingService.getDrawerHotkey() || '');
+  const [capturingHotkey, setCapturingHotkey] = useState(false);
+  const [allPrinters, setAllPrinters] = useState([]);
 
   // Estados para multi-impresora
   const [printerRoles, setPrinterRoles] = useState(() => printerConfigService.getPrinterRoles());
@@ -264,6 +270,92 @@ const Configuracion = () => {
     } finally {
       setTestingFont(false);
     }
+  };
+
+  // Cargar lista de impresoras al montar el componente
+  useEffect(() => {
+    const loadPrinters = async () => {
+      try {
+        const result = await printingService.getPrinters();
+        if (result.success && result.data) {
+          setAllPrinters(result.data);
+        }
+      } catch (e) {
+        console.error('Error cargando impresoras:', e);
+      }
+    };
+    loadPrinters();
+  }, []);
+
+  useEffect(() => {
+    if (!capturingHotkey) return;
+
+    const modifierKeys = ['Shift', 'Control', 'Alt', 'Meta'];
+    const onKeyDown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.key === 'Escape') {
+        setCapturingHotkey(false);
+        setMessage({ type: 'info', text: 'Asignación cancelada' });
+        return;
+      }
+
+      if (!e.key || modifierKeys.includes(e.key)) {
+        return;
+      }
+
+      const keyName = e.key === ' ' ? 'Space' : e.key;
+      setDrawerHotkey(keyName);
+      printingService.setDrawerHotkey(keyName);
+      printingService.saveRestaurantSettingsToBackend({ drawerHotkey: keyName }).catch(() => {});
+      setCapturingHotkey(false);
+      setMessage({ type: 'success', text: `Tecla asignada: ${keyName.toUpperCase()}` });
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [capturingHotkey]);
+
+  // Cambiar impresora seleccionada para caja
+  const handleDrawerPrinterChange = (printerName) => {
+    setDrawerPrinter(printerName);
+    localStorage.setItem('drawerPrinter', printerName);
+    printingService.setDrawerPrinter(printerName);
+    // Persistir configuración al backend
+    printingService.saveRestaurantSettingsToBackend({ drawerPrinter: printerName }).catch(() => {});
+    setMessage({ type: 'success', text: `Impresora de caja configurada: ${printerName}` });
+  };
+
+  // Probar caja electrónica con la impresora seleccionada
+  const handleTestDrawer = async () => {
+    setTestingDrawer(true);
+    setMessage({ type: 'info', text: 'Abriendo caja en: ' + drawerPrinter });
+    try {
+      console.log(`🔧 Probando caja en: ${drawerPrinter}`);
+      const result = await printingService.openDrawer(drawerPrinter);
+      
+      if (result.success) {
+        setMessage({ type: 'success', text: '✓ Caja abierta en: ' + drawerPrinter });
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: 'Error: La caja no se abrió en ' + drawerPrinter + '. Verifica que sea la impresora correcta.' 
+        });
+      }
+    } catch (e) {
+      console.error('🔧 Error:', e);
+      setMessage({ type: 'error', text: 'Error: ' + (e.message || 'Error desconocido') });
+    } finally {
+      setTestingDrawer(false);
+    }
+  };
+
+  const handleToggleDrawerAlwaysOpen = async (enabled) => {
+    setDrawerAlwaysOpen(enabled);
+    printingService.setDrawerAlwaysOpen(enabled);
+    // Persistir al backend
+    await printingService.saveRestaurantSettingsToBackend({ drawerAlwaysOpen: enabled });
   };
 
   // Cambiar modo de impresión de actualizaciones
@@ -1218,7 +1310,7 @@ const Configuracion = () => {
 
                     {printers.length > 0 ? (
                       <div className="grid gap-3">
-                        {printers.map((printer) => {
+                        {printers.map((printer, index) => {
                           // Manejar tanto el formato string como objeto (camelCase desde la API)
                           const printerName = typeof printer === 'string' ? printer : (printer.printerName || printer.PrinterName);
                           const printerStatus = typeof printer === 'object' ? (printer.status || printer.Status || 'Available') : 'Available';
@@ -1227,7 +1319,7 @@ const Configuracion = () => {
 
                           return (
                             <div
-                              key={printerName}
+                              key={`${printerName}-${index}`}
                               className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200"
                             >
                               <div className="flex items-center justify-between">
@@ -1439,6 +1531,118 @@ const Configuracion = () => {
                 </p>
               </div>
             </div>
+
+            {/* Caja Electrónica - TESTEO */}
+            {printingService.isCurrentUserOwner() && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center mb-4">
+                <svg className="w-6 h-6 text-purple-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                <h2 className="text-xl font-semibold text-brown-900">Caja Electrónica</h2>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Configura y prueba la apertura de caja electrónica
+              </p>
+              
+              {/* Opciones de caja (solo dueño) */}
+              <div className="mb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Permitir abrir caja desde cualquier cuenta</p>
+                    <p className="text-xs text-gray-500">Si está activo, usuarios no-owner podrán abrir la caja.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleDrawerAlwaysOpen(!drawerAlwaysOpen)}
+                    className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${drawerAlwaysOpen ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                    aria-pressed={drawerAlwaysOpen}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${drawerAlwaysOpen ? 'translate-x-5' : 'translate-x-0.5'}`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Selector de impresora */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Impresora con caja
+                </label>
+                <select
+                  value={drawerPrinter}
+                  onChange={(e) => handleDrawerPrinterChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="">-- Selecciona una impresora --</option>
+                  {allPrinters.map((printer) => (
+                    <option key={printer.printerName} value={printer.printerName}>
+                      {printer.printerName}
+                    </option>
+                  ))}
+                </select>
+                {drawerPrinter && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    ✓ Configurada: {drawerPrinter}
+                  </p>
+                )}
+              </div>
+              
+              {/* Tecla rápida para abrir caja */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tecla rápida para abrir caja</label>
+                <div className="flex items-center gap-3">
+                  <div className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm text-gray-800">
+                    {drawerHotkey ? drawerHotkey.toUpperCase() : 'Ninguna'}
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (capturingHotkey) {
+                        setCapturingHotkey(false);
+                        return;
+                      }
+                      setCapturingHotkey(true);
+                      setMessage({ type: 'info', text: 'Presiona la tecla que quieras asignar...' });
+                    }}
+                    className={`inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${capturingHotkey ? 'bg-green-700' : 'bg-green-600 hover:bg-green-700'}`}
+                  >
+                    {capturingHotkey ? 'Presiona...' : 'Asignar tecla'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDrawerHotkey('');
+                      printingService.setDrawerHotkey('');
+                      printingService.saveRestaurantSettingsToBackend({ drawerHotkey: '' }).catch(() => {});
+                      setMessage({ type: 'success', text: 'Tecla borrada' });
+                    }}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md bg-white text-gray-700 hover:bg-gray-50"
+                  >
+                    Borrar
+                  </button>
+                </div>
+                {capturingHotkey && (
+                  <p className="text-xs text-gray-500 mt-2">Presiona una tecla del teclado para asignarla. Esc para cancelar.</p>
+                )}
+              </div>
+              
+              {/* Botón de prueba */}
+              <button
+                onClick={handleTestDrawer}
+                disabled={testingDrawer || !drawerPrinter}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                {testingDrawer ? 'Abriendo...' : 'Probar Caja'}
+              </button>
+              {!drawerPrinter && (
+                <p className="text-xs text-amber-600 mt-2">✓ Selecciona una impresora para probar</p>
+              )}
+            </div>
+
+            )}
 
             {/* Modo de impresión al actualizar comandas */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -1658,9 +1862,9 @@ const Configuracion = () => {
                             className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 text-sm"
                           >
                             <option value="">Sin asignar</option>
-                            {printers.map(p => {
+                            {printers.map((p, index) => {
                               const pName = typeof p === 'string' ? p : (p.printerName || p.PrinterName);
-                              return <option key={pName} value={pName}>{pName}</option>;
+                              return <option key={`${pName}-${index}`} value={pName}>{pName}</option>;
                             })}
                           </select>
                           {assignedPrinter && (
