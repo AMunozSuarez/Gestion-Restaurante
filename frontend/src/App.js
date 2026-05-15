@@ -48,12 +48,16 @@ function App() {
         const active = document.activeElement;
         const tag = active && active.tagName ? active.tagName.toLowerCase() : '';
         if (tag === 'input' || tag === 'textarea' || tag === 'select' || active?.isContentEditable) return;
-
         const hotkey = (printingService.getDrawerHotkey() || '').toLowerCase();
         if (!hotkey) return;
 
-        if (e.key && e.key.toLowerCase() === hotkey) {
-          const allowed = printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen();
+        // Normalizar e.key para que coincida con el formato guardado en Configuracion.jsx
+        const currentKeyName = e.key === ' ' ? 'Space' : e.key;
+
+        const matched = currentKeyName && currentKeyName.toLowerCase() === hotkey;
+        const allowed = printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen();
+
+        if (matched) {
           if (!allowed) return;
           const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
           await printingService.openDrawer(printer);

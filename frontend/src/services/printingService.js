@@ -158,7 +158,12 @@ const normalizeRestaurantSettings = (settings = {}) => {
       DEFAULT_RESTAURANT_SETTINGS.avoidDuplicateKitchenUpdatePrint,
     ),
     extraSectionPrintDestinations: normalizeExtraSectionPrintDestinations(rawExtraSectionPrintDestinations),
-    drawerPrinter: String(printing.drawerPrinter ?? settings.drawerPrinter ?? DEFAULT_RESTAURANT_SETTINGS.drawerPrinter),
+    drawerPrinter: String(
+      printing.drawerPrinter ?? settings.drawerPrinter ?? readStringFromStorage(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerPrinter, DEFAULT_RESTAURANT_SETTINGS.drawerPrinter)
+    ),
+    drawerHotkey: String(
+      printing.drawerHotkey ?? settings.drawerHotkey ?? readStringFromStorage(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerHotkey, DEFAULT_RESTAURANT_SETTINGS.drawerHotkey)
+    ),
     drawerAlwaysOpen: parseBooleanValue(
       printing.drawerAlwaysOpen ?? settings.drawerAlwaysOpen,
       DEFAULT_RESTAURANT_SETTINGS.drawerAlwaysOpen,
@@ -806,7 +811,21 @@ la fuente esta configurada bien.
     try {
       const payload = buildRestaurantSettingsPayload(nextSnapshot);
       const response = await restaurantService.updateMyRestaurantSettings(payload);
-      const normalized = applyRestaurantSettingsLocally(response?.settings || payload);
+      // Preserve locally-stored drawerHotkey if backend response doesn't include it
+      const respSettings = response?.settings || payload || {};
+      try {
+        respSettings.printing = respSettings.printing || {};
+        if (!respSettings.printing.hasOwnProperty('drawerHotkey') || respSettings.printing.drawerHotkey === '') {
+          respSettings.printing.drawerHotkey = getRestaurantSettingsSnapshot().drawerHotkey || '';
+        }
+        if (!respSettings.printing.hasOwnProperty('drawerPrinter') || !respSettings.printing.drawerPrinter) {
+          respSettings.printing.drawerPrinter = getRestaurantSettingsSnapshot().drawerPrinter || '';
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      const normalized = applyRestaurantSettingsLocally(respSettings);
       return { success: true, data: normalized };
     } catch (error) {
       return {
