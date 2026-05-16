@@ -1367,6 +1367,15 @@ const Delivery = () => {
 
         // El estado ya se actualiza automáticamente en el hook useOrders
         // No necesitamos refetchOrders() aquí
+        // Abrir caja automáticamente si está configurado
+        try {
+          if (printingService.getDrawerOpenOnCloseOrder()) {
+            const printer = printingService.getDrawerPrinter() || printingService.getDefaultPrinter() || null;
+            await printingService.openDrawer(printer);
+          }
+        } catch (err) {
+          console.error('Error opening drawer after creating delivery order:', err);
+        }
       } else {
         alert('Error al crear el pedido: ' + (response.error || 'Error desconocido'));
       }
@@ -1557,6 +1566,16 @@ const Delivery = () => {
       // Mostrar notificación de éxito
       setAddedProductNotification(successMessage);
       setTimeout(() => setAddedProductNotification(null), 2000);
+
+      // Abrir caja automáticamente si está configurado para completar pedidos
+      try {
+        if (printingService.getDrawerOpenOnCloseOrder()) {
+          const printer = printingService.getDrawerPrinter() || printingService.getDefaultPrinter() || null;
+          await printingService.openDrawer(printer);
+        }
+      } catch (err) {
+        console.error('Error opening drawer after completing delivery order:', err);
+      }
     }
 
     return response;

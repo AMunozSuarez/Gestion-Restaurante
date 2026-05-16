@@ -26,6 +26,7 @@ const RESTAURANT_SETTINGS_STORAGE_KEYS = {
   drawerAlwaysOpen: 'drawerAlwaysOpen',
   drawerConfigOwnerOnly: 'drawerConfigOwnerOnly',
   drawerHotkey: 'drawerHotkey',
+  drawerOpenOnCloseOrder: 'drawerOpenOnCloseOrder',
 };
 
 const VALID_PRINT_ROLES = ['cocina', 'barra', 'caja'];
@@ -42,6 +43,7 @@ const DEFAULT_RESTAURANT_SETTINGS = {
   drawerAlwaysOpen: false,
   drawerConfigOwnerOnly: true,
   drawerHotkey: '',
+  drawerOpenOnCloseOrder: false,
 };
 
 let restaurantSettingsCache = null;
@@ -164,6 +166,10 @@ const normalizeRestaurantSettings = (settings = {}) => {
     drawerHotkey: String(
       printing.drawerHotkey ?? settings.drawerHotkey ?? readStringFromStorage(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerHotkey, DEFAULT_RESTAURANT_SETTINGS.drawerHotkey)
     ),
+    drawerOpenOnCloseOrder: parseBooleanValue(
+      printing.drawerOpenOnCloseOrder ?? settings.drawerOpenOnCloseOrder ?? readBooleanFromStorage(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerOpenOnCloseOrder, DEFAULT_RESTAURANT_SETTINGS.drawerOpenOnCloseOrder),
+      DEFAULT_RESTAURANT_SETTINGS.drawerOpenOnCloseOrder,
+    ),
     drawerAlwaysOpen: parseBooleanValue(
       printing.drawerAlwaysOpen ?? settings.drawerAlwaysOpen,
       DEFAULT_RESTAURANT_SETTINGS.drawerAlwaysOpen,
@@ -224,6 +230,10 @@ const getRestaurantSettingsFromStorage = () => ({
     RESTAURANT_SETTINGS_STORAGE_KEYS.drawerHotkey,
     DEFAULT_RESTAURANT_SETTINGS.drawerHotkey,
   ),
+  drawerOpenOnCloseOrder: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.drawerOpenOnCloseOrder,
+    DEFAULT_RESTAURANT_SETTINGS.drawerOpenOnCloseOrder,
+  ),
 });
 
 const getRestaurantSettingsSnapshot = () => {
@@ -268,6 +278,10 @@ const applyRestaurantSettingsLocally = (settings = {}) => {
       String(normalized.drawerPrinter || ''),
     );
     localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.drawerOpenOnCloseOrder,
+      String(Boolean(normalized.drawerOpenOnCloseOrder)),
+    );
+    localStorage.setItem(
       RESTAURANT_SETTINGS_STORAGE_KEYS.drawerAlwaysOpen,
       String(Boolean(normalized.drawerAlwaysOpen)),
     );
@@ -297,7 +311,8 @@ const buildRestaurantSettingsPayload = (settings = {}) => {
       extraSectionPrintDestinations: normalized.extraSectionPrintDestinations,
       drawerPrinter: normalized.drawerPrinter,
       drawerAlwaysOpen: normalized.drawerAlwaysOpen,
-        drawerHotkey: normalized.drawerHotkey,
+      drawerHotkey: normalized.drawerHotkey,
+      drawerOpenOnCloseOrder: normalized.drawerOpenOnCloseOrder,
     },
     permissions: {
       onlyOwnerCanCloseTable: normalized.onlyOwnerCanCloseTable,
@@ -734,6 +749,23 @@ la fuente esta configurada bien.
     applyRestaurantSettingsLocally({
       ...getRestaurantSettingsSnapshot(),
       drawerAlwaysOpen: Boolean(enabled),
+    });
+  },
+
+  // Obtener si abrir la caja automaticamente al cerrar un pedido (un solo switch)
+  getDrawerOpenOnCloseOrder() {
+    try {
+      return readBooleanFromStorage(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerOpenOnCloseOrder, DEFAULT_RESTAURANT_SETTINGS.drawerOpenOnCloseOrder);
+    } catch {
+      return DEFAULT_RESTAURANT_SETTINGS.drawerOpenOnCloseOrder;
+    }
+  },
+
+  // Guardar preferencia: abrir caja automaticamente al cerrar un pedido
+  setDrawerOpenOnCloseOrder(enabled) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      drawerOpenOnCloseOrder: Boolean(enabled),
     });
   },
 

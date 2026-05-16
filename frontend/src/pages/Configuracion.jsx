@@ -66,6 +66,7 @@ const Configuracion = () => {
   const [avoidDuplicateKitchenUpdatePrint, setAvoidDuplicateKitchenUpdatePrint] = useState(() => printingService.getAvoidDuplicateKitchenUpdatePrint());
   const [drawerPrinter, setDrawerPrinter] = useState(() => localStorage.getItem('drawerPrinter') || '');
   const [drawerAlwaysOpen, setDrawerAlwaysOpen] = useState(() => printingService.getDrawerAlwaysOpen());
+  const [drawerOpenOnCloseOrder, setDrawerOpenOnCloseOrder] = useState(() => printingService.getDrawerOpenOnCloseOrder());
   const [drawerHotkey, setDrawerHotkey] = useState(() => printingService.getDrawerHotkey() || '');
   const [capturingHotkey, setCapturingHotkey] = useState(false);
   const [allPrinters, setAllPrinters] = useState([]);
@@ -150,6 +151,7 @@ const Configuracion = () => {
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
     setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
+    setDrawerOpenOnCloseOrder(printingService.getDrawerOpenOnCloseOrder());
 
     if (!syncResult.success) {
       setMessage({
@@ -168,6 +170,7 @@ const Configuracion = () => {
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
     setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
+    setDrawerOpenOnCloseOrder(printingService.getDrawerOpenOnCloseOrder());
   };
 
   // Verificar servicio y cargar impresoras
@@ -356,6 +359,11 @@ const Configuracion = () => {
     printingService.setDrawerAlwaysOpen(enabled);
     // Persistir al backend
     await printingService.saveRestaurantSettingsToBackend({ drawerAlwaysOpen: enabled });
+  };
+  const handleToggleDrawerOpenOnCloseOrder = async (enabled) => {
+    setDrawerOpenOnCloseOrder(enabled);
+    printingService.setDrawerOpenOnCloseOrder(enabled);
+    await printingService.saveRestaurantSettingsToBackend({ drawerOpenOnCloseOrder: enabled });
   };
 
   // Cambiar modo de impresión de actualizaciones
@@ -1162,6 +1170,8 @@ const Configuracion = () => {
                 <PrinterIcon className="w-5 h-5 mr-2" />
                 Impresoras
               </div>
+
+              
             </button>
             {isOwnerOrAdmin && (
               <button
@@ -1560,6 +1570,25 @@ const Configuracion = () => {
                   >
                     <span
                       className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${drawerAlwaysOpen ? 'translate-x-5' : 'translate-x-0.5'}`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Abrir caja automáticamente al cerrar un pedido</p>
+                    <p className="text-xs text-gray-500">Si está activo, la caja se abrirá al cerrar, completar o enviar un pedido.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleDrawerOpenOnCloseOrder(!drawerOpenOnCloseOrder)}
+                    className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${drawerOpenOnCloseOrder ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                    aria-pressed={drawerOpenOnCloseOrder}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${drawerOpenOnCloseOrder ? 'translate-x-5' : 'translate-x-0.5'}`}
                     />
                   </button>
                 </div>

@@ -602,6 +602,16 @@ const TableDetail = () => {
                 // Cerrar mesa usando el hook
                 await closeTable(tableId);
 
+                                // Abrir caja automáticamente si está configurado
+                                try {
+                                    if (printingService.getDrawerOpenOnCloseOrder()) {
+                                        const printer = printingService.getDrawerPrinter() || printingService.getDefaultPrinter() || null;
+                                        await printingService.openDrawer(printer);
+                                    }
+                                } catch (err) {
+                                    console.error('Error opening drawer after closing table:', err);
+                                }
+
                 showNotification(
                     reprintFailed
                         ? 'Mesa cerrada. No se pudo reimprimir el ticket.'
