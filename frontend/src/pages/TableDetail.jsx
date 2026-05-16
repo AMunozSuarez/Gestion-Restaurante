@@ -52,6 +52,7 @@ const TableDetail = () => {
     const [paymentMethods, setPaymentMethods] = useState([{ method: '', amount: 0 }]);
     const [suggestedTip, setSuggestedTip] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
+    const isProcessingRef = useRef(false);
     const [showWaiterModal, setShowWaiterModal] = useState(false);
     const [selectedWaiter, setSelectedWaiter] = useState(null);
     const [showDiscountFields, setShowDiscountFields] = useState(false);
@@ -331,6 +332,11 @@ const TableDetail = () => {
             return;
         }
 
+        if (isProcessingRef.current) {
+            return;
+        }
+        isProcessingRef.current = true;
+
         try {
             setIsProcessing(true);
 
@@ -398,6 +404,7 @@ const TableDetail = () => {
             showNotification('Error al guardar orden: ' + error.message, 'error');
         } finally {
             setIsProcessing(false);
+            isProcessingRef.current = false;
         }
     };
 
@@ -567,7 +574,12 @@ const TableDetail = () => {
                 discount: calculateDiscountAmount()
             };
 
-            const response = await updateOrder(table.currentOrder._id, orderData);
+            let response;
+            if (table.currentOrder) {
+                response = await updateOrder(table.currentOrder._id, orderData);
+            } else {
+                response = await createOrder(orderData, { skipKitchenPrint: true });
+            }
 
             if (response.success) {
                 let reprintFailed = false;
@@ -590,6 +602,16 @@ const TableDetail = () => {
                 // Cerrar mesa usando el hook
                 await closeTable(tableId);
 
+                                // Abrir caja automáticamente si está configurado
+                                try {
+                                    if (printingService.getDrawerOpenOnCloseOrder()) {
+                                        const printer = printingService.getDrawerPrinter() || printingService.getDefaultPrinter() || null;
+                                        await printingService.openDrawer(printer);
+                                    }
+                                } catch (err) {
+                                    console.error('Error opening drawer after closing table:', err);
+                                }
+
                 showNotification(
                     reprintFailed
                         ? 'Mesa cerrada. No se pudo reimprimir el ticket.'
@@ -601,6 +623,8 @@ const TableDetail = () => {
                 setTimeout(() => {
                     navigate('/mesas');
                 }, 500);
+            } else {
+                showNotification(response.error || response.message || 'Error al cerrar mesa', 'error');
             }
         } catch (error) {
             showNotification('Error al cerrar mesa: ' + error.message, 'error');
@@ -1434,15 +1458,34 @@ const TableDetail = () => {
 
                         {/* Botones */}
                         <div className="space-y-3">
-                            {/* Botón Imprimir Ticket */}
-                            <Button
-                                onClick={handlePrintTicket}
-                                variant="outline"
-                                className="w-full border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
-                            >
-                                <PrinterIcon className="w-5 h-5 mr-2" />
-                                Imprimir Ticket
-                            </Button>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <Button
+                                    onClick={handlePrintTicket}
+                                    variant="outline"
+                                    className="w-full border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
+                                >
+                                    <PrinterIcon className="w-5 h-5 mr-2" />
+                                    Imprimir Ticket
+                                </Button>
+                                {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                                    <Button
+                                        onClick={async () => {
+                                            const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
+                                            const res = await printingService.openDrawer(printer);
+                                            if (!res.success) {
+                                                console.error('Error abriendo caja:', res.error || res.message);
+                                                alert('No se pudo abrir la caja: ' + (res.error || res.message || 'Error desconocido'));
+                                            }
+                                        }}
+                                        variant="outline"
+                                        className="w-full border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
+                                        title="Abrir caja"
+                                    >
+                                        <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 6h10v12H7z"/></svg>
+                                        Abrir Caja
+                                    </Button>
+                                )}
+                            </div>
 
                             <div className="flex gap-3">
                                 <Button

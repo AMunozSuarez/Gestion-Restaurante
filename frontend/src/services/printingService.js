@@ -22,6 +22,11 @@ const RESTAURANT_SETTINGS_STORAGE_KEYS = {
   onlyOwnerCanDeleteOrderItems: 'onlyOwnerCanDeleteOrderItems',
   avoidDuplicateKitchenUpdatePrint: 'avoidDuplicateKitchenUpdatePrint',
   extraSectionPrintDestinations: 'extraSectionPrintDestinations',
+  drawerPrinter: 'drawerPrinter',
+  drawerAlwaysOpen: 'drawerAlwaysOpen',
+  drawerConfigOwnerOnly: 'drawerConfigOwnerOnly',
+  drawerHotkey: 'drawerHotkey',
+  drawerOpenOnCloseOrder: 'drawerOpenOnCloseOrder',
 };
 
 const VALID_PRINT_ROLES = ['cocina', 'barra', 'caja'];
@@ -34,6 +39,11 @@ const DEFAULT_RESTAURANT_SETTINGS = {
   onlyOwnerCanDeleteOrderItems: false,
   avoidDuplicateKitchenUpdatePrint: false,
   extraSectionPrintDestinations: {},
+  drawerPrinter: '',
+  drawerAlwaysOpen: false,
+  drawerConfigOwnerOnly: true,
+  drawerHotkey: '',
+  drawerOpenOnCloseOrder: false,
 };
 
 let restaurantSettingsCache = null;
@@ -150,6 +160,24 @@ const normalizeRestaurantSettings = (settings = {}) => {
       DEFAULT_RESTAURANT_SETTINGS.avoidDuplicateKitchenUpdatePrint,
     ),
     extraSectionPrintDestinations: normalizeExtraSectionPrintDestinations(rawExtraSectionPrintDestinations),
+    drawerPrinter: String(
+      printing.drawerPrinter ?? settings.drawerPrinter ?? readStringFromStorage(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerPrinter, DEFAULT_RESTAURANT_SETTINGS.drawerPrinter)
+    ),
+    drawerHotkey: String(
+      printing.drawerHotkey ?? settings.drawerHotkey ?? readStringFromStorage(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerHotkey, DEFAULT_RESTAURANT_SETTINGS.drawerHotkey)
+    ),
+    drawerOpenOnCloseOrder: parseBooleanValue(
+      printing.drawerOpenOnCloseOrder ?? settings.drawerOpenOnCloseOrder ?? readBooleanFromStorage(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerOpenOnCloseOrder, DEFAULT_RESTAURANT_SETTINGS.drawerOpenOnCloseOrder),
+      DEFAULT_RESTAURANT_SETTINGS.drawerOpenOnCloseOrder,
+    ),
+    drawerAlwaysOpen: parseBooleanValue(
+      printing.drawerAlwaysOpen ?? settings.drawerAlwaysOpen,
+      DEFAULT_RESTAURANT_SETTINGS.drawerAlwaysOpen,
+    ),
+    drawerConfigOwnerOnly: parseBooleanValue(
+      permissions.drawerConfigOwnerOnly ?? settings.drawerConfigOwnerOnly,
+      DEFAULT_RESTAURANT_SETTINGS.drawerConfigOwnerOnly,
+    ),
   };
 };
 
@@ -185,6 +213,26 @@ const getRestaurantSettingsFromStorage = () => ({
       RESTAURANT_SETTINGS_STORAGE_KEYS.extraSectionPrintDestinations,
       DEFAULT_RESTAURANT_SETTINGS.extraSectionPrintDestinations,
     ),
+  ),
+  drawerPrinter: readStringFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.drawerPrinter,
+    DEFAULT_RESTAURANT_SETTINGS.drawerPrinter,
+  ),
+  drawerAlwaysOpen: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.drawerAlwaysOpen,
+    DEFAULT_RESTAURANT_SETTINGS.drawerAlwaysOpen,
+  ),
+  drawerConfigOwnerOnly: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.drawerConfigOwnerOnly,
+    DEFAULT_RESTAURANT_SETTINGS.drawerConfigOwnerOnly,
+  ),
+  drawerHotkey: readStringFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.drawerHotkey,
+    DEFAULT_RESTAURANT_SETTINGS.drawerHotkey,
+  ),
+  drawerOpenOnCloseOrder: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.drawerOpenOnCloseOrder,
+    DEFAULT_RESTAURANT_SETTINGS.drawerOpenOnCloseOrder,
   ),
 });
 
@@ -225,6 +273,26 @@ const applyRestaurantSettingsLocally = (settings = {}) => {
       RESTAURANT_SETTINGS_STORAGE_KEYS.extraSectionPrintDestinations,
       JSON.stringify(normalized.extraSectionPrintDestinations || {}),
     );
+    localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.drawerPrinter,
+      String(normalized.drawerPrinter || ''),
+    );
+    localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.drawerOpenOnCloseOrder,
+      String(Boolean(normalized.drawerOpenOnCloseOrder)),
+    );
+    localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.drawerAlwaysOpen,
+      String(Boolean(normalized.drawerAlwaysOpen)),
+    );
+    localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.drawerConfigOwnerOnly,
+      String(Boolean(normalized.drawerConfigOwnerOnly)),
+    );
+    localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.drawerHotkey,
+      String(normalized.drawerHotkey || ''),
+    );
   } catch {
     // No-op si localStorage no está disponible
   }
@@ -241,10 +309,15 @@ const buildRestaurantSettingsPayload = (settings = {}) => {
       printOnDeletedItemsUpdate: normalized.printOnDeletedItemsUpdate,
       avoidDuplicateKitchenUpdatePrint: normalized.avoidDuplicateKitchenUpdatePrint,
       extraSectionPrintDestinations: normalized.extraSectionPrintDestinations,
+      drawerPrinter: normalized.drawerPrinter,
+      drawerAlwaysOpen: normalized.drawerAlwaysOpen,
+      drawerHotkey: normalized.drawerHotkey,
+      drawerOpenOnCloseOrder: normalized.drawerOpenOnCloseOrder,
     },
     permissions: {
       onlyOwnerCanCloseTable: normalized.onlyOwnerCanCloseTable,
       onlyOwnerCanDeleteOrderItems: normalized.onlyOwnerCanDeleteOrderItems,
+      drawerConfigOwnerOnly: normalized.drawerConfigOwnerOnly,
     },
   };
 };
@@ -630,6 +703,101 @@ la fuente esta configurada bien.
     return { ...getRestaurantSettingsSnapshot().extraSectionPrintDestinations };
   },
 
+  // Obtener la impresora configurada para la caja
+  getDrawerPrinter() {
+    try {
+      return localStorage.getItem(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerPrinter) || '';
+    } catch {
+      return '';
+    }
+  },
+
+  // Obtener la tecla rápida configurada para abrir caja
+  getDrawerHotkey() {
+    try {
+      return localStorage.getItem(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerHotkey) || '';
+    } catch {
+      return '';
+    }
+  },
+
+  // Guardar la tecla rápida para abrir caja
+  setDrawerHotkey(hotkey) {
+    try {
+      localStorage.setItem(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerHotkey, String(hotkey || ''));
+    } catch {}
+  },
+
+  // Establecer la impresora para la caja
+  setDrawerPrinter(printerName) {
+    try {
+      localStorage.setItem(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerPrinter, String(printerName || ''));
+    } catch {}
+  },
+
+  // Obtener si la caja debe poder abrirse desde cualquier cuenta (global)
+  getDrawerAlwaysOpen() {
+    try {
+      return readBooleanFromStorage(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerAlwaysOpen, DEFAULT_RESTAURANT_SETTINGS.drawerAlwaysOpen);
+    } catch {
+      return DEFAULT_RESTAURANT_SETTINGS.drawerAlwaysOpen;
+    }
+  },
+
+  // Guardar preferencia global de abrir caja desde cualquier cuenta
+  setDrawerAlwaysOpen(enabled) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      drawerAlwaysOpen: Boolean(enabled),
+    });
+  },
+
+  // Obtener si abrir la caja automaticamente al cerrar un pedido (un solo switch)
+  getDrawerOpenOnCloseOrder() {
+    try {
+      return readBooleanFromStorage(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerOpenOnCloseOrder, DEFAULT_RESTAURANT_SETTINGS.drawerOpenOnCloseOrder);
+    } catch {
+      return DEFAULT_RESTAURANT_SETTINGS.drawerOpenOnCloseOrder;
+    }
+  },
+
+  // Guardar preferencia: abrir caja automaticamente al cerrar un pedido
+  setDrawerOpenOnCloseOrder(enabled) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      drawerOpenOnCloseOrder: Boolean(enabled),
+    });
+  },
+
+  // Obtener si la sección de configuracion de caja solo la ve el owner
+  isDrawerConfigOwnerOnly() {
+    try {
+      return readBooleanFromStorage(RESTAURANT_SETTINGS_STORAGE_KEYS.drawerConfigOwnerOnly, DEFAULT_RESTAURANT_SETTINGS.drawerConfigOwnerOnly);
+    } catch {
+      return DEFAULT_RESTAURANT_SETTINGS.drawerConfigOwnerOnly;
+    }
+  },
+
+  // Guardar visibilidad owner-only para la configuracion de caja
+  setDrawerConfigOwnerOnly(enabled) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      drawerConfigOwnerOnly: Boolean(enabled),
+    });
+  },
+
+  // Chequear si el usuario actual es owner o super_admin
+  isCurrentUserOwner() {
+    try {
+      const userRaw = localStorage.getItem('user');
+      if (!userRaw) return false;
+      const user = JSON.parse(userRaw);
+      return user?.role === 'owner' || user?.role === 'super_admin';
+    } catch {
+      return false;
+    }
+  },
+
   // Guardar destinos de impresión por sección de extras
   setExtraSectionPrintDestinations(extraSectionPrintDestinations = {}) {
     applyRestaurantSettingsLocally({
@@ -675,7 +843,21 @@ la fuente esta configurada bien.
     try {
       const payload = buildRestaurantSettingsPayload(nextSnapshot);
       const response = await restaurantService.updateMyRestaurantSettings(payload);
-      const normalized = applyRestaurantSettingsLocally(response?.settings || payload);
+      // Preserve locally-stored drawerHotkey if backend response doesn't include it
+      const respSettings = response?.settings || payload || {};
+      try {
+        respSettings.printing = respSettings.printing || {};
+        if (!respSettings.printing.hasOwnProperty('drawerHotkey') || respSettings.printing.drawerHotkey === '') {
+          respSettings.printing.drawerHotkey = getRestaurantSettingsSnapshot().drawerHotkey || '';
+        }
+        if (!respSettings.printing.hasOwnProperty('drawerPrinter') || !respSettings.printing.drawerPrinter) {
+          respSettings.printing.drawerPrinter = getRestaurantSettingsSnapshot().drawerPrinter || '';
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      const normalized = applyRestaurantSettingsLocally(respSettings);
       return { success: true, data: normalized };
     } catch (error) {
       return {
@@ -1925,6 +2107,31 @@ ${cashRegister.comment.trim()}
       return this.print(cajaPrinter, content, 1, false);
     }
     return this.printWithDefault(content, 1);
+  },
+
+  // Abrir caja electrónica (TESTEO)
+  async openDrawer(printerName = null) {
+    try {
+      console.log('📤 Enviando POST a:', printingApi.defaults.baseURL + '/drawer/open', { printerName });
+      const payload = printerName ? { printerName } : {};
+      const response = await printingApi.post('/drawer/open', payload);
+      console.log('📥 Respuesta recibida:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('❌ Error en openDrawer:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      return {
+        success: false,
+        error: error.response?.data?.error || error.response?.data?.message || error.message || 'Error al abrir caja'
+      };
+    }
   }
 };
 

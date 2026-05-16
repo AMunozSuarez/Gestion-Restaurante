@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -112,6 +113,13 @@ namespace PrintingService
                             SendError(response, 405, "Method not allowed");
                         break;
 
+                    case "/drawer/open":
+                        if (request.HttpMethod == "POST")
+                            await HandleOpenDrawer(request, response);
+                        else
+                            SendError(response, 405, "Method not allowed");
+                        break;
+
                     default:
                         SendError(response, 404, "Endpoint not found");
                         break;
@@ -186,6 +194,44 @@ namespace PrintingService
             catch (Exception ex)
             {
                 Console.WriteLine($"[HandlePrint] Error: {ex.Message}");
+                SendError(response, 500, ex.Message);
+            }
+        }
+
+        private async Task HandleOpenDrawer(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            try
+            {
+                string? printerName = null;
+                
+                // Try to read printer name from body
+                if (request.ContentLength64 > 0)
+                {
+                    using var reader = new StreamReader(request.InputStream, Encoding.UTF8);
+                    var body = await reader.ReadToEndAsync();
+                    if (!string.IsNullOrEmpty(body))
+                    {
+                        try
+                        {
+                            var options = JsonSerializer.Deserialize<Dictionary<string, object>>(body, new JsonSerializerOptions
+                            {
+                                PropertyNameCaseInsensitive = true
+                            });
+                            if (options != null && options.TryGetValue("printerName", out var pn))
+                            {
+                                printerName = pn?.ToString();
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                var success = await _printService.OpenDrawerAsync(printerName);
+                await SendJsonResponse(response, new { success = true, message = "Drawer open command sent successfully" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[HandleOpenDrawer] Error: {ex.Message}");
                 SendError(response, 500, ex.Message);
             }
         }

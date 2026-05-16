@@ -73,9 +73,9 @@ export const useOrders = (filters = {}, callbacks = {}) => {
     }
   };
 
-  const createOrder = async (orderData) => {
+  const createOrder = async (orderData, options = {}) => {
     try {
-      const response = await ordersService.createOrder(orderData);
+      const response = await ordersService.createOrder(orderData, options);
       
       // El servicio retorna { success: true, order: {...} }
       if (response.success && response.order) {
@@ -328,9 +328,9 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
     }
   };
 
-  const createOrder = async (orderData) => {
+  const createOrder = async (orderData, options = {}) => {
     try {
-      const response = await ordersService.createOrder(orderData);
+      const response = await ordersService.createOrder(orderData, options);
       if (response.success && response.order) {
         const newOrder = response.order;
         if ((!section || newOrder.section === section) && newOrder.status === 'Preparacion') {

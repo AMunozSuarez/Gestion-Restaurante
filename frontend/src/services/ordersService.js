@@ -87,14 +87,15 @@ export const ordersService = {
   },
 
   // Crear nuevo pedido
-  createOrder: async (orderData) => {
+  createOrder: async (orderData, options = {}) => {
     try {
       const response = await api.post('/order/create', orderData);
       invalidateOrderCache(); // Invalidar caché tras crear
 
       // Solo imprimir si hay productos en el carrito
+      const skipKitchenPrint = options.skipKitchenPrint === true;
       const hasProducts = Array.isArray(orderData.foods) && orderData.foods.length > 0;
-      if (response.data && response.data.order && hasProducts) {
+      if (!skipKitchenPrint && response.data && response.data.order && hasProducts) {
         try {
           const defaultPrinter = printingService.getDefaultPrinter();
           const hasMultiConfig = printerConfigService.hasMultiPrinterConfig();

@@ -25,6 +25,7 @@ namespace PrintingService
         private static readonly byte[] CMD_SIZE_2H      = { 0x1D, 0x21, 0x10 }; // GS ! 0x10 - Double height only
         private static readonly byte[] CMD_SIZE_NORMAL  = { 0x1D, 0x21, 0x00 }; // GS ! 0x00 - Normal size
         private static readonly byte[] CMD_FEED_CUT     = { 0x0A, 0x0A, 0x0A, 0x0A, 0x1D, 0x56, 0x01 }; // 4x LF + partial cut (GS V 1)
+        private static readonly byte[] CMD_DRAWER_OPEN  = { 0x1B, 0x70, 0x00, 0x40, 0x50 }; // ESC p 0 64 80 - Open drawer
 
         public PrintService()
         {
@@ -82,6 +83,51 @@ namespace PrintingService
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Print error: {ex.Message}");
+                    throw; // propagate to ApiServer for proper error response
+                }
+            });
+        }
+
+        /// <summary>
+        /// Abre la gaveta electrónica usando el comando ESC/POS en una impresora específica
+        /// </summary>
+        public async Task<bool> OpenDrawerAsync(string printerName = null)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    var printers = _printerManager.GetAvailablePrinters();
+                    if (printers.Count == 0)
+                    {
+                        throw new InvalidOperationException("No printers available");
+                    }
+
+                    PrinterInfo printer = null;
+
+                    if (!string.IsNullOrEmpty(printerName))
+                    {
+                        // Buscar impresora específica
+                        printer = printers.FirstOrDefault(p => p.PrinterName == printerName);
+                        if (printer == null)
+                        {
+                            Console.WriteLine($"Printer '{printerName}' not found. Available printers: {string.Join(", ", printers.Select(p => p.PrinterName))}");
+                            throw new InvalidOperationException($"Printer '{printerName}' not found");
+                        }
+                    }
+                    else
+                    {
+                        // Si no se especifica, usar la primera (ej. impresora de caja)
+                        printer = printers[0];
+                    }
+
+                    RawPrinterHelper.SendRawBytes(printer.PrinterName, CMD_DRAWER_OPEN);
+                    Console.WriteLine($"Drawer open command sent to '{printer.PrinterName}'");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Drawer open error: {ex.Message}");
                     throw; // propagate to ApiServer for proper error response
                 }
             });

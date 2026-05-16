@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import printingService from './services/printingService';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { CashRegisterProvider } from './store/CashRegisterContext';
@@ -41,6 +42,34 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function App() {
+  useEffect(() => {
+    const onKeyDown = async (e) => {
+      try {
+        const active = document.activeElement;
+        const tag = active && active.tagName ? active.tagName.toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || active?.isContentEditable) return;
+        const hotkey = (printingService.getDrawerHotkey() || '').toLowerCase();
+        if (!hotkey) return;
+
+        // Normalizar e.key para que coincida con el formato guardado en Configuracion.jsx
+        const currentKeyName = e.key === ' ' ? 'Space' : e.key;
+
+        const matched = currentKeyName && currentKeyName.toLowerCase() === hotkey;
+        const allowed = printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen();
+
+        if (matched) {
+          if (!allowed) return;
+          const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
+          await printingService.openDrawer(printer);
+        }
+      } catch (err) {
+        console.error('Error handling global drawer hotkey:', err);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
   return (
     <AuthProvider>
       <CashRegisterProvider>
