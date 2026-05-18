@@ -1579,7 +1579,7 @@ const Configuracion = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm font-semibold text-gray-900">Abrir caja automáticamente al cerrar un pedido</p>
-                    <p className="text-xs text-gray-500">Si está activo, la caja se abrirá al cerrar, completar o enviar un pedido.</p>
+                    <p className="text-xs text-gray-500">Si está activo, la caja se abrirá al cerrar un pedido.</p>
                   </div>
                   <button
                     type="button"
