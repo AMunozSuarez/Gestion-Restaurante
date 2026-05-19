@@ -906,16 +906,6 @@ const Mostrador = () => {
         setAddedProductNotification(`Pedido #${response.order?.orderNumber || 'N/A'} creado exitosamente`);
         setTimeout(() => setAddedProductNotification(null), 3000);
 
-        // Abrir caja automáticamente si está configurado
-        try {
-          if (printingService.getDrawerOpenOnCloseOrder()) {
-            const printer = printingService.getDrawerPrinter() || printingService.getDefaultPrinter() || null;
-            await printingService.openDrawer(printer);
-          }
-        } catch (err) {
-          console.error('Error opening drawer after creating mostrador order:', err);
-        }
-
         // Limpiar formulario y cerrar
         clearForm();
         setIsCreatingOrder(false);
