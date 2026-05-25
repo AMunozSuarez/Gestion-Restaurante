@@ -64,6 +64,10 @@ const TableDetail = () => {
     const [extrasModalMode, setExtrasModalMode] = useState('create');
     const [editingCartItem, setEditingCartItem] = useState(null);
     const [mobilePanel, setMobilePanel] = useState('products');
+    const [splitEnabled, setSplitEnabled] = useState(false);
+    const [splitCount, setSplitCount] = useState(2);
+    const [splitAccounts, setSplitAccounts] = useState([]);
+    const [activeSplitAccountIndex, setActiveSplitAccountIndex] = useState(0);
 
     const productCommentInputRef = useRef(null);
 
@@ -121,6 +125,34 @@ const TableDetail = () => {
 
             setCart([...orderProducts, ...deletedProducts]);
             setComments(table.currentOrder.comment || '');
+
+            if (table.currentOrder.splitMeta?.enabled && Array.isArray(table.currentOrder.splitAccounts)) {
+                const normalized = table.currentOrder.splitAccounts.map((account, index) => ({
+                    label: account.label || `Cuenta ${index + 1}`,
+                    paymentMethods: Array.isArray(account.paymentMethods) && account.paymentMethods.length > 0
+                        ? account.paymentMethods.map(pm => ({
+                            method: pm.method || '',
+                            amount: pm.amount || 0
+                        }))
+                        : [{ method: '', amount: 0 }],
+                    items: (account.items || []).map((item, itemIndex) => ({
+                        cartId: item.cartId || `split_${index}_${itemIndex}_${item.food || item.name || ''}`,
+                        food: item.food || null,
+                        name: item.name || 'Producto',
+                        quantity: item.quantity || 0,
+                        unitPrice: item.unitPrice || 0,
+                        selectedExtras: item.selectedExtras || []
+                    }))
+                }));
+                setSplitEnabled(true);
+                setSplitCount(table.currentOrder.splitMeta?.count || normalized.length || 2);
+                setSplitAccounts(normalized);
+                setActiveSplitAccountIndex(0);
+            } else {
+                setSplitEnabled(false);
+                setSplitAccounts([]);
+                setActiveSplitAccountIndex(0);
+            }
         }
     }, [table]);
 
@@ -293,6 +325,19 @@ const TableDetail = () => {
         }, 0);
     };
 
+    const getItemUnitPrice = (item) => {
+        const extrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+        return item.price + extrasTotal;
+    };
+
+    const createEmptySplitAccounts = (count) => {
+        return Array.from({ length: count }, (_, index) => ({
+            label: `Cuenta ${index + 1}`,
+            paymentMethods: [{ method: '', amount: 0 }],
+            items: []
+        }));
+    };
+
     const calculateTip = (percentage) => {
         const base = calculateSubtotalWithDiscount();
         return Math.round(base * percentage);
@@ -310,6 +355,205 @@ const TableDetail = () => {
         return calculateTotal() - calculateDiscountAmount();
     };
 
+    const buildSplitAccounts = (count, items) => {
+        const accounts = Array.from({ length: count }, (_, index) => ({
+            label: `Cuenta ${index + 1}`,
+            paymentMethods: [{ method: '', amount: 0 }],
+            items: []
+        }));
+
+        let cursor = 0;
+        items.forEach(item => {
+            const unitPrice = getItemUnitPrice(item);
+            for (let i = 0; i < item.quantity; i += 1) {
+                const targetIndex = cursor % count;
+                const target = accounts[targetIndex];
+                const existing = target.items.find(accItem => accItem.cartId === item.cartId);
+                if (existing) {
+                    existing.quantity += 1;
+                } else {
+                    target.items.push({
+                        cartId: item.cartId,
+                        food: item.id,
+                        name: item.name,
+                        quantity: 1,
+                        unitPrice,
+                        selectedExtras: item.selectedExtras || []
+                    });
+                }
+                cursor += 1;
+            }
+        });
+
+        return accounts;
+    };
+
+    const rebuildSplitAccounts = (count) => {
+        const activeItems = cart.filter(item => !item.deleted);
+        setSplitAccounts(buildSplitAccounts(count, activeItems));
+        setActiveSplitAccountIndex(0);
+    };
+
+    const getAssignedQuantity = (cartId) => {
+        return splitAccounts.reduce((sum, account) => {
+            const entry = account.items.find(item => item.cartId === cartId);
+            return sum + (entry?.quantity || 0);
+        }, 0);
+    };
+
+    const getRemainingQuantity = (cartItem) => {
+        if (!cartItem) return 0;
+        const assigned = getAssignedQuantity(cartItem.cartId);
+        return Math.max(0, cartItem.quantity - assigned);
+    };
+
+    const assignItemToAccount = (cartItem, accountIndex) => {
+        if (!cartItem) return;
+        if (getRemainingQuantity(cartItem) <= 0) return;
+
+        setSplitAccounts(prev => {
+            const next = prev.map(account => ({
+                ...account,
+                items: account.items.map(item => ({ ...item }))
+            }));
+            const account = next[accountIndex];
+            if (!account) return prev;
+
+            const existing = account.items.find(item => item.cartId === cartItem.cartId);
+            if (existing) {
+                existing.quantity += 1;
+            } else {
+                account.items.push({
+                    cartId: cartItem.cartId,
+                    food: cartItem.id,
+                    name: cartItem.name,
+                    quantity: 1,
+                    unitPrice: getItemUnitPrice(cartItem),
+                    selectedExtras: cartItem.selectedExtras || []
+                });
+            }
+            return next;
+        });
+    };
+
+    const removeItemFromAccount = (cartId, accountIndex) => {
+        setSplitAccounts(prev => {
+            const next = prev.map(account => ({
+                ...account,
+                items: account.items.map(item => ({ ...item }))
+            }));
+            const account = next[accountIndex];
+            if (!account) return prev;
+
+            const itemIndex = account.items.findIndex(item => item.cartId === cartId);
+            if (itemIndex === -1) return prev;
+
+            const target = account.items[itemIndex];
+            target.quantity -= 1;
+            if (target.quantity <= 0) {
+                account.items.splice(itemIndex, 1);
+            }
+            return next;
+        });
+    };
+
+    const updateSplitAccountPayment = (accountIndex, field, value) => {
+        const amountValue = field === 'amount' ? parsePaymentInput(value) : value;
+
+        setSplitAccounts(prev => {
+            const next = prev.map(account => ({
+                ...account,
+                paymentMethods: Array.isArray(account.paymentMethods)
+                    ? account.paymentMethods.map(pm => ({ ...pm }))
+                    : [{ method: '', amount: 0 }]
+            }));
+
+            const account = next[accountIndex];
+            if (!account) return prev;
+
+            if (!Array.isArray(account.paymentMethods) || account.paymentMethods.length === 0) {
+                account.paymentMethods = [{ method: '', amount: 0 }];
+            }
+
+            account.paymentMethods[0] = {
+                ...account.paymentMethods[0],
+                [field]: amountValue
+            };
+
+            return next;
+        });
+    };
+
+    const getSplitPaymentMethods = () => {
+        const methods = [];
+        splitAccounts.forEach(account => {
+            (account.paymentMethods || []).forEach(pm => {
+                if (pm.method && pm.method.trim() !== '' && (pm.amount || 0) > 0) {
+                    methods.push({ method: pm.method, amount: pm.amount });
+                }
+            });
+        });
+        return methods;
+    };
+
+    const buildSplitPayload = () => {
+        if (!splitEnabled || splitAccounts.length === 0) {
+            return { splitMeta: { enabled: false, count: 0 }, splitAccounts: [] };
+        }
+
+        const totalBeforeDiscount = calculateTotal();
+        const discountAmount = calculateDiscountAmount();
+        const totalAfterDiscount = totalBeforeDiscount - discountAmount;
+
+        let remainingDiscount = discountAmount;
+        let remainingTip = suggestedTip;
+
+        const payloadAccounts = splitAccounts.map((account, index) => {
+            const rawSubtotal = account.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+
+            let discountShare = 0;
+            if (totalBeforeDiscount > 0) {
+                discountShare = Math.round((rawSubtotal / totalBeforeDiscount) * discountAmount);
+            }
+
+            let tipShare = 0;
+            const subtotalAfterDiscount = rawSubtotal - discountShare;
+            if (totalAfterDiscount > 0) {
+                tipShare = Math.round((subtotalAfterDiscount / totalAfterDiscount) * suggestedTip);
+            }
+
+            if (index === splitAccounts.length - 1) {
+                discountShare = remainingDiscount;
+                tipShare = remainingTip;
+            }
+
+            remainingDiscount -= discountShare;
+            remainingTip -= tipShare;
+
+            return {
+                label: account.label || `Cuenta ${index + 1}`,
+                subtotal: subtotalAfterDiscount,
+                discount: discountShare,
+                tip: tipShare,
+                total: subtotalAfterDiscount + tipShare,
+                paymentMethods: Array.isArray(account.paymentMethods) ? account.paymentMethods : [],
+                items: account.items.map(item => ({
+                    cartId: item.cartId,
+                    food: item.food || null,
+                    name: item.name,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    selectedExtras: item.selectedExtras || []
+                }))
+            };
+        });
+
+        return {
+            splitMeta: { enabled: true, count: splitAccounts.length },
+            splitAccounts: payloadAccounts
+        };
+    };
+
     // Búsqueda de productos
     const handleSearchChange = (e) => {
         const value = e.target.value;
@@ -324,6 +568,16 @@ const TableDetail = () => {
         if (!isCashOpen) {
             setShowCashAlert(true);
             return;
+        }
+
+        if (splitEnabled) {
+            const unassigned = cart
+                .filter(item => !item.deleted)
+                .some(item => getRemainingQuantity(item) > 0);
+            if (unassigned) {
+                showNotification('Asigna todos los productos a una cuenta antes de cerrar', 'warning');
+                return;
+            }
         }
 
         const activeItems = cart.filter(item => !item.deleted);
@@ -443,6 +697,16 @@ const TableDetail = () => {
         setDiscountType('percentage');
         setDiscountValue(0);
         setManualPaymentEdit(false);
+        if (splitEnabled) {
+            const activeItems = cart.filter(item => !item.deleted);
+            if (splitAccounts.length === 0) {
+                setSplitAccounts(createEmptySplitAccounts(splitCount));
+                setActiveSplitAccountIndex(0);
+            } else if (splitAccounts.every(account => account.items.length === 0)) {
+                setSplitAccounts(buildSplitAccounts(splitCount, activeItems));
+                setActiveSplitAccountIndex(0);
+            }
+        }
         setShowPaymentModal(true);
     };
 
@@ -476,6 +740,12 @@ const TableDetail = () => {
     };
 
     const getTotalPaymentAmount = () => {
+        if (splitEnabled) {
+            return getSplitPaymentMethods().reduce((total, payment) => {
+                return total + (parseFloat(payment.amount) || 0);
+            }, 0);
+        }
+
         return paymentMethods.reduce((total, payment, index) => {
             // Para el primer método de pago, si no es edición manual, usar el total calculado
             if (index === 0 && paymentMethods.length === 1 && !manualPaymentEdit) {
@@ -496,6 +766,40 @@ const TableDetail = () => {
         return parseInt(cleanValue) || 0;
     };
 
+    const getValidPaymentMethods = () => {
+        if (splitEnabled) {
+            return getSplitPaymentMethods();
+        }
+
+        return paymentMethods.filter(p =>
+            p.method && p.method.trim() !== '' && p.method !== 'Pendiente'
+        );
+    };
+
+    const buildSplitOrderForPrint = (accountIndex) => {
+        const account = splitAccounts[accountIndex];
+        if (!account) return null;
+
+        const foods = (account.items || []).map(item => ({
+            food: { title: item.name, price: item.unitPrice },
+            quantity: item.quantity,
+            comment: '',
+            selectedExtras: item.selectedExtras || []
+        }));
+
+        const baseOrder = table?.currentOrder || {};
+        return {
+            ...baseOrder,
+            foods,
+            tableNumber: table?.tableNumber,
+            waiter: table?.waiter || baseOrder.waiter,
+            paymentMethods: account.paymentMethods || [],
+            tip: account.tip || 0,
+            discount: account.discount || 0,
+            name: account.label || `Cuenta ${accountIndex + 1}`,
+        };
+    };
+
     // Cerrar mesa y completar pago
     const handleCloseTable = async () => {
         if (!canCurrentUserCloseTable()) {
@@ -508,9 +812,7 @@ const TableDetail = () => {
             return;
         }
 
-        const validPayments = paymentMethods.filter(p =>
-            p.method && p.method.trim() !== '' && p.method !== 'Pendiente'
-        );
+        const validPayments = getValidPaymentMethods();
 
         if (validPayments.length === 0) {
             showNotification('Selecciona al menos un método de pago', 'warning');
@@ -537,6 +839,15 @@ const TableDetail = () => {
                 : [];
 
             // Actualizar orden como completada
+            const paymentMethodsPayload = splitEnabled
+                ? validPayments
+                : validPayments.map((payment, index) => ({
+                    method: payment.method,
+                    amount: index === 0 && validPayments.length === 1 && !manualPaymentEdit
+                        ? calculateSubtotalWithDiscount() + suggestedTip
+                        : payment.amount
+                }));
+
             const orderData = {
                 foods: activeFoods.map(item => ({
                     food: item.id,
@@ -559,19 +870,15 @@ const TableDetail = () => {
                     selectedExtras: item.selectedExtras || []
                 })),
                 payment: validPayments.length === 1 ? validPayments[0].method : 'Múltiple',
-                paymentMethods: validPayments.map((payment, index) => ({
-                    method: payment.method,
-                    amount: index === 0 && validPayments.length === 1 && !manualPaymentEdit
-                        ? calculateSubtotalWithDiscount() + suggestedTip
-                        : payment.amount
-                })),
+                paymentMethods: paymentMethodsPayload,
                 section: 'mesas',
                 status: 'Completado',
                 comment: comments,
                 tableNumber: table.tableNumber,
                 waiter: table.waiter?._id || null,
                 tip: suggestedTip || 0,
-                discount: calculateDiscountAmount()
+                discount: calculateDiscountAmount(),
+                ...buildSplitPayload()
             };
 
             let response;
@@ -642,9 +949,7 @@ const TableDetail = () => {
 
         try {
             // Filtrar métodos de pago válidos
-            const validPayments = paymentMethods.filter(p =>
-                p.method && p.method.trim() !== '' && p.method !== 'Pendiente'
-            );
+            const validPayments = getValidPaymentMethods();
 
             await printingService.printCustomerTicket({
                 ...table.currentOrder,
@@ -662,6 +967,40 @@ const TableDetail = () => {
         } catch (error) {
             console.error('Error al imprimir ticket:', error);
             showNotification('Error al imprimir ticket: ' + error.message, 'error');
+        }
+    };
+
+    const handlePrintSplitAccount = async (accountIndex) => {
+        if (!splitEnabled) {
+            showNotification('Activa dividir cuenta para imprimir por cuenta', 'warning');
+            return;
+        }
+
+        const account = splitAccounts[accountIndex];
+        if (!account) {
+            showNotification('Cuenta no disponible para imprimir', 'warning');
+            return;
+        }
+
+        const unassigned = cart
+            .filter(item => !item.deleted)
+            .some(item => getRemainingQuantity(item) > 0);
+        if (unassigned) {
+            showNotification('Asigna todos los productos antes de imprimir por cuenta', 'warning');
+            return;
+        }
+
+        try {
+            const orderForPrint = buildSplitOrderForPrint(accountIndex);
+            if (!orderForPrint) {
+                showNotification('No se pudo preparar la cuenta para imprimir', 'error');
+                return;
+            }
+            await printingService.printCustomerTicket(orderForPrint);
+            showNotification('Ticket de cuenta impreso', 'success', 2000);
+        } catch (error) {
+            console.error('Error al imprimir ticket por cuenta:', error);
+            showNotification('Error al imprimir ticket por cuenta: ' + error.message, 'error');
         }
     };
 
@@ -1281,7 +1620,25 @@ const TableDetail = () => {
             {showPaymentModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold text-gray-900 mb-4">Cerrar Mesa {table.tableNumber}</h3>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-900">Cerrar Mesa {table.tableNumber}</h3>
+                            {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                                <button
+                                    onClick={async () => {
+                                        const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
+                                        const res = await printingService.openDrawer(printer);
+                                        if (!res.success) {
+                                            console.error('Error abriendo caja:', res.error || res.message);
+                                            alert('No se pudo abrir la caja: ' + (res.error || res.message || 'Error desconocido'));
+                                        }
+                                    }}
+                                    className="p-2 rounded-lg border border-teal-200 text-teal-700 hover:bg-teal-50"
+                                    title="Abrir caja"
+                                >
+                                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 6h10v12H7z"/></svg>
+                                </button>
+                            )}
+                        </div>
 
                         {/* Resumen */}
                         <div className="bg-gray-50 rounded-lg p-4 mb-6">
@@ -1387,74 +1744,222 @@ const TableDetail = () => {
                             </div>
                         </div>
 
-                        {/* Métodos de pago */}
+                        {/* Dividir cuenta */}
                         <div className="mb-6">
-                            <div className="flex justify-between items-center mb-3">
-                                <h4 className="font-semibold text-gray-900">Métodos de Pago</h4>
-                                <button
-                                    onClick={addPaymentMethod}
-                                    className="text-sm text-teal-600 hover:text-teal-700 flex items-center gap-1"
-                                >
-                                    <PlusIcon className="w-4 h-4" />
-                                    Agregar método
-                                </button>
-                            </div>
-
-                            <div className="space-y-3">
-                                {paymentMethods.map((payment, index) => (
-                                    <div key={index} className="flex gap-2">
-                                        <select
-                                            value={payment.method}
-                                            onChange={(e) => updatePaymentMethod(index, 'method', e.target.value)}
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                                        >
-                                            <option value="">Método</option>
-                                            <option value="Efectivo">Efectivo</option>
-                                            <option value="Debito">Débito</option>
-                                            <option value="Transferencia">Transferencia</option>
-                                        </select>
-                                        <input
-                                            type="text"
-                                            value={formatPaymentInput(
-                                                index === 0 && paymentMethods.length === 1 && !manualPaymentEdit
-                                                    ? calculateSubtotalWithDiscount() + suggestedTip
-                                                    : payment.amount
-                                            )}
-                                            onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
-                                            placeholder="Monto"
-                                            className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-right focus:ring-2 focus:ring-teal-500"
-                                        />
-                                        {paymentMethods.length > 1 && (
-                                            <button
-                                                onClick={() => removePaymentMethod(index)}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                                            >
-                                                <TrashIcon className="w-5 h-5" />
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Diferencia de pago */}
-                            {(() => {
-                                const totalPayment = getTotalPaymentAmount();
-                                const totalWithTip = calculateSubtotalWithDiscount() + suggestedTip;
-                                const difference = totalPayment - totalWithTip;
-
-                                if (Math.abs(difference) > 0.01) {
-                                    return (
-                                        <div className={`mt-3 p-3 rounded-lg ${difference < 0 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                                            {difference < 0
-                                                ? `Falta pagar: ${formatChileanCurrency(Math.abs(difference))}`
-                                                : `Vuelto: ${formatChileanCurrency(difference)}`
+                            <div className="flex items-center justify-between">
+                                <h4 className="font-semibold text-gray-900">Dividir cuenta</h4>
+                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        checked={splitEnabled}
+                                        onChange={(e) => {
+                                            const enabled = e.target.checked;
+                                            setSplitEnabled(enabled);
+                                            if (enabled) {
+                                                const count = Math.max(2, parseInt(splitCount, 10) || 2);
+                                                setSplitCount(count);
+                                                setSplitAccounts(createEmptySplitAccounts(count));
+                                                setActiveSplitAccountIndex(0);
+                                            } else {
+                                                setSplitAccounts([]);
+                                                setActiveSplitAccountIndex(0);
                                             }
+                                        }}
+                                        className="h-4 w-4 text-teal-600 border-gray-300 rounded"
+                                    />
+                                    Activar
+                                </label>
+                            </div>
+
+                            {splitEnabled && (
+                                <div className="mt-3 space-y-3">
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <label className="text-sm text-gray-600">Personas</label>
+                                        <input
+                                            type="number"
+                                            min="2"
+                                            value={splitCount}
+                                            onChange={(e) => {
+                                                const value = Math.max(2, parseInt(e.target.value, 10) || 2);
+                                                setSplitCount(value);
+                                                setSplitAccounts(createEmptySplitAccounts(value));
+                                                setActiveSplitAccountIndex(0);
+                                            }}
+                                            className="w-24 px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                        />
+                                        <span className="text-xs text-gray-500">
+                                            Selecciona cliente y luego productos
+                                        </span>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        {splitAccounts.map((account, index) => (
+                                            <button
+                                                key={`${account.label}_${index}`}
+                                                onClick={() => setActiveSplitAccountIndex(index)}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                                                    activeSplitAccountIndex === index
+                                                        ? 'bg-teal-600 text-white border-teal-600'
+                                                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                {account.label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                        <div className="border border-gray-200 rounded-lg p-3">
+                                            <p className="text-xs font-semibold text-gray-700 mb-2">Productos disponibles</p>
+                                            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                                                {cart
+                                                    .filter(item => !item.deleted)
+                                                    .filter(item => getRemainingQuantity(item) > 0)
+                                                    .map(item => {
+                                                        const remaining = getRemainingQuantity(item);
+                                                        return (
+                                                            <div key={item.cartId} className="flex items-center gap-2">
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-sm text-gray-700 truncate">{item.name}</p>
+                                                                    <p className="text-xs text-gray-500">Disponible: {remaining} · {formatChileanCurrency(getItemUnitPrice(item))}</p>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => assignItemToAccount(item, activeSplitAccountIndex)}
+                                                                    className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
+                                                                >
+                                                                    +
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
                                         </div>
-                                    );
-                                }
-                                return null;
-                            })()}
+
+                                        <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-xs font-semibold text-gray-700">Asignado a {splitAccounts[activeSplitAccountIndex]?.label}</p>
+                                                <span className="text-xs font-semibold text-teal-700">
+                                                    {formatChileanCurrency(
+                                                        splitAccounts[activeSplitAccountIndex]?.items.reduce(
+                                                            (sum, item) => sum + (item.unitPrice * item.quantity),
+                                                            0
+                                                        ) || 0
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-2 mb-2">
+                                                <select
+                                                    value={splitAccounts[activeSplitAccountIndex]?.paymentMethods?.[0]?.method || ''}
+                                                    onChange={(e) => updateSplitAccountPayment(activeSplitAccountIndex, 'method', e.target.value)}
+                                                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs"
+                                                >
+                                                    <option value="">Método</option>
+                                                    <option value="Efectivo">Efectivo</option>
+                                                    <option value="Debito">Débito</option>
+                                                    <option value="Transferencia">Transferencia</option>
+                                                </select>
+                                                <input
+                                                    type="text"
+                                                    value={formatPaymentInput(splitAccounts[activeSplitAccountIndex]?.paymentMethods?.[0]?.amount || 0)}
+                                                    onChange={(e) => updateSplitAccountPayment(activeSplitAccountIndex, 'amount', e.target.value)}
+                                                    placeholder="Monto"
+                                                    className="w-24 px-2 py-1 border border-gray-300 rounded text-xs text-right"
+                                                />
+                                            </div>
+                                            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                                                {(splitAccounts[activeSplitAccountIndex]?.items || []).length === 0 ? (
+                                                    <p className="text-xs text-gray-400">Sin productos asignados</p>
+                                                ) : (
+                                                    splitAccounts[activeSplitAccountIndex].items.map(item => (
+                                                        <div key={item.cartId} className="flex items-center gap-2">
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm text-gray-700 truncate">{item.name}</p>
+                                                                <p className="text-xs text-gray-500">x{item.quantity} · {formatChileanCurrency(item.unitPrice)}</p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => removeItemFromAccount(item.cartId, activeSplitAccountIndex)}
+                                                                className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
+                                                            >
+                                                                -
+                                                            </button>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
+
+                        {!splitEnabled && (
+                            <div className="mb-6">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h4 className="font-semibold text-gray-900">Métodos de Pago</h4>
+                                    <button
+                                        onClick={addPaymentMethod}
+                                        className="text-sm text-teal-600 hover:text-teal-700 flex items-center gap-1"
+                                    >
+                                        <PlusIcon className="w-4 h-4" />
+                                        Agregar método
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {paymentMethods.map((payment, index) => (
+                                        <div key={index} className="flex gap-2">
+                                            <select
+                                                value={payment.method}
+                                                onChange={(e) => updatePaymentMethod(index, 'method', e.target.value)}
+                                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                            >
+                                                <option value="">Método</option>
+                                                <option value="Efectivo">Efectivo</option>
+                                                <option value="Debito">Débito</option>
+                                                <option value="Transferencia">Transferencia</option>
+                                            </select>
+                                            <input
+                                                type="text"
+                                                value={formatPaymentInput(
+                                                    index === 0 && paymentMethods.length === 1 && !manualPaymentEdit
+                                                        ? calculateSubtotalWithDiscount() + suggestedTip
+                                                        : payment.amount
+                                                )}
+                                                onChange={(e) => updatePaymentMethod(index, 'amount', e.target.value)}
+                                                placeholder="Monto"
+                                                className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-right focus:ring-2 focus:ring-teal-500"
+                                            />
+                                            {paymentMethods.length > 1 && (
+                                                <button
+                                                    onClick={() => removePaymentMethod(index)}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                                >
+                                                    <TrashIcon className="w-5 h-5" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {(() => {
+                                    const totalPayment = getTotalPaymentAmount();
+                                    const totalWithTip = calculateSubtotalWithDiscount() + suggestedTip;
+                                    const difference = totalPayment - totalWithTip;
+
+                                    if (Math.abs(difference) > 0.01) {
+                                        return (
+                                            <div className={`mt-3 p-3 rounded-lg ${difference < 0 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                                                {difference < 0
+                                                    ? `Falta pagar: ${formatChileanCurrency(Math.abs(difference))}`
+                                                    : `Vuelto: ${formatChileanCurrency(difference)}`
+                                                }
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
+                            </div>
+                        )}
 
                         {/* Botones */}
                         <div className="space-y-3">
@@ -1467,23 +1972,30 @@ const TableDetail = () => {
                                     <PrinterIcon className="w-5 h-5 mr-2" />
                                     Imprimir Ticket
                                 </Button>
-                                {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
-                                    <Button
-                                        onClick={async () => {
-                                            const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
-                                            const res = await printingService.openDrawer(printer);
-                                            if (!res.success) {
-                                                console.error('Error abriendo caja:', res.error || res.message);
-                                                alert('No se pudo abrir la caja: ' + (res.error || res.message || 'Error desconocido'));
-                                            }
-                                        }}
-                                        variant="outline"
-                                        className="w-full border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
-                                        title="Abrir caja"
-                                    >
-                                        <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 6h10v12H7z"/></svg>
-                                        Abrir Caja
-                                    </Button>
+                                {splitEnabled && splitAccounts.length > 0 && (
+                                    <div className="w-full">
+                                        <div className="flex gap-2 mb-2">
+                                            <select
+                                                value={activeSplitAccountIndex}
+                                                onChange={(e) => setActiveSplitAccountIndex(parseInt(e.target.value, 10))}
+                                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                            >
+                                                {splitAccounts.map((account, index) => (
+                                                    <option key={`${account.label}_${index}`} value={index}>
+                                                        {account.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <Button
+                                                onClick={() => handlePrintSplitAccount(activeSplitAccountIndex)}
+                                                variant="outline"
+                                                className="border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white"
+                                            >
+                                                <PrinterIcon className="w-5 h-5 mr-2" />
+                                                Imprimir Cuenta
+                                            </Button>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
 

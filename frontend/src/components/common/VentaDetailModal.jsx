@@ -539,6 +539,40 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
               </div>
             </div>
 
+            {!isEditing && venta.splitMeta?.enabled && Array.isArray(venta.splitAccounts) && venta.splitAccounts.length > 0 && (
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-teal-100 rounded-lg">
+                  <ClipboardDocumentListIcon className="h-5 w-5 text-teal-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-600">Cuenta dividida</p>
+                  <div className="mt-2 space-y-2">
+                    {venta.splitAccounts.map((account, index) => (
+                      <div key={account._id || index} className="border border-gray-200 rounded-md p-2 bg-gray-50">
+                        <div className="flex items-center justify-between text-sm font-semibold text-gray-800">
+                          <span>{account.label || `Cuenta ${index + 1}`}</span>
+                          <span>{formatCurrency(account.total || account.subtotal || 0)}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Subtotal: {formatCurrency(account.subtotal || 0)} · Descuento: {formatCurrency(account.discount || 0)} · Propina: {formatCurrency(account.tip || 0)}
+                        </div>
+                        {Array.isArray(account.items) && account.items.length > 0 && (
+                          <div className="mt-1 text-xs text-gray-600">
+                            {account.items.map((item, itemIndex) => (
+                              <div key={item.cartId || itemIndex} className="flex justify-between">
+                                <span className="truncate">{item.quantity || 0}x {item.name || 'Producto'}</span>
+                                <span>{formatCurrency((item.unitPrice || 0) * (item.quantity || 0))}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {(venta.section === 'delivery' || (isEditing && editingData.section === 'delivery')) && (
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-orange-100 rounded-lg">
