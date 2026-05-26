@@ -129,6 +129,9 @@ const TableDetail = () => {
             if (table.currentOrder.splitMeta?.enabled && Array.isArray(table.currentOrder.splitAccounts)) {
                 const normalized = table.currentOrder.splitAccounts.map((account, index) => ({
                     label: account.label || `Cuenta ${index + 1}`,
+                    tip: account.tip || 0,
+                    tipEdited: account.tip > 0,
+                    discount: account.discount || 0,
                     paymentMethods: Array.isArray(account.paymentMethods) && account.paymentMethods.length > 0
                         ? account.paymentMethods.map(pm => ({
                             method: pm.method || '',
@@ -333,9 +336,39 @@ const TableDetail = () => {
     const createEmptySplitAccounts = (count) => {
         return Array.from({ length: count }, (_, index) => ({
             label: `Cuenta ${index + 1}`,
+            tip: 0,
+            tipEdited: false,
             paymentMethods: [{ method: '', amount: 0 }],
             items: []
         }));
+    };
+
+    const addSplitAccount = () => {
+        setSplitAccounts(prev => {
+            const nextIndex = prev.length + 1;
+            const next = [
+                ...prev,
+                {
+                    label: `Cuenta ${nextIndex}`,
+                    tip: 0,
+                    tipEdited: false,
+                    paymentMethods: [{ method: '', amount: 0 }],
+                    items: []
+                }
+            ];
+            setSplitCount(next.length);
+            return next;
+        });
+    };
+
+    const removeSplitAccount = () => {
+        setSplitAccounts(prev => {
+            if (prev.length <= 2) return prev;
+            const next = prev.slice(0, -1);
+            setSplitCount(next.length);
+            setActiveSplitAccountIndex(index => Math.min(index, next.length - 1));
+            return next;
+        });
     };
 
     const calculateTip = (percentage) => {
@@ -358,6 +391,8 @@ const TableDetail = () => {
     const buildSplitAccounts = (count, items) => {
         const accounts = Array.from({ length: count }, (_, index) => ({
             label: `Cuenta ${index + 1}`,
+            tip: 0,
+            tipEdited: false,
             paymentMethods: [{ method: '', amount: 0 }],
             items: []
         }));
@@ -390,7 +425,12 @@ const TableDetail = () => {
 
     const rebuildSplitAccounts = (count) => {
         const activeItems = cart.filter(item => !item.deleted);
-        setSplitAccounts(buildSplitAccounts(count, activeItems));
+        const accounts = buildSplitAccounts(count, activeItems).map(account => ({
+            ...account,
+            tip: Math.round(getSplitAccountSubtotal(account) * 0.1),
+            tipEdited: false
+        }));
+        setSplitAccounts(accounts);
         setActiveSplitAccountIndex(0);
     };
 
@@ -432,6 +472,10 @@ const TableDetail = () => {
                     selectedExtras: cartItem.selectedExtras || []
                 });
             }
+            if (!account.tipEdited) {
+                const subtotal = getSplitAccountSubtotal(account);
+                account.tip = Math.round(subtotal * 0.1);
+            }
             return next;
         });
     };
@@ -453,8 +497,21 @@ const TableDetail = () => {
             if (target.quantity <= 0) {
                 account.items.splice(itemIndex, 1);
             }
+            if (!account.tipEdited) {
+                const subtotal = getSplitAccountSubtotal(account);
+                account.tip = Math.round(subtotal * 0.1);
+            }
             return next;
         });
+    };
+
+    const getSplitAccountSubtotal = (account) => {
+        if (!account) return 0;
+        return (account.items || []).reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+    };
+
+    const getSplitTipTotal = () => {
+        return splitAccounts.reduce((sum, account) => sum + (account.tip || 0), 0);
     };
 
     const updateSplitAccountPayment = (accountIndex, field, value) => {
@@ -485,15 +542,8 @@ const TableDetail = () => {
     };
 
     const getSplitPaymentMethods = () => {
-        const methods = [];
-        splitAccounts.forEach(account => {
-            (account.paymentMethods || []).forEach(pm => {
-                if (pm.method && pm.method.trim() !== '' && (pm.amount || 0) > 0) {
-                    methods.push({ method: pm.method, amount: pm.amount });
-                }
-            });
-        });
-        return methods;
+        const payload = buildSplitPayload();
+        return (payload.splitAccounts || []).flatMap((account) => account.paymentMethods || []);
     };
 
     const buildSplitPayload = () => {
@@ -506,8 +556,6 @@ const TableDetail = () => {
         const totalAfterDiscount = totalBeforeDiscount - discountAmount;
 
         let remainingDiscount = discountAmount;
-        let remainingTip = suggestedTip;
-
         const payloadAccounts = splitAccounts.map((account, index) => {
             const rawSubtotal = account.items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
 
@@ -516,19 +564,17 @@ const TableDetail = () => {
                 discountShare = Math.round((rawSubtotal / totalBeforeDiscount) * discountAmount);
             }
 
-            let tipShare = 0;
             const subtotalAfterDiscount = rawSubtotal - discountShare;
-            if (totalAfterDiscount > 0) {
-                tipShare = Math.round((subtotalAfterDiscount / totalAfterDiscount) * suggestedTip);
-            }
 
             if (index === splitAccounts.length - 1) {
                 discountShare = remainingDiscount;
-                tipShare = remainingTip;
             }
 
             remainingDiscount -= discountShare;
-            remainingTip -= tipShare;
+
+            const paymentMethod = account.paymentMethods?.[0]?.method || '';
+            const tipShare = account.tip || 0;
+            const totalWithTip = subtotalAfterDiscount + tipShare;
 
             return {
                 label: account.label || `Cuenta ${index + 1}`,
@@ -536,7 +582,9 @@ const TableDetail = () => {
                 discount: discountShare,
                 tip: tipShare,
                 total: subtotalAfterDiscount + tipShare,
-                paymentMethods: Array.isArray(account.paymentMethods) ? account.paymentMethods : [],
+                paymentMethods: paymentMethod
+                    ? [{ method: paymentMethod, amount: totalWithTip }]
+                    : [],
                 items: account.items.map(item => ({
                     cartId: item.cartId,
                     food: item.food || null,
@@ -571,6 +619,24 @@ const TableDetail = () => {
         }
 
         if (splitEnabled) {
+            if (splitCount < 2) {
+                showNotification('Ingresa un número de personas válido', 'warning');
+                return;
+            }
+            const unassigned = cart
+                .filter(item => !item.deleted)
+                .some(item => getRemainingQuantity(item) > 0);
+            if (unassigned) {
+                showNotification('Asigna todos los productos a una cuenta antes de cerrar', 'warning');
+                return;
+            }
+        }
+
+        if (splitEnabled) {
+            if (splitCount < 2) {
+                showNotification('Ingresa un número de personas válido', 'warning');
+                return;
+            }
             const unassigned = cart
                 .filter(item => !item.deleted)
                 .some(item => getRemainingQuantity(item) > 0);
@@ -709,6 +775,7 @@ const TableDetail = () => {
         }
         setShowPaymentModal(true);
     };
+        const totalTip = splitEnabled ? getSplitTipTotal() : suggestedTip;
 
     // Métodos de pago
     const addPaymentMethod = () => {
@@ -793,7 +860,9 @@ const TableDetail = () => {
             foods,
             tableNumber: table?.tableNumber,
             waiter: table?.waiter || baseOrder.waiter,
-            paymentMethods: account.paymentMethods || [],
+            paymentMethods: (account.paymentMethods?.[0]?.method)
+                ? [{ method: account.paymentMethods[0].method, amount: getSplitAccountSubtotal(account) + (account.tip || 0) }]
+                : [],
             tip: account.tip || 0,
             discount: account.discount || 0,
             name: account.label || `Cuenta ${accountIndex + 1}`,
@@ -821,6 +890,7 @@ const TableDetail = () => {
 
         const totalPaymentAmount = getTotalPaymentAmount();
         const orderTotal = calculateSubtotalWithDiscount();
+        const totalTip = splitEnabled ? getSplitTipTotal() : suggestedTip;
 
         if (totalPaymentAmount < orderTotal) {
             showNotification(`Falta pagar: ${formatChileanCurrency(orderTotal - totalPaymentAmount)}`, 'warning');
@@ -876,7 +946,7 @@ const TableDetail = () => {
                 comment: comments,
                 tableNumber: table.tableNumber,
                 waiter: table.waiter?._id || null,
-                tip: suggestedTip || 0,
+                tip: totalTip || 0,
                 discount: calculateDiscountAmount(),
                 ...buildSplitPayload()
             };
@@ -896,7 +966,7 @@ const TableDetail = () => {
                         await printingService.printCustomerTicket({
                             ...(response.order || table.currentOrder),
                             tableNumber: table.tableNumber,
-                            tip: suggestedTip || 0,
+                            tip: totalTip || 0,
                             discount: calculateDiscountAmount(),
                             paymentMethods: orderData.paymentMethods,
                         });
@@ -950,16 +1020,17 @@ const TableDetail = () => {
         try {
             // Filtrar métodos de pago válidos
             const validPayments = getValidPaymentMethods();
+            const totalTip = splitEnabled ? getSplitTipTotal() : suggestedTip;
 
             await printingService.printCustomerTicket({
                 ...table.currentOrder,
-                suggestedTip,
+                suggestedTip: totalTip,
                 discount: calculateDiscountAmount(),
                 tableNumber: table.tableNumber,
                 paymentMethods: validPayments.length > 0 ? validPayments.map((payment, index) => ({
                     method: payment.method,
                     amount: index === 0 && validPayments.length === 1 && !manualPaymentEdit
-                        ? calculateSubtotalWithDiscount() + suggestedTip
+                        ? calculateSubtotalWithDiscount() + totalTip
                         : payment.amount
                 })) : undefined
             });
@@ -1720,25 +1791,41 @@ const TableDetail = () => {
                             )}
 
                             <div className="flex justify-between mb-2">
-                                <span className="text-gray-700">Propina sugerida (10%):</span>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        value={formatPaymentInput(suggestedTip)}
-                                        onChange={(e) => {
-                                            setSuggestedTip(parsePaymentInput(e.target.value));
-                                            setManualPaymentEdit(false);
-                                        }}
-                                        className="w-24 px-2 py-1 border border-gray-300 rounded text-right"
-                                    />
-                                    <span className="text-sm text-gray-600">$</span>
-                                </div>
+                                <span className="text-gray-700">Propina:</span>
+                                {splitEnabled ? (
+                                    <div className="text-sm text-gray-700 font-medium">
+                                        {formatChileanCurrency(totalTip)}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setSuggestedTip(calculateTip(0.1));
+                                                setManualPaymentEdit(false);
+                                            }}
+                                            className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
+                                            type="button"
+                                        >
+                                            10%
+                                        </button>
+                                        <input
+                                            type="text"
+                                            value={formatPaymentInput(suggestedTip)}
+                                            onChange={(e) => {
+                                                setSuggestedTip(parsePaymentInput(e.target.value));
+                                                setManualPaymentEdit(false);
+                                            }}
+                                            className="w-24 px-2 py-1 border border-gray-300 rounded text-right"
+                                        />
+                                        <span className="text-sm text-gray-600">$</span>
+                                    </div>
+                                )}
                             </div>
                             <div className="border-t border-gray-300 pt-2 mt-2">
                                 <div className="flex justify-between">
                                     <span className="font-bold text-gray-900">Total con propina:</span>
                                     <span className="text-xl font-bold text-teal-600">
-                                        {formatChileanCurrency(calculateSubtotalWithDiscount() + suggestedTip)}
+                                        {formatChileanCurrency(calculateSubtotalWithDiscount() + totalTip)}
                                     </span>
                                 </div>
                             </div>
@@ -1775,18 +1862,20 @@ const TableDetail = () => {
                                 <div className="mt-3 space-y-3">
                                     <div className="flex flex-wrap items-center gap-3">
                                         <label className="text-sm text-gray-600">Personas</label>
-                                        <input
-                                            type="number"
-                                            min="2"
-                                            value={splitCount}
-                                            onChange={(e) => {
-                                                const value = Math.max(2, parseInt(e.target.value, 10) || 2);
-                                                setSplitCount(value);
-                                                setSplitAccounts(createEmptySplitAccounts(value));
-                                                setActiveSplitAccountIndex(0);
-                                            }}
-                                            className="w-24 px-3 py-1.5 border border-gray-300 rounded text-sm"
-                                        />
+                                        <button
+                                            onClick={removeSplitAccount}
+                                            className="p-2 rounded border border-gray-200 text-gray-600 hover:bg-gray-50"
+                                            disabled={splitAccounts.length <= 2}
+                                        >
+                                            <MinusIcon className="w-4 h-4" />
+                                        </button>
+                                        <span className="text-sm font-semibold text-gray-700">{splitCount}</span>
+                                        <button
+                                            onClick={addSplitAccount}
+                                            className="p-2 rounded border border-gray-200 text-gray-600 hover:bg-gray-50"
+                                        >
+                                            <PlusIcon className="w-4 h-4" />
+                                        </button>
                                         <span className="text-xs text-gray-500">
                                             Selecciona cliente y luego productos
                                         </span>
@@ -1840,10 +1929,8 @@ const TableDetail = () => {
                                                 <p className="text-xs font-semibold text-gray-700">Asignado a {splitAccounts[activeSplitAccountIndex]?.label}</p>
                                                 <span className="text-xs font-semibold text-teal-700">
                                                     {formatChileanCurrency(
-                                                        splitAccounts[activeSplitAccountIndex]?.items.reduce(
-                                                            (sum, item) => sum + (item.unitPrice * item.quantity),
-                                                            0
-                                                        ) || 0
+                                                        (getSplitAccountSubtotal(splitAccounts[activeSplitAccountIndex]) +
+                                                            (splitAccounts[activeSplitAccountIndex]?.tip || 0)) || 0
                                                     )}
                                                 </span>
                                             </div>
@@ -1853,17 +1940,51 @@ const TableDetail = () => {
                                                     onChange={(e) => updateSplitAccountPayment(activeSplitAccountIndex, 'method', e.target.value)}
                                                     className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs"
                                                 >
-                                                    <option value="">Método</option>
+                                                    <option value="">Método de pago</option>
                                                     <option value="Efectivo">Efectivo</option>
                                                     <option value="Debito">Débito</option>
                                                     <option value="Transferencia">Transferencia</option>
                                                 </select>
+                                            </div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-xs text-gray-600">Propina</span>
+                                                <button
+                                                    onClick={() => {
+                                                        const account = splitAccounts[activeSplitAccountIndex];
+                                                        if (!account) return;
+                                                        const subtotal = getSplitAccountSubtotal(account);
+                                                        setSplitAccounts(prev => {
+                                                            const next = prev.map(acc => ({ ...acc }));
+                                                            const target = next[activeSplitAccountIndex];
+                                                            if (!target) return prev;
+                                                            target.tip = Math.round(subtotal * 0.1);
+                                                            target.tipEdited = false;
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className="px-2 py-1 text-[10px] rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
+                                                    type="button"
+                                                >
+                                                    10%
+                                                </button>
                                                 <input
                                                     type="text"
-                                                    value={formatPaymentInput(splitAccounts[activeSplitAccountIndex]?.paymentMethods?.[0]?.amount || 0)}
-                                                    onChange={(e) => updateSplitAccountPayment(activeSplitAccountIndex, 'amount', e.target.value)}
-                                                    placeholder="Monto"
-                                                    className="w-24 px-2 py-1 border border-gray-300 rounded text-xs text-right"
+                                                    value={formatPaymentInput(splitAccounts[activeSplitAccountIndex]?.tip || 0)}
+                                                    onChange={(e) => {
+                                                        const value = parsePaymentInput(e.target.value);
+                                                        setSplitAccounts(prev => {
+                                                            const next = prev.map(account => ({
+                                                                ...account
+                                                            }));
+                                                            const account = next[activeSplitAccountIndex];
+                                                            if (!account) return prev;
+                                                            account.tip = value;
+                                                            account.tipEdited = true;
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className="w-24 px-2 py-1 border border-gray-300 rounded text-right text-xs"
+                                                    placeholder="0"
                                                 />
                                             </div>
                                             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
