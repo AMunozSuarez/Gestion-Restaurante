@@ -843,6 +843,17 @@ const TableDetail = () => {
         );
     };
 
+    const getMissingSplitPaymentAccounts = () => {
+        return splitAccounts
+            .map((account, index) => ({
+                label: account.label || `Cuenta ${index + 1}`,
+                hasItems: (account.items || []).length > 0,
+                hasMethod: Boolean(account.paymentMethods?.[0]?.method)
+            }))
+            .filter(account => account.hasItems && !account.hasMethod)
+            .map(account => account.label);
+    };
+
     const buildSplitOrderForPrint = (accountIndex) => {
         const account = splitAccounts[accountIndex];
         if (!account) return null;
@@ -879,6 +890,24 @@ const TableDetail = () => {
         if (!isCashOpen) {
             setShowCashAlert(true);
             return;
+        }
+
+        if (splitEnabled) {
+            const unassigned = cart
+                .filter(item => !item.deleted)
+                .some(item => getRemainingQuantity(item) > 0);
+            if (unassigned) {
+                showNotification('Quedan productos por asignar', 'warning');
+                return;
+            }
+            const missingAccounts = getMissingSplitPaymentAccounts();
+            if (missingAccounts.length > 0) {
+                showNotification(
+                    `Falta método de pago en: ${missingAccounts.join(', ')}`,
+                    'warning'
+                );
+                return;
+            }
         }
 
         const validPayments = getValidPaymentMethods();
@@ -1166,7 +1195,7 @@ const TableDetail = () => {
 
             {/* Notificación toast */}
             {notification && (
-                <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg animate-fade-in ${
+                <div className={`fixed top-4 right-4 z-[70] px-6 py-3 rounded-lg shadow-lg animate-fade-in ${
                     notification.type === 'error' ? 'bg-red-600' : 
                     notification.type === 'warning' ? 'bg-orange-500' : 
                     'bg-teal-600'
