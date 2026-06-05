@@ -660,7 +660,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
               {(isEditing ? (editingData.foods && Array.isArray(editingData.foods) ? editingData.foods : []) : (venta.foods && Array.isArray(venta.foods) ? venta.foods : [])).map((item, index) => {
                 // Calcular precio de extras
                 const extrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
-                const unitPrice = isEditing ? (item.price || 0) : (typeof item.food === 'object' ? item.food?.price || 0 : 0);
+                const unitPrice = isEditing ? (item.price || 0) : (typeof item.food === 'object' ? (item.food?.price !== undefined ? item.food.price : 0) : 0);
                 const totalWithExtras = (unitPrice + extrasTotal) * (item.quantity || 1);
                 
                 // Calcular precio unitario estimado desde el total del pedido (fallback si no hay precio)
@@ -726,7 +726,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                             </>
                           ) : (
                             <>
-                              {typeof item.food === 'object' && item.food?.price ? (
+                              {typeof item.food === 'object' && item.food?.price !== undefined ? (
                                 <>
                                   <p className="text-lg font-semibold text-gray-900">
                                     {formatCurrency(totalWithExtras)}
