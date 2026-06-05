@@ -70,7 +70,7 @@ const hasReducedExistingFoodQuantities = (currentFoods = [], nextFoods = []) => 
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, tableId, waiter, tip, discount } = req.body;
+        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, tableId, waiter, tip, discount, splitMeta, splitAccounts } = req.body;
 
         const restaurantId = req.user.restaurant;
         const foodIds = foods.map((item) => item.food);
@@ -256,6 +256,8 @@ const createOrderController = async (req, res) => {
             foods,
             payment: payment || null,
             paymentMethods: paymentMethods || [],
+            splitMeta: splitMeta || { enabled: false, count: 0 },
+            splitAccounts: Array.isArray(splitAccounts) ? splitAccounts : [],
             total: total - (discount || 0),
             deliveryCost,
             name: !customer ? (buyer?.name || null) : null,
@@ -452,7 +454,7 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, discount, deletedFoods, newFoods } = req.body;
+        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, discount, deletedFoods, newFoods, splitMeta, splitAccounts } = req.body;
 
         const restaurantId = req.user.restaurant;
         const isPrivilegedUser = isOwnerOrSuperAdmin(req.user?.role);
@@ -513,6 +515,10 @@ const updateOrderController = async (req, res) => {
         if (waiter !== undefined) updateData.waiter = waiter;
         if (tip !== undefined) updateData.tip = tip;
         if (discount !== undefined) updateData.discount = discount;
+        if (splitMeta !== undefined) updateData.splitMeta = splitMeta;
+        if (splitAccounts !== undefined && Array.isArray(splitAccounts)) {
+            updateData.splitAccounts = splitAccounts;
+        }
         if (deletedFoods !== undefined && Array.isArray(deletedFoods)) {
             updateData.deletedFoods = deletedFoods;
             updateData.hasDeletedItems = deletedFoods.length > 0;
@@ -1242,6 +1248,11 @@ const getTipsController = async (req, res) => {
 // SOLICITAR IMPRESIÓN DE TICKET DE CLIENTE (desde app)
 const printTicketController = async (req, res) => {
     try {
+        const accountIndexRaw = req.body?.accountIndex;
+        const accountIndex = Number.isInteger(accountIndexRaw)
+            ? accountIndexRaw
+            : (accountIndexRaw !== undefined ? parseInt(accountIndexRaw, 10) : null);
+
         const order = await orderModel
             .findOne({ _id: req.params.id, restaurant: req.restaurantId })
             .populate('foods.food', 'title price extraSections')
@@ -1253,7 +1264,11 @@ const printTicketController = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
         }
 
-        getIO().to(`restaurant:${req.restaurantId}`).emit('ticket:print', { order });
+        const payloadOrder = Number.isInteger(accountIndex)
+            ? { ...order, printSplitAccountIndex: accountIndex }
+            : order;
+
+        getIO().to(`restaurant:${req.restaurantId}`).emit('ticket:print', { order: payloadOrder });
 
         res.json({ success: true });
     } catch (error) {

@@ -1665,68 +1665,90 @@ No. Orden: #${orderNumber}
 
   // Generar ticket de cliente
   generateCustomerTicket(order) {
-    
+    const splitAccountIndex = Number.isInteger(order?.printSplitAccountIndex)
+      ? order.printSplitAccountIndex
+      : null;
+    const splitAccount = Array.isArray(order?.splitAccounts) && splitAccountIndex !== null
+      ? order.splitAccounts[splitAccountIndex]
+      : null;
+
+    const ticketOrder = splitAccount
+      ? {
+          ...order,
+          name: splitAccount.label || order.name,
+          paymentMethods: splitAccount.paymentMethods || order.paymentMethods,
+          tip: splitAccount.tip ?? order.tip,
+          discount: splitAccount.discount ?? order.discount,
+          foods: (splitAccount.items || []).map((item) => ({
+            food: { title: item.name, price: item.unitPrice },
+            quantity: item.quantity || 0,
+            comment: '',
+            selectedExtras: item.selectedExtras || [],
+          })),
+        }
+      : order;
+
     const date = new Date();
-    const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
+    const orderNumber = ticketOrder.orderNumber || ticketOrder.id || ticketOrder._id || 'N/A';
     
     // Extraer nombre del cliente
     let customer = 'Cliente';
-    if (order.buyer && typeof order.buyer === 'object' && order.buyer.name) {
-      customer = normalizeText(order.buyer.name || order.name);
-    } else if (order.name) {
-      customer = normalizeText(order.name);
-    } else if (order.customer_name) {
-      customer = normalizeText(order.customer_name);
-    } else if (order.customerName) {
-      customer = normalizeText(order.customerName);
+    if (ticketOrder.buyer && typeof ticketOrder.buyer === 'object' && ticketOrder.buyer.name) {
+      customer = normalizeText(ticketOrder.buyer.name || ticketOrder.name);
+    } else if (ticketOrder.name) {
+      customer = normalizeText(ticketOrder.name);
+    } else if (ticketOrder.customer_name) {
+      customer = normalizeText(ticketOrder.customer_name);
+    } else if (ticketOrder.customerName) {
+      customer = normalizeText(ticketOrder.customerName);
     }
 
     // Extraer telefono del cliente
     let phone = '';
-    if (order.buyer && typeof order.buyer === 'object' && order.buyer.phone) {
-      phone = order.buyer.phone || order.phone;
-    } else if (order.phone) {
-      phone = order.phone;
-    } else if (order.customer_phone) {
-      phone = order.customer_phone;
-    } else if (order.customerPhone) {
-      phone = order.customerPhone;
+    if (ticketOrder.buyer && typeof ticketOrder.buyer === 'object' && ticketOrder.buyer.phone) {
+      phone = ticketOrder.buyer.phone || ticketOrder.phone;
+    } else if (ticketOrder.phone) {
+      phone = ticketOrder.phone;
+    } else if (ticketOrder.customer_phone) {
+      phone = ticketOrder.customer_phone;
+    } else if (ticketOrder.customerPhone) {
+      phone = ticketOrder.customerPhone;
     }
 
     // Extraer datos de mesa y garzón cuando existan
-    const tableNumber = order.tableNumber || order.table_number || order.table || '';
+    const tableNumber = ticketOrder.tableNumber || ticketOrder.table_number || ticketOrder.table || '';
     let waiterName = '';
-    if (order.waiter && typeof order.waiter === 'object') {
-      waiterName = normalizeText(order.waiter.userName || order.waiter.name || '');
-    } else if (order.waiterName) {
-      waiterName = normalizeText(order.waiterName);
-    } else if (order.waiter_name) {
-      waiterName = normalizeText(order.waiter_name);
+    if (ticketOrder.waiter && typeof ticketOrder.waiter === 'object') {
+      waiterName = normalizeText(ticketOrder.waiter.userName || ticketOrder.waiter.name || '');
+    } else if (ticketOrder.waiterName) {
+      waiterName = normalizeText(ticketOrder.waiterName);
+    } else if (ticketOrder.waiter_name) {
+      waiterName = normalizeText(ticketOrder.waiter_name);
     }
 
     // Extraer direccion (para todos los tipos de pedido)
     let address = '';
-    if (order.selectedAddress) {
+    if (ticketOrder.selectedAddress) {
       // selectedAddress puede ser string o objeto
-      if (typeof order.selectedAddress === 'string') {
-        address = normalizeText(order.selectedAddress);
-      } else if (typeof order.selectedAddress === 'object') {
-        const addr = order.selectedAddress;
+      if (typeof ticketOrder.selectedAddress === 'string') {
+        address = normalizeText(ticketOrder.selectedAddress);
+      } else if (typeof ticketOrder.selectedAddress === 'object') {
+        const addr = ticketOrder.selectedAddress;
         address = normalizeText(`${addr.street || ''} ${addr.number || ''}, ${addr.neighborhood || ''}`.trim());
         if (addr.reference) {
           address += `\nRef: ${normalizeText(addr.reference)}`;
         }
       }
-    } else if (order.address && typeof order.address === 'object') {
-      const addr = order.address;
+    } else if (ticketOrder.address && typeof ticketOrder.address === 'object') {
+      const addr = ticketOrder.address;
       address = normalizeText(`${addr.street || ''} ${addr.number || ''}, ${addr.neighborhood || ''}`.trim());
       if (addr.reference) {
         address += `\nRef: ${normalizeText(addr.reference)}`;
       }
-    } else if (order.address_text) {
-      address = normalizeText(order.address_text);
-    } else if (order.addressText) {
-      address = normalizeText(order.addressText);
+    } else if (ticketOrder.address_text) {
+      address = normalizeText(ticketOrder.address_text);
+    } else if (ticketOrder.addressText) {
+      address = normalizeText(ticketOrder.addressText);
     }
 
     let content = `
@@ -1757,8 +1779,8 @@ Cliente: ${customer}`;
     // Agregar metodo de pago
     // Usar solo paymentMethods
     let paymentMethod = 'No especificado';
-    if (Array.isArray(order.paymentMethods) && order.paymentMethods.length > 0) {
-      paymentMethod = order.paymentMethods.map(pm => {
+    if (Array.isArray(ticketOrder.paymentMethods) && ticketOrder.paymentMethods.length > 0) {
+      paymentMethod = ticketOrder.paymentMethods.map(pm => {
         const method = normalizeText(pm.method || pm.name || 'Metodo');
         const amount = pm.amount ? `(${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(pm.amount)})` : '';
         return `${method} ${amount}`.trim();
@@ -1767,7 +1789,7 @@ Cliente: ${customer}`;
     content += `\nMetodo de pago: ${paymentMethod}`;
 
     // Agregar comentarios generales si existen
-    const orderNotes = normalizeText(order.comment || order.notes || '');
+    const orderNotes = normalizeText(ticketOrder.comment || ticketOrder.notes || '');
     if (orderNotes && orderNotes.trim()) {
       content += `\nComentarios: ${orderNotes.trim()}`;
     }
@@ -1784,24 +1806,24 @@ Cliente: ${customer}`;
     let items = [];
     let subtotal = 0;
     
-    if (order.foods && Array.isArray(order.foods)) {
-      items = order.foods.map(item => ({
+    if (ticketOrder.foods && Array.isArray(ticketOrder.foods)) {
+      items = ticketOrder.foods.map(item => ({
         product_name: item.food?.title || item.food?.name || 'Producto',
         quantity: item.quantity || 1,
         price: item.food?.price || 0,
         notes: item.comment || '',
         selectedExtras: item.selectedExtras || []
       }));
-    } else if (order.items && Array.isArray(order.items)) {
-      items = order.items.map(item => ({
+    } else if (ticketOrder.items && Array.isArray(ticketOrder.items)) {
+      items = ticketOrder.items.map(item => ({
         product_name: item.product_name || item.name || item.title || 'Producto',
         quantity: item.quantity || 1,
         price: item.price || 0,
         notes: item.notes || item.comment || '',
         selectedExtras: item.selectedExtras || []
       }));
-    } else if (order.order_items && Array.isArray(order.order_items)) {
-      items = order.order_items.map(item => ({
+    } else if (ticketOrder.order_items && Array.isArray(ticketOrder.order_items)) {
+      items = ticketOrder.order_items.map(item => ({
         product_name: item.product_name || item.name || item.title || 'Producto',
         quantity: item.quantity || 1,
         price: item.price || 0,
@@ -1873,14 +1895,14 @@ Cliente: ${customer}`;
     });
 
     // Calcular costos adicionales
-    const deliveryCost = (order.section === 'delivery' || order.order_type === 'delivery')
-      ? (order.delivery_cost || order.deliveryCost || 0) : 0;
+    const deliveryCost = (ticketOrder.section === 'delivery' || ticketOrder.order_type === 'delivery')
+      ? (ticketOrder.delivery_cost || ticketOrder.deliveryCost || 0) : 0;
 
     // Obtener descuento
-    const discount = order.discount || 0;
+    const discount = ticketOrder.discount || 0;
 
     // Obtener propina
-    const tip = order.tip || order.suggestedTip || 0;
+    const tip = ticketOrder.tip || ticketOrder.suggestedTip || 0;
 
     const total = subtotal - discount + deliveryCost + tip;
 

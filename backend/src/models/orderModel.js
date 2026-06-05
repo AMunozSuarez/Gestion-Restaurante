@@ -35,6 +35,45 @@ const orderSchema = new mongoose.Schema({
             required: false
         }
     }],
+    splitMeta: {
+        enabled: { type: Boolean, default: false },
+        count: { type: Number, default: 0 },
+    },
+    splitAccounts: [
+        {
+            label: { type: String, default: '' },
+            subtotal: { type: Number, default: 0 },
+            discount: { type: Number, default: 0 },
+            tip: { type: Number, default: 0 },
+            total: { type: Number, default: 0 },
+            paymentMethods: [{
+                method: {
+                    type: String,
+                    enum: ['Efectivo', 'Debito', 'Transferencia'],
+                    required: false
+                },
+                amount: {
+                    type: Number,
+                    min: 0,
+                    required: false
+                }
+            }],
+            items: [
+                {
+                    cartId: { type: String, default: '' },
+                    food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food' },
+                    name: { type: String, default: '' },
+                    quantity: { type: Number, default: 0 },
+                    unitPrice: { type: Number, default: 0 },
+                    selectedExtras: [{
+                        sectionName: { type: String, default: '' },
+                        extraName: { type: String, default: '' },
+                        price: { type: Number, default: 0 }
+                    }]
+                }
+            ]
+        }
+    ],
     total: {
         type: Number,
         required: true,
