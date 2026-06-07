@@ -44,6 +44,7 @@ app.use('/api/admin', require('./routes/adminRoutes')); // Use the admin routes
 app.use('/api/subscriptions', require('./routes/subscriptionRoutes')); // Use the subscription routes
 app.use('/api/webhooks', require('./routes/webhookRoutes')); // Use the webhook routes
 app.use('/api/tables', require('./routes/tableRoutes')); // Use the tables routes
+app.use('/api/extra-sections', require('./routes/extraSectionRoutes')); // Use the extra sections routes
 
 
 

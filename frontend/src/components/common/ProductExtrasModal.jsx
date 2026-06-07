@@ -75,6 +75,37 @@ const ProductExtrasModal = ({
     return null;
   }
 
+  /**
+   * Normaliza cada asignación de sección al formato que el modal necesita:
+   * { sectionName, maxSelection, extras[] }
+   * Soporta tanto el formato antiguo (objeto con sectionName directo)
+   * como el nuevo ({ section: {...}, maxSelectionOverride, visibleExtraIds }).
+   */
+  const getEffectiveSections = () => {
+    return product.extraSections.map(assignment => {
+      // Formato nuevo: { section: { sectionName, extras }, maxSelection, visibleExtraIds }
+      if (assignment.section && typeof assignment.section === 'object') {
+        const sec = assignment.section;
+        const effectiveMax = assignment.maxSelection ?? null;
+        const visibleIds = assignment.visibleExtraIds || [];
+        const allExtras = sec.extras || [];
+        const extras = visibleIds.length > 0
+          ? allExtras.filter(e => visibleIds.some(id => id.toString() === (e._id || e).toString()))
+          : allExtras;
+        return { sectionName: sec.sectionName, maxSelection: effectiveMax, extras };
+      }
+      // Formato antiguo (pre-migración): el objeto tiene sectionName y extras directamente.
+      // Si Mongoose ya aplicó el esquema nuevo sobre datos viejos, extras puede ser undefined.
+      return {
+        sectionName: assignment.sectionName || '',
+        maxSelection: assignment.maxSelection ?? null,
+        extras: assignment.extras || [],
+      };
+    }).filter(s => s.sectionName); // descartar entradas sin nombre (datos aún no migrados)
+  };
+
+  const effectiveSections = getEffectiveSections();
+
   const getSectionSelectedCount = (sectionName, extrasState = selectedExtras) => {
     return extrasState
       .filter(e => e.sectionName === sectionName)
@@ -199,7 +230,7 @@ const ProductExtrasModal = ({
       size="lg"
     >
       <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-        {product.extraSections.map((section, sectionIndex) => {
+        {effectiveSections.map((section, sectionIndex) => {
           const availableExtras = section.extras.filter(e => e.isAvailable);
           
           if (availableExtras.length === 0) {

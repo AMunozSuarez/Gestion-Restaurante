@@ -14,6 +14,7 @@ import Ventas from './pages/Ventas';
 import Propinas from './pages/Propinas';
 import Productos from './pages/Productos';
 import Categorias from './pages/Categorias';
+import Extras from './pages/Extras';
 import Configuracion from './pages/Configuracion';
 import SubscriptionPlans from './pages/SubscriptionPlans';
 import SubscriptionSuccess from './pages/SubscriptionSuccess';
@@ -185,6 +186,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Categorias />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/extras"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Extras />
                 </Layout>
               </ProtectedRoute>
             }
