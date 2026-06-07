@@ -886,6 +886,8 @@ la fuente esta configurada bien.
   },
 
   // Verifica si la actualización ya fue impresa antes (con opción habilitada)
+  // Solo considera duplicado si la firma idéntica fue guardada en los últimos 8 segundos,
+  // para evitar bloquear pedidos legítimos del mismo producto en turnos posteriores.
   shouldSkipDuplicateKitchenUpdatePrint(orderId, options = {}) {
     if (!this.getAvoidDuplicateKitchenUpdatePrint()) return false;
     if (!orderId) return false;
@@ -893,20 +895,23 @@ la fuente esta configurada bien.
     try {
       const key = `lastKitchenUpdatePrint:${orderId}`;
       const currentSignature = this.getKitchenUpdatePrintSignature(orderId, options);
-      const previousSignature = localStorage.getItem(key);
-      return Boolean(previousSignature && previousSignature === currentSignature);
+      const stored = localStorage.getItem(key);
+      if (!stored) return false;
+      const { signature: previousSignature, ts } = JSON.parse(stored);
+      const withinWindow = Date.now() - ts < 5000;
+      return Boolean(withinWindow && previousSignature === currentSignature);
     } catch {
       return false;
     }
   },
 
-  // Guarda la última firma impresa de actualización
+  // Guarda la última firma impresa de actualización junto con el timestamp
   markKitchenUpdatePrint(orderId, options = {}) {
     if (!orderId) return;
     try {
       const key = `lastKitchenUpdatePrint:${orderId}`;
       const signature = this.getKitchenUpdatePrintSignature(orderId, options);
-      localStorage.setItem(key, signature);
+      localStorage.setItem(key, JSON.stringify({ signature, ts: Date.now() }));
     } catch {
       // No-op si localStorage no está disponible
     }
