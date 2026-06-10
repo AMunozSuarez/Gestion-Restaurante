@@ -333,7 +333,7 @@ const CashRegister = () => {
     try {
       // Calcular totales por método de pago desde las ventas reales de la caja seleccionada
       const systemTotalsByPayment = calculateSystemTotalsByPaymentMethod(selectedCashSales || []);
-      const result = await printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment);
+      const result = await printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment, selectedTipsStatistics);
       if (result.success) {
         setNotification('Reporte de caja impreso exitosamente');
         setTimeout(() => setNotification(null), 3000);

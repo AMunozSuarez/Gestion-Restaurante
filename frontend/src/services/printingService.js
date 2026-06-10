@@ -436,23 +436,36 @@ export const printingService = {
 
   // Imprimir contenido
   async print(printerName, content, copies = 1, isKitchen = false) {
-    try {
-      const response = await printingApi.post('/print', {
-        printerName,
-        content,
-        copies,
-        isKitchen
-      });
-      return {
-        success: true,
-        data: response.data
-      };
-    } catch (error) {
-      console.error('Error printing:', error);
-      return {
-        success: false,
-        error: error.response?.data?.error || error.response?.data?.message || error.message || 'Error al imprimir'
-      };
+    const MAX_RETRIES = 2;
+    const RETRY_DELAY_MS = 1500;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await printingApi.post('/print', {
+          printerName,
+          content,
+          copies,
+          isKitchen
+        });
+        return {
+          success: true,
+          data: response.data
+        };
+      } catch (error) {
+        const status = error.response?.status;
+        const isServerError = !status || status >= 500;
+        const isLastAttempt = attempt === MAX_RETRIES;
+
+        if (isLastAttempt || !isServerError) {
+          console.error('Error printing:', error);
+          return {
+            success: false,
+            error: error.response?.data?.error || error.response?.data?.message || error.message || 'Error al imprimir'
+          };
+        }
+
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      }
     }
   },
 
@@ -2007,7 +2020,7 @@ RESUMEN
   },
 
   // Generar reporte de caja cerrada
-  generateCashRegisterReport(cashRegister, systemTotalsByPayment = {}) {
+  generateCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null) {
     
     const date = new Date();
     
@@ -2099,6 +2112,45 @@ Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
       });
     }
 
+    // Agregar propinas si existen
+    if (tipsStatistics && tipsStatistics.totalTips > 0) {
+      content += `
+================================
+           PROPINAS
+================================
+
+`;
+      const fontSettings = this.getLocalFontSettings();
+      const lineWidth = fontSettings.bold ? 26 : 32;
+
+      const totalTipsLine = 'Total propinas:';
+      const formattedTotalTips = formatCurrency(tipsStatistics.totalTips);
+      const totalTipsPadding = ' '.repeat(Math.max(1, lineWidth - totalTipsLine.length - formattedTotalTips.length));
+      content += `${totalTipsLine}${totalTipsPadding}${formattedTotalTips}\n`;
+
+      if (tipsStatistics.totalOrders) {
+        const ordersLine = 'Ordenes con propina:';
+        const ordersVal = String(tipsStatistics.totalOrders);
+        const ordersPadding = ' '.repeat(Math.max(1, lineWidth - ordersLine.length - ordersVal.length));
+        content += `${ordersLine}${ordersPadding}${ordersVal}\n`;
+      }
+
+      if (Array.isArray(tipsStatistics.tipsByWaiter) && tipsStatistics.tipsByWaiter.length > 0) {
+        content += '\nPor mesero:\n';
+        tipsStatistics.tipsByWaiter.forEach(item => {
+          const waiterName = normalizeText(
+            typeof item.waiter === 'string' ? item.waiter : item.waiter?.userName || item.waiter?.name || 'Sin mesero'
+          );
+          const formattedWaiterTip = formatCurrency(item.totalTips || 0);
+          const waiterLine = `  ${waiterName}:`;
+          const waiterPadding = ' '.repeat(Math.max(1, lineWidth - waiterLine.length - formattedWaiterTip.length));
+          content += `${waiterLine}${waiterPadding}${formattedWaiterTip}\n`;
+        });
+      }
+
+      content += '\n';
+    }
+
     // Agregar comentarios si existen
     if (cashRegister.comment && cashRegister.comment.trim()) {
       content += `
@@ -2126,8 +2178,8 @@ ${cashRegister.comment.trim()}
   },
 
   // Imprimir reporte de caja automaticamente
-  async printCashRegisterReport(cashRegister, systemTotalsByPayment = {}) {
-    const content = this.generateCashRegisterReport(cashRegister, systemTotalsByPayment);
+  async printCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null) {
+    const content = this.generateCashRegisterReport(cashRegister, systemTotalsByPayment, tipsStatistics);
     // Use caja printer if configured, otherwise default
     const cajaPrinter = printerConfigService.getPrinterForRole('caja');
     if (cajaPrinter) {
