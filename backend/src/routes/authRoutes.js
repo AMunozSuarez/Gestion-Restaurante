@@ -1,7 +1,7 @@
 
 const express = require('express');
 
-const { registerController, loginController } = require('../controllers/authControllers');
+const { registerController, loginController, refreshController, logoutController } = require('../controllers/authControllers');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
@@ -11,6 +11,12 @@ router.post('/register', registerController);
 
 // Login route
 router.post('/login', loginController);
+
+// Refresh token route
+router.post('/refresh', refreshController);
+
+// Logout route
+router.post('/logout', logoutController);
 
 // Verify token route
 router.get('/verify', authMiddleware, (req, res) => {

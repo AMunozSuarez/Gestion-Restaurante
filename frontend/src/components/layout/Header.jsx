@@ -4,9 +4,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { useRestaurant } from '../../hooks/useRestaurant';
 import { useSubscription } from '../../hooks/useSubscription';
 import logo from '../../assets/logo.png';
-import { 
-  HomeIcon, 
-  TruckIcon, 
+import {
+  HomeIcon,
+  TruckIcon,
   ArrowRightEndOnRectangleIcon,
   CurrencyDollarIcon,
   ChartBarIcon,
@@ -20,6 +20,7 @@ import {
   PresentationChartBarIcon,
   BuildingStorefrontIcon,
   QuestionMarkCircleIcon,
+  PuzzlePieceIcon,
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -57,6 +58,7 @@ const Header = () => {
       items: [
         { name: 'Productos', href: '/productos', icon: TagIcon },
         { name: 'Categorías', href: '/categorias', icon: RectangleStackIcon },
+        { name: 'Extras', href: '/extras', icon: PuzzlePieceIcon },
       ]
     }
   ];

@@ -42,29 +42,19 @@ const foodSchema = new mongoose.Schema({
         required: true
     },
     extraSections: [{
-        sectionName: {
-            type: String,
-            required: true,
-            trim: true
+        section: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'ExtraSection',
+            required: true
         },
+        // null = ilimitado; número = máximo de extras seleccionables de esta sección
         maxSelection: {
             type: Number,
-            default: null // null = ilimitado, número = máximo de extras permitidos en esta sección
+            default: null
         },
-        extras: [{
-            name: {
-                type: String,
-                required: true,
-                trim: true
-            },
-            price: {
-                type: Number,
-                default: 0
-            },
-            isAvailable: {
-                type: Boolean,
-                default: true
-            }
+        // IDs vacío = mostrar todos los extras de la sección; con IDs = solo esos extras
+        visibleExtraIds: [{
+            type: mongoose.Schema.Types.ObjectId
         }]
     }],
 

@@ -115,7 +115,10 @@ const createOrderController = async (req, res) => {
 
         const [customer, existingFoods, currentCashRegister, table] = await Promise.all([
             customerPromise,
-            foodModel.find({ _id: { $in: uniqueFoodIds }, restaurant: restaurantId }).select('_id price extraSections').lean(),
+            foodModel.find({ _id: { $in: uniqueFoodIds }, restaurant: restaurantId })
+                .select('_id price extraSections')
+                .populate('extraSections.section', 'sectionName maxSelection extras')
+                .lean(),
             cashRegisterModel.findOne({ restaurant: restaurantId, status: 'Abierta' }).select('_id').lean(),
             tablePromise,
         ]);
@@ -166,54 +169,57 @@ const createOrderController = async (req, res) => {
             if (orderItem.selectedExtras && orderItem.selectedExtras.length > 0) {
                 const food = foodMap.get(orderItem.food);
                 if (!food || !food.extraSections || food.extraSections.length === 0) {
-                    return res.status(400).json({ 
-                        success: false, 
-                        message: 'Uno de los productos seleccionados no tiene extras configurados' 
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Uno de los productos seleccionados no tiene extras configurados'
                     });
                 }
 
                 // Validar cada extra seleccionado
                 for (const selectedExtra of orderItem.selectedExtras) {
-                    const section = food.extraSections.find(s => s.sectionName === selectedExtra.sectionName);
-                    if (!section) {
-                        return res.status(400).json({ 
-                            success: false, 
-                            message: `Sección de extras "${selectedExtra.sectionName}" no válida` 
+                    const assignment = food.extraSections.find(a => a.section?.sectionName === selectedExtra.sectionName);
+                    if (!assignment) {
+                        return res.status(400).json({
+                            success: false,
+                            message: `Sección de extras "${selectedExtra.sectionName}" no válida`
                         });
                     }
 
-                    const extra = section.extras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
+                    const sec = assignment.section;
+                    // Filtrar extras visibles para este producto
+                    const visibleExtras = assignment.visibleExtraIds && assignment.visibleExtraIds.length > 0
+                        ? sec.extras.filter(e => assignment.visibleExtraIds.map(id => id.toString()).includes(e._id.toString()))
+                        : sec.extras;
+
+                    const extra = visibleExtras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
                     if (!extra) {
-                        return res.status(400).json({ 
-                            success: false, 
-                            message: `Extra "${selectedExtra.extraName}" no disponible en sección "${selectedExtra.sectionName}"` 
+                        return res.status(400).json({
+                            success: false,
+                            message: `Extra "${selectedExtra.extraName}" no disponible en sección "${selectedExtra.sectionName}"`
                         });
                     }
 
-                    // Verificar que el precio coincida (seguridad)
                     if (selectedExtra.price !== extra.price) {
-                        return res.status(400).json({ 
-                            success: false, 
-                            message: `Precio de extra "${selectedExtra.extraName}" no coincide` 
+                        return res.status(400).json({
+                            success: false,
+                            message: `Precio de extra "${selectedExtra.extraName}" no coincide`
                         });
                     }
                 }
 
-                // Validar límite de selección por sección
+                // Validar límite de selección por sección (respetando override del producto)
                 const extrasBySection = {};
                 orderItem.selectedExtras.forEach(extra => {
-                    if (!extrasBySection[extra.sectionName]) {
-                        extrasBySection[extra.sectionName] = 0;
-                    }
-                    extrasBySection[extra.sectionName]++;
+                    extrasBySection[extra.sectionName] = (extrasBySection[extra.sectionName] || 0) + 1;
                 });
 
                 for (const [sectionName, count] of Object.entries(extrasBySection)) {
-                    const section = food.extraSections.find(s => s.sectionName === sectionName);
-                    if (section.maxSelection !== null && section.maxSelection !== undefined && count > section.maxSelection) {
-                        return res.status(400).json({ 
-                            success: false, 
-                            message: `Excedido el límite de selección para la sección "${sectionName}". Máximo: ${section.maxSelection}` 
+                    const assignment = food.extraSections.find(a => a.section?.sectionName === sectionName);
+                    const effectiveMax = assignment.maxSelection;
+                    if (effectiveMax !== null && effectiveMax !== undefined && count > effectiveMax) {
+                        return res.status(400).json({
+                            success: false,
+                            message: `Excedido el límite de selección para "${sectionName}". Máximo: ${effectiveMax}`
                         });
                     }
                 }
@@ -575,7 +581,10 @@ const updateOrderController = async (req, res) => {
 
             const [customer, existingFoods] = await Promise.all([
                 customerPromise,
-                foodModel.find({ _id: { $in: uniqueFoodIds }, restaurant: restaurantId }).select('_id price extraSections').lean(),
+                foodModel.find({ _id: { $in: uniqueFoodIds }, restaurant: restaurantId })
+                    .select('_id price extraSections')
+                    .populate('extraSections.section', 'sectionName maxSelection extras')
+                    .lean(),
             ]);
 
             if (existingFoods.length !== uniqueFoodIds.length) {
@@ -588,54 +597,54 @@ const updateOrderController = async (req, res) => {
                 if (orderItem.selectedExtras && orderItem.selectedExtras.length > 0) {
                     const food = foodMap.get(orderItem.food);
                     if (!food || !food.extraSections || food.extraSections.length === 0) {
-                        return res.status(400).json({ 
-                            success: false, 
-                            message: 'Uno de los productos seleccionados no tiene extras configurados' 
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Uno de los productos seleccionados no tiene extras configurados'
                         });
                     }
 
-                    // Validar cada extra seleccionado
                     for (const selectedExtra of orderItem.selectedExtras) {
-                        const section = food.extraSections.find(s => s.sectionName === selectedExtra.sectionName);
-                        if (!section) {
-                            return res.status(400).json({ 
-                                success: false, 
-                                message: `Sección de extras "${selectedExtra.sectionName}" no válida` 
+                        const assignment = food.extraSections.find(a => a.section?.sectionName === selectedExtra.sectionName);
+                        if (!assignment) {
+                            return res.status(400).json({
+                                success: false,
+                                message: `Sección de extras "${selectedExtra.sectionName}" no válida`
                             });
                         }
 
-                        const extra = section.extras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
+                        const sec = assignment.section;
+                        const visibleExtras = assignment.visibleExtraIds && assignment.visibleExtraIds.length > 0
+                            ? sec.extras.filter(e => assignment.visibleExtraIds.map(id => id.toString()).includes(e._id.toString()))
+                            : sec.extras;
+
+                        const extra = visibleExtras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
                         if (!extra) {
-                            return res.status(400).json({ 
-                                success: false, 
-                                message: `Extra "${selectedExtra.extraName}" no disponible en sección "${selectedExtra.sectionName}"` 
+                            return res.status(400).json({
+                                success: false,
+                                message: `Extra "${selectedExtra.extraName}" no disponible en sección "${selectedExtra.sectionName}"`
                             });
                         }
 
-                        // Verificar que el precio coincida (seguridad)
                         if (selectedExtra.price !== extra.price) {
-                            return res.status(400).json({ 
-                                success: false, 
-                                message: `Precio de extra "${selectedExtra.extraName}" no coincide` 
+                            return res.status(400).json({
+                                success: false,
+                                message: `Precio de extra "${selectedExtra.extraName}" no coincide`
                             });
                         }
                     }
 
-                    // Validar límite de selección por sección
                     const extrasBySection = {};
                     orderItem.selectedExtras.forEach(extra => {
-                        if (!extrasBySection[extra.sectionName]) {
-                            extrasBySection[extra.sectionName] = 0;
-                        }
-                        extrasBySection[extra.sectionName]++;
+                        extrasBySection[extra.sectionName] = (extrasBySection[extra.sectionName] || 0) + 1;
                     });
 
                     for (const [sectionName, count] of Object.entries(extrasBySection)) {
-                        const section = food.extraSections.find(s => s.sectionName === sectionName);
-                        if (section.maxSelection !== null && section.maxSelection !== undefined && count > section.maxSelection) {
-                            return res.status(400).json({ 
-                                success: false, 
-                                message: `Excedido el límite de selección para la sección "${sectionName}". Máximo: ${section.maxSelection}` 
+                        const assignment = food.extraSections.find(a => a.section?.sectionName === sectionName);
+                        const effectiveMax = assignment.maxSelection;
+                        if (effectiveMax !== null && effectiveMax !== undefined && count > effectiveMax) {
+                            return res.status(400).json({
+                                success: false,
+                                message: `Excedido el límite de selección para "${sectionName}". Máximo: ${effectiveMax}`
                             });
                         }
                     }

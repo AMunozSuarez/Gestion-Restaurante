@@ -32,12 +32,11 @@ export const authService = {
         ...credentials,
         email: normalizedEmail
       });
-      const { token, message } = response.data;
-      
-      // Guardar token en localStorage
+      const { token, refreshToken, message } = response.data;
+
       localStorage.setItem('token', token);
-      
-      // Decodificar el token para obtener información del usuario
+      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+
       const decoded = decodeJWT(token);
       const user = {
         id: decoded.id,
@@ -46,7 +45,7 @@ export const authService = {
         restaurant: decoded.restaurant
       };
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       return { token, user };
     } catch (error) {
       const status = error.response?.status;
@@ -73,8 +72,14 @@ export const authService = {
   },
 
   // Logout
-  logout: () => {
+  logout: async () => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      // Revocar refresh token en el servidor (fire-and-forget)
+      api.post('/auth/logout', { refreshToken }).catch(() => {});
+    }
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
   },
 

@@ -1,4 +1,5 @@
 const userModel = require("../models/userModel");
+const RefreshToken = require('../models/refreshTokenModel');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -322,13 +323,44 @@ const createEmployeeController = async (req, res) => {
     }
 };
 
-module.exports = { 
-    getUserController, 
-    updateUserController, 
-    updatePasswordController, 
-    resetPasswordController, 
-    deleteUserController, 
+// TOGGLE USER ACTIVE/INACTIVE
+const toggleUserActiveController = async (req, res) => {
+    try {
+        const user = await userModel.findById(req.params.id).select('isActive role');
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
+        }
+        if (user.role === 'owner') {
+            return res.status(403).json({ success: false, message: 'No se puede desactivar al propietario.' });
+        }
+
+        user.isActive = !user.isActive;
+        await user.save();
+
+        // Si se desactiva, revocar todos sus refresh tokens para forzar cierre de sesión
+        if (!user.isActive) {
+            await RefreshToken.deleteMany({ user: user._id });
+        }
+
+        res.status(200).json({
+            success: true,
+            isActive: user.isActive,
+            message: user.isActive ? 'Usuario activado.' : 'Usuario desactivado y sesión cerrada.'
+        });
+    } catch (error) {
+        console.error('Error in toggleUserActiveController:', error);
+        res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+    }
+};
+
+module.exports = {
+    getUserController,
+    updateUserController,
+    updatePasswordController,
+    resetPasswordController,
+    deleteUserController,
     createEmployeeController,
     getUsersByRestaurantController,
-    updateEmployeeController
+    updateEmployeeController,
+    toggleUserActiveController
 }; // Export the controllers

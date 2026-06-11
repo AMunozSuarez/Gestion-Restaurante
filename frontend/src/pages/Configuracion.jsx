@@ -12,7 +12,8 @@ import {
   UsersIcon,
   PlusIcon,
   PencilIcon,
-  TrashIcon
+  TrashIcon,
+  NoSymbolIcon
 } from '@heroicons/react/24/outline';
 import printingService from '../services/printingService';
 import printerConfigService from '../services/printerConfigService';
@@ -1084,6 +1085,28 @@ const Configuracion = () => {
   };
 
   // Eliminar usuario
+  const handleToggleUserActive = async (userId, userName, currentlyActive) => {
+    const action = currentlyActive ? 'desactivar' : 'activar';
+    if (!window.confirm(`¿Estás seguro de ${action} al usuario "${userName}"?`)) {
+      return;
+    }
+    setLoadingUsers(true);
+    try {
+      const response = await usersService.toggleUserActive(userId);
+      if (response.success) {
+        setMessage({ type: 'success', text: response.message });
+        loadUsers();
+      } else {
+        setMessage({ type: 'error', text: response.message });
+      }
+    } catch (error) {
+      console.error('Error al cambiar estado del usuario:', error);
+      setMessage({ type: 'error', text: 'Error al cambiar estado del usuario' });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
   const handleDeleteUser = async (userId, userName) => {
     if (!window.confirm(`¿Estás seguro de eliminar al usuario "${userName}"?`)) {
       return;
@@ -2455,6 +2478,9 @@ const Configuracion = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Rol
                         </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Estado
+                        </th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Acciones
                         </th>
@@ -2462,7 +2488,7 @@ const Configuracion = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {users.map((user) => (
-                        <tr key={user._id} className="hover:bg-gray-50 transition-colors">
+                        <tr key={user._id} className={`hover:bg-gray-50 transition-colors ${user.isActive === false ? 'opacity-50' : ''}`}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0 h-10 w-10">
@@ -2493,6 +2519,17 @@ const Configuracion = () => {
                               {user.role === 'owner' ? 'Propietario' : 'Empleado'}
                             </span>
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {user.isActive === false ? (
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-700">
+                                Inactivo
+                              </span>
+                            ) : (
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-700">
+                                Activo
+                              </span>
+                            )}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <button
                               onClick={() => handleEditUser(user)}
@@ -2502,13 +2539,25 @@ const Configuracion = () => {
                               <PencilIcon className="w-5 h-5" />
                             </button>
                             {user.role !== 'owner' && (
-                              <button
-                                onClick={() => handleDeleteUser(user._id, user.userName)}
-                                className="text-red-600 hover:text-red-900"
-                                title="Eliminar"
-                              >
-                                <TrashIcon className="w-5 h-5" />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleToggleUserActive(user._id, user.userName, user.isActive !== false)}
+                                  className={`mr-4 ${user.isActive === false ? 'text-green-600 hover:text-green-900' : 'text-orange-500 hover:text-orange-700'}`}
+                                  title={user.isActive === false ? 'Activar usuario' : 'Desactivar usuario'}
+                                >
+                                  {user.isActive === false
+                                    ? <CheckCircleIcon className="w-5 h-5" />
+                                    : <NoSymbolIcon className="w-5 h-5" />
+                                  }
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteUser(user._id, user.userName)}
+                                  className="text-red-600 hover:text-red-900"
+                                  title="Eliminar"
+                                >
+                                  <TrashIcon className="w-5 h-5" />
+                                </button>
+                              </>
                             )}
                           </td>
                         </tr>

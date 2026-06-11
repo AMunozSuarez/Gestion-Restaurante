@@ -55,6 +55,24 @@ const usersService = {
     }
   },
 
+  // Activar / desactivar usuario
+  toggleUserActive: async (userId) => {
+    try {
+      const response = await api.patch(`/user/toggleUserActive/${userId}`);
+      return {
+        success: true,
+        isActive: response.data.isActive,
+        message: response.data.message
+      };
+    } catch (error) {
+      console.error('Error al cambiar estado del usuario:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Error al cambiar estado del usuario'
+      };
+    }
+  },
+
   // Borrado lógico de usuario
   deleteEmployee: async (userId) => {
     try {

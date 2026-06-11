@@ -618,34 +618,6 @@ const TableDetail = () => {
             return;
         }
 
-        if (splitEnabled) {
-            if (splitCount < 2) {
-                showNotification('Ingresa un número de personas válido', 'warning');
-                return;
-            }
-            const unassigned = cart
-                .filter(item => !item.deleted)
-                .some(item => getRemainingQuantity(item) > 0);
-            if (unassigned) {
-                showNotification('Asigna todos los productos a una cuenta antes de cerrar', 'warning');
-                return;
-            }
-        }
-
-        if (splitEnabled) {
-            if (splitCount < 2) {
-                showNotification('Ingresa un número de personas válido', 'warning');
-                return;
-            }
-            const unassigned = cart
-                .filter(item => !item.deleted)
-                .some(item => getRemainingQuantity(item) > 0);
-            if (unassigned) {
-                showNotification('Asigna todos los productos a una cuenta antes de cerrar', 'warning');
-                return;
-            }
-        }
-
         const activeItems = cart.filter(item => !item.deleted);
         if (activeItems.length === 0) {
             showNotification('Agrega productos al carrito', 'warning');
@@ -858,12 +830,15 @@ const TableDetail = () => {
         const account = splitAccounts[accountIndex];
         if (!account) return null;
 
-        const foods = (account.items || []).map(item => ({
-            food: { title: item.name, price: item.unitPrice },
-            quantity: item.quantity,
-            comment: '',
-            selectedExtras: item.selectedExtras || []
-        }));
+        const foods = (account.items || []).map(item => {
+            const extrasTotal = (item.selectedExtras || []).reduce((s, e) => s + (e.price || 0), 0);
+            return {
+                food: { title: item.name, price: item.unitPrice - extrasTotal },
+                quantity: item.quantity,
+                comment: '',
+                selectedExtras: item.selectedExtras || []
+            };
+        });
 
         const baseOrder = table?.currentOrder || {};
         return {
@@ -1281,9 +1256,9 @@ const TableDetail = () => {
                 </div>
             )}
 
-            <div className="flex-1 min-h-0 overflow-auto lg:overflow-hidden">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 lg:py-4 h-full min-h-0">
-                <div className="lg:hidden mb-3">
+            <div className="flex-1 min-h-0 overflow-hidden">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 lg:py-4 h-full min-h-0 flex flex-col">
+                <div className="lg:hidden mb-3 flex-shrink-0">
                     <div className="grid grid-cols-2 gap-2 bg-white/70 p-1 rounded-xl border border-teal-100">
                         <button
                             onClick={() => setMobilePanel('products')}
@@ -1299,10 +1274,10 @@ const TableDetail = () => {
                         </button>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 lg:h-full lg:min-h-0">
+                <div className="flex flex-col flex-1 min-h-0 lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
                     {/* Productos */}
-                    <div className={`${mobilePanel === 'products' ? 'block' : 'hidden'} lg:block lg:col-span-2 lg:min-h-0`}>
-                        <div className="bg-white rounded-xl shadow-sm p-4 lg:p-6 lg:h-full flex flex-col lg:min-h-0">
+                    <div className={`${mobilePanel === 'products' ? 'flex flex-col flex-1' : 'hidden'} min-h-0 lg:flex lg:flex-col lg:col-span-2 lg:min-h-0`}>
+                        <div className="bg-white rounded-xl shadow-sm p-4 lg:p-6 h-full flex flex-col min-h-0">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-lg font-semibold text-gray-900">Productos</h2>
                                 <button
@@ -1315,11 +1290,11 @@ const TableDetail = () => {
 
                             {/* Filtro por categorías */}
                             {uniqueCategories.length > 0 && (
-                                <div className="mb-4">
-                                    <div className="flex flex-wrap gap-2">
+                                <div className="mb-4 flex-shrink-0">
+                                    <div className="flex gap-2 overflow-x-auto pb-1 flex-nowrap">
                                         <button
                                             onClick={() => setSelectedCategory(null)}
-                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                            className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                                                 selectedCategory === null
                                                     ? 'bg-teal-600 text-white'
                                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1331,7 +1306,7 @@ const TableDetail = () => {
                                             <button
                                                 key={category.id}
                                                 onClick={() => setSelectedCategory(category.id)}
-                                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                                                     selectedCategory === category.id
                                                         ? 'bg-teal-600 text-white'
                                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1350,11 +1325,11 @@ const TableDetail = () => {
                                 value={searchTerm}
                                 onChange={handleSearchChange}
                                 placeholder="Buscar productos..."
-                                className="w-full px-4 py-2 mb-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                className="w-full px-4 py-2 mb-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 flex-shrink-0"
                             />
 
                             {/* Lista de productos */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto max-h-[58vh] lg:max-h-none lg:flex-1 lg:min-h-0 content-start pr-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto flex-1 min-h-0 content-start pr-1">
                                 {filteredProducts.map(product => (
                                     <button
                                         key={product.id}
@@ -1374,8 +1349,8 @@ const TableDetail = () => {
                     </div>
 
                     {/* Carrito */}
-                    <div className={`${mobilePanel === 'order' ? 'block' : 'hidden'} lg:block lg:col-span-1 lg:min-h-0`}>
-                        <div className="bg-white rounded-xl shadow-sm p-4 lg:p-6 lg:h-full flex flex-col lg:min-h-0">
+                    <div className={`${mobilePanel === 'order' ? 'flex flex-col flex-1' : 'hidden'} min-h-0 lg:flex lg:flex-col lg:col-span-1 lg:min-h-0`}>
+                        <div className="bg-white rounded-xl shadow-sm p-4 lg:p-6 h-full flex flex-col min-h-0">
                             <div className="flex justify-end mb-2 lg:hidden">
                                 <button
                                     onClick={() => setMobilePanel('products')}
@@ -1394,11 +1369,11 @@ const TableDetail = () => {
                             </h2>
 
                             {cart.length === 0 ? (
-                                <p className="text-gray-500 text-center py-8 lg:flex-1 lg:flex lg:items-center lg:justify-center">
+                                <p className="text-gray-500 text-center py-8 flex-1 flex items-center justify-center">
                                     Agrega productos al pedido
                                 </p>
                             ) : (
-                                <div className="space-y-3 mb-4 overflow-y-auto max-h-[52vh] lg:max-h-none lg:flex-1 lg:min-h-0 pr-1">
+                                <div className="space-y-3 mb-4 overflow-y-auto flex-1 min-h-0 pr-1">
                                     {/* Sección: Productos nuevos (Por enviar) */}
                                     {cart.filter(item => item.isNew && !item.deleted).length > 0 && (
                                         <div className="mb-3">

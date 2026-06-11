@@ -1,56 +1,41 @@
 const foodModel = require('../models/foodModel');
 const orderModel = require('../models/orderModel');
 const categoryModel = require('../models/categoryModel');
+const ExtraSection = require('../models/extraSectionModel');
 
 // CREATE A NEW FOOD
 const createFoodController = async (req, res) => {
     try {
         const { title, description, price, imageUrl, foodTags, category, code, isAvailable, extraSections } = req.body;
         const parsedPrice = Number(price);
+        const restaurantId = req.user.restaurant;
 
         if (!title || !category || price === undefined || price === null || Number.isNaN(parsedPrice) || parsedPrice < 0) {
-            return res.status(400).send({ 
+            return res.status(400).send({
                 success: false,
-                message: 'Please enter a valid food title, non-negative price and category' 
+                message: 'Please enter a valid food title, non-negative price and category'
             });
         }
 
-        // Validar extraSections si se proporcionan
-        if (extraSections && Array.isArray(extraSections)) {
-            for (const section of extraSections) {
-                if (!section.sectionName || !section.sectionName.trim()) {
-                    return res.status(400).send({
-                        success: false,
-                        message: 'Each extra section must have a section name'
-                    });
-                }
-                if (section.maxSelection !== null && section.maxSelection !== undefined && section.maxSelection < 0) {
-                    return res.status(400).send({
-                        success: false,
-                        message: 'maxSelection must be null (unlimited) or a positive number'
-                    });
-                }
-                if (!section.extras || !Array.isArray(section.extras)) {
-                    return res.status(400).send({
-                        success: false,
-                        message: 'Each extra section must have an extras array'
-                    });
-                }
-                for (const extra of section.extras) {
-                    if (!extra.name || !extra.name.trim()) {
-                        return res.status(400).send({
-                            success: false,
-                            message: 'Each extra must have a name'
-                        });
-                    }
-                    if (extra.price !== undefined && extra.price < 0) {
-                        return res.status(400).send({
-                            success: false,
-                            message: 'Extra price cannot be negative'
-                        });
-                    }
-                }
+        // Validar y normalizar las asignaciones de secciones
+        let sectionAssignments = [];
+        if (extraSections && Array.isArray(extraSections) && extraSections.length > 0) {
+            const sectionIds = extraSections.map(a => a.section || a);
+            const found = await ExtraSection.find({
+                _id: { $in: sectionIds },
+                restaurant: restaurantId
+            }).lean();
+            if (found.length !== sectionIds.length) {
+                return res.status(400).send({
+                    success: false,
+                    message: 'Una o más secciones de extras no pertenecen a este restaurante'
+                });
             }
+            sectionAssignments = extraSections.map(a => ({
+                section: a.section || a,
+                maxSelectionOverride: a.maxSelectionOverride ?? null,
+                visibleExtraIds: a.visibleExtraIds || []
+            }));
         }
 
         const food = new foodModel({
@@ -62,11 +47,12 @@ const createFoodController = async (req, res) => {
             category,
             code,
             isAvailable,
-            extraSections: extraSections || [], // Array vacío por defecto
-            restaurant: req.user.restaurant
+            extraSections: sectionAssignments,
+            restaurant: restaurantId
         });
 
         await food.save();
+        await food.populate('extraSections.section');
         res.status(201).send({
             success: true,
             message: 'Food created successfully',
@@ -92,7 +78,9 @@ const createFoodController = async (req, res) => {
 // GET ALL FOODS
 const getAllFoodsController = async (req, res) => {
     try {
-        const foods = await foodModel.find({ restaurant: req.user.restaurant }).populate('category', 'title'); // Filtra por restaurante
+        const foods = await foodModel.find({ restaurant: req.user.restaurant })
+            .populate('category', 'title')
+            .populate('extraSections.section');
 
         if (!foods || foods.length === 0) {
             console.log('No hay alimentos disponibles para este restaurante.'); // Mensaje en consola
@@ -129,7 +117,8 @@ const getAllFoodsController = async (req, res) => {
 // GET A FOOD BY ID
 const getFoodByIdController = async (req, res) => {
     try {
-        const food = await foodModel.findOne({ _id: req.params.id, restaurant: req.user.restaurant }); // Filtra por restaurante
+        const food = await foodModel.findOne({ _id: req.params.id, restaurant: req.user.restaurant })
+            .populate('extraSections.section');
         if (!food) {
             return res.status(404).send({ 
                 success: false,
@@ -155,7 +144,7 @@ const getFoodByIdController = async (req, res) => {
 // GET A FOOD BY RESTAURANT ID
 const getFoodByRestaurantIdController = async (req, res) => {
     try {
-        const foods = await foodModel.find({ restaurant: req.user.restaurant }); // Usa el restaurante del usuario logueado
+        const foods = await foodModel.find({ restaurant: req.user.restaurant }).populate('extraSections.section');
         if (!foods || foods.length === 0) {
             return res.status(404).send({ 
                 success: false,
@@ -185,6 +174,7 @@ const getFoodByRestaurantIdController = async (req, res) => {
 const updateFoodController = async (req, res) => {
     try {
         const { title, description, price, imageUrl, foodTags, category, code, isAvailable, extraSections } = req.body;
+        const restaurantId = req.user.restaurant;
 
         if (price !== undefined) {
             const parsedPrice = Number(price);
@@ -196,41 +186,28 @@ const updateFoodController = async (req, res) => {
             }
         }
 
-        // Validar extraSections si se proporcionan
-        if (extraSections && Array.isArray(extraSections)) {
-            for (const section of extraSections) {
-                if (!section.sectionName || !section.sectionName.trim()) {
+        // Validar y normalizar asignaciones de secciones
+        let sectionAssignments;
+        if (extraSections !== undefined) {
+            if (Array.isArray(extraSections) && extraSections.length > 0) {
+                const sectionIds = extraSections.map(a => a.section || a);
+                const found = await ExtraSection.find({
+                    _id: { $in: sectionIds },
+                    restaurant: restaurantId
+                }).select('_id').lean();
+                if (found.length !== sectionIds.length) {
                     return res.status(400).send({
                         success: false,
-                        message: 'Each extra section must have a section name'
+                        message: 'Una o más secciones de extras no pertenecen a este restaurante'
                     });
                 }
-                if (section.maxSelection !== null && section.maxSelection !== undefined && section.maxSelection < 0) {
-                    return res.status(400).send({
-                        success: false,
-                        message: 'maxSelection must be null (unlimited) or a positive number'
-                    });
-                }
-                if (!section.extras || !Array.isArray(section.extras)) {
-                    return res.status(400).send({
-                        success: false,
-                        message: 'Each extra section must have an extras array'
-                    });
-                }
-                for (const extra of section.extras) {
-                    if (!extra.name || !extra.name.trim()) {
-                        return res.status(400).send({
-                            success: false,
-                            message: 'Each extra must have a name'
-                        });
-                    }
-                    if (extra.price !== undefined && extra.price < 0) {
-                        return res.status(400).send({
-                            success: false,
-                            message: 'Extra price cannot be negative'
-                        });
-                    }
-                }
+                sectionAssignments = extraSections.map(a => ({
+                    section: a.section || a,
+                    maxSelection: a.maxSelection ?? null,
+                    visibleExtraIds: a.visibleExtraIds || []
+                }));
+            } else {
+                sectionAssignments = [];
             }
         }
 
@@ -274,24 +251,23 @@ const updateFoodController = async (req, res) => {
             updateData.price = Number(price);
         }
         
-        // Solo actualizar extraSections si se proporciona
-        if (extraSections !== undefined) {
-            updateData.extraSections = extraSections;
+        if (sectionAssignments !== undefined) {
+            updateData.extraSections = sectionAssignments;
         }
 
         const updatedFood = await foodModel.findOneAndUpdate(
-            { _id: req.params.id, restaurant: req.user.restaurant },
+            { _id: req.params.id, restaurant: restaurantId },
             updateData,
             { new: true }
-        );
+        ).populate('extraSections.section');
 
         if (!updatedFood) {
-            return res.status(404).send({ 
+            return res.status(404).send({
                 success: false,
-                message: 'Food not found or does not belong to this restaurant' 
+                message: 'Food not found or does not belong to this restaurant'
             });
         }
-        res.status(200).send({ 
+        res.status(200).send({
             success: true,
             message: 'Food updated successfully',
             food: updatedFood

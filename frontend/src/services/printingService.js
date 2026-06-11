@@ -436,23 +436,36 @@ export const printingService = {
 
   // Imprimir contenido
   async print(printerName, content, copies = 1, isKitchen = false) {
-    try {
-      const response = await printingApi.post('/print', {
-        printerName,
-        content,
-        copies,
-        isKitchen
-      });
-      return {
-        success: true,
-        data: response.data
-      };
-    } catch (error) {
-      console.error('Error printing:', error);
-      return {
-        success: false,
-        error: error.response?.data?.error || error.response?.data?.message || error.message || 'Error al imprimir'
-      };
+    const MAX_RETRIES = 2;
+    const RETRY_DELAY_MS = 1500;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await printingApi.post('/print', {
+          printerName,
+          content,
+          copies,
+          isKitchen
+        });
+        return {
+          success: true,
+          data: response.data
+        };
+      } catch (error) {
+        const status = error.response?.status;
+        const isServerError = !status || status >= 500;
+        const isLastAttempt = attempt === MAX_RETRIES;
+
+        if (isLastAttempt || !isServerError) {
+          console.error('Error printing:', error);
+          return {
+            success: false,
+            error: error.response?.data?.error || error.response?.data?.message || error.message || 'Error al imprimir'
+          };
+        }
+
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      }
     }
   },
 
@@ -886,6 +899,8 @@ la fuente esta configurada bien.
   },
 
   // Verifica si la actualización ya fue impresa antes (con opción habilitada)
+  // Solo considera duplicado si la firma idéntica fue guardada en los últimos 8 segundos,
+  // para evitar bloquear pedidos legítimos del mismo producto en turnos posteriores.
   shouldSkipDuplicateKitchenUpdatePrint(orderId, options = {}) {
     if (!this.getAvoidDuplicateKitchenUpdatePrint()) return false;
     if (!orderId) return false;
@@ -893,20 +908,23 @@ la fuente esta configurada bien.
     try {
       const key = `lastKitchenUpdatePrint:${orderId}`;
       const currentSignature = this.getKitchenUpdatePrintSignature(orderId, options);
-      const previousSignature = localStorage.getItem(key);
-      return Boolean(previousSignature && previousSignature === currentSignature);
+      const stored = localStorage.getItem(key);
+      if (!stored) return false;
+      const { signature: previousSignature, ts } = JSON.parse(stored);
+      const withinWindow = Date.now() - ts < 3000;
+      return Boolean(withinWindow && previousSignature === currentSignature);
     } catch {
       return false;
     }
   },
 
-  // Guarda la última firma impresa de actualización
+  // Guarda la última firma impresa de actualización junto con el timestamp
   markKitchenUpdatePrint(orderId, options = {}) {
     if (!orderId) return;
     try {
       const key = `lastKitchenUpdatePrint:${orderId}`;
       const signature = this.getKitchenUpdatePrintSignature(orderId, options);
-      localStorage.setItem(key, signature);
+      localStorage.setItem(key, JSON.stringify({ signature, ts: Date.now() }));
     } catch {
       // No-op si localStorage no está disponible
     }
@@ -1679,12 +1697,15 @@ No. Orden: #${orderNumber}
           paymentMethods: splitAccount.paymentMethods || order.paymentMethods,
           tip: splitAccount.tip ?? order.tip,
           discount: splitAccount.discount ?? order.discount,
-          foods: (splitAccount.items || []).map((item) => ({
-            food: { title: item.name, price: item.unitPrice },
-            quantity: item.quantity || 0,
-            comment: '',
-            selectedExtras: item.selectedExtras || [],
-          })),
+          foods: (splitAccount.items || []).map((item) => {
+            const extrasTotal = (item.selectedExtras || []).reduce((s, e) => s + (e.price || 0), 0);
+            return {
+              food: { title: item.name, price: item.unitPrice - extrasTotal },
+              quantity: item.quantity || 0,
+              comment: '',
+              selectedExtras: item.selectedExtras || [],
+            };
+          }),
         }
       : order;
 
@@ -2002,7 +2023,7 @@ RESUMEN
   },
 
   // Generar reporte de caja cerrada
-  generateCashRegisterReport(cashRegister, systemTotalsByPayment = {}) {
+  generateCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null) {
     
     const date = new Date();
     
@@ -2094,6 +2115,45 @@ Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
       });
     }
 
+    // Agregar propinas si existen
+    if (tipsStatistics && tipsStatistics.totalTips > 0) {
+      content += `
+================================
+           PROPINAS
+================================
+
+`;
+      const fontSettings = this.getLocalFontSettings();
+      const lineWidth = fontSettings.bold ? 26 : 32;
+
+      const totalTipsLine = 'Total propinas:';
+      const formattedTotalTips = formatCurrency(tipsStatistics.totalTips);
+      const totalTipsPadding = ' '.repeat(Math.max(1, lineWidth - totalTipsLine.length - formattedTotalTips.length));
+      content += `${totalTipsLine}${totalTipsPadding}${formattedTotalTips}\n`;
+
+      if (tipsStatistics.totalOrders) {
+        const ordersLine = 'Ordenes con propina:';
+        const ordersVal = String(tipsStatistics.totalOrders);
+        const ordersPadding = ' '.repeat(Math.max(1, lineWidth - ordersLine.length - ordersVal.length));
+        content += `${ordersLine}${ordersPadding}${ordersVal}\n`;
+      }
+
+      if (Array.isArray(tipsStatistics.tipsByWaiter) && tipsStatistics.tipsByWaiter.length > 0) {
+        content += '\nPor mesero:\n';
+        tipsStatistics.tipsByWaiter.forEach(item => {
+          const waiterName = normalizeText(
+            typeof item.waiter === 'string' ? item.waiter : item.waiter?.userName || item.waiter?.name || 'Sin mesero'
+          );
+          const formattedWaiterTip = formatCurrency(item.totalTips || 0);
+          const waiterLine = `  ${waiterName}:`;
+          const waiterPadding = ' '.repeat(Math.max(1, lineWidth - waiterLine.length - formattedWaiterTip.length));
+          content += `${waiterLine}${waiterPadding}${formattedWaiterTip}\n`;
+        });
+      }
+
+      content += '\n';
+    }
+
     // Agregar comentarios si existen
     if (cashRegister.comment && cashRegister.comment.trim()) {
       content += `
@@ -2121,8 +2181,8 @@ ${cashRegister.comment.trim()}
   },
 
   // Imprimir reporte de caja automaticamente
-  async printCashRegisterReport(cashRegister, systemTotalsByPayment = {}) {
-    const content = this.generateCashRegisterReport(cashRegister, systemTotalsByPayment);
+  async printCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null) {
+    const content = this.generateCashRegisterReport(cashRegister, systemTotalsByPayment, tipsStatistics);
     // Use caja printer if configured, otherwise default
     const cajaPrinter = printerConfigService.getPrinterForRole('caja');
     if (cajaPrinter) {
