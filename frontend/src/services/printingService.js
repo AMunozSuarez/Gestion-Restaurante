@@ -911,7 +911,7 @@ la fuente esta configurada bien.
       const stored = localStorage.getItem(key);
       if (!stored) return false;
       const { signature: previousSignature, ts } = JSON.parse(stored);
-      const withinWindow = Date.now() - ts < 5000;
+      const withinWindow = Date.now() - ts < 3000;
       return Boolean(withinWindow && previousSignature === currentSignature);
     } catch {
       return false;
@@ -1697,12 +1697,15 @@ No. Orden: #${orderNumber}
           paymentMethods: splitAccount.paymentMethods || order.paymentMethods,
           tip: splitAccount.tip ?? order.tip,
           discount: splitAccount.discount ?? order.discount,
-          foods: (splitAccount.items || []).map((item) => ({
-            food: { title: item.name, price: item.unitPrice },
-            quantity: item.quantity || 0,
-            comment: '',
-            selectedExtras: item.selectedExtras || [],
-          })),
+          foods: (splitAccount.items || []).map((item) => {
+            const extrasTotal = (item.selectedExtras || []).reduce((s, e) => s + (e.price || 0), 0);
+            return {
+              food: { title: item.name, price: item.unitPrice - extrasTotal },
+              quantity: item.quantity || 0,
+              comment: '',
+              selectedExtras: item.selectedExtras || [],
+            };
+          }),
         }
       : order;
 
