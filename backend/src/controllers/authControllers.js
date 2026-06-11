@@ -1,6 +1,12 @@
+const crypto = require('crypto');
 const User = require('../models/userModel');
+const RefreshToken = require('../models/refreshTokenModel');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+
+const REFRESH_TOKEN_EXPIRY_DAYS = 90;
+const generateRefreshToken = () => crypto.randomBytes(40).toString('hex');
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 const normalizeEmail = (email = '') => email.trim().toLowerCase();
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -83,14 +89,75 @@ const loginController = async (req, res) => {
         const token = jwt.sign(
             { id: user._id, restaurant: user.restaurant, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: '1d' }
+            { expiresIn: '7d' }
         );
 
-        res.status(200).json({ message: 'Inicio de sesión exitoso.', token });
+        const rawRefreshToken = generateRefreshToken();
+        await RefreshToken.create({
+            tokenHash: hashToken(rawRefreshToken),
+            user: user._id,
+            restaurant: user.restaurant,
+            expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000),
+        });
+
+        res.status(200).json({ message: 'Inicio de sesión exitoso.', token, refreshToken: rawRefreshToken });
     } catch (error) {
         console.error('Error in loginController:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
 
-module.exports = { registerController, loginController };
+// Refresh Token Controller
+const refreshController = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+        if (!refreshToken) {
+            return res.status(400).json({ message: 'Refresh token requerido.' });
+        }
+
+        const tokenHash = hashToken(refreshToken);
+        const stored = await RefreshToken.findOne({ tokenHash });
+
+        if (!stored) {
+            return res.status(401).json({ message: 'Refresh token inválido.' });
+        }
+
+        if (stored.expiresAt < new Date()) {
+            await RefreshToken.deleteOne({ tokenHash });
+            return res.status(401).json({ message: 'Refresh token expirado.' });
+        }
+
+        const user = await User.findById(stored.user);
+        if (!user) {
+            await RefreshToken.deleteOne({ tokenHash });
+            return res.status(401).json({ message: 'Usuario no encontrado.' });
+        }
+
+        const newToken = jwt.sign(
+            { id: user._id, restaurant: user.restaurant, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.status(200).json({ token: newToken });
+    } catch (error) {
+        console.error('Error in refreshController:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+};
+
+// Logout Controller
+const logoutController = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+        if (refreshToken) {
+            await RefreshToken.deleteOne({ tokenHash: hashToken(refreshToken) });
+        }
+        res.status(200).json({ message: 'Sesión cerrada exitosamente.' });
+    } catch (error) {
+        console.error('Error in logoutController:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+};
+
+module.exports = { registerController, loginController, refreshController, logoutController };

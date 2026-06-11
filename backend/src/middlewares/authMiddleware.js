@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/userModel');
 
-module.exports = (req, res, next) => {
+module.exports = async (req, res, next) => {
     if (process.env.DISABLE_AUTH === 'true') {
         console.warn('JWT verification is disabled (development mode).');
-        return next(); // Permite todas las solicitudes sin verificar el token
+        return next();
     }
 
     try {
@@ -19,7 +20,14 @@ module.exports = (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded; // Configura `req.user` con los datos decodificados del token
+
+        // Verificar que el usuario sigue activo en la base de datos
+        const user = await User.findById(decoded.id).select('isActive').lean();
+        if (!user || user.isActive === false) {
+            return res.status(401).json({ success: false, message: 'User account is disabled' });
+        }
+
+        req.user = decoded;
         next();
     } catch (error) {
         console.error('Internal auth error:', error);

@@ -1,13 +1,14 @@
 const express = require('express');
-const { 
-    getUserController, 
-    updateUserController, 
-    updatePasswordController, 
-    resetPasswordController, 
-    deleteUserController, 
+const {
+    getUserController,
+    updateUserController,
+    updatePasswordController,
+    resetPasswordController,
+    deleteUserController,
     createEmployeeController,
     getUsersByRestaurantController,
-    updateEmployeeController
+    updateEmployeeController,
+    toggleUserActiveController
 } = require('../controllers/userControllers');
 const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
@@ -37,5 +38,8 @@ router.delete('/deleteUser/:id', authMiddleware, deleteUserController);
 
 // Crear un empleado (solo propietarios)
 router.post('/createEmployee', authMiddleware, roleMiddleware('owner'), createEmployeeController);
+
+// Activar/desactivar usuario
+router.patch('/toggleUserActive/:id', authMiddleware, roleMiddleware('owner'), toggleUserActiveController);
 
 module.exports = router; // Export the router

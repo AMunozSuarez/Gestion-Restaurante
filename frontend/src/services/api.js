@@ -1,10 +1,8 @@
 import axios from 'axios';
 import { getSocketId } from './socketService';
 
-// Configuración base de la API
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
-// Crear instancia de axios
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -12,7 +10,6 @@ const api = axios.create({
   },
 });
 
-// Interceptor para agregar token y socketId a las requests
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -25,37 +22,86 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Interceptor para manejar respuestas y errores
+// Cola de requests que esperan el refresh
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token)));
+  failedQueue = [];
+};
+
+const clearSessionAndRedirect = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+};
+
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    if (error.response?.status === 401) {
-      const requestUrl = error.config?.url || '';
-      const isLoginRequest = requestUrl.includes('/auth/login');
-      const isRegisterRequest = requestUrl.includes('/auth/register');
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    const requestUrl = originalRequest?.url || '';
 
-      // Si el 401 viene del propio login/register, no forzar recarga/redirección.
-      if (isLoginRequest || isRegisterRequest) {
-        return Promise.reject(error);
-      }
-
-      // Token expirado o inválido en rutas protegidas
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-
-      // Evitar recargar innecesariamente si ya estamos en login
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+    if (error.response?.status !== 401) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    // No interceptar los endpoints de auth para evitar loops
+    if (
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/register') ||
+      requestUrl.includes('/auth/refresh')
+    ) {
+      return Promise.reject(error);
+    }
+
+    // Si ya se intentó el refresh y falló, limpiar sesión
+    if (originalRequest._retry) {
+      clearSessionAndRedirect();
+      return Promise.reject(error);
+    }
+
+    // Si hay otro refresh en curso, encolar esta request
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then((token) => {
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return api(originalRequest);
+      });
+    }
+
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) {
+      clearSessionAndRedirect();
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    try {
+      const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+      const { token } = data;
+      localStorage.setItem('token', token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      processQueue(null, token);
+      originalRequest.headers.Authorization = `Bearer ${token}`;
+      return api(originalRequest);
+    } catch (refreshError) {
+      processQueue(refreshError, null);
+      clearSessionAndRedirect();
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
   }
 );
 
