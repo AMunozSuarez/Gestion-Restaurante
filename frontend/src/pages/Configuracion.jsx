@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import printingService from '../services/printingService';
 import printerConfigService from '../services/printerConfigService';
+import api from '../services/api';
 import { categoriesService } from '../services/categoriesService';
 import productsService from '../services/productsService';
 import * as subscriptionService from '../services/subscriptionService';
@@ -91,6 +92,11 @@ const Configuracion = () => {
   const [cancelingSubscription, setCancelingSubscription] = useState(false);
   const [renewingSubscription, setRenewingSubscription] = useState(false);
 
+  // Estados para inventario
+  const [inventoryEnabled, setInventoryEnabled] = useState(false);
+  const [savingInventory, setSavingInventory] = useState(false);
+  const [loadingInventory, setLoadingInventory] = useState(false);
+
   // Estados para usuarios
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -105,7 +111,7 @@ const Configuracion = () => {
 
   // Redirigir empleados si intentan acceder a pestañas restringidas
   useEffect(() => {
-    if (!isOwnerOrAdmin && (activeTab === 'subscription' || activeTab === 'users')) {
+    if (!isOwnerOrAdmin && (activeTab === 'subscription' || activeTab === 'users' || activeTab === 'inventory')) {
       setActiveTab('printers');
     }
   }, [activeTab, isOwnerOrAdmin]);
@@ -139,8 +145,41 @@ const Configuracion = () => {
       loadSubscription();
     } else if (activeTab === 'users' && isOwnerOrAdmin) {
       loadUsers();
+    } else if (activeTab === 'inventory' && isOwnerOrAdmin) {
+      loadInventorySettings();
     }
   }, [activeTab, isOwnerOrAdmin]);
+
+  const loadInventorySettings = async () => {
+    setLoadingInventory(true);
+    try {
+      const response = await api.get('/restaurant/settings/me');
+      setInventoryEnabled(Boolean(response.data?.settings?.inventory?.enabled));
+    } catch (error) {
+      console.error('Error al cargar configuración de inventario:', error);
+    } finally {
+      setLoadingInventory(false);
+    }
+  };
+
+  const handleInventoryEnabledChange = async (enabled) => {
+    setInventoryEnabled(enabled);
+    setSavingInventory(true);
+    try {
+      await api.put('/restaurant/settings/me', { inventoryEnabled: enabled });
+      setMessage({
+        type: 'success',
+        text: enabled
+          ? 'Control de inventario activado. El stock se descontará automáticamente al completar ventas.'
+          : 'Control de inventario desactivado.',
+      });
+    } catch (error) {
+      setInventoryEnabled(!enabled);
+      setMessage({ type: 'error', text: 'Error al guardar configuración de inventario.' });
+    } finally {
+      setSavingInventory(false);
+    }
+  };
 
   const loadRestaurantPrintSettings = async () => {
     const syncResult = await printingService.syncRestaurantSettingsFromBackend();
@@ -1221,6 +1260,20 @@ const Configuracion = () => {
                 <div className="flex items-center">
                   <UsersIcon className="w-5 h-5 mr-2" />
                   Usuarios
+                </div>
+              </button>
+            )}
+            {isOwnerOrAdmin && (
+              <button
+                onClick={() => setActiveTab('inventory')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${activeTab === 'inventory'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                <div className="flex items-center">
+                  <CogIcon className="w-5 h-5 mr-2" />
+                  Inventario
                 </div>
               </button>
             )}
@@ -2429,6 +2482,74 @@ const Configuracion = () => {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Contenido de Inventario */}
+        {activeTab === 'inventory' && isOwnerOrAdmin && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center mb-4">
+                <CogIcon className="w-6 h-6 text-green-600 mr-3" />
+                <h2 className="text-xl font-semibold text-brown-900">Control de Inventario</h2>
+              </div>
+              <p className="text-sm text-gray-500 mb-6">
+                Activa el control de inventario para descontar automáticamente los insumos de cada venta,
+                según las recetas configuradas en cada producto y extra.
+              </p>
+
+              {loadingInventory ? (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+                  <span className="text-sm">Cargando configuración...</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900">
+                          Descuento automático de stock
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Al completar o cerrar una venta, se descontarán los insumos definidos en las recetas
+                          de los productos y extras vendidos. Si un producto no tiene receta, no afectará el inventario.
+                        </p>
+                        <div className={`mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                          inventoryEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${inventoryEnabled ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                          {inventoryEnabled ? 'Activo' : 'Inactivo'}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleInventoryEnabledChange(!inventoryEnabled)}
+                        disabled={savingInventory}
+                        className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 ${
+                          inventoryEnabled ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'
+                        }`}
+                        aria-pressed={inventoryEnabled}
+                      >
+                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                          inventoryEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                        }`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border border-blue-100 rounded-lg bg-blue-50">
+                    <p className="text-xs text-blue-800 font-semibold mb-1">¿Cómo funciona?</p>
+                    <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
+                      <li>Ve a <strong>Inventario</strong> y crea los insumos (harina, tomate, etc.)</li>
+                      <li>En la pestaña <strong>Recetas</strong>, asocia insumos a cada producto y extra con su cantidad</li>
+                      <li>Activa este toggle y el sistema descontará el stock automáticamente al completar ventas</li>
+                      <li>Revisa el historial en la pestaña <strong>Movimientos</strong> de Inventario</li>
+                    </ol>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

@@ -7,6 +7,7 @@ const Restaurant = require('../models/restaurantModel');
 const mongoose = require('mongoose');
 const { getChileDate, formatChileDate, getChileDayRange } = require('../utils/dateUtils');
 const { getIO } = require('../socket');
+const { deductStockForOrder } = require('../services/inventoryService');
 
 const isOwnerOrSuperAdmin = (role) => role === 'owner' || role === 'super_admin';
 const isOrderActive = (status) => !['Completado', 'Cancelado'].includes(status);
@@ -707,6 +708,12 @@ const updateOrderController = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Pedido no encontrado o no pertenece a este restaurante' });
         }
 
+        // Descontar inventario si la orden pasa a Completado o Enviado
+        if (status === 'Completado' || status === 'Enviado') {
+            deductStockForOrder(populatedOrder._id, restaurantId).catch(err =>
+                console.error('Error al descontar inventario:', err)
+            );
+        }
 
         // Emit socket event for real-time updates
         try {

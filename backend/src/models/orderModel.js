@@ -143,6 +143,10 @@ const orderSchema = new mongoose.Schema({
         ref: 'CashRegister',
         required: false, // No requerido para compatibilidad con órdenes antiguas
     },
+    inventoryDeducted: {
+        type: Boolean,
+        default: false,
+    },
     restaurant: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Restaurant',
