@@ -326,78 +326,52 @@ async function handleMercadoPagoPayment(paymentId) {
 
         const planConfig = Subscription.schema.statics.getPlanConfig(plan);
 
-        // 1. ¿Tiene suscripción activa? → extender fecha
-        const existingActive = await Subscription.findOne({
+        // 1. ¿Tiene suscripción existente? → reactivar o extender según estado
+        const existingSubscription = await Subscription.findOne({
             restaurant: restaurantId,
-            status: { $in: ['active', 'trial'] },
         }).sort({ createdAt: -1 });
 
-        if (existingActive) {
-            console.log('Suscripción activa encontrada - extendiendo fecha en 30 días');
-            const newEndDate = calculateEndDate(new Date(existingActive.endDate), plan);
-            existingActive.paymentId = payment.id.toString();
-            existingActive.lastPaymentDate = new Date(payment.date_approved);
-            existingActive.endDate = newEndDate;
-            existingActive.paymentHistory.push({
+        if (existingSubscription) {
+            const isCurrentlyActive = existingSubscription.isActive();
+            const now = new Date();
+            const baseDate = isCurrentlyActive ? new Date(existingSubscription.endDate) : now;
+            const newEndDate = calculateEndDate(baseDate, plan);
+
+            existingSubscription.plan = plan;
+            existingSubscription.status = 'active';
+            existingSubscription.paymentId = payment.id.toString();
+            existingSubscription.lastPaymentDate = new Date(payment.date_approved);
+            existingSubscription.endDate = newEndDate;
+            existingSubscription.amount = payment.transaction_amount;
+            existingSubscription.paymentProvider = 'mercadopago';
+            if (!isCurrentlyActive) {
+                existingSubscription.startDate = now;
+            }
+            existingSubscription.paymentHistory.push({
                 date: new Date(payment.date_approved),
                 amount: payment.transaction_amount,
                 status: 'success',
                 paymentId: payment.id.toString(),
             });
-            await existingActive.save();
+            await existingSubscription.save();
 
             await Restaurant.findByIdAndUpdate(restaurantId, {
-                subscriptionEndDate: newEndDate,
-                lastPaymentDate: new Date(payment.date_approved),
-            });
-
-            console.log(`Suscripción ${existingActive._id} extendida hasta ${newEndDate.toISOString()}`);
-            await recordNotification(existingActive._id, 'renewed', 'email');
-            return;
-        }
-
-        // 2. ¿Tiene suscripción suspendida/expirada/cancelada? → reactivar
-        const existingInactive = await Subscription.findOne({
-            restaurant: restaurantId,
-            status: { $in: ['suspended', 'expired', 'cancelled'] },
-        }).sort({ createdAt: -1 });
-
-        if (existingInactive) {
-            console.log('Suscripción inactiva encontrada - reactivando');
-            const newEndDate = calculateEndDate(new Date(), plan);
-            existingInactive.plan = plan;
-            existingInactive.status = 'active';
-            existingInactive.paymentId = payment.id.toString();
-            existingInactive.lastPaymentDate = new Date(payment.date_approved);
-            existingInactive.startDate = new Date();
-            existingInactive.endDate = newEndDate;
-            existingInactive.amount = payment.transaction_amount;
-            existingInactive.paymentProvider = 'mercadopago';
-            existingInactive.paymentHistory.push({
-                date: new Date(payment.date_approved),
-                amount: payment.transaction_amount,
-                status: 'success',
-                paymentId: payment.id.toString(),
-            });
-            await existingInactive.save();
-
-            await Restaurant.findByIdAndUpdate(restaurantId, {
-                currentSubscription: existingInactive._id,
+                currentSubscription: existingSubscription._id,
                 subscriptionStatus: 'active',
                 subscriptionPlan: plan,
-                subscriptionStartDate: new Date(),
+                subscriptionStartDate: existingSubscription.startDate,
                 subscriptionEndDate: newEndDate,
                 lastPaymentDate: new Date(payment.date_approved),
                 isSuspended: false,
                 suspensionReason: null,
             });
 
-            console.log(`Suscripción ${existingInactive._id} reactivada hasta ${newEndDate.toISOString()}`);
-            await recordNotification(existingInactive._id, 'renewed', 'email');
+            console.log(`Suscripción ${existingSubscription._id} ${isCurrentlyActive ? 'extendida' : 'reactivada'} hasta ${newEndDate.toISOString()}`);
+            await recordNotification(existingSubscription._id, 'renewed', 'email');
             return;
         }
 
-        // 3. Sin suscripción previa → crear nueva
+        // 2. Sin suscripción previa → crear nueva
         const startDate = new Date();
         const endDate = calculateEndDate(startDate, plan);
 

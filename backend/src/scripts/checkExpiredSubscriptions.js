@@ -1,18 +1,17 @@
 const Subscription = require('../models/subscriptionModel');
 const Restaurant = require('../models/restaurantModel');
-const { calculateGracePeriodEnd } = require('../utils/subscriptionUtils');
 
 /**
- * Verifica y actualiza suscripciones vencidas
+ * Verifica y suspende suscripciones vencidas (sin período de gracia)
  * Esta función debe ejecutarse diariamente
  */
 const checkExpiredSubscriptions = async () => {
     console.log('🔍 Verificando suscripciones vencidas...');
-    
+
     try {
         const now = new Date();
-        
-        // 1. Buscar suscripciones activas que ya pasaron su fecha de vencimiento
+
+        // Buscar suscripciones activas/trial que ya pasaron su fecha de vencimiento
         const expiredSubscriptions = await Subscription.find({
             status: { $in: ['active', 'trial'] },
             endDate: { $lt: now },
@@ -21,50 +20,21 @@ const checkExpiredSubscriptions = async () => {
         console.log(`📋 Encontradas ${expiredSubscriptions.length} suscripciones vencidas`);
 
         for (const subscription of expiredSubscriptions) {
-            // Cambiar estado a expired y establecer período de gracia
-            subscription.status = 'expired';
-            subscription.gracePeriodEnd = calculateGracePeriodEnd(subscription.endDate, 5); // 5 días de gracia
-            
-            await subscription.save();
-
-            // Actualizar estado en el restaurante
-            await Restaurant.findByIdAndUpdate(subscription.restaurant._id, {
-                subscriptionStatus: 'expired',
-            });
-
-            console.log(`✅ Suscripción ${subscription._id} marcada como EXPIRED (Restaurante: ${subscription.restaurant?.name})`);
-            console.log(`   Período de gracia hasta: ${subscription.gracePeriodEnd.toLocaleDateString('es-CL')}`);
-        }
-
-        // 2. Buscar suscripciones que terminaron su período de gracia
-        const gracePeriodEnded = await Subscription.find({
-            status: 'expired',
-            gracePeriodEnd: { $lt: now },
-        }).populate('restaurant');
-
-        console.log(`📋 Encontradas ${gracePeriodEnded.length} suscripciones con período de gracia terminado`);
-
-        for (const subscription of gracePeriodEnded) {
-            // Cambiar a suspended (no puede acceder al sistema)
             subscription.status = 'suspended';
             await subscription.save();
 
-            // Suspender el restaurante
             await Restaurant.findByIdAndUpdate(subscription.restaurant._id, {
                 subscriptionStatus: 'suspended',
                 isSuspended: true,
-                suspensionReason: 'Suscripción no renovada después del período de gracia',
+                suspensionReason: 'Suscripción vencida',
             });
 
             console.log(`🚫 Suscripción ${subscription._id} SUSPENDIDA (Restaurante: ${subscription.restaurant?.name})`);
         }
 
         console.log('✅ Verificación completada');
-        
-        return {
-            expiredCount: expiredSubscriptions.length,
-            suspendedCount: gracePeriodEnded.length,
-        };
+
+        return { suspendedCount: expiredSubscriptions.length };
     } catch (error) {
         console.error('❌ Error al verificar suscripciones:', error);
         throw error;
