@@ -34,7 +34,7 @@ const deductStockForOrder = async (orderId, restaurantId) => {
     if (!foodIds.length) return;
 
     const foods = await Food.find({ _id: { $in: foodIds } })
-        .select('_id recipe')
+        .select('_id recipe recipeEnabled')
         .lean();
 
     const foodMap = new Map(foods.map(f => [f._id.toString(), f]));
@@ -48,8 +48,8 @@ const deductStockForOrder = async (orderId, restaurantId) => {
         const food = foodMap.get(foodId);
         const qty = Number(orderItem.quantity) || 1;
 
-        // Receta del producto
-        if (food?.recipe?.length) {
+        // Receta del producto (solo si está habilitada)
+        if (food?.recipeEnabled !== false && food?.recipe?.length) {
             for (const ri of food.recipe) {
                 const key = ri.ingredient.toString();
                 deductions.set(key, (deductions.get(key) || 0) + ri.quantity * qty);
@@ -71,7 +71,7 @@ const deductStockForOrder = async (orderId, restaurantId) => {
             restaurant: restaurantId,
             sectionName: { $in: allSectionNames },
         })
-            .select('sectionName extras')
+            .select('sectionName extras.name extras.recipe extras.recipeEnabled')
             .lean();
 
         const sectionMap = new Map(sections.map(s => [s.sectionName, s]));
@@ -83,7 +83,7 @@ const deductStockForOrder = async (orderId, restaurantId) => {
                 if (!section) continue;
 
                 const extra = section.extras.find(e => e.name === selectedExtra.extraName);
-                if (!extra?.recipe?.length) continue;
+                if (!extra?.recipe?.length || extra.recipeEnabled === false) continue;
 
                 for (const ri of extra.recipe) {
                     const key = ri.ingredient.toString();

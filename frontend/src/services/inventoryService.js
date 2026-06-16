@@ -34,6 +34,13 @@ const inventoryService = {
 
     updateExtraRecipe: (sectionId, extraId, recipe) =>
         api.put(`/inventory/recipe/extra/${sectionId}/${extraId}`, { recipe }).then(r => r.data),
+
+    // Toggle recipeEnabled
+    toggleFoodRecipeEnabled: (foodId) =>
+        api.patch(`/inventory/recipe/food/${foodId}/toggle`).then(r => r.data),
+
+    toggleExtraRecipeEnabled: (sectionId, extraId) =>
+        api.patch(`/inventory/recipe/extra/${sectionId}/${extraId}/toggle`).then(r => r.data),
 };
 
 export default inventoryService;

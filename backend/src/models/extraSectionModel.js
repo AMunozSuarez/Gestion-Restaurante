@@ -26,6 +26,10 @@ const extraSchema = new mongoose.Schema({
             min: 0,
         },
     }],
+    recipeEnabled: {
+        type: Boolean,
+        default: true,
+    },
 }, { _id: true });
 
 const extraSectionSchema = new mongoose.Schema({

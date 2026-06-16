@@ -224,7 +224,7 @@ const getMovements = async (req, res) => {
 const getFoodRecipe = async (req, res) => {
     try {
         const food = await Food.findOne({ _id: req.params.foodId, restaurant: req.restaurantId })
-            .select('title recipe')
+            .select('title recipe recipeEnabled')
             .populate('recipe.ingredient', 'name unit currentStock')
             .lean();
 
@@ -232,7 +232,12 @@ const getFoodRecipe = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Producto no encontrado' });
         }
 
-        res.json({ success: true, recipe: food.recipe || [], foodTitle: food.title });
+        res.json({
+            success: true,
+            recipe: food.recipe || [],
+            recipeEnabled: food.recipeEnabled !== false,
+            foodTitle: food.title,
+        });
     } catch (error) {
         console.error('Error al obtener receta:', error);
         res.status(500).json({ success: false, message: 'Error al obtener receta', error: error.message });
@@ -369,6 +374,49 @@ const updateExtraRecipe = async (req, res) => {
     }
 };
 
+const toggleFoodRecipeEnabled = async (req, res) => {
+    try {
+        const food = await Food.findOne({ _id: req.params.foodId, restaurant: req.restaurantId })
+            .select('recipeEnabled');
+
+        if (!food) {
+            return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+        }
+
+        food.recipeEnabled = !food.recipeEnabled;
+        await food.save();
+
+        res.json({ success: true, recipeEnabled: food.recipeEnabled });
+    } catch (error) {
+        console.error('Error al cambiar estado de receta:', error);
+        res.status(500).json({ success: false, message: 'Error al cambiar estado de receta', error: error.message });
+    }
+};
+
+const toggleExtraRecipeEnabled = async (req, res) => {
+    try {
+        const { sectionId, extraId } = req.params;
+
+        const section = await ExtraSection.findOne({ _id: sectionId, restaurant: req.restaurantId });
+        if (!section) {
+            return res.status(404).json({ success: false, message: 'Sección no encontrada' });
+        }
+
+        const extra = section.extras.id(extraId);
+        if (!extra) {
+            return res.status(404).json({ success: false, message: 'Extra no encontrado' });
+        }
+
+        extra.recipeEnabled = !extra.recipeEnabled;
+        await section.save();
+
+        res.json({ success: true, recipeEnabled: extra.recipeEnabled });
+    } catch (error) {
+        console.error('Error al cambiar estado de receta de extra:', error);
+        res.status(500).json({ success: false, message: 'Error al cambiar estado de receta de extra', error: error.message });
+    }
+};
+
 module.exports = {
     getItems,
     createItem,
@@ -380,4 +428,6 @@ module.exports = {
     updateFoodRecipe,
     getExtraRecipe,
     updateExtraRecipe,
+    toggleFoodRecipeEnabled,
+    toggleExtraRecipeEnabled,
 };

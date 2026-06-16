@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useInventory } from '../hooks/useInventory';
+import { useRestaurant } from '../hooks/useRestaurant';
+import { useAuth } from '../hooks/useAuth';
+import api from '../services/api';
 import inventoryService from '../services/inventoryService';
 import { productsService } from '../services/productsService';
 import extraSectionsService from '../services/extraSectionsService';
@@ -37,8 +41,31 @@ const TAB_MOVEMENTS = 'movements';
 const ITEMS_PER_PAGE = 20;
 
 const Inventario = () => {
+    const navigate = useNavigate();
+    const { restaurant, isLoading: isRestaurantLoading, refetch: refetchRestaurant } = useRestaurant();
+    const { user } = useAuth();
+    const [activating, setActivating] = useState(false);
+    const [activateError, setActivateError] = useState('');
+
+    const inventoryEnabled = Boolean(restaurant?.settings?.inventory?.enabled);
+    const isOwner = user?.role === 'owner' || user?.role === 'super_admin';
+
+    const handleActivateInventory = async () => {
+        setActivating(true);
+        setActivateError('');
+        try {
+            await api.put('/restaurant/settings/me', { inventoryEnabled: true });
+            await refetchRestaurant();
+        } catch {
+            setActivateError('No se pudo activar el inventario. Intenta de nuevo.');
+        } finally {
+            setActivating(false);
+        }
+    };
+
     const [tab, setTab] = useState(TAB_ITEMS);
     const [showInactive, setShowInactive] = useState(false);
+    const [helpOpen, setHelpOpen] = useState(false);
 
     // Insumos state
     const {
@@ -65,6 +92,8 @@ const Inventario = () => {
     const [recipeSearch, setRecipeSearch] = useState('');
     const [collapsedCategories, setCollapsedCategories] = useState(new Set());
     const [recipeNoRecipeOnly, setRecipeNoRecipeOnly] = useState(false);
+    const [recipeDisabledOnly, setRecipeDisabledOnly] = useState(false);
+    const [togglingRecipe, setTogglingRecipe] = useState(new Set()); // IDs en vuelo
 
     // Movements filters
     const [mvPage, setMvPage] = useState(1);
@@ -180,6 +209,43 @@ const Inventario = () => {
         });
     };
 
+    const handleToggleFoodRecipe = async (product) => {
+        if (togglingRecipe.has(product._id)) return;
+        setTogglingRecipe(prev => new Set(prev).add(product._id));
+        try {
+            const data = await inventoryService.toggleFoodRecipeEnabled(product._id);
+            setProducts(prev => prev.map(p =>
+                p._id === product._id ? { ...p, recipeEnabled: data.recipeEnabled } : p
+            ));
+        } catch {
+            // silently ignore
+        } finally {
+            setTogglingRecipe(prev => { const s = new Set(prev); s.delete(product._id); return s; });
+        }
+    };
+
+    const handleToggleExtraRecipe = async (section, extra) => {
+        const key = `${section._id}-${extra._id}`;
+        if (togglingRecipe.has(key)) return;
+        setTogglingRecipe(prev => new Set(prev).add(key));
+        try {
+            const data = await inventoryService.toggleExtraRecipeEnabled(section._id, extra._id);
+            setExtraSections(prev => prev.map(s => {
+                if (s._id !== section._id) return s;
+                return {
+                    ...s,
+                    extras: s.extras.map(e =>
+                        e._id === extra._id ? { ...e, recipeEnabled: data.recipeEnabled } : e
+                    ),
+                };
+            }));
+        } catch {
+            // silently ignore
+        } finally {
+            setTogglingRecipe(prev => { const s = new Set(prev); s.delete(key); return s; });
+        }
+    };
+
     // ── Insumos: filter + sort + paginate (client-side) ──
     const filteredItems = useMemo(() => {
         let result = items;
@@ -205,6 +271,7 @@ const Inventario = () => {
         const search = recipeSearch.toLowerCase();
         let filtered = products.filter(p => p.title?.toLowerCase().includes(search));
         if (recipeNoRecipeOnly) filtered = filtered.filter(p => !p.recipe || p.recipe.length === 0);
+        if (recipeDisabledOnly) filtered = filtered.filter(p => p.recipe?.length > 0 && p.recipeEnabled === false);
         const map = new Map();
         filtered.forEach(p => {
             const cat = p.category?.title || 'Sin categoría';
@@ -212,14 +279,17 @@ const Inventario = () => {
             map.get(cat).push(p);
         });
         return map;
-    }, [products, recipeSearch, recipeNoRecipeOnly]);
+    }, [products, recipeSearch, recipeNoRecipeOnly, recipeDisabledOnly]);
 
     const filteredSections = extraSections.map(s => ({
         ...s,
-        extras: s.extras?.filter(e =>
-            e.name?.toLowerCase().includes(recipeSearch.toLowerCase())
-        ) || [],
-    })).filter(s => s.extras.length > 0 || s.sectionName?.toLowerCase().includes(recipeSearch.toLowerCase()));
+        extras: (s.extras || []).filter(e => {
+            const matchSearch = e.name?.toLowerCase().includes(recipeSearch.toLowerCase());
+            const matchNoRecipe = !recipeNoRecipeOnly || !e.recipe?.length;
+            const matchDisabled = !recipeDisabledOnly || (e.recipe?.length > 0 && e.recipeEnabled === false);
+            return matchSearch && matchNoRecipe && matchDisabled;
+        }),
+    })).filter(s => s.extras.length > 0);
 
     const formatDate = (dateStr) => {
         if (!dateStr) return '-';
@@ -229,18 +299,113 @@ const Inventario = () => {
         });
     };
 
+    // ── Pantalla cuando el inventario está desactivado ──
+    if (!isRestaurantLoading && !inventoryEnabled) {
+        return (
+            <div className="h-full bg-gray-50 flex items-center justify-center p-6">
+                <div className="max-w-md w-full text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+                        </svg>
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-800 mb-2">Control de inventario desactivado</h2>
+                    <p className="text-sm text-gray-500 mb-6">
+                        El módulo de inventario no está habilitado para este restaurante.
+                        {isOwner
+                            ? ' Puedes activarlo ahora para comenzar a gestionar el stock de insumos y recetas.'
+                            : ' Contacta al administrador del restaurante para activarlo.'}
+                    </p>
+
+                    {isOwner ? (
+                        <div className="space-y-3">
+                            <button
+                                onClick={handleActivateInventory}
+                                disabled={activating}
+                                className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-60 transition-colors"
+                            >
+                                {activating ? 'Activando...' : 'Activar control de inventario'}
+                            </button>
+                            <button
+                                onClick={() => navigate('/configuracion?tab=inventory')}
+                                className="w-full px-4 py-2.5 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                            >
+                                Ir a Configuración
+                            </button>
+                            {activateError && (
+                                <p className="text-sm text-red-600">{activateError}</p>
+                            )}
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="px-4 py-2.5 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                        >
+                            Volver
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="h-full bg-gray-50 flex justify-center items-start overflow-auto">
             <div className="w-full max-w-5xl px-4 sm:px-6 py-6 pb-10">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Inventario</h1>
-                        {lowStockCount > 0 && (
-                            <p className="text-sm text-amber-600 font-medium mt-0.5">
-                                ⚠ {lowStockCount} insumo{lowStockCount > 1 ? 's' : ''} con stock bajo
-                            </p>
-                        )}
+                    <div className="flex items-center gap-2">
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900">Inventario</h1>
+                            {lowStockCount > 0 && (
+                                <p className="text-sm text-amber-600 font-medium mt-0.5">
+                                    ⚠ {lowStockCount} insumo{lowStockCount > 1 ? 's' : ''} con stock bajo
+                                </p>
+                            )}
+                        </div>
+                        {/* Botón de ayuda */}
+                        <div className="relative self-start mt-1">
+                            <button
+                                onClick={() => setHelpOpen(v => !v)}
+                                className="w-6 h-6 rounded-full border border-gray-300 bg-white text-gray-400 hover:text-gray-600 hover:border-gray-400 flex items-center justify-center text-xs font-bold transition-colors"
+                                title="¿Cómo funciona el inventario?"
+                            >
+                                ?
+                            </button>
+                            {helpOpen && (
+                                <div className="absolute left-0 top-8 w-80 bg-white border border-gray-200 rounded-xl shadow-lg z-50 p-4 text-sm text-gray-600 space-y-3">
+                                    <button
+                                        onClick={() => setHelpOpen(false)}
+                                        className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-lg leading-none"
+                                    >
+                                        ×
+                                    </button>
+                                    <p className="font-semibold text-gray-800 pr-4">¿Cómo funciona el inventario?</p>
+                                    <div className="space-y-2">
+                                        <div className="flex gap-2">
+                                            <span className="text-green-600 font-bold flex-shrink-0">1.</span>
+                                            <p><span className="font-medium text-gray-700">Insumos</span> — crea los ingredientes o materiales que usas (harina, queso, vasos, etc.) con su unidad de medida y stock actual.</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <span className="text-green-600 font-bold flex-shrink-0">2.</span>
+                                            <p><span className="font-medium text-gray-700">Recetas</span> — asigna a cada producto y extra qué insumos consume y en qué cantidad al venderse.</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <span className="text-green-600 font-bold flex-shrink-0">3.</span>
+                                            <p><span className="font-medium text-gray-700">Descuento automático</span> — al completar una venta o cerrar una mesa, el stock se descuenta solo según las recetas configuradas.</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <span className="text-green-600 font-bold flex-shrink-0">4.</span>
+                                            <p><span className="font-medium text-gray-700">Movimientos</span> — cada entrada, venta o ajuste queda registrado con fecha y referencia para trazabilidad.</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <span className="text-amber-500 font-bold flex-shrink-0">⚠</span>
+                                            <p>El aviso de <span className="font-medium text-gray-700">stock bajo</span> aparece cuando el stock actual es igual o menor al stock mínimo configurado.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     {tab === TAB_ITEMS && (
                         <button
@@ -478,10 +643,19 @@ const Inventario = () => {
                                 <input
                                     type="checkbox"
                                     checked={recipeNoRecipeOnly}
-                                    onChange={e => setRecipeNoRecipeOnly(e.target.checked)}
+                                    onChange={e => { setRecipeNoRecipeOnly(e.target.checked); if (e.target.checked) setRecipeDisabledOnly(false); }}
                                     className="rounded"
                                 />
                                 Sin receta asignada
+                            </label>
+                            <label className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 cursor-pointer hover:bg-gray-50 select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={recipeDisabledOnly}
+                                    onChange={e => { setRecipeDisabledOnly(e.target.checked); if (e.target.checked) setRecipeNoRecipeOnly(false); }}
+                                    className="rounded"
+                                />
+                                Recetas desactivadas
                             </label>
                         </div>
                         <p className="text-xs text-gray-400 mb-4">
@@ -527,16 +701,35 @@ const Inventario = () => {
                                                             <tbody className="divide-y divide-gray-100">
                                                                 {categoryProducts.map(product => (
                                                                     <tr key={product._id} className="hover:bg-gray-50">
-                                                                        <td className="px-4 py-3 font-medium text-gray-900">
-                                                                            {product.title}
+                                                                        <td className="px-4 py-3">
+                                                                            <span className="font-medium text-gray-900">{product.title}</span>
+                                                                            {product.recipe?.length > 0 && product.recipeEnabled === false && (
+                                                                                <span className="ml-2 text-xs text-gray-400 italic">pausada</span>
+                                                                            )}
                                                                         </td>
                                                                         <td className="px-4 py-3 text-right">
-                                                                            <button
-                                                                                onClick={() => openRecipeForFood(product)}
-                                                                                className="px-3 py-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors font-medium"
-                                                                            >
-                                                                                Ver receta
-                                                                            </button>
+                                                                            <div className="inline-flex items-center gap-1.5">
+                                                                                {product.recipe?.length > 0 && (
+                                                                                    <button
+                                                                                        onClick={() => handleToggleFoodRecipe(product)}
+                                                                                        disabled={togglingRecipe.has(product._id)}
+                                                                                        title={product.recipeEnabled === false ? 'Activar descuento de stock' : 'Desactivar descuento de stock'}
+                                                                                        className={`px-2.5 py-1 text-xs rounded-lg border font-medium transition-colors disabled:opacity-50 ${
+                                                                                            product.recipeEnabled === false
+                                                                                                ? 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100'
+                                                                                                : 'text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100'
+                                                                                        }`}
+                                                                                    >
+                                                                                        {product.recipeEnabled === false ? 'Activar' : 'Desactivar'}
+                                                                                    </button>
+                                                                                )}
+                                                                                <button
+                                                                                    onClick={() => openRecipeForFood(product)}
+                                                                                    className="px-3 py-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors font-medium"
+                                                                                >
+                                                                                    Ver receta
+                                                                                </button>
+                                                                            </div>
                                                                         </td>
                                                                     </tr>
                                                                 ))}
@@ -580,21 +773,40 @@ const Inventario = () => {
                                                     <tbody className="divide-y divide-gray-100">
                                                         {section.extras.map(extra => (
                                                             <tr key={extra._id} className="hover:bg-gray-50">
-                                                                <td className="px-4 py-3 font-medium text-gray-900">
-                                                                    {extra.name}
+                                                                <td className="px-4 py-3">
+                                                                    <span className="font-medium text-gray-900">{extra.name}</span>
                                                                     {extra.price > 0 && (
                                                                         <span className="text-gray-400 font-normal ml-2">
                                                                             +${extra.price?.toLocaleString('es-CL')}
                                                                         </span>
                                                                     )}
+                                                                    {extra.recipe?.length > 0 && extra.recipeEnabled === false && (
+                                                                        <span className="ml-2 text-xs text-gray-400 italic">pausada</span>
+                                                                    )}
                                                                 </td>
                                                                 <td className="px-4 py-3 text-right">
-                                                                    <button
-                                                                        onClick={() => openRecipeForExtra(section, extra)}
-                                                                        className="px-3 py-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors font-medium"
-                                                                    >
-                                                                        Ver receta
-                                                                    </button>
+                                                                    <div className="inline-flex items-center gap-1.5">
+                                                                        {extra.recipe?.length > 0 && (
+                                                                            <button
+                                                                                onClick={() => handleToggleExtraRecipe(section, extra)}
+                                                                                disabled={togglingRecipe.has(`${section._id}-${extra._id}`)}
+                                                                                title={extra.recipeEnabled === false ? 'Activar descuento de stock' : 'Desactivar descuento de stock'}
+                                                                                className={`px-2.5 py-1 text-xs rounded-lg border font-medium transition-colors disabled:opacity-50 ${
+                                                                                    extra.recipeEnabled === false
+                                                                                        ? 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100'
+                                                                                        : 'text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100'
+                                                                                }`}
+                                                                            >
+                                                                                {extra.recipeEnabled === false ? 'Activar' : 'Desactivar'}
+                                                                            </button>
+                                                                        )}
+                                                                        <button
+                                                                            onClick={() => openRecipeForExtra(section, extra)}
+                                                                            className="px-3 py-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors font-medium"
+                                                                        >
+                                                                            Ver receta
+                                                                        </button>
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                         ))}

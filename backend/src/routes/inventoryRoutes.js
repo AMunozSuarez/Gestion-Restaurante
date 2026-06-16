@@ -12,6 +12,8 @@ const {
     updateFoodRecipe,
     getExtraRecipe,
     updateExtraRecipe,
+    toggleFoodRecipeEnabled,
+    toggleExtraRecipeEnabled,
 } = require('../controllers/inventoryController');
 
 const router = express.Router();
@@ -29,9 +31,11 @@ router.get('/movements', authMiddleware, filterByRestaurant, getMovements);
 // Recetas de productos
 router.get('/recipe/food/:foodId', authMiddleware, filterByRestaurant, getFoodRecipe);
 router.put('/recipe/food/:foodId', authMiddleware, filterByRestaurant, updateFoodRecipe);
+router.patch('/recipe/food/:foodId/toggle', authMiddleware, filterByRestaurant, toggleFoodRecipeEnabled);
 
 // Recetas de extras
 router.get('/recipe/extra/:sectionId/:extraId', authMiddleware, filterByRestaurant, getExtraRecipe);
 router.put('/recipe/extra/:sectionId/:extraId', authMiddleware, filterByRestaurant, updateExtraRecipe);
+router.patch('/recipe/extra/:sectionId/:extraId/toggle', authMiddleware, filterByRestaurant, toggleExtraRecipeEnabled);
 
 module.exports = router;
