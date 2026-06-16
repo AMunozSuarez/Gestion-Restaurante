@@ -57,8 +57,22 @@ const foodSchema = new mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId
         }]
     }],
-
-
+    recipe: [{
+        ingredient: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'InventoryItem',
+            required: true,
+        },
+        quantity: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
+    }],
+    recipeEnabled: {
+        type: Boolean,
+        default: true,
+    },
 
 }, {
     timestamps: true

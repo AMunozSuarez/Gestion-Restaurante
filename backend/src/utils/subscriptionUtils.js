@@ -26,18 +26,6 @@ const calculateNextBillingDate = (currentEndDate) => {
 };
 
 /**
- * Calcula el período de gracia (días después de expiración donde aún puede acceder)
- * @param {Date} endDate - Fecha de fin de suscripción
- * @param {Number} graceDays - Días de gracia (por defecto 5)
- * @returns {Date} Fecha de fin del período de gracia
- */
-const calculateGracePeriodEnd = (endDate, graceDays = 5) => {
-    const graceEnd = new Date(endDate);
-    graceEnd.setDate(graceEnd.getDate() + graceDays);
-    return graceEnd;
-};
-
-/**
  * Verifica si una suscripción necesita enviar recordatorio de expiración
  * @param {Object} subscription - Documento de suscripción
  * @returns {Object} { shouldNotify: Boolean, daysRemaining: Number }
@@ -99,22 +87,17 @@ const getSubscriptionsForRenewal = async () => {
 
 /**
  * Actualiza el estado de una suscripción a expirada
- * @param {String} subscriptionId - ID de la suscripción
- * @param {Number} graceDays - Días de período de gracia
- * @returns {Promise<Object>} Suscripción actualizada
  */
-const expireSubscription = async (subscriptionId, graceDays = 5) => {
+const expireSubscription = async (subscriptionId) => {
     const subscription = await Subscription.findById(subscriptionId);
-    
+
     if (!subscription) {
         throw new Error('Suscripción no encontrada');
     }
 
     subscription.status = 'expired';
-    subscription.gracePeriodEnd = calculateGracePeriodEnd(subscription.endDate, graceDays);
     await subscription.save();
 
-    // Actualizar también el restaurante
     await Restaurant.findByIdAndUpdate(subscription.restaurant, {
         subscriptionStatus: 'expired',
     });
@@ -356,8 +339,7 @@ module.exports = {
     // Funciones de cálculo de fechas
     calculateEndDate,
     calculateNextBillingDate,
-    calculateGracePeriodEnd,
-    
+
     // Funciones de consulta
     checkExpirationReminder,
     getExpiringSoon,

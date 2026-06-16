@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useRestaurant } from '../../hooks/useRestaurant';
 import { useSubscription } from '../../hooks/useSubscription';
+import { useInventoryAlert } from '../../hooks/useInventoryAlert';
 import logo from '../../assets/logo.png';
 import {
   HomeIcon,
@@ -21,6 +22,8 @@ import {
   BuildingStorefrontIcon,
   QuestionMarkCircleIcon,
   PuzzlePieceIcon,
+  ArchiveBoxIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -34,12 +37,18 @@ const Header = () => {
     daysRemaining: subscriptionDaysRemaining,
     isLoading: isSubscriptionLoading,
   } = useSubscription();
+  const inventoryEnabled = Boolean(restaurant?.settings?.inventory?.enabled);
+  const { lowStockCount } = useInventoryAlert(inventoryEnabled);
+
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSubscriptionNoticeOpen, setIsSubscriptionNoticeOpen] = useState(false);
+  const [isInventoryAlertOpen, setIsInventoryAlertOpen] = useState(false);
   const headerRef = useRef(null);
   const subscriptionNoticeRef = useRef(null);
   const subscriptionNoticeCloseTimerRef = useRef(null);
+  const inventoryAlertRef = useRef(null);
+  const inventoryAlertCloseTimerRef = useRef(null);
 
   // Core operational nav (center)
   const navigationSections = [
@@ -59,6 +68,7 @@ const Header = () => {
         { name: 'Productos', href: '/productos', icon: TagIcon },
         { name: 'Categorías', href: '/categorias', icon: RectangleStackIcon },
         { name: 'Extras', href: '/extras', icon: PuzzlePieceIcon },
+        { name: 'Inventario', href: '/inventario', icon: ArchiveBoxIcon },
       ]
     }
   ];
@@ -94,19 +104,27 @@ const Header = () => {
   const hasPendingPayment = subscription?.status === 'pending';
   const shouldShowSubscriptionNotice = !isSubscriptionLoading && (
     hasSubscriptionPaymentIssue ||
-    (normalizedDaysRemaining !== null && normalizedDaysRemaining <= 5)
+    (normalizedDaysRemaining !== null && normalizedDaysRemaining <= 7)
   );
   const isCriticalSubscriptionNotice = hasSubscriptionPaymentIssue || (
-    normalizedDaysRemaining !== null && normalizedDaysRemaining <= 1
+    normalizedDaysRemaining !== null && normalizedDaysRemaining <= 3
   );
 
   const subscriptionNoticeTitle = hasSubscriptionPaymentIssue
     ? (hasPendingPayment ? 'Pago de suscripción pendiente' : 'Suscripción vencida')
-    : `Tu suscripción vence ${normalizedDaysRemaining === 1 ? 'en 1 día' : `en ${normalizedDaysRemaining} días`}`;
+    : normalizedDaysRemaining === 0
+      ? 'Tu suscripción vence hoy'
+      : normalizedDaysRemaining === 1
+        ? 'Tu suscripción vence mañana'
+        : `Tu suscripción vence en ${normalizedDaysRemaining} días`;
 
   const subscriptionNoticeDescription = hasSubscriptionPaymentIssue
     ? 'Debes pagar o renovar tu suscripción para seguir usando el servicio.'
-    : 'Renueva a tiempo para no perder el acceso al sistema.';
+    : normalizedDaysRemaining <= 1
+      ? 'Renueva ahora para no perder el acceso al sistema.'
+      : normalizedDaysRemaining <= 3
+        ? 'Renueva pronto para evitar interrupciones del servicio.'
+        : 'Renueva a tiempo para no perder el acceso al sistema.';
 
   const isActive = (href) => location.pathname === href;
 
@@ -137,6 +155,10 @@ const Header = () => {
 
       if (subscriptionNoticeRef.current && !subscriptionNoticeRef.current.contains(event.target)) {
         setIsSubscriptionNoticeOpen(false);
+      }
+
+      if (inventoryAlertRef.current && !inventoryAlertRef.current.contains(event.target)) {
+        setIsInventoryAlertOpen(false);
       }
     };
 
@@ -185,6 +207,9 @@ const Header = () => {
     return () => {
       if (subscriptionNoticeCloseTimerRef.current) {
         clearTimeout(subscriptionNoticeCloseTimerRef.current);
+      }
+      if (inventoryAlertCloseTimerRef.current) {
+        clearTimeout(inventoryAlertCloseTimerRef.current);
       }
     };
   }, []);
@@ -299,6 +324,63 @@ const Header = () => {
 
           {/* User / settings menu */}
           <div className="relative flex items-center">
+            {inventoryEnabled && lowStockCount > 0 && (
+              <div
+                ref={inventoryAlertRef}
+                className="relative mr-2"
+                onMouseEnter={() => {
+                  if (inventoryAlertCloseTimerRef.current) {
+                    clearTimeout(inventoryAlertCloseTimerRef.current);
+                    inventoryAlertCloseTimerRef.current = null;
+                  }
+                  setIsInventoryAlertOpen(true);
+                }}
+                onMouseLeave={() => {
+                  if (inventoryAlertCloseTimerRef.current) clearTimeout(inventoryAlertCloseTimerRef.current);
+                  inventoryAlertCloseTimerRef.current = setTimeout(() => {
+                    setIsInventoryAlertOpen(false);
+                    inventoryAlertCloseTimerRef.current = null;
+                  }, 180);
+                }}
+              >
+                <button
+                  onClick={() => setIsInventoryAlertOpen((prev) => !prev)}
+                  className="relative inline-flex items-center justify-center w-9 h-9 rounded-full border text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100 transition-colors duration-200"
+                  aria-label="Alerta de stock bajo"
+                >
+                  <ExclamationTriangleIcon className="w-5 h-5" />
+                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-amber-500 rounded-full">
+                    {lowStockCount > 9 ? '9+' : lowStockCount}
+                  </span>
+                </button>
+
+                {isInventoryAlertOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-amber-200 rounded-lg shadow-lg z-50 p-3">
+                    <div className="flex items-start gap-2 mb-2 pb-2 border-b border-amber-100">
+                      <ExclamationTriangleIcon className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                      <p className="text-sm font-semibold text-amber-700">
+                        {lowStockCount === 1
+                          ? '1 insumo con stock bajo'
+                          : `${lowStockCount} insumos con stock bajo`}
+                      </p>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      Hay insumos que están por debajo del stock mínimo. Revisa el inventario para evitar interrupciones en la operación.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setIsInventoryAlertOpen(false);
+                        navigate('/inventario');
+                      }}
+                      className="mt-3 w-full px-3 py-2 rounded-md text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 transition-colors duration-200"
+                    >
+                      Ir a Inventario
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {shouldShowSubscriptionNotice && (
               <div
                 ref={subscriptionNoticeRef}
@@ -311,7 +393,7 @@ const Header = () => {
                   className={`inline-flex items-center justify-center w-9 h-9 rounded-full border transition-colors duration-200 ${
                     isCriticalSubscriptionNotice
                       ? 'text-red-600 border-red-200 bg-red-50 hover:bg-red-100'
-                      : 'text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100'
+                      : 'text-amber-500 border-amber-200 bg-amber-50 hover:bg-amber-100'
                   }`}
                   aria-label="Alerta de suscripción"
                 >
@@ -319,19 +401,26 @@ const Header = () => {
                 </button>
 
                 <div
-                  className={`absolute top-full right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3 ${
+                  className={`absolute top-full right-0 mt-2 w-72 bg-white border rounded-lg shadow-lg z-50 p-3 ${
                     isSubscriptionNoticeOpen ? 'block' : 'hidden'
-                  }`}
+                  } ${isCriticalSubscriptionNotice ? 'border-red-200' : 'border-amber-200'}`}
                 >
-                  <p className={`text-sm font-semibold ${isCriticalSubscriptionNotice ? 'text-red-700' : 'text-amber-700'}`}>
-                    {subscriptionNoticeTitle}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-600">
+                  <div className={`flex items-start gap-2 mb-2 pb-2 border-b ${isCriticalSubscriptionNotice ? 'border-red-100' : 'border-amber-100'}`}>
+                    <QuestionMarkCircleIcon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isCriticalSubscriptionNotice ? 'text-red-500' : 'text-amber-500'}`} />
+                    <p className={`text-sm font-semibold ${isCriticalSubscriptionNotice ? 'text-red-700' : 'text-amber-700'}`}>
+                      {subscriptionNoticeTitle}
+                    </p>
+                  </div>
+                  <p className="text-xs text-gray-600">
                     {subscriptionNoticeDescription}
                   </p>
                   <button
                     onClick={handleGoToSubscriptionSettings}
-                    className="mt-3 w-full px-3 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition-colors duration-200"
+                    className={`mt-3 w-full px-3 py-2 rounded-md text-sm font-medium text-white transition-colors duration-200 ${
+                      isCriticalSubscriptionNotice
+                        ? 'bg-red-600 hover:bg-red-700'
+                        : 'bg-amber-500 hover:bg-amber-600'
+                    }`}
                   >
                     Ir a Suscripción
                   </button>
@@ -465,6 +554,24 @@ const Header = () => {
               })}
             </div>
           ))}
+
+          {/* Alerta de stock bajo en mobile */}
+          {inventoryEnabled && lowStockCount > 0 && (
+            <div className="mx-3 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <p className="text-sm font-semibold text-amber-700">
+                  {lowStockCount === 1 ? '1 insumo con stock bajo' : `${lowStockCount} insumos con stock bajo`}
+                </p>
+              </div>
+              <button
+                onClick={() => { navigate('/inventario'); setIsMobileMenuOpen(false); }}
+                className="mt-1 w-full px-3 py-1.5 rounded-md text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 transition-colors duration-200"
+              >
+                Ir a Inventario
+              </button>
+            </div>
+          )}
 
           {/* User menu items (Configuración, Suscripción, Admin) */}
           <div className="pt-2 border-t border-gray-200">

@@ -13,7 +13,23 @@ const extraSchema = new mongoose.Schema({
     isAvailable: {
         type: Boolean,
         default: true
-    }
+    },
+    recipe: [{
+        ingredient: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'InventoryItem',
+            required: true,
+        },
+        quantity: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
+    }],
+    recipeEnabled: {
+        type: Boolean,
+        default: true,
+    },
 }, { _id: true });
 
 const extraSectionSchema = new mongoose.Schema({

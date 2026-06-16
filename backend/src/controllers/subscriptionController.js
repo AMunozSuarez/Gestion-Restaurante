@@ -99,7 +99,6 @@ const getCurrentSubscription = async (req, res) => {
 
         const daysRemaining = subscription.getDaysRemaining();
         const isActive = subscription.isActive();
-        const isInGracePeriod = subscription.isInGracePeriod();
 
         res.status(200).json({
             success: true,
@@ -107,7 +106,6 @@ const getCurrentSubscription = async (req, res) => {
                 subscription,
                 daysRemaining,
                 isActive,
-                isInGracePeriod,
                 canAccess: subscription.canAccess(),
             },
         });
@@ -685,39 +683,41 @@ const verifyMercadoPagoPayment = async (req, res) => {
             });
         }
 
-        // Verificar si ya tiene una suscripción que NO está activa (suspendida, expirada, cancelada)
-        // En ese caso, reactivarla y extender la fecha en lugar de crear una nueva
-        const existingSuspendedOrExpired = await Subscription.findOne({
+        // Buscar cualquier suscripción existente del restaurante (en cualquier estado)
+        const existingSubscription = await Subscription.findOne({
             restaurant: restaurantId,
-            status: { $in: ['suspended', 'expired', 'cancelled'] },
         }).sort({ createdAt: -1 });
 
-        if (existingSuspendedOrExpired) {
-            console.log('Suscripción inactiva encontrada - reactivando y extendiendo');
-            const planCfg = Subscription.schema.statics.getPlanConfig(plan);
-            const newEndDate = calculateEndDate(new Date(), plan);
+        if (existingSubscription) {
+            const isCurrentlyActive = existingSubscription.isActive();
+            const now = new Date();
+            // Si está activa y endDate es futura, extender desde endDate; si no, renovar desde hoy
+            const baseDate = isCurrentlyActive ? new Date(existingSubscription.endDate) : now;
+            const newEndDate = calculateEndDate(baseDate, plan);
 
-            existingSuspendedOrExpired.plan = plan;
-            existingSuspendedOrExpired.status = 'active';
-            existingSuspendedOrExpired.paymentId = paymentInfo.id.toString();
-            existingSuspendedOrExpired.lastPaymentDate = new Date(paymentInfo.date_approved);
-            existingSuspendedOrExpired.startDate = new Date();
-            existingSuspendedOrExpired.endDate = newEndDate;
-            existingSuspendedOrExpired.amount = paymentInfo.transaction_amount || paymentInfo.amount;
-            existingSuspendedOrExpired.paymentProvider = 'mercadopago';
-            existingSuspendedOrExpired.paymentHistory.push({
+            existingSubscription.plan = plan;
+            existingSubscription.status = 'active';
+            existingSubscription.paymentId = paymentInfo.id.toString();
+            existingSubscription.lastPaymentDate = new Date(paymentInfo.date_approved);
+            existingSubscription.endDate = newEndDate;
+            existingSubscription.amount = paymentInfo.transaction_amount || paymentInfo.amount;
+            existingSubscription.paymentProvider = 'mercadopago';
+            if (!isCurrentlyActive) {
+                existingSubscription.startDate = now;
+            }
+            existingSubscription.paymentHistory.push({
                 date: new Date(paymentInfo.date_approved),
                 amount: paymentInfo.transaction_amount || paymentInfo.amount,
                 status: 'success',
                 paymentId: paymentInfo.id.toString(),
             });
-            await existingSuspendedOrExpired.save();
+            await existingSubscription.save();
 
             await Restaurant.findByIdAndUpdate(restaurantId, {
-                currentSubscription: existingSuspendedOrExpired._id,
+                currentSubscription: existingSubscription._id,
                 subscriptionStatus: 'active',
                 subscriptionPlan: plan,
-                subscriptionStartDate: new Date(),
+                subscriptionStartDate: existingSubscription.startDate,
                 subscriptionEndDate: newEndDate,
                 lastPaymentDate: new Date(paymentInfo.date_approved),
                 isSuspended: false,
@@ -726,48 +726,12 @@ const verifyMercadoPagoPayment = async (req, res) => {
 
             return res.status(200).json({
                 success: true,
-                message: 'Pago verificado y suscripción reactivada',
+                message: isCurrentlyActive ? 'Pago verificado y suscripción extendida' : 'Pago verificado y suscripción reactivada',
                 data: {
-                    subscription: existingSuspendedOrExpired,
+                    subscription: existingSubscription,
                     payment: paymentInfo,
-                    reactivated: true,
-                },
-            });
-        }
-
-        // Verificar si ya tiene una suscripción activa (evitar duplicados)
-        const existingActive = await Subscription.findOne({
-            restaurant: restaurantId,
-            status: { $in: ['active', 'trial'] },
-        });
-
-        if (existingActive) {
-            console.log('Ya existe una suscripción activa - extendiendo en lugar de duplicar');
-            const newEndDate = calculateEndDate(new Date(existingActive.endDate), plan);
-            existingActive.plan = plan;
-            existingActive.paymentId = paymentInfo.id.toString();
-            existingActive.lastPaymentDate = new Date(paymentInfo.date_approved);
-            existingActive.endDate = newEndDate;
-            existingActive.paymentHistory.push({
-                date: new Date(paymentInfo.date_approved),
-                amount: paymentInfo.transaction_amount || paymentInfo.amount,
-                status: 'success',
-                paymentId: paymentInfo.id.toString(),
-            });
-            await existingActive.save();
-
-            await Restaurant.findByIdAndUpdate(restaurantId, {
-                subscriptionEndDate: newEndDate,
-                lastPaymentDate: new Date(paymentInfo.date_approved),
-            });
-
-            return res.status(200).json({
-                success: true,
-                message: 'Pago verificado y suscripción extendida',
-                data: {
-                    subscription: existingActive,
-                    payment: paymentInfo,
-                    extended: true,
+                    reactivated: !isCurrentlyActive,
+                    extended: isCurrentlyActive,
                 },
             });
         }

@@ -68,10 +68,6 @@ const subscriptionSchema = new mongoose.Schema({
     cancelReason: {
         type: String,
     },
-    gracePeriodEnd: {
-        type: Date,
-        // Fecha hasta la cual el servicio sigue activo después de vencimiento
-    },
     // Características del plan
     features: {
         maxLocations: {
@@ -132,19 +128,9 @@ subscriptionSchema.methods.isActive = function() {
     );
 };
 
-// Método para verificar si está en período de gracia
-subscriptionSchema.methods.isInGracePeriod = function() {
-    const now = new Date();
-    return (
-        this.status === 'expired' &&
-        this.gracePeriodEnd &&
-        this.gracePeriodEnd > now
-    );
-};
-
 // Método para verificar si puede acceder al sistema
 subscriptionSchema.methods.canAccess = function() {
-    return this.isActive() || this.isInGracePeriod();
+    return this.isActive();
 };
 
 // Método para obtener días restantes

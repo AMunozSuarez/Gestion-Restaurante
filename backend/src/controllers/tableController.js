@@ -2,6 +2,7 @@ const Table = require('../models/tableModel');
 const Order = require('../models/orderModel');
 const Restaurant = require('../models/restaurantModel');
 const { getIO } = require('../socket');
+const { deductStockForOrder } = require('../services/inventoryService');
 
 // Obtener todas las mesas del restaurante
 const getTables = async (req, res) => {
@@ -214,6 +215,11 @@ const closeTable = async (req, res) => {
             if (order && order.status !== 'Completado' && order.status !== 'Cancelado') {
                 order.status = 'Completado';
                 await order.save();
+
+                // Descontar inventario (fire-and-forget)
+                deductStockForOrder(order._id, req.restaurantId).catch(err =>
+                    console.error('Error al descontar inventario al cerrar mesa:', err)
+                );
             }
         }
         

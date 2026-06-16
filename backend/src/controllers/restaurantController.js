@@ -64,6 +64,7 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
     const nextSettings = {
         printing: { ...currentSettings.printing },
         permissions: { ...currentSettings.permissions },
+        inventory: { ...(currentSettings.inventory || {}) },
     };
 
     let hasChanges = false;
@@ -132,6 +133,14 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
                 nextSettings.permissions.onlyOwnerCanDeleteOrderItems = value;
             },
             fieldName: 'onlyOwnerCanDeleteOrderItems',
+        },
+        {
+            nested: payload?.inventory?.enabled,
+            flat: payload?.inventoryEnabled,
+            assign: (value) => {
+                nextSettings.inventory.enabled = value;
+            },
+            fieldName: 'inventoryEnabled',
         },
     ];
 
