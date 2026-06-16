@@ -179,11 +179,20 @@ const adjustStock = async (req, res) => {
 
 const getMovements = async (req, res) => {
     try {
-        const { itemId, type, page = 1, limit = 50 } = req.query;
+        const { itemId, type, page = 1, limit = 50, from, to } = req.query;
 
         const filter = { restaurant: req.restaurantId };
         if (itemId) filter.item = itemId;
         if (type && MOVEMENT_TYPES.includes(type)) filter.type = type;
+        if (from || to) {
+            filter.createdAt = {};
+            if (from) filter.createdAt.$gte = new Date(from);
+            if (to) {
+                const toDate = new Date(to);
+                toDate.setHours(23, 59, 59, 999);
+                filter.createdAt.$lte = toDate;
+            }
+        }
 
         const pageNum = Math.max(1, parseInt(page));
         const pageSize = Math.min(200, Math.max(1, parseInt(limit)));

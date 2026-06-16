@@ -34,6 +34,8 @@ const TAB_ITEMS = 'items';
 const TAB_RECIPES = 'recipes';
 const TAB_MOVEMENTS = 'movements';
 
+const ITEMS_PER_PAGE = 20;
+
 const Inventario = () => {
     const [tab, setTab] = useState(TAB_ITEMS);
     const [showInactive, setShowInactive] = useState(false);
@@ -50,28 +52,49 @@ const Inventario = () => {
     const [adjustModal, setAdjustModal] = useState({ open: false, item: null });
     const [recipeModal, setRecipeModal] = useState({ open: false, context: null });
 
+    // Insumos filters
+    const [itemSearch, setItemSearch] = useState('');
+    const [itemSort, setItemSort] = useState('name_asc');
+    const [itemLowStockOnly, setItemLowStockOnly] = useState(false);
+    const [itemPage, setItemPage] = useState(1);
+
     // Recipes tab state
     const [products, setProducts] = useState([]);
     const [extraSections, setExtraSections] = useState([]);
     const [recipesLoading, setRecipesLoading] = useState(false);
     const [recipeSearch, setRecipeSearch] = useState('');
     const [collapsedCategories, setCollapsedCategories] = useState(new Set());
+    const [recipeNoRecipeOnly, setRecipeNoRecipeOnly] = useState(false);
 
     // Movements filters
     const [mvPage, setMvPage] = useState(1);
     const [mvType, setMvType] = useState('');
+    const [mvItem, setMvItem] = useState('');
+    const [mvFrom, setMvFrom] = useState('');
+    const [mvTo, setMvTo] = useState('');
+    const [mvLimit, setMvLimit] = useState(25);
 
     // ── Load items on mount and when showInactive changes ──
     useEffect(() => {
         fetchItems(showInactive);
     }, [fetchItems, showInactive]);
 
+    // ── Reset item page when filters change ──
+    useEffect(() => { setItemPage(1); }, [itemSearch, itemSort, itemLowStockOnly, showInactive]);
+
     // ── Load movements when tab or filters change ──
     useEffect(() => {
         if (tab === TAB_MOVEMENTS) {
-            fetchMovements({ page: mvPage, limit: 50, type: mvType || undefined });
+            fetchMovements({
+                page: mvPage,
+                limit: mvLimit,
+                type: mvType || undefined,
+                itemId: mvItem || undefined,
+                from: mvFrom || undefined,
+                to: mvTo || undefined,
+            });
         }
-    }, [tab, mvPage, mvType, fetchMovements]);
+    }, [tab, mvPage, mvLimit, mvType, mvItem, mvFrom, mvTo, fetchMovements]);
 
     // ── Load products and extras for recipe tab ──
     useEffect(() => {
@@ -104,11 +127,14 @@ const Inventario = () => {
 
     const handleAdjust = useCallback(async (data) => {
         await adjustStock(adjustModal.item._id, data);
-        // Refresh movements if on that tab
         if (tab === TAB_MOVEMENTS) {
-            fetchMovements({ page: mvPage, limit: 50, type: mvType || undefined });
+            fetchMovements({
+                page: mvPage, limit: mvLimit,
+                type: mvType || undefined, itemId: mvItem || undefined,
+                from: mvFrom || undefined, to: mvTo || undefined,
+            });
         }
-    }, [adjustStock, adjustModal.item, tab, fetchMovements, mvPage, mvType]);
+    }, [adjustStock, adjustModal.item, tab, fetchMovements, mvPage, mvLimit, mvType, mvItem, mvFrom, mvTo]);
 
     const handleDeleteItem = async (item) => {
         if (!window.confirm(`¿Desactivar el insumo "${item.name}"?\n\nEl historial de movimientos se conservará.`)) return;
@@ -154,9 +180,31 @@ const Inventario = () => {
         });
     };
 
+    // ── Insumos: filter + sort + paginate (client-side) ──
+    const filteredItems = useMemo(() => {
+        let result = items;
+        if (itemSearch) result = result.filter(i => i.name.toLowerCase().includes(itemSearch.toLowerCase()));
+        if (itemLowStockOnly) result = result.filter(i => i.lowStock && i.isActive);
+        result = [...result].sort((a, b) => {
+            if (itemSort === 'name_desc') return b.name.localeCompare(a.name, 'es');
+            if (itemSort === 'stock_asc') return a.currentStock - b.currentStock;
+            if (itemSort === 'stock_desc') return b.currentStock - a.currentStock;
+            if (itemSort === 'low_stock_first') {
+                const diff = (b.lowStock ? 1 : 0) - (a.lowStock ? 1 : 0);
+                return diff !== 0 ? diff : a.name.localeCompare(b.name, 'es');
+            }
+            return a.name.localeCompare(b.name, 'es'); // name_asc
+        });
+        return result;
+    }, [items, itemSearch, itemSort, itemLowStockOnly]);
+
+    const itemTotalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
+    const paginatedItems = filteredItems.slice((itemPage - 1) * ITEMS_PER_PAGE, itemPage * ITEMS_PER_PAGE);
+
     const productsByCategory = useMemo(() => {
         const search = recipeSearch.toLowerCase();
-        const filtered = products.filter(p => p.title?.toLowerCase().includes(search));
+        let filtered = products.filter(p => p.title?.toLowerCase().includes(search));
+        if (recipeNoRecipeOnly) filtered = filtered.filter(p => !p.recipe || p.recipe.length === 0);
         const map = new Map();
         filtered.forEach(p => {
             const cat = p.category?.title || 'Sin categoría';
@@ -164,7 +212,7 @@ const Inventario = () => {
             map.get(cat).push(p);
         });
         return map;
-    }, [products, recipeSearch]);
+    }, [products, recipeSearch, recipeNoRecipeOnly]);
 
     const filteredSections = extraSections.map(s => ({
         ...s,
@@ -237,9 +285,36 @@ const Inventario = () => {
                 {/* ── TAB: INSUMOS ── */}
                 {tab === TAB_ITEMS && (
                     <div>
-                        <div className="flex items-center justify-between mb-4">
-                            <p className="text-sm text-gray-500">{items.length} insumo{items.length !== 1 ? 's' : ''}</p>
-                            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                        {/* Filtros */}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            <input
+                                type="text"
+                                placeholder="Buscar insumo..."
+                                value={itemSearch}
+                                onChange={e => setItemSearch(e.target.value)}
+                                className="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                            />
+                            <select
+                                value={itemSort}
+                                onChange={e => setItemSort(e.target.value)}
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                                <option value="name_asc">Nombre A-Z</option>
+                                <option value="name_desc">Nombre Z-A</option>
+                                <option value="stock_asc">Stock ↑</option>
+                                <option value="stock_desc">Stock ↓</option>
+                                <option value="low_stock_first">Stock bajo primero</option>
+                            </select>
+                            <label className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 cursor-pointer hover:bg-gray-50 select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={itemLowStockOnly}
+                                    onChange={e => setItemLowStockOnly(e.target.checked)}
+                                    className="rounded"
+                                />
+                                Solo stock bajo
+                            </label>
+                            <label className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 cursor-pointer hover:bg-gray-50 select-none">
                                 <input
                                     type="checkbox"
                                     checked={showInactive}
@@ -249,18 +324,29 @@ const Inventario = () => {
                                 Mostrar inactivos
                             </label>
                         </div>
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm text-gray-500">
+                                {filteredItems.length} insumo{filteredItems.length !== 1 ? 's' : ''}
+                                {filteredItems.length !== items.length && ` (de ${items.length})`}
+                            </p>
+                            {itemTotalPages > 1 && (
+                                <p className="text-xs text-gray-400">Página {itemPage} de {itemTotalPages}</p>
+                            )}
+                        </div>
 
                         {loading ? (
                             <div className="flex justify-center py-12">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
                             </div>
-                        ) : items.length === 0 ? (
+                        ) : filteredItems.length === 0 ? (
                             <div className="text-center py-16 text-gray-400">
                                 <svg className="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
                                 </svg>
-                                <p className="text-sm">No hay insumos creados</p>
-                                <p className="text-xs mt-1">Crea el primer insumo con el botón de arriba</p>
+                                {items.length === 0
+                                    ? <><p className="text-sm">No hay insumos creados</p><p className="text-xs mt-1">Crea el primer insumo con el botón de arriba</p></>
+                                    : <p className="text-sm">No hay insumos que coincidan con los filtros</p>
+                                }
                             </div>
                         ) : (
                             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -275,7 +361,7 @@ const Inventario = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
-                                        {items.map(item => (
+                                        {paginatedItems.map(item => (
                                             <tr key={item._id} className={`hover:bg-gray-50 transition-colors ${!item.isActive ? 'opacity-50' : ''}`}>
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center gap-2">
@@ -351,20 +437,52 @@ const Inventario = () => {
                                 </table>
                             </div>
                         )}
+
+                        {/* Paginación insumos */}
+                        {itemTotalPages > 1 && (
+                            <div className="flex items-center justify-center gap-2 mt-4">
+                                <button
+                                    onClick={() => setItemPage(p => Math.max(1, p - 1))}
+                                    disabled={itemPage === 1}
+                                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                                >
+                                    Anterior
+                                </button>
+                                <span className="text-sm text-gray-500">
+                                    {itemPage} / {itemTotalPages}
+                                </span>
+                                <button
+                                    onClick={() => setItemPage(p => Math.min(itemTotalPages, p + 1))}
+                                    disabled={itemPage === itemTotalPages}
+                                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                                >
+                                    Siguiente
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
                 {/* ── TAB: RECETAS ── */}
                 {tab === TAB_RECIPES && (
                     <div>
-                        <div className="mb-4">
+                        <div className="flex flex-wrap gap-2 mb-4">
                             <input
                                 type="text"
                                 placeholder="Buscar producto o extra..."
                                 value={recipeSearch}
                                 onChange={e => setRecipeSearch(e.target.value)}
-                                className="w-full sm:w-72 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                className="flex-1 min-w-[160px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                             />
+                            <label className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 cursor-pointer hover:bg-gray-50 select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={recipeNoRecipeOnly}
+                                    onChange={e => setRecipeNoRecipeOnly(e.target.checked)}
+                                    className="rounded"
+                                />
+                                Sin receta asignada
+                            </label>
                         </div>
                         <p className="text-xs text-gray-400 mb-4">
                             Haz clic en "Ver receta" para asociar insumos a cada producto o extra.
@@ -500,7 +618,8 @@ const Inventario = () => {
                 {/* ── TAB: MOVIMIENTOS ── */}
                 {tab === TAB_MOVEMENTS && (
                     <div>
-                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {/* Tipo */}
                             <select
                                 value={mvType}
                                 onChange={e => { setMvType(e.target.value); setMvPage(1); }}
@@ -512,8 +631,54 @@ const Inventario = () => {
                                 <option value="ajuste_positivo">Ajuste positivo</option>
                                 <option value="ajuste_negativo">Ajuste negativo / Merma</option>
                             </select>
+                            {/* Insumo */}
+                            <select
+                                value={mvItem}
+                                onChange={e => { setMvItem(e.target.value); setMvPage(1); }}
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                                <option value="">Todos los insumos</option>
+                                {[...items].sort((a, b) => a.name.localeCompare(b.name, 'es')).map(i => (
+                                    <option key={i._id} value={i._id}>{i.name}</option>
+                                ))}
+                            </select>
+                            {/* Fecha desde */}
+                            <input
+                                type="date"
+                                value={mvFrom}
+                                onChange={e => { setMvFrom(e.target.value); setMvPage(1); }}
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                title="Desde"
+                            />
+                            {/* Fecha hasta */}
+                            <input
+                                type="date"
+                                value={mvTo}
+                                onChange={e => { setMvTo(e.target.value); setMvPage(1); }}
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                title="Hasta"
+                            />
+                            {/* Resultados por página */}
+                            <select
+                                value={mvLimit}
+                                onChange={e => { setMvLimit(Number(e.target.value)); setMvPage(1); }}
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                                <option value={25}>25 por página</option>
+                                <option value={50}>50 por página</option>
+                                <option value={100}>100 por página</option>
+                            </select>
+                            {/* Limpiar filtros */}
+                            {(mvType || mvItem || mvFrom || mvTo) && (
+                                <button
+                                    onClick={() => { setMvType(''); setMvItem(''); setMvFrom(''); setMvTo(''); setMvPage(1); }}
+                                    className="px-3 py-2 text-sm text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    Limpiar
+                                </button>
+                            )}
                             {movementsPagination && (
-                                <span className="text-sm text-gray-500 ml-auto">
+                                <span className="ml-auto self-center text-sm text-gray-500">
                                     {movementsPagination.total} movimiento{movementsPagination.total !== 1 ? 's' : ''}
                                 </span>
                             )}
