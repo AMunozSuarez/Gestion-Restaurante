@@ -11,7 +11,7 @@ const UNITS = [
 
 const InventoryItemFormModal = ({ isOpen, onClose, onSave, item = null }) => {
     const isEditing = Boolean(item);
-    const [form, setForm] = useState({ name: '', unit: 'unidad', currentStock: '', minStock: '' });
+    const [form, setForm] = useState({ name: '', unit: 'unidad', currentStock: '', minStock: '', unitCost: '' });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
@@ -23,9 +23,10 @@ const InventoryItemFormModal = ({ isOpen, onClose, onSave, item = null }) => {
                     unit: item.unit || 'unidad',
                     currentStock: item.currentStock ?? '',
                     minStock: item.minStock ?? '',
+                    unitCost: item.unitCost ?? '',
                 });
             } else {
-                setForm({ name: '', unit: 'unidad', currentStock: '', minStock: '' });
+                setForm({ name: '', unit: 'unidad', currentStock: '', minStock: '', unitCost: '' });
             }
             setError('');
         }
@@ -51,6 +52,7 @@ const InventoryItemFormModal = ({ isOpen, onClose, onSave, item = null }) => {
                 unit: form.unit,
                 currentStock: form.currentStock !== '' ? Number(form.currentStock) : 0,
                 minStock: form.minStock !== '' ? Number(form.minStock) : null,
+                unitCost: form.unitCost !== '' ? Number(form.unitCost) : null,
             });
             onClose();
         } catch (err) {
@@ -146,6 +148,23 @@ const InventoryItemFormModal = ({ isOpen, onClose, onSave, item = null }) => {
                             min="0"
                             step="0.01"
                             placeholder="Sin mínimo"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Costo por {UNITS.find(u => u.value === form.unit)?.label.toLowerCase() ?? form.unit}{' '}
+                            <span className="text-gray-400 font-normal">(opcional)</span>
+                        </label>
+                        <input
+                            type="number"
+                            name="unitCost"
+                            value={form.unitCost}
+                            onChange={handleChange}
+                            min="0"
+                            step="0.01"
+                            placeholder="Sin costo"
                             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         />
                     </div>

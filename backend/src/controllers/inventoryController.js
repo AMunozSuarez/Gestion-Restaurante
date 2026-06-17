@@ -30,7 +30,7 @@ const getItems = async (req, res) => {
 
 const createItem = async (req, res) => {
     try {
-        const { name, unit, currentStock, minStock } = req.body;
+        const { name, unit, currentStock, minStock, unitCost } = req.body;
 
         if (!name?.trim()) {
             return res.status(400).json({ success: false, message: 'El nombre es requerido' });
@@ -49,11 +49,14 @@ const createItem = async (req, res) => {
             return res.status(400).json({ success: false, message: 'El stock mínimo no puede ser negativo' });
         }
 
+        const parsedCost = unitCost != null && unitCost !== '' ? Number(unitCost) : null;
+
         const item = new InventoryItem({
             name: name.trim(),
             unit,
             currentStock: parsedStock,
             minStock: parsedMin,
+            unitCost: parsedCost,
             restaurant: req.restaurantId,
         });
         await item.save();
@@ -78,7 +81,7 @@ const createItem = async (req, res) => {
 
 const updateItem = async (req, res) => {
     try {
-        const { name, unit, minStock, isActive } = req.body;
+        const { name, unit, minStock, isActive, unitCost } = req.body;
 
         const item = await InventoryItem.findOne({ _id: req.params.id, restaurant: req.restaurantId });
         if (!item) {
@@ -96,6 +99,9 @@ const updateItem = async (req, res) => {
             item.minStock = minStock !== null && minStock !== '' ? Number(minStock) : null;
         }
         if (isActive !== undefined) item.isActive = Boolean(isActive);
+        if (unitCost !== undefined) {
+            item.unitCost = unitCost !== null && unitCost !== '' ? Number(unitCost) : null;
+        }
 
         await item.save();
         res.json({ success: true, item });
@@ -203,7 +209,7 @@ const getMovements = async (req, res) => {
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(pageSize)
-                .populate('item', 'name unit')
+                .populate('item', 'name unit unitCost')
                 .lean(),
             InventoryMovement.countDocuments(filter),
         ]);

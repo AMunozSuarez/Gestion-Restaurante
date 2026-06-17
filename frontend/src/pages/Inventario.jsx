@@ -521,6 +521,7 @@ const Inventario = () => {
                                             <th className="text-left px-4 py-3 font-medium text-gray-600">Insumo</th>
                                             <th className="text-right px-4 py-3 font-medium text-gray-600">Stock actual</th>
                                             <th className="text-right px-4 py-3 font-medium text-gray-600 hidden sm:table-cell">Stock mín.</th>
+                                            <th className="text-right px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Costo unit.</th>
                                             <th className="text-center px-4 py-3 font-medium text-gray-600 hidden sm:table-cell">Estado</th>
                                             <th className="px-4 py-3"></th>
                                         </tr>
@@ -545,6 +546,12 @@ const Inventario = () => {
                                                 <td className="px-4 py-3 text-right text-gray-500 hidden sm:table-cell">
                                                     {item.minStock != null
                                                         ? `${item.minStock} ${UNIT_LABELS[item.unit] || item.unit}`
+                                                        : '—'
+                                                    }
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-500 hidden md:table-cell">
+                                                    {item.unitCost != null
+                                                        ? `$${item.unitCost.toLocaleString('es-CL')}`
                                                         : '—'
                                                     }
                                                 </td>
@@ -914,6 +921,7 @@ const Inventario = () => {
                                                 <th className="text-left px-4 py-3 font-medium text-gray-600">Insumo</th>
                                                 <th className="text-center px-4 py-3 font-medium text-gray-600">Tipo</th>
                                                 <th className="text-right px-4 py-3 font-medium text-gray-600">Cantidad</th>
+                                                <th className="text-right px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Costo total</th>
                                                 <th className="text-left px-4 py-3 font-medium text-gray-600 hidden sm:table-cell">Referencia</th>
                                             </tr>
                                         </thead>
@@ -944,6 +952,12 @@ const Inventario = () => {
                                                             {UNIT_LABELS[mv.item?.unit] || mv.item?.unit || ''}
                                                         </span>
                                                     </td>
+                                                    <td className="px-4 py-3 text-right hidden md:table-cell">
+                                                        {mv.item?.unitCost != null
+                                                            ? <span className="text-gray-700 font-medium">${(mv.quantity * mv.item.unitCost).toLocaleString('es-CL', { maximumFractionDigits: 0 })}</span>
+                                                            : <span className="text-gray-300">—</span>
+                                                        }
+                                                    </td>
                                                     <td className="px-4 py-3 text-gray-500 text-xs hidden sm:table-cell">
                                                         {mv.reference || '—'}
                                                     </td>
@@ -952,6 +966,40 @@ const Inventario = () => {
                                         </tbody>
                                     </table>
                                 </div>
+
+                                {/* Resumen de costos de la página actual */}
+                                {(() => {
+                                    const withCost = movements.filter(mv => mv.item?.unitCost != null);
+                                    if (withCost.length === 0) return null;
+                                    const totalEntradas = withCost
+                                        .filter(mv => mv.type === 'entrada_compra' || mv.type === 'ajuste_positivo')
+                                        .reduce((acc, mv) => acc + mv.quantity * mv.item.unitCost, 0);
+                                    const totalSalidas = withCost
+                                        .filter(mv => mv.type === 'salida_venta' || mv.type === 'ajuste_negativo')
+                                        .reduce((acc, mv) => acc + mv.quantity * mv.item.unitCost, 0);
+                                    return (
+                                        <div className="mt-3 flex flex-wrap gap-3 justify-end">
+                                            {totalEntradas > 0 && (
+                                                <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-sm">
+                                                    <span className="text-green-700 font-medium">Entradas/ajustes+</span>
+                                                    <span className="text-green-800 font-bold">${totalEntradas.toLocaleString('es-CL', { maximumFractionDigits: 0 })}</span>
+                                                </div>
+                                            )}
+                                            {totalSalidas > 0 && (
+                                                <div className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-sm">
+                                                    <span className="text-red-700 font-medium">Salidas/mermas</span>
+                                                    <span className="text-red-800 font-bold">${totalSalidas.toLocaleString('es-CL', { maximumFractionDigits: 0 })}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm">
+                                                <span className="text-gray-600 font-medium">Neto</span>
+                                                <span className={`font-bold ${totalEntradas - totalSalidas >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                                    ${(totalEntradas - totalSalidas).toLocaleString('es-CL', { maximumFractionDigits: 0 })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* Paginación */}
                                 {movementsPagination && movementsPagination.totalPages > 1 && (

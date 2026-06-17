@@ -23,6 +23,11 @@ const inventoryItemSchema = new mongoose.Schema({
         default: null,
         min: 0,
     },
+    unitCost: {
+        type: Number,
+        default: null,
+        min: 0,
+    },
     isActive: {
         type: Boolean,
         default: true,
