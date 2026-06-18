@@ -70,7 +70,31 @@ function App() {
     };
 
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+
+    // Teclado virtual en tablets Windows: forzar focus al tocar inputs para que aparezca el teclado táctil
+    const onPointerDown = (e) => {
+      const target = e.target;
+      if (
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') &&
+        !target.readOnly &&
+        !target.disabled &&
+        target.type !== 'checkbox' &&
+        target.type !== 'radio' &&
+        target.type !== 'range' &&
+        target.type !== 'hidden'
+      ) {
+        if (document.activeElement !== target) {
+          target.focus();
+        }
+      }
+    };
+
+    document.addEventListener('pointerdown', onPointerDown, { capture: true });
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown, { capture: true });
+    };
   }, []);
   return (
     <AuthProvider>

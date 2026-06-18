@@ -3,6 +3,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Teclado virtual en tablets: forzar touch-action en inputs para que Windows muestre el teclado táctil al tocar */
+input:not([type="hidden"]):not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  touch-action: manipulation;
+}
+
 /* Clases para truncar texto */
 @layer utilities {
   .line-clamp-1 {
