@@ -913,13 +913,14 @@ const TableDetail = () => {
                 : [];
 
             // Actualizar orden como completada
+            const orderTotal = calculateSubtotalWithDiscount() + suggestedTip;
             const paymentMethodsPayload = splitEnabled
                 ? validPayments
                 : validPayments.map((payment, index) => ({
                     method: payment.method,
                     amount: index === 0 && validPayments.length === 1 && !manualPaymentEdit
-                        ? calculateSubtotalWithDiscount() + suggestedTip
-                        : payment.amount
+                        ? orderTotal
+                        : Math.min(payment.amount, orderTotal)
                 }));
 
             const orderData = {

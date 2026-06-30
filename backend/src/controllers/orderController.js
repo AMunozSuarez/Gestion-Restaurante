@@ -1052,16 +1052,11 @@ const getAllSalesController = async (req, res) => {
                                         as: 'pm',
                                         in: {
                                             method: '$$pm.method',
-                                            amount: { $ifNull: ['$$pm.amount', 0] },
+                                            amount: { $min: [{ $ifNull: ['$$pm.amount', 0] }, '$total'] },
                                         },
                                     },
                                 },
-                                [
-                                    {
-                                        method: '$payment',
-                                        amount: '$total',
-                                    },
-                                ],
+                                [{ method: '$payment', amount: '$total' }],
                             ],
                         },
                     },

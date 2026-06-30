@@ -301,7 +301,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
   };
 
   // Obtener badges de métodos de pago múltiples
-  const getPaymentMethodsBadges = (paymentMethods) => {
+  const getPaymentMethodsBadges = (paymentMethods, orderTotal) => {
     if (!paymentMethods || paymentMethods.length === 0) {
       return <Badge variant="default">Sin método especificado</Badge>;
     }
@@ -312,9 +312,14 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
       Transferencia: { variant: 'warning', text: 'Transferencia' }
     };
 
+    // Capear montos históricos que incluyan vuelto/exceso
+    const normalizedMethods = orderTotal > 0
+      ? paymentMethods.map(pm => ({ ...pm, amount: Math.min(pm.amount || 0, orderTotal) }))
+      : paymentMethods;
+
     return (
       <div className="flex flex-wrap gap-2">
-        {paymentMethods.map((pm, index) => {
+        {normalizedMethods.map((pm, index) => {
           const config = methodConfig[pm.method] || { variant: 'default', text: pm.method };
           return (
             <div key={pm._id || index} className="flex items-center gap-1">
@@ -529,7 +534,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                   ) : (
                     <div>
                       {venta.paymentMethods && venta.paymentMethods.length > 0 ? (
-                        getPaymentMethodsBadges(venta.paymentMethods)
+                        getPaymentMethodsBadges(venta.paymentMethods, venta.total)
                       ) : (
                         getPaymentMethodBadge(venta.payment)
                       )}
