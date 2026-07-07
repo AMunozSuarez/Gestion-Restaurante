@@ -80,7 +80,9 @@ const TableDetail = () => {
     const canCurrentUserCloseTable = () => {
         const onlyOwnerCanClose = printingService.getOnlyOwnerCanCloseTable();
         if (!onlyOwnerCanClose) return true;
-        return user?.role === 'owner' || user?.role === 'super_admin';
+        if (user?.role === 'owner' || user?.role === 'super_admin') return true;
+        // Permitir cerrar si la mesa no tiene productos activos, sin importar la configuración
+        return cart.filter(item => !item.deleted).length === 0;
     };
 
     // Cargar pedido actual de la mesa si existe

@@ -1,5 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
+const denyRoleMiddleware = require('../middlewares/denyRoleMiddleware');
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
 const {
     getSalesReport,
@@ -11,19 +12,22 @@ const {
 
 const router = express.Router();
 
+// El módulo de reportes no forma parte del módulo de mesas del rol mesero
+router.use(authMiddleware, denyRoleMiddleware('mesero'));
+
 // Dashboard resumen rápido
-router.get('/dashboard', authMiddleware, filterByRestaurant, getDashboardReport);
+router.get('/dashboard', filterByRestaurant, getDashboardReport);
 
 // Reporte de ventas detallado
-router.get('/sales', authMiddleware, filterByRestaurant, getSalesReport);
+router.get('/sales', filterByRestaurant, getSalesReport);
 
 // Reporte de productos (más vendidos, menos vendidos, por categoría)
-router.get('/products', authMiddleware, filterByRestaurant, getProductsReport);
+router.get('/products', filterByRestaurant, getProductsReport);
 
 // Reporte de clientes
-router.get('/customers', authMiddleware, filterByRestaurant, getCustomersReport);
+router.get('/customers', filterByRestaurant, getCustomersReport);
 
 // Detalle de ventas de un producto específico
-router.get('/product-detail', authMiddleware, filterByRestaurant, getProductDetailReport);
+router.get('/product-detail', filterByRestaurant, getProductDetailReport);
 
 module.exports = router;

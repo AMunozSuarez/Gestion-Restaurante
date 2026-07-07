@@ -37,7 +37,8 @@ const Header = () => {
     daysRemaining: subscriptionDaysRemaining,
     isLoading: isSubscriptionLoading,
   } = useSubscription();
-  const inventoryEnabled = Boolean(restaurant?.settings?.inventory?.enabled);
+  const isMesero = user?.role === 'mesero';
+  const inventoryEnabled = Boolean(restaurant?.settings?.inventory?.enabled) && !isMesero;
   const { lowStockCount } = useInventoryAlert(inventoryEnabled);
 
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -50,8 +51,8 @@ const Header = () => {
   const inventoryAlertRef = useRef(null);
   const inventoryAlertCloseTimerRef = useRef(null);
 
-  // Core operational nav (center)
-  const navigationSections = [
+  // Core operational nav (center) — el rol mesero solo tiene acceso al módulo de Mesas
+  const navigationSections = isMesero ? [] : [
     {
       name: 'Caja',
       icon: CurrencyDollarIcon,
@@ -74,18 +75,20 @@ const Header = () => {
   ];
 
   // Main nav single items (center)
-  const mainNavItems = [
-    { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
-    { name: 'Mesas', href: '/mesas', icon: Squares2X2Icon },
-    { name: 'Reportes', href: '/reportes', icon: PresentationChartBarIcon },
-  ];
+  const mainNavItems = isMesero
+    ? [{ name: 'Mesas', href: '/mesas', icon: Squares2X2Icon }]
+    : [
+      { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
+      { name: 'Mesas', href: '/mesas', icon: Squares2X2Icon },
+      { name: 'Reportes', href: '/reportes', icon: PresentationChartBarIcon },
+    ];
 
   // User/settings dropdown items (right side)
-  const userMenuItems = [
+  const userMenuItems = isMesero ? [] : [
     { name: 'Configuración', href: '/configuracion', icon: WrenchScrewdriverIcon },
   ];
 
-  if (!isSubscriptionLoading && !hasActiveSubscription) {
+  if (!isMesero && !isSubscriptionLoading && !hasActiveSubscription) {
     userMenuItems.unshift({ name: 'Suscripción', href: '/subscription/plans', icon: CreditCardIcon });
   }
 
@@ -102,7 +105,7 @@ const Header = () => {
 
   const hasSubscriptionPaymentIssue = !hasActiveSubscription;
   const hasPendingPayment = subscription?.status === 'pending';
-  const shouldShowSubscriptionNotice = !isSubscriptionLoading && (
+  const shouldShowSubscriptionNotice = !isMesero && !isSubscriptionLoading && (
     hasSubscriptionPaymentIssue ||
     (normalizedDaysRemaining !== null && normalizedDaysRemaining <= 7)
   );

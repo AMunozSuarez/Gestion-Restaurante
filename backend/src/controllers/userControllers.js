@@ -197,22 +197,29 @@ const getUsersByRestaurantController = async (req, res) => {
     }
 };
 
+const CREATABLE_EMPLOYEE_ROLES = ['employee', 'mesero'];
+
 // UPDATE EMPLOYEE
 const updateEmployeeController = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userName, email, phone, password } = req.body;
+        const { userName, email, phone, password, role } = req.body;
         const restaurantId = req.user.restaurant;
         const normalizedEmail = email ? normalizeEmail(email) : null;
 
         // Verificar que el usuario pertenece al mismo restaurante
         const user = await userModel.findOne({ _id: id, restaurant: restaurantId });
-        
+
         if (!user) {
             return res.status(404).send({
                 success: false,
                 message: 'Usuario no encontrado'
             });
+        }
+
+        // Solo se permite reasignar entre roles de empleado (no owner/super_admin)
+        if (role && CREATABLE_EMPLOYEE_ROLES.includes(role) && user.role !== 'owner') {
+            user.role = role;
         }
 
         if (normalizedEmail && normalizedEmail !== normalizeEmail(user.email || '')) {
@@ -265,9 +272,10 @@ const updateEmployeeController = async (req, res) => {
 
 const createEmployeeController = async (req, res) => {
     try {
-        const { userName, email, password, phone } = req.body;
+        const { userName, email, password, phone, role } = req.body;
         const restaurantId = req.user.restaurant; // Restaurante del propietario autenticado
         const normalizedEmail = normalizeEmail(email || '');
+        const normalizedRole = CREATABLE_EMPLOYEE_ROLES.includes(role) ? role : 'employee';
 
         // Validar campos requeridos
         if (!userName || !email || !password) {
@@ -304,7 +312,7 @@ const createEmployeeController = async (req, res) => {
             password: hashedPassword,
             phone,
             restaurant: restaurantId,
-            role: 'employee',
+            role: normalizedRole,
         });
 
         await employee.save();

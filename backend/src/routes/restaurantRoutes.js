@@ -6,6 +6,7 @@ const {
 	updateMyRestaurantSettings,
 } = require('../controllers/restaurantController');
 const authMiddleware = require('../middlewares/authMiddleware');
+const denyRoleMiddleware = require('../middlewares/denyRoleMiddleware');
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
 const router = express.Router();
 
@@ -17,6 +18,6 @@ router.get('/get/:id', getRestaurantById);
 
 // Configuracion compartida del restaurante (web + app meseros)
 router.get('/settings/me', authMiddleware, filterByRestaurant, getMyRestaurantSettings);
-router.put('/settings/me', authMiddleware, filterByRestaurant, updateMyRestaurantSettings);
+router.put('/settings/me', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, updateMyRestaurantSettings);
 
 module.exports = router;

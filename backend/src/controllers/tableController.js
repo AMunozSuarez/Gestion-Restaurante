@@ -202,10 +202,11 @@ const closeTable = async (req, res) => {
         const settings = Restaurant.normalizeSettings(restaurant?.settings || {});
         const onlyOwnerCanCloseTable = Boolean(settings?.permissions?.onlyOwnerCanCloseTable);
         const userRole = req.user?.role;
+        const tableHasNoProducts = !Array.isArray(table.currentOrder?.foods) || table.currentOrder.foods.length === 0;
 
-        if (onlyOwnerCanCloseTable && userRole !== 'owner' && userRole !== 'super_admin') {
+        if (onlyOwnerCanCloseTable && userRole !== 'owner' && userRole !== 'super_admin' && !tableHasNoProducts) {
             return res.status(403).json({
-                message: 'Solo el dueño puede cerrar mesas según la configuración del restaurante.',
+                message: 'Solo el dueño puede cerrar mesas con productos según la configuración del restaurante.',
             });
         }
         
