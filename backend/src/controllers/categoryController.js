@@ -259,10 +259,43 @@ const batchUpdatePrintDestinationsController = async (req, res) => {
     }
 };
 
+// REORDER CATEGORIES
+const reorderCategories = async (req, res) => {
+    try {
+        const items = req.body;
+
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Se requiere un arreglo de categorías con id y order'
+            });
+        }
+
+        await Promise.all(
+            items.map(({ id, order }) =>
+                categoryModel.findOneAndUpdate(
+                    { _id: id, restaurant: req.user.restaurant },
+                    { order }
+                )
+            )
+        );
+
+        res.status(200).json({ success: true });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error in Reorder Categories',
+            error
+        });
+    }
+};
+
 module.exports = {
     createCategoryController,
     getAllCategoriesController,
     updateCategoryController,
     deleteCategoryController,
-    batchUpdatePrintDestinationsController
+    batchUpdatePrintDestinationsController,
+    reorderCategories
 };

@@ -109,6 +109,17 @@ export const categoriesService = {
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error al actualizar destinos de impresión');
     }
+  },
+
+  // Reordenar categorías (menú digital)
+  reorderCategories: async (items) => {
+    try {
+      // items: [{ id, order }, ...]
+      const response = await api.put('/category/reorder', items);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al reordenar categorías');
+    }
   }
 };
 

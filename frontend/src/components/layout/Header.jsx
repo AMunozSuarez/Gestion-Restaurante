@@ -24,6 +24,7 @@ import {
   PuzzlePieceIcon,
   ArchiveBoxIcon,
   ExclamationTriangleIcon,
+  DevicePhoneMobileIcon,
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -83,10 +84,16 @@ const Header = () => {
       { name: 'Reportes', href: '/reportes', icon: PresentationChartBarIcon },
     ];
 
+  const isOwnerOrAdmin = user?.role === 'owner' || user?.role === 'super_admin';
+
   // User/settings dropdown items (right side)
   const userMenuItems = isMesero ? [] : [
     { name: 'Configuración', href: '/configuracion', icon: WrenchScrewdriverIcon },
   ];
+
+  if (isOwnerOrAdmin) {
+    userMenuItems.push({ name: 'Menú Digital', href: '/menu-digital', icon: DevicePhoneMobileIcon });
+  }
 
   if (!isMesero && !isSubscriptionLoading && !hasActiveSubscription) {
     userMenuItems.unshift({ name: 'Suscripción', href: '/subscription/plans', icon: CreditCardIcon });

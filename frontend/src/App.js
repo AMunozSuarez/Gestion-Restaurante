@@ -16,6 +16,8 @@ import Productos from './pages/Productos';
 import Categorias from './pages/Categorias';
 import Extras from './pages/Extras';
 import Configuracion from './pages/Configuracion';
+import MenuDigital from './pages/MenuDigital';
+import PublicMenu from './pages/public/PublicMenu';
 import SubscriptionPlans from './pages/SubscriptionPlans';
 import SubscriptionSuccess from './pages/SubscriptionSuccess';
 import SubscriptionFailure from './pages/SubscriptionFailure';
@@ -123,7 +125,10 @@ function App() {
         <Routes>
           {/* Ruta de login sin layout */}
           <Route path="/login" element={<Login />} />
-          
+
+          {/* Menú público sin layout ni protección (acceso vía QR/link) */}
+          <Route path="/menu/:slug" element={<PublicMenu />} />
+
           {/* Ruta de Super Admin Dashboard */}
           <Route
             path="/admin"
@@ -268,7 +273,18 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
+
+          <Route
+            path="/menu-digital"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <MenuDigital />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/reportes"
             element={

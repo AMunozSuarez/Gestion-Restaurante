@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const cors = require('cors');
 const morgan = require('morgan');
 const { conexion } = require('./bdd/conexion'); // Import the connection function
@@ -22,6 +23,7 @@ app.use(morgan('dev')); // Use Morgan for logging
 app.use(cors()); // Use CORS to allow cross-origin requests
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Importar el controlador de webhook de MercadoPago para rutas especiales
 const { handleMercadoPagoWebhook } = require('./controllers/webhookController');
@@ -46,6 +48,7 @@ app.use('/api/webhooks', require('./routes/webhookRoutes')); // Use the webhook 
 app.use('/api/tables', require('./routes/tableRoutes')); // Use the tables routes
 app.use('/api/extra-sections', require('./routes/extraSectionRoutes')); // Use the extra sections routes
 app.use('/api/inventory', require('./routes/inventoryRoutes')); // Use the inventory routes
+app.use('/api/menu-digital', require('./routes/menuDigitalRoutes')); // Use the digital menu routes
 
 
 

@@ -21,6 +21,10 @@ const categorySchema = new mongoose.Schema({
         enum: ['cocina', 'barra', 'caja'],
         default: [],
     },
+    order: {
+        type: Number,
+        default: 0,
+    },
 
 }, {
     timestamps: true
