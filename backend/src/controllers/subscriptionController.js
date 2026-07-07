@@ -15,6 +15,26 @@ const {
 } = require('../services/mercadoPagoService');
 
 /**
+ * Obtener el dominio del frontend desde el que se originó la petición,
+ * validado contra la lista blanca de dominios permitidos (ALLOWED_FRONTEND_URLS).
+ * Permite que el checkout redirija al dominio correcto cuando existe más de un frontend.
+ */
+const getRequestFrontendUrl = (req) => {
+    const allowedUrls = (process.env.ALLOWED_FRONTEND_URLS || process.env.FRONTEND_URL || '')
+        .split(',')
+        .map((url) => url.trim().replace(/\/$/, ''))
+        .filter(Boolean);
+
+    const candidate = (req.get('origin') || req.get('referer') || '').replace(/\/$/, '');
+    if (!candidate) return null;
+
+    const candidateOrigin = candidate.split('/').slice(0, 3).join('/');
+    const match = allowedUrls.find((allowed) => allowed === candidateOrigin);
+
+    return match || null;
+};
+
+/**
  * Obtener todos los planes disponibles
  */
 const getPlans = async (req, res) => {
@@ -489,6 +509,9 @@ const initiateCheckout = async (req, res) => {
         const userEmail = restaurant.email || req.user?.email || 'info@gestion-restaurante.com';
         const userName = restaurant.name || req.user?.userName || 'Usuario';
 
+        // Determinar el dominio desde el que se inició el checkout (soporta múltiples dominios de frontend)
+        const requestOrigin = getRequestFrontendUrl(req);
+
         // Crear preferencia de pago en MercadoPago
         const preference = await createSubscriptionPreference({
             restaurantId,
@@ -496,6 +519,7 @@ const initiateCheckout = async (req, res) => {
             planConfig,
             userEmail,
             userName,
+            frontendUrl: requestOrigin,
         });
 
         // Si es un plan gratuito, activarlo directamente
