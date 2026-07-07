@@ -37,7 +37,7 @@ const getClient = () => {
  * @returns {Promise<Object>} Preferencia creada con init_point para redirección
  */
 const createSubscriptionPreference = async (data) => {
-    const { restaurantId, plan, planConfig, userEmail, userName } = data;
+    const { restaurantId, plan, planConfig, userEmail, userName, frontendUrl: requestFrontendUrl } = data;
 
     try {
         // Si el precio es 0 (plan gratuito), no crear preferencia de MercadoPago
@@ -54,7 +54,8 @@ const createSubscriptionPreference = async (data) => {
         const preference = new Preference(getClient());
         
         // Asegurar que las URLs no tengan barra final
-        const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+        // Usa el dominio desde el que se inició el checkout (si es válido), de lo contrario cae al valor por defecto
+        const frontendUrl = requestFrontendUrl?.replace(/\/$/, '') || process.env.FRONTEND_URL?.replace(/\/$/, '') || 'http://localhost:3000';
         const backendUrl = process.env.BACKEND_URL?.replace(/\/$/, '') || 'http://localhost:3001';
         const isLocalhost = frontendUrl.includes('localhost') || frontendUrl.includes('127.0.0.1');
         
