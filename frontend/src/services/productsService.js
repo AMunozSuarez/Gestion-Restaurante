@@ -163,6 +163,20 @@ export const productsService = {
     }
   },
 
+  // Subir imagen de producto (optimizada en el backend)
+  uploadImage: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await api.post('/food/upload-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al subir la imagen');
+    }
+  },
+
   // Obtener categorías (solo activas para el formulario de productos)
   getCategories: async (activeOnly = false) => {
     try {

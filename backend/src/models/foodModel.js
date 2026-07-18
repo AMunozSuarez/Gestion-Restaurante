@@ -36,6 +36,10 @@ const foodSchema = new mongoose.Schema({
         type: Boolean,
         default: true,
     },
+    showInDigitalMenu: {
+        type: Boolean,
+        default: true,
+    },
     restaurant: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Restaurant',

@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+const sharp = require('sharp');
 const foodModel = require('../models/foodModel');
 const orderModel = require('../models/orderModel');
 const categoryModel = require('../models/categoryModel');
@@ -6,7 +9,7 @@ const ExtraSection = require('../models/extraSectionModel');
 // CREATE A NEW FOOD
 const createFoodController = async (req, res) => {
     try {
-        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, extraSections } = req.body;
+        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, showInDigitalMenu, extraSections } = req.body;
         const parsedPrice = Number(price);
         const restaurantId = req.user.restaurant;
 
@@ -47,6 +50,7 @@ const createFoodController = async (req, res) => {
             category,
             code,
             isAvailable,
+            showInDigitalMenu,
             extraSections: sectionAssignments,
             restaurant: restaurantId
         });
@@ -173,7 +177,7 @@ const getFoodByRestaurantIdController = async (req, res) => {
 // UPDATE A FOOD BY ID
 const updateFoodController = async (req, res) => {
     try {
-        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, extraSections } = req.body;
+        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, showInDigitalMenu, extraSections } = req.body;
         const restaurantId = req.user.restaurant;
 
         if (price !== undefined) {
@@ -245,7 +249,7 @@ const updateFoodController = async (req, res) => {
         }
 
         // Preparar objeto de actualización
-        const updateData = { title, description, imageUrl, foodTags, category, code, isAvailable };
+        const updateData = { title, description, imageUrl, foodTags, category, code, isAvailable, showInDigitalMenu };
 
         if (price !== undefined) {
             updateData.price = Number(price);
@@ -316,7 +320,39 @@ const deleteFoodController = async (req, res) => {
 
 
 
-//------------------------------------------------------------------------------------------------------------------------------------------ 
+// UPLOAD A FOOD IMAGE (optimizada: redimensionada y comprimida, solo se guarda la URL en la BD)
+const uploadFoodImageController = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).send({ success: false, message: 'No se recibió ningún archivo' });
+        }
+
+        const restaurantId = String(req.user.restaurant);
+        const uploadDir = path.join(__dirname, '../../uploads/products', restaurantId);
+        fs.mkdirSync(uploadDir, { recursive: true });
+
+        const filename = `food-${Date.now()}.webp`;
+        const filePath = path.join(uploadDir, filename);
+
+        await sharp(req.file.buffer)
+            .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: 75 })
+            .toFile(filePath);
+
+        res.status(200).send({
+            success: true,
+            imageUrl: `/uploads/products/${restaurantId}/${filename}`
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error al subir la imagen del producto',
+            error: error.message
+        });
+    }
+};
+
+//------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -425,6 +461,7 @@ module.exports = {
     getFoodByRestaurantIdController,
     updateFoodController,
     deleteFoodController,
+    uploadFoodImageController,
 
 
     placeOrderController,

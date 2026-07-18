@@ -11,6 +11,15 @@ const MenuVisit = require('../models/menuVisitModel');
 
 const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
 
+const slugify = (text) =>
+    (text || '')
+        .toString()
+        .normalize('NFD')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
 const generateSlug = () => crypto.randomBytes(4).toString('hex');
 
 const getSettings = async (req, res) => {
@@ -56,9 +65,10 @@ const updateSettings = async (req, res) => {
         restaurant.settings = normalizedSettings;
 
         if (normalizedSettings.digitalMenu.enabled && !restaurant.publicMenuSlug) {
+            const base = slugify(restaurant.name) || 'restaurante';
             let slug = null;
-            for (let attempt = 0; attempt < 5; attempt += 1) {
-                const candidate = generateSlug();
+            for (let attempt = 0; attempt < 6; attempt += 1) {
+                const candidate = attempt === 0 ? base : `${base}-${attempt === 5 ? generateSlug() : attempt + 1}`;
                 const existing = await Restaurant.findOne({ publicMenuSlug: candidate });
                 if (!existing) {
                     slug = candidate;
@@ -291,8 +301,7 @@ const getPublicMenu = async (req, res) => {
         }
 
         const categories = await Category.find({ restaurant: restaurant._id, isAvailable: true }).sort({ order: 1 });
-        const foods = await Food.find({ restaurant: restaurant._id, isAvailable: true })
-            .populate('recipe.ingredient', 'name');
+        const foods = await Food.find({ restaurant: restaurant._id, isAvailable: true, showInDigitalMenu: { $ne: false } });
 
         const products = await Promise.all(
             foods.map(async (food) => ({
@@ -301,9 +310,6 @@ const getPublicMenu = async (req, res) => {
                 description: food.description,
                 price: food.price,
                 imageUrl: food.imageUrl,
-                ingredients: (food.recipe || [])
-                    .map((entry) => entry.ingredient?.name)
-                    .filter(Boolean),
                 category: food.category,
                 extraSections: await buildFoodExtraSections(food),
             }))

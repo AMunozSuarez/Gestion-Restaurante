@@ -12,6 +12,7 @@ import { Button, Card, Input, Badge } from '../components/ui';
 import ProductFormModal from '../components/common/ProductFormModal';
 import useProductsManagement from '../hooks/useProductsManagement';
 import { formatChileanCurrency } from '../utils/dateUtils';
+import { resolveMediaUrl, hasRealImage } from '../utils/mediaUrl';
 
 const Productos = () => {
   // Estados del hook de gestión de productos
@@ -220,9 +221,9 @@ const Productos = () => {
             <Card key={product.id} className="overflow-hidden">
               {/* Imagen del producto */}
               <div className="aspect-square bg-gray-200 relative">
-                {product.imageUrl ? (
+                {hasRealImage(product.imageUrl) ? (
                   <img
-                    src={product.imageUrl}
+                    src={resolveMediaUrl(product.imageUrl)}
                     alt={product.title}
                     className="w-full h-full object-cover"
                   />

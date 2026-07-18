@@ -1,4 +1,5 @@
 import React from 'react';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import Modal from '../ui/Modal';
 import { resolveMediaUrl, hasRealImage } from '../../utils/mediaUrl';
 
@@ -12,14 +13,22 @@ const ProductDetailModal = ({ isOpen, onClose, product }) => {
 
   const showImage = hasRealImage(product.imageUrl);
   const imageUrl = resolveMediaUrl(product.imageUrl);
-  const ingredients = Array.isArray(product.ingredients) ? product.ingredients : [];
   const extraSections = Array.isArray(product.extraSections) ? product.extraSections : [];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
-      <div className="space-y-4">
+      <div className="space-y-4 relative">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute -top-1 -right-1 p-1.5 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300 shadow-sm z-10"
+          aria-label="Cerrar"
+        >
+          <XMarkIcon className="w-5 h-5" />
+        </button>
+
         {showImage && (
-          <div className="w-full aspect-video bg-gray-100 rounded-lg overflow-hidden">
+          <div className="w-full h-56 sm:h-64 bg-gray-100 rounded-lg overflow-hidden">
             <img src={imageUrl} alt={product.title} className="w-full h-full object-cover" />
           </div>
         )}
@@ -31,22 +40,6 @@ const ProductDetailModal = ({ isOpen, onClose, product }) => {
 
         {product.description && (
           <p className="text-sm text-gray-600 whitespace-pre-line">{product.description}</p>
-        )}
-
-        {ingredients.length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-1">Ingredientes</h3>
-            <ul className="flex flex-wrap gap-2">
-              {ingredients.map((ingredient, index) => (
-                <li
-                  key={`${ingredient}-${index}`}
-                  className="px-2.5 py-1 bg-gray-100 rounded-full text-xs text-gray-700"
-                >
-                  {ingredient}
-                </li>
-              ))}
-            </ul>
-          </div>
         )}
 
         {extraSections.length > 0 && (

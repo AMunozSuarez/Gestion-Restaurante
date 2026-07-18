@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { formatChileanCurrency } from '../../utils/dateUtils';
+import { resolveMediaUrl, hasRealImage } from '../../utils/mediaUrl';
 
 const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading, cartItems = [] }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -106,13 +107,26 @@ const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading, cartI
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {filteredProducts.map((product) => (
                   <div
                     key={product.id}
                     onClick={() => onAddToCart(product)}
-                    className="relative border border-gray-200 rounded-lg p-4 hover:border-orange-300 hover:shadow-md transition-all cursor-pointer group"
+                    className="relative flex flex-col h-full border border-gray-200 rounded-lg overflow-hidden hover:border-orange-300 hover:shadow-md transition-all cursor-pointer group"
                   >
+                    <div className="w-full h-20 bg-gray-100 flex items-center justify-center overflow-hidden">
+                      {hasRealImage(product.imageUrl) ? (
+                        <img
+                          src={resolveMediaUrl(product.imageUrl)}
+                          alt={product.name}
+                          loading="lazy"
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <PhotoIcon className="w-6 h-6 text-gray-300" />
+                      )}
+                    </div>
+                    <div className="p-3 flex-1 flex flex-col">
                     {(() => {
                       const productId = getEntityId(product);
                       const quantity = productId !== undefined && productId !== null
@@ -136,12 +150,7 @@ const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading, cartI
                     <h4 className="font-medium text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
                       {product.name}
                     </h4>
-                    {product.description && (
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                        {product.description}
-                      </p>
-                    )}
-                    <div className="flex items-center justify-between">
+                    <div className="mt-auto flex items-center justify-between">
                       <span className="text-lg font-semibold text-orange-600">
                         {formatChileanCurrency(product.price || 0)}
                       </span>
@@ -163,6 +172,7 @@ const ProductModal = ({ isOpen, onClose, products, onAddToCart, isLoading, cartI
                         )}
                       </div>
                     )}
+                    </div>
                   </div>
                 ))}
               </div>

@@ -9,6 +9,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button, Input, Modal } from '../ui';
 import useExtraSectionsManagement from '../../hooks/useExtraSectionsManagement';
+import productsService from '../../services/productsService';
+import { resolveMediaUrl, hasRealImage } from '../../utils/mediaUrl';
 
 /**
  * assignment: { section: id, maxSelection: null|number, visibleExtraIds: [] }
@@ -28,6 +30,8 @@ const ProductFormModal = ({
     const [sectionSearch, setSectionSearch] = useState('');
     const [showSectionPicker, setShowSectionPicker] = useState(false);
     const [expandedAssignments, setExpandedAssignments] = useState(new Set());
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [imageError, setImageError] = useState('');
 
     const [formData, setFormData] = useState({
         title: '',
@@ -36,6 +40,7 @@ const ProductFormModal = ({
         imageUrl: '',
         category: '',
         isAvailable: true,
+        showInDigitalMenu: true,
         extraSections: [] // [{ section: id, maxSelection: null|number, visibleExtraIds: [] }]
     });
 
@@ -66,6 +71,7 @@ const ProductFormModal = ({
                 imageUrl: product.imageUrl || '',
                 category: product.category?._id || product.category || '',
                 isAvailable: product.isAvailable !== undefined ? product.isAvailable : true,
+                showInDigitalMenu: product.showInDigitalMenu !== undefined ? product.showInDigitalMenu : true,
                 extraSections: assignments
             });
         } else {
@@ -76,10 +82,12 @@ const ProductFormModal = ({
                 imageUrl: '',
                 category: '',
                 isAvailable: true,
+                showInDigitalMenu: true,
                 extraSections: []
             });
         }
         setErrors({});
+        setImageError('');
         setSectionSearch('');
         setShowSectionPicker(false);
         setExpandedAssignments(new Set());
@@ -95,6 +103,26 @@ const ProductFormModal = ({
         const { name, value, type, checked } = e.target;
         setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+    };
+
+    const handleImageChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setImageError('');
+        setIsUploadingImage(true);
+        try {
+            const result = await productsService.uploadImage(file);
+            if (result.success) {
+                setFormData(prev => ({ ...prev, imageUrl: result.imageUrl }));
+            } else {
+                setImageError(result.message || 'No se pudo subir la imagen');
+            }
+        } catch (error) {
+            setImageError(error.message);
+        } finally {
+            setIsUploadingImage(false);
+            e.target.value = '';
+        }
     };
 
     // -- Sección asignada: helpers --
@@ -262,16 +290,41 @@ const ProductFormModal = ({
                         {errors.category && <p className="text-sm text-red-600 mt-1">{errors.category}</p>}
                     </div>
 
-                    <Input
-                        label="URL de Imagen (Opcional)"
-                        name="imageUrl"
-                        type="url"
-                        value={formData.imageUrl}
-                        onChange={handleChange}
-                        placeholder="https://ejemplo.com/imagen.jpg"
-                    />
-
                     <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-brown-700 mb-1">Imagen (Opcional)</label>
+                        <div className="flex items-center gap-3">
+                            {hasRealImage(formData.imageUrl) && (
+                                <div className="relative">
+                                    <img
+                                        src={resolveMediaUrl(formData.imageUrl)}
+                                        alt="Vista previa"
+                                        className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, imageUrl: '' }))}
+                                        className="absolute -top-2 -right-2 bg-white rounded-full border border-gray-300 text-gray-500 hover:text-red-600 hover:border-red-300 shadow-sm"
+                                        title="Quitar imagen"
+                                    >
+                                        <XMarkIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
+                            <div className="flex-1">
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageChange}
+                                    disabled={isUploadingImage}
+                                    className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-orange-50 file:text-orange-600 hover:file:bg-orange-100"
+                                />
+                                {isUploadingImage && <p className="text-xs text-gray-400 mt-1">Subiendo imagen...</p>}
+                                {imageError && <p className="text-xs text-red-500 mt-1">{imageError}</p>}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="md:col-span-2 flex flex-wrap gap-6">
                         <div className="flex items-center">
                             <input
                                 type="checkbox"
@@ -281,6 +334,16 @@ const ProductFormModal = ({
                                 className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                             />
                             <label className="ml-2 block text-sm text-brown-700">Producto disponible</label>
+                        </div>
+                        <div className="flex items-center">
+                            <input
+                                type="checkbox"
+                                name="showInDigitalMenu"
+                                checked={formData.showInDigitalMenu}
+                                onChange={handleChange}
+                                className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                            />
+                            <label className="ml-2 block text-sm text-brown-700">Mostrar en menú online</label>
                         </div>
                     </div>
 
@@ -509,7 +572,7 @@ const ProductFormModal = ({
                     <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
                         Cancelar
                     </Button>
-                    <Button type="submit" loading={isLoading} disabled={isLoading}>
+                    <Button type="submit" loading={isLoading} disabled={isLoading || isUploadingImage}>
                         {product ? 'Actualizar' : 'Crear'} Producto
                     </Button>
                 </div>

@@ -25,6 +25,7 @@ export const useProductsManagement = () => {
           price: food.price,
           category: food.category,
           isAvailable: food.isAvailable,
+          showInDigitalMenu: food.showInDigitalMenu !== undefined ? food.showInDigitalMenu : true,
           imageUrl: food.imageUrl,
           extraSections: food.extraSections || [], // ✅ Agregar extraSections
           createdAt: food.createdAt,

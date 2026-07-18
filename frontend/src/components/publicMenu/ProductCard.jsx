@@ -1,4 +1,5 @@
 import React from 'react';
+import { PhotoIcon } from '@heroicons/react/24/outline';
 import { resolveMediaUrl, hasRealImage } from '../../utils/mediaUrl';
 
 const formatPrice = (price) => {
@@ -15,23 +16,22 @@ const ProductCard = ({ product, onClick }) => {
       onClick={() => onClick(product)}
       className="flex flex-col text-left bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden active:scale-[0.99]"
     >
-      {showImage && (
-        <div className="w-full aspect-[4/3] bg-gray-100 overflow-hidden">
+      <div className="w-full h-24 sm:h-28 bg-gray-100 flex items-center justify-center overflow-hidden">
+        {showImage ? (
           <img
             src={imageUrl}
             alt={product.title}
             loading="lazy"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
-        </div>
-      )}
+        ) : (
+          <PhotoIcon className="w-8 h-8 text-gray-300" />
+        )}
+      </div>
       <div className="p-3 flex-1 flex flex-col gap-1">
-        <h3 className="font-semibold text-[var(--menu-text)] text-sm sm:text-base line-clamp-1">
+        <h3 className="font-semibold text-[var(--menu-text)] text-sm sm:text-base">
           {product.title}
         </h3>
-        {product.description && (
-          <p className="text-xs sm:text-sm text-gray-500 line-clamp-2">{product.description}</p>
-        )}
         <p className="mt-auto pt-1 font-bold text-[var(--menu-button)]">{formatPrice(product.price)}</p>
       </div>
     </button>
