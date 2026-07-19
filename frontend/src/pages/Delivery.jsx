@@ -1884,7 +1884,7 @@ const Delivery = () => {
                     {isCreateDraftLoaded && createDraftTime && (
                       <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">Borrador {createDraftTime}</span>
                     )}
-                    {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                    {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                       <button
                         onClick={async () => {
                           const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
@@ -2604,7 +2604,7 @@ const Delivery = () => {
                       <PrinterIcon className="w-4 h-4" />
 
                     </button>
-                    {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                    {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                       <button
                         onClick={async () => {
                           const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;

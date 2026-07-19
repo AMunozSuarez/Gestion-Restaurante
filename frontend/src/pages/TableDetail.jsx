@@ -1700,7 +1700,7 @@ const TableDetail = () => {
                     <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-gray-900">Cerrar Mesa {table.tableNumber}</h3>
-                            {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                            {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                                 <button
                                     onClick={async () => {
                                         const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;

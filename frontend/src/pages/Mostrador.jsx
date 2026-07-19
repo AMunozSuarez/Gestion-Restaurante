@@ -1326,7 +1326,7 @@ const Mostrador = () => {
                     {isCreateDraftLoaded && createDraftTime && (
                       <span className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5">Borrador {createDraftTime}</span>
                     )}
-                    {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                    {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                       <button
                         onClick={async () => {
                           const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
@@ -1356,6 +1356,7 @@ const Mostrador = () => {
                       onClick={handleCancelNewOrder}
                       className="text-gray-500 hover:text-gray-700 text-sm"
                     >
+                      ✕ Cerrar
                     </button>
                   </div>
                 </h2>
@@ -1888,7 +1889,7 @@ const Mostrador = () => {
                     >
                       <PrinterIcon className="w-4 h-4" />
                     </button>
-                    {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                    {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                       <button
                         onClick={async () => {
                           const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
