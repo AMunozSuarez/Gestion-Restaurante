@@ -97,6 +97,9 @@ const Configuracion = () => {
   const [savingInventory, setSavingInventory] = useState(false);
   const [loadingInventory, setLoadingInventory] = useState(false);
 
+  // Estado (solo lectura) de la pantalla de cocina: la habilita el administrador del sistema desde /admin
+  const [kitchenDisplayEnabled, setKitchenDisplayEnabled] = useState(false);
+
   // Estados para usuarios
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -158,6 +161,7 @@ const Configuracion = () => {
     try {
       const response = await api.get('/restaurant/settings/me');
       setInventoryEnabled(Boolean(response.data?.settings?.inventory?.enabled));
+      setKitchenDisplayEnabled(Boolean(response.data?.settings?.kitchenDisplay?.enabled));
     } catch (error) {
       console.error('Error al cargar configuración de inventario:', error);
     } finally {
@@ -2607,6 +2611,42 @@ const Configuracion = () => {
                       <li>Activa este toggle y el sistema descontará el stock automáticamente al completar ventas</li>
                       <li>Revisa el historial en la pestaña <strong>Movimientos</strong> de Inventario</li>
                     </ol>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center mb-4">
+                <CogIcon className="w-6 h-6 text-green-600 mr-3" />
+                <h2 className="text-xl font-semibold text-brown-900">Pantalla de Cocina</h2>
+              </div>
+              <p className="text-sm text-gray-500 mb-6">
+                Pantalla de cocina (KDS) para que el personal vea los pedidos entrantes en tiempo real,
+                con indicador de tiempo de espera, y pueda marcarlos como listos.
+              </p>
+
+              {loadingInventory ? (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+                  <span className="text-sm">Cargando configuración...</span>
+                </div>
+              ) : (
+                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-900">
+                      Pantalla de cocina (KDS)
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Esta función la habilita el administrador del sistema para tu restaurante.
+                      Si necesitas activarla, contáctalo directamente.
+                    </p>
+                    <div className={`mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                      kitchenDisplayEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${kitchenDisplayEnabled ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                      {kitchenDisplayEnabled ? 'Activa' : 'Inactiva'}
+                    </div>
                   </div>
                 </div>
               )}

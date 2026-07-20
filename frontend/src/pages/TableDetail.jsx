@@ -1369,6 +1369,11 @@ const TableDetail = () => {
                                         ({cart.filter(i => i.deleted).length} eliminado{cart.filter(i => i.deleted).length > 1 ? 's' : ''})
                                     </span>
                                 )}
+                                {table.currentOrder?.kitchenReadyAt && (
+                                    <span className="ml-2 bg-green-100 border border-green-300 text-green-700 rounded-full px-2 py-0.5 text-xs font-medium align-middle">
+                                        Listo en cocina
+                                    </span>
+                                )}
                             </h2>
 
                             {cart.length === 0 ? (

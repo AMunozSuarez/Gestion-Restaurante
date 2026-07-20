@@ -24,6 +24,7 @@ import SubscriptionAdmin from './pages/SubscriptionAdmin';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Reportes from './pages/Reportes';
 import Inventario from './pages/Inventario';
+import KitchenDisplay from './pages/KitchenDisplay';
 
 // El rol mesero solo tiene acceso al módulo de Mesas
 const MESERO_ALLOWED_PATH_PREFIXES = ['/mesas'];
@@ -123,6 +124,16 @@ function App() {
         <Routes>
           {/* Ruta de login sin layout */}
           <Route path="/login" element={<Login />} />
+
+          {/* Pantalla de cocina: protegida pero sin Layout, pensada para un monitor dedicado */}
+          <Route
+            path="/cocina"
+            element={
+              <ProtectedRoute>
+                <KitchenDisplay />
+              </ProtectedRoute>
+            }
+          />
           
           {/* Ruta de Super Admin Dashboard */}
           <Route
