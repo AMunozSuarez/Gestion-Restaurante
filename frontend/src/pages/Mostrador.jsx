@@ -1725,10 +1725,16 @@ const Mostrador = () => {
                             <div className="text-center text-gray-800 font-medium text-sm truncate">
                               {getCustomerName(order)}
                             </div>
-                            <div className="text-center">
-                              <span className="status-preparing text-xs">
-                                Preparación
-                              </span>
+                            <div className="text-center flex items-center justify-center gap-1">
+                              {order.kitchenReadyAt ? (
+                                <span className="bg-green-100 border border-green-300 text-green-700 rounded-full px-2 py-0.5 text-xs font-medium">
+                                  Listo
+                                </span>
+                              ) : (
+                                <span className="status-preparing text-xs">
+                                  Preparación
+                                </span>
+                              )}
                             </div>
                             <div className="text-center font-semibold text-gray-800 text-sm">
                               {formatChileanCurrency(order.total || 0)}
@@ -1745,7 +1751,13 @@ const Mostrador = () => {
                             <div className="flex justify-between items-start mb-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-gray-800 text-sm">#{order.orderNumber}</span>
-                                <span className="status-preparing text-xs">Preparación</span>
+                                {order.kitchenReadyAt ? (
+                                  <span className="bg-green-100 border border-green-300 text-green-700 rounded-full px-2 py-0.5 text-xs font-medium">
+                                    Listo
+                                  </span>
+                                ) : (
+                                  <span className="status-preparing text-xs">Preparación</span>
+                                )}
                               </div>
                               <span className="font-semibold text-gray-800 text-sm">{formatChileanCurrency(order.total || 0)}</span>
                             </div>

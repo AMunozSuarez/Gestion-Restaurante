@@ -461,7 +461,7 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, discount, deletedFoods, newFoods, splitMeta, splitAccounts } = req.body;
+        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, discount, deletedFoods, newFoods, splitMeta, splitAccounts, kitchenReadyAt } = req.body;
 
         const restaurantId = req.user.restaurant;
         const isPrivilegedUser = isOwnerOrSuperAdmin(req.user?.role);
@@ -517,6 +517,7 @@ const updateOrderController = async (req, res) => {
         if (payment !== undefined) updateData.payment = payment;
         if (paymentMethods !== undefined) updateData.paymentMethods = paymentMethods;
         if (status !== undefined) updateData.status = status;
+        if (kitchenReadyAt !== undefined) updateData.kitchenReadyAt = kitchenReadyAt;
         if (comment !== undefined) updateData.comment = comment;
         if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
         if (waiter !== undefined) updateData.waiter = waiter;

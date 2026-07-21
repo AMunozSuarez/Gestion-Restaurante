@@ -121,6 +121,10 @@ const orderSchema = new mongoose.Schema({
         type: String,
         default: '',
     },
+    kitchenReadyAt: {
+        type: Date,
+        default: null,
+    },
     deletedFoods: [
         {
             food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food' },

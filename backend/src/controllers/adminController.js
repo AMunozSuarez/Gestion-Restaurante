@@ -380,7 +380,7 @@ const createRestaurant = async (req, res) => {
 const updateRestaurant = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, address, isActive } = req.body;
+        const { name, address, isActive, kitchenDisplayEnabled } = req.body;
 
         const restaurant = await restaurantModel.findById(id);
         if (!restaurant) {
@@ -394,6 +394,9 @@ const updateRestaurant = async (req, res) => {
         if (name) updateData.name = name;
         if (address) updateData.address = address;
         if (isActive !== undefined) updateData.isActive = isActive;
+        if (kitchenDisplayEnabled !== undefined) {
+            updateData['settings.kitchenDisplay.enabled'] = Boolean(kitchenDisplayEnabled);
+        }
 
         const updatedRestaurant = await restaurantModel
             .findByIdAndUpdate(id, updateData, { new: true })

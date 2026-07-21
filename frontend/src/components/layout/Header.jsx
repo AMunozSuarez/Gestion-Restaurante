@@ -24,6 +24,7 @@ import {
   PuzzlePieceIcon,
   ArchiveBoxIcon,
   ExclamationTriangleIcon,
+  FireIcon,
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -39,6 +40,7 @@ const Header = () => {
   } = useSubscription();
   const isMesero = user?.role === 'mesero';
   const inventoryEnabled = Boolean(restaurant?.settings?.inventory?.enabled) && !isMesero;
+  const kitchenDisplayEnabled = Boolean(restaurant?.settings?.kitchenDisplay?.enabled);
   const { lowStockCount } = useInventoryAlert(inventoryEnabled);
 
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -81,6 +83,9 @@ const Header = () => {
       { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
       { name: 'Mesas', href: '/mesas', icon: Squares2X2Icon },
       { name: 'Reportes', href: '/reportes', icon: PresentationChartBarIcon },
+      // Solo visible si el admin habilitó la pantalla de cocina en Configuración.
+      // Se abre en una ventana/pestaña nueva para dejarla fija en un monitor de cocina.
+      ...(kitchenDisplayEnabled ? [{ name: 'Cocina', href: '/cocina', icon: FireIcon, newTab: true }] : []),
     ];
 
   // User/settings dropdown items (right side)
@@ -258,7 +263,7 @@ const Header = () => {
               return (
                 <button
                   key={item.name}
-                  onClick={() => navigate(item.href)}
+                  onClick={() => (item.newTab ? window.open(item.href, '_blank') : navigate(item.href))}
                   className={`inline-flex items-center px-3 py-2 border-b-2 text-sm font-medium transition-colors duration-200 ${
                     isActiveItem
                       ? 'border-green-500 text-green-600'

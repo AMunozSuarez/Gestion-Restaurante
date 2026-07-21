@@ -179,6 +179,21 @@ export const useTable = (tableId) => {
         fetchTable();
     }, [fetchTable]);
 
+    // Mantener currentOrder al día en vivo (ej. kitchenReadyAt marcado desde el KDS)
+    useEffect(() => {
+        const unsub = onSocketEvent('order:updated', ({ order: updatedOrder }) => {
+            if (!updatedOrder) return;
+            setTable(prev => {
+                if (!prev?.currentOrder) return prev;
+                const currentOrderId = prev.currentOrder._id || prev.currentOrder.id;
+                const updatedOrderId = updatedOrder._id || updatedOrder.id;
+                if (currentOrderId !== updatedOrderId) return prev;
+                return { ...prev, currentOrder: updatedOrder };
+            });
+        });
+        return unsub;
+    }, []);
+
     return {
         table,
         isLoading,
