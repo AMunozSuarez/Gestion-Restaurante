@@ -31,7 +31,7 @@ const Configuracion = () => {
   const { user } = useAuth();
 
   const getValidTab = (tabValue) => {
-    if (tabValue === 'printers' || tabValue === 'subscription' || tabValue === 'users') {
+    if (tabValue === 'printers' || tabValue === 'subscription' || tabValue === 'users' || tabValue === 'preferencias' || tabValue === 'caja') {
       return tabValue;
     }
     return null;
@@ -97,6 +97,9 @@ const Configuracion = () => {
   const [savingInventory, setSavingInventory] = useState(false);
   const [loadingInventory, setLoadingInventory] = useState(false);
 
+  // Estado (solo lectura) de la pantalla de cocina: la habilita el administrador del sistema desde /admin
+  const [kitchenDisplayEnabled, setKitchenDisplayEnabled] = useState(false);
+
   // Estados para usuarios
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -106,12 +109,13 @@ const Configuracion = () => {
     userName: '',
     email: '',
     password: '',
-    phone: ''
+    phone: '',
+    role: 'employee'
   });
 
   // Redirigir empleados si intentan acceder a pestañas restringidas
   useEffect(() => {
-    if (!isOwnerOrAdmin && (activeTab === 'subscription' || activeTab === 'users' || activeTab === 'inventory')) {
+    if (!isOwnerOrAdmin && (activeTab === 'subscription' || activeTab === 'users' || activeTab === 'inventory' || activeTab === 'preferencias' || activeTab === 'caja')) {
       setActiveTab('printers');
     }
   }, [activeTab, isOwnerOrAdmin]);
@@ -124,7 +128,7 @@ const Configuracion = () => {
       return;
     }
 
-    if (!isOwnerOrAdmin && (requestedTab === 'subscription' || requestedTab === 'users')) {
+    if (!isOwnerOrAdmin && (requestedTab === 'subscription' || requestedTab === 'users' || requestedTab === 'preferencias' || requestedTab === 'caja')) {
       setActiveTab('printers');
       return;
     }
@@ -141,6 +145,8 @@ const Configuracion = () => {
       loadCategoriesForPrinting();
       loadExtraSectionsForPrinting();
       loadRestaurantPrintSettings();
+    } else if (activeTab === 'preferencias' && isOwnerOrAdmin) {
+      loadRestaurantPrintSettings();
     } else if (activeTab === 'subscription' && isOwnerOrAdmin) {
       loadSubscription();
     } else if (activeTab === 'users' && isOwnerOrAdmin) {
@@ -155,6 +161,7 @@ const Configuracion = () => {
     try {
       const response = await api.get('/restaurant/settings/me');
       setInventoryEnabled(Boolean(response.data?.settings?.inventory?.enabled));
+      setKitchenDisplayEnabled(Boolean(response.data?.settings?.kitchenDisplay?.enabled));
     } catch (error) {
       console.error('Error al cargar configuración de inventario:', error);
     } finally {
@@ -1028,7 +1035,8 @@ const Configuracion = () => {
       userName: '',
       email: '',
       password: '',
-      phone: ''
+      phone: '',
+      role: 'employee'
     });
     setShowUserModal(true);
   };
@@ -1040,7 +1048,8 @@ const Configuracion = () => {
       userName: user.userName,
       email: user.email,
       password: '', // No mostramos la contraseña
-      phone: user.phone || ''
+      phone: user.phone || '',
+      role: user.role === 'mesero' ? 'mesero' : 'employee'
     });
     setShowUserModal(true);
   };
@@ -1087,7 +1096,8 @@ const Configuracion = () => {
         const updateData = {
           userName: userFormData.userName,
           email: userFormData.email,
-          phone: userFormData.phone
+          phone: userFormData.phone,
+          role: userFormData.role
         };
         // Solo incluir password si se proporcionó uno nuevo
         if (userFormData.password) {
@@ -1235,6 +1245,36 @@ const Configuracion = () => {
 
               
             </button>
+            {isOwnerOrAdmin && (
+              <button
+                onClick={() => setActiveTab('preferencias')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${activeTab === 'preferencias'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                <div className="flex items-center">
+                  <ShieldCheckIcon className="w-5 h-5 mr-2" />
+                  Preferencias
+                </div>
+              </button>
+            )}
+            {isOwnerOrAdmin && (
+              <button
+                onClick={() => setActiveTab('caja')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${activeTab === 'caja'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  </svg>
+                  Caja Electrónica
+                </div>
+              </button>
+            )}
             {isOwnerOrAdmin && (
               <button
                 onClick={() => setActiveTab('subscription')}
@@ -1573,28 +1613,6 @@ const Configuracion = () => {
                 </button>
               </div>
 
-              <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Encabezado de comanda en grande</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Aplica negrita al detalle del encabezado (N. orden, cliente/mesa, sección y hora)..
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSaveFontSettings({ kitchenHeaderBold: !fontSettings.kitchenHeaderBold })}
-                    disabled={savingFont}
-                    className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 ${fontSettings.kitchenHeaderBold ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
-                    aria-pressed={fontSettings.kitchenHeaderBold}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${fontSettings.kitchenHeaderBold ? 'translate-x-5' : 'translate-x-0.5'}`}
-                    />
-                  </button>
-                </div>
-              </div>
-
               {savingFont && (
                 <p className="mt-3 text-sm text-gray-500 flex items-center">
                   <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" /> Guardando...
@@ -1617,137 +1635,6 @@ const Configuracion = () => {
                 </p>
               </div>
             </div>
-
-            {/* Caja Electrónica - TESTEO */}
-            {printingService.isCurrentUserOwner() && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center mb-4">
-                <svg className="w-6 h-6 text-purple-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                </svg>
-                <h2 className="text-xl font-semibold text-brown-900">Caja Electrónica</h2>
-              </div>
-              <p className="text-sm text-gray-600 mb-4">
-                Configura y prueba la apertura de caja electrónica
-              </p>
-              
-              {/* Opciones de caja (solo dueño) */}
-              <div className="mb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Permitir abrir caja desde cualquier cuenta</p>
-                    <p className="text-xs text-gray-500">Si está activo, usuarios no-owner podrán abrir la caja.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleDrawerAlwaysOpen(!drawerAlwaysOpen)}
-                    className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${drawerAlwaysOpen ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
-                    aria-pressed={drawerAlwaysOpen}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${drawerAlwaysOpen ? 'translate-x-5' : 'translate-x-0.5'}`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              <div className="mb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Abrir caja automáticamente al cerrar un pedido</p>
-                    <p className="text-xs text-gray-500">Si está activo, la caja se abrirá al cerrar un pedido.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleDrawerOpenOnCloseOrder(!drawerOpenOnCloseOrder)}
-                    className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${drawerOpenOnCloseOrder ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
-                    aria-pressed={drawerOpenOnCloseOrder}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${drawerOpenOnCloseOrder ? 'translate-x-5' : 'translate-x-0.5'}`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Selector de impresora */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Impresora con caja
-                </label>
-                <select
-                  value={drawerPrinter}
-                  onChange={(e) => handleDrawerPrinterChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="">-- Selecciona una impresora --</option>
-                  {allPrinters.map((printer) => (
-                    <option key={printer.printerName} value={printer.printerName}>
-                      {printer.printerName}
-                    </option>
-                  ))}
-                </select>
-                {drawerPrinter && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    ✓ Configurada: {drawerPrinter}
-                  </p>
-                )}
-              </div>
-              
-              {/* Tecla rápida para abrir caja */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tecla rápida para abrir caja</label>
-                <div className="flex items-center gap-3">
-                  <div className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm text-gray-800">
-                    {drawerHotkey ? drawerHotkey.toUpperCase() : 'Ninguna'}
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (capturingHotkey) {
-                        setCapturingHotkey(false);
-                        return;
-                      }
-                      setCapturingHotkey(true);
-                      setMessage({ type: 'info', text: 'Presiona la tecla que quieras asignar...' });
-                    }}
-                    className={`inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${capturingHotkey ? 'bg-green-700' : 'bg-green-600 hover:bg-green-700'}`}
-                  >
-                    {capturingHotkey ? 'Presiona...' : 'Asignar tecla'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDrawerHotkey('');
-                      printingService.setDrawerHotkey('');
-                      printingService.saveRestaurantSettingsToBackend({ drawerHotkey: '' }).catch(() => {});
-                      setMessage({ type: 'success', text: 'Tecla borrada' });
-                    }}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md bg-white text-gray-700 hover:bg-gray-50"
-                  >
-                    Borrar
-                  </button>
-                </div>
-                {capturingHotkey && (
-                  <p className="text-xs text-gray-500 mt-2">Presiona una tecla del teclado para asignarla. Esc para cancelar.</p>
-                )}
-              </div>
-              
-              {/* Botón de prueba */}
-              <button
-                onClick={handleTestDrawer}
-                disabled={testingDrawer || !drawerPrinter}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                {testingDrawer ? 'Abriendo...' : 'Probar Caja'}
-              </button>
-              {!drawerPrinter && (
-                <p className="text-xs text-amber-600 mt-2">✓ Selecciona una impresora para probar</p>
-              )}
-            </div>
-
-            )}
 
             {/* Modo de impresión al actualizar comandas */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -1812,119 +1699,9 @@ const Configuracion = () => {
                 </p>
               </div>
 
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Imprimir al eliminar productos</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Si está activo, al reenviar/actualizar a cocina se imprimirá también cuando solo elimines productos.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handlePrintOnDeletedItemsUpdateChange(!printOnDeletedItemsUpdate)}
-                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${printOnDeletedItemsUpdate ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
-                      aria-pressed={printOnDeletedItemsUpdate}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${printOnDeletedItemsUpdate ? 'translate-x-5' : 'translate-x-0.5'}`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Reimprimir ticket al cerrar mesa</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Si está activo, al completar y cerrar una mesa se volverá a imprimir el ticket del cliente automáticamente.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleReprintTicketOnCloseTableChange(!reprintTicketOnCloseTable)}
-                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${reprintTicketOnCloseTable ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
-                      aria-pressed={reprintTicketOnCloseTable}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${reprintTicketOnCloseTable ? 'translate-x-5' : 'translate-x-0.5'}`}
-                      />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {isOwner && (
-                <div className="mt-4 p-4 border border-amber-200 rounded-lg bg-amber-50">
-                  <p className="text-sm font-semibold text-amber-900 mb-3">Opciones avanzadas (solo dueño)</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 border border-amber-200 rounded-lg bg-white">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">Solo dueño puede cerrar mesa</p>
-                          <p className="text-xs text-gray-600 mt-1">
-                            Si está activo, usuarios que no sean dueño no podrán cerrar mesas.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleOnlyOwnerCanCloseTableChange(!onlyOwnerCanCloseTable)}
-                          className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${onlyOwnerCanCloseTable ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
-                          aria-pressed={onlyOwnerCanCloseTable}
-                        >
-                          <span
-                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${onlyOwnerCanCloseTable ? 'translate-x-5' : 'translate-x-0.5'}`}
-                          />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="p-4 border border-amber-200 rounded-lg bg-white">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">No reimprimir al actualizar/reenviar</p>
-                          <p className="text-xs text-gray-600 mt-1">
-                            Evita reimprimir la misma actualización de comanda cuando se envía de nuevo sin cambios.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleAvoidDuplicateKitchenUpdatePrintChange(!avoidDuplicateKitchenUpdatePrint)}
-                          className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${avoidDuplicateKitchenUpdatePrint ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
-                          aria-pressed={avoidDuplicateKitchenUpdatePrint}
-                        >
-                          <span
-                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${avoidDuplicateKitchenUpdatePrint ? 'translate-x-5' : 'translate-x-0.5'}`}
-                          />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="p-4 border border-amber-200 rounded-lg bg-white">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">Solo dueño puede eliminar productos</p>
-                          <p className="text-xs text-gray-600 mt-1">
-                            Si está activo, empleados no podrán eliminar productos de pedidos ya creados.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleOnlyOwnerCanDeleteOrderItemsChange(!onlyOwnerCanDeleteOrderItems)}
-                          className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${onlyOwnerCanDeleteOrderItems ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
-                          aria-pressed={onlyOwnerCanDeleteOrderItems}
-                        >
-                          <span
-                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${onlyOwnerCanDeleteOrderItems ? 'translate-x-5' : 'translate-x-0.5'}`}
-                          />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <p className="text-xs text-gray-400 mt-3">
+                Las preferencias de reimpresión y permisos relacionados están en la pestaña "Preferencias".
+              </p>
             </div>
 
             {/* Asignación de Impresoras por Sección */}
@@ -2210,6 +1987,294 @@ const Configuracion = () => {
               </div>
             </div>
           </>
+        )}
+
+        {/* Contenido de Preferencias */}
+        {activeTab === 'preferencias' && isOwnerOrAdmin && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+            <div className="flex items-center mb-2">
+              <ShieldCheckIcon className="w-6 h-6 text-brown-600 mr-3" />
+              <h2 className="text-xl font-semibold text-brown-900">Preferencias del restaurante</h2>
+            </div>
+            <p className="text-sm text-gray-500">
+              Permisos y comportamientos generales del sistema. La configuración de impresoras está en la pestaña "Impresoras" y la caja electrónica en la pestaña "Caja Electrónica".
+            </p>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-3">Impresión</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Encabezado de comanda en grande</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Aplica negrita al detalle del encabezado (N. orden, cliente/mesa, sección y hora).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveFontSettings({ kitchenHeaderBold: !fontSettings.kitchenHeaderBold })}
+                      disabled={savingFont}
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 ${fontSettings.kitchenHeaderBold ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                      aria-pressed={fontSettings.kitchenHeaderBold}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${fontSettings.kitchenHeaderBold ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Imprimir al eliminar productos</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Si está activo, al reenviar/actualizar a cocina se imprimirá también cuando solo elimines productos.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handlePrintOnDeletedItemsUpdateChange(!printOnDeletedItemsUpdate)}
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${printOnDeletedItemsUpdate ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                      aria-pressed={printOnDeletedItemsUpdate}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${printOnDeletedItemsUpdate ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Reimprimir ticket al cerrar mesa</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Si está activo, al completar y cerrar una mesa se volverá a imprimir el ticket del cliente automáticamente.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleReprintTicketOnCloseTableChange(!reprintTicketOnCloseTable)}
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${reprintTicketOnCloseTable ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                      aria-pressed={reprintTicketOnCloseTable}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${reprintTicketOnCloseTable ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {isOwner && (
+                  <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">No reimprimir al actualizar/reenviar</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Evita reimprimir la misma actualización de comanda cuando se envía de nuevo sin cambios.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAvoidDuplicateKitchenUpdatePrintChange(!avoidDuplicateKitchenUpdatePrint)}
+                        className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${avoidDuplicateKitchenUpdatePrint ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                        aria-pressed={avoidDuplicateKitchenUpdatePrint}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${avoidDuplicateKitchenUpdatePrint ? 'translate-x-5' : 'translate-x-0.5'}`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-3">Caja electrónica</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Permitir abrir caja desde cualquier cuenta</p>
+                      <p className="text-xs text-gray-600 mt-1">Si está activo, usuarios no-owner podrán abrir la caja.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleDrawerAlwaysOpen(!drawerAlwaysOpen)}
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${drawerAlwaysOpen ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                      aria-pressed={drawerAlwaysOpen}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${drawerAlwaysOpen ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Abrir caja automáticamente al cerrar un pedido</p>
+                      <p className="text-xs text-gray-600 mt-1">Si está activo, la caja se abrirá al cerrar un pedido.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleDrawerOpenOnCloseOrder(!drawerOpenOnCloseOrder)}
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${drawerOpenOnCloseOrder ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                      aria-pressed={drawerOpenOnCloseOrder}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${drawerOpenOnCloseOrder ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {isOwner && (
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-3">Mesas y pedidos (solo dueño)</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 border border-amber-200 rounded-lg bg-amber-50">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Solo dueño puede cerrar mesa</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Si está activo, usuarios que no sean dueño no podrán cerrar mesas con productos activos.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOnlyOwnerCanCloseTableChange(!onlyOwnerCanCloseTable)}
+                        className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${onlyOwnerCanCloseTable ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                        aria-pressed={onlyOwnerCanCloseTable}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${onlyOwnerCanCloseTable ? 'translate-x-5' : 'translate-x-0.5'}`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border border-amber-200 rounded-lg bg-amber-50">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Solo dueño puede eliminar productos</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Si está activo, empleados no podrán eliminar productos de pedidos ya creados.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOnlyOwnerCanDeleteOrderItemsChange(!onlyOwnerCanDeleteOrderItems)}
+                        className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${onlyOwnerCanDeleteOrderItems ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                        aria-pressed={onlyOwnerCanDeleteOrderItems}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${onlyOwnerCanDeleteOrderItems ? 'translate-x-5' : 'translate-x-0.5'}`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Contenido de Caja Electrónica */}
+        {activeTab === 'caja' && isOwnerOrAdmin && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center mb-4">
+              <svg className="w-6 h-6 text-purple-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+              <h2 className="text-xl font-semibold text-brown-900">Caja Electrónica</h2>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Configura y prueba la apertura de caja electrónica. Los permisos de quién puede abrirla están en la pestaña "Preferencias".
+            </p>
+
+            {/* Selector de impresora */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Impresora con caja
+              </label>
+              <select
+                value={drawerPrinter}
+                onChange={(e) => handleDrawerPrinterChange(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="">-- Selecciona una impresora --</option>
+                {allPrinters.map((printer) => (
+                  <option key={printer.printerName} value={printer.printerName}>
+                    {printer.printerName}
+                  </option>
+                ))}
+              </select>
+              {drawerPrinter && (
+                <p className="text-xs text-gray-500 mt-1">
+                  ✓ Configurada: {drawerPrinter}
+                </p>
+              )}
+            </div>
+
+            {/* Tecla rápida para abrir caja */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Tecla rápida para abrir caja</label>
+              <div className="flex items-center gap-3">
+                <div className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm text-gray-800">
+                  {drawerHotkey ? drawerHotkey.toUpperCase() : 'Ninguna'}
+                </div>
+                <button
+                  onClick={() => {
+                    if (capturingHotkey) {
+                      setCapturingHotkey(false);
+                      return;
+                    }
+                    setCapturingHotkey(true);
+                    setMessage({ type: 'info', text: 'Presiona la tecla que quieras asignar...' });
+                  }}
+                  className={`inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${capturingHotkey ? 'bg-green-700' : 'bg-green-600 hover:bg-green-700'}`}
+                >
+                  {capturingHotkey ? 'Presiona...' : 'Asignar tecla'}
+                </button>
+                <button
+                  onClick={() => {
+                    setDrawerHotkey('');
+                    printingService.setDrawerHotkey('');
+                    printingService.saveRestaurantSettingsToBackend({ drawerHotkey: '' }).catch(() => {});
+                    setMessage({ type: 'success', text: 'Tecla borrada' });
+                  }}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md bg-white text-gray-700 hover:bg-gray-50"
+                >
+                  Borrar
+                </button>
+              </div>
+              {capturingHotkey && (
+                <p className="text-xs text-gray-500 mt-2">Presiona una tecla del teclado para asignarla. Esc para cancelar.</p>
+              )}
+            </div>
+
+            {/* Botón de prueba */}
+            <button
+              onClick={handleTestDrawer}
+              disabled={testingDrawer || !drawerPrinter}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              {testingDrawer ? 'Abriendo...' : 'Probar Caja'}
+            </button>
+            {!drawerPrinter && (
+              <p className="text-xs text-amber-600 mt-2">✓ Selecciona una impresora para probar</p>
+            )}
+          </div>
         )}
 
         {/* Contenido de Suscripción */}
@@ -2550,6 +2615,42 @@ const Configuracion = () => {
                 </div>
               )}
             </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center mb-4">
+                <CogIcon className="w-6 h-6 text-green-600 mr-3" />
+                <h2 className="text-xl font-semibold text-brown-900">Pantalla de Cocina</h2>
+              </div>
+              <p className="text-sm text-gray-500 mb-6">
+                Pantalla de cocina (KDS) para que el personal vea los pedidos entrantes en tiempo real,
+                con indicador de tiempo de espera, y pueda marcarlos como listos.
+              </p>
+
+              {loadingInventory ? (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+                  <span className="text-sm">Cargando configuración...</span>
+                </div>
+              ) : (
+                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-900">
+                      Pantalla de cocina (KDS)
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Esta función la habilita el administrador del sistema para tu restaurante.
+                      Si necesitas activarla, contáctalo directamente.
+                    </p>
+                    <div className={`mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                      kitchenDisplayEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${kitchenDisplayEnabled ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                      {kitchenDisplayEnabled ? 'Activa' : 'Inactiva'}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -2635,9 +2736,11 @@ const Configuracion = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'owner'
                                 ? 'bg-purple-100 text-purple-800'
-                                : 'bg-blue-100 text-blue-800'
+                                : user.role === 'mesero'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-blue-100 text-blue-800'
                               }`}>
-                              {user.role === 'owner' ? 'Propietario' : 'Empleado'}
+                              {user.role === 'owner' ? 'Propietario' : user.role === 'mesero' ? 'Mesero' : 'Empleado'}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -2773,6 +2876,21 @@ const Configuracion = () => {
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Rol
+                  </label>
+                  <select
+                    name="role"
+                    value={userFormData.role}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="employee">Empleado (acceso completo)</option>
+                    <option value="mesero">Mesero (solo acceso a Mesas)</option>
+                  </select>
                 </div>
 
                 <div className="flex justify-end space-x-3 pt-4 border-t">

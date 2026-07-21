@@ -24,6 +24,7 @@ import {
   PuzzlePieceIcon,
   ArchiveBoxIcon,
   ExclamationTriangleIcon,
+  FireIcon,
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -37,7 +38,9 @@ const Header = () => {
     daysRemaining: subscriptionDaysRemaining,
     isLoading: isSubscriptionLoading,
   } = useSubscription();
-  const inventoryEnabled = Boolean(restaurant?.settings?.inventory?.enabled);
+  const isMesero = user?.role === 'mesero';
+  const inventoryEnabled = Boolean(restaurant?.settings?.inventory?.enabled) && !isMesero;
+  const kitchenDisplayEnabled = Boolean(restaurant?.settings?.kitchenDisplay?.enabled);
   const { lowStockCount } = useInventoryAlert(inventoryEnabled);
 
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -50,8 +53,8 @@ const Header = () => {
   const inventoryAlertRef = useRef(null);
   const inventoryAlertCloseTimerRef = useRef(null);
 
-  // Core operational nav (center)
-  const navigationSections = [
+  // Core operational nav (center) — el rol mesero solo tiene acceso al módulo de Mesas
+  const navigationSections = isMesero ? [] : [
     {
       name: 'Caja',
       icon: CurrencyDollarIcon,
@@ -74,18 +77,23 @@ const Header = () => {
   ];
 
   // Main nav single items (center)
-  const mainNavItems = [
-    { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
-    { name: 'Mesas', href: '/mesas', icon: Squares2X2Icon },
-    { name: 'Reportes', href: '/reportes', icon: PresentationChartBarIcon },
-  ];
+  const mainNavItems = isMesero
+    ? [{ name: 'Mesas', href: '/mesas', icon: Squares2X2Icon }]
+    : [
+      { name: 'Punto de Venta', href: '/mostrador', icon: HomeIcon },
+      { name: 'Mesas', href: '/mesas', icon: Squares2X2Icon },
+      { name: 'Reportes', href: '/reportes', icon: PresentationChartBarIcon },
+      // Solo visible si el admin habilitó la pantalla de cocina en Configuración.
+      // Se abre en una ventana/pestaña nueva para dejarla fija en un monitor de cocina.
+      ...(kitchenDisplayEnabled ? [{ name: 'Cocina', href: '/cocina', icon: FireIcon, newTab: true }] : []),
+    ];
 
   // User/settings dropdown items (right side)
-  const userMenuItems = [
+  const userMenuItems = isMesero ? [] : [
     { name: 'Configuración', href: '/configuracion', icon: WrenchScrewdriverIcon },
   ];
 
-  if (!isSubscriptionLoading && !hasActiveSubscription) {
+  if (!isMesero && !isSubscriptionLoading && !hasActiveSubscription) {
     userMenuItems.unshift({ name: 'Suscripción', href: '/subscription/plans', icon: CreditCardIcon });
   }
 
@@ -102,7 +110,7 @@ const Header = () => {
 
   const hasSubscriptionPaymentIssue = !hasActiveSubscription;
   const hasPendingPayment = subscription?.status === 'pending';
-  const shouldShowSubscriptionNotice = !isSubscriptionLoading && (
+  const shouldShowSubscriptionNotice = !isMesero && !isSubscriptionLoading && (
     hasSubscriptionPaymentIssue ||
     (normalizedDaysRemaining !== null && normalizedDaysRemaining <= 7)
   );
@@ -255,7 +263,7 @@ const Header = () => {
               return (
                 <button
                   key={item.name}
-                  onClick={() => navigate(item.href)}
+                  onClick={() => (item.newTab ? window.open(item.href, '_blank') : navigate(item.href))}
                   className={`inline-flex items-center px-3 py-2 border-b-2 text-sm font-medium transition-colors duration-200 ${
                     isActiveItem
                       ? 'border-green-500 text-green-600'

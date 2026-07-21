@@ -65,6 +65,7 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
         printing: { ...currentSettings.printing },
         permissions: { ...currentSettings.permissions },
         inventory: { ...(currentSettings.inventory || {}) },
+        kitchenDisplay: { ...(currentSettings.kitchenDisplay || {}) },
     };
 
     let hasChanges = false;
@@ -142,6 +143,8 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
             },
             fieldName: 'inventoryEnabled',
         },
+        // kitchenDisplay.enabled NO se expone aquí a propósito: solo el super_admin puede
+        // activarla/desactivarla, vía PUT /admin/restaurants/:id (adminController.updateRestaurant).
     ];
 
     for (const field of booleanFieldMap) {

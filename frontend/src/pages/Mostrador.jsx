@@ -1326,7 +1326,7 @@ const Mostrador = () => {
                     {isCreateDraftLoaded && createDraftTime && (
                       <span className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5">Borrador {createDraftTime}</span>
                     )}
-                    {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                    {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                       <button
                         onClick={async () => {
                           const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
@@ -1356,6 +1356,7 @@ const Mostrador = () => {
                       onClick={handleCancelNewOrder}
                       className="text-gray-500 hover:text-gray-700 text-sm"
                     >
+                      ✕ Cerrar
                     </button>
                   </div>
                 </h2>
@@ -1724,10 +1725,16 @@ const Mostrador = () => {
                             <div className="text-center text-gray-800 font-medium text-sm truncate">
                               {getCustomerName(order)}
                             </div>
-                            <div className="text-center">
-                              <span className="status-preparing text-xs">
-                                Preparación
-                              </span>
+                            <div className="text-center flex items-center justify-center gap-1">
+                              {order.kitchenReadyAt ? (
+                                <span className="bg-green-100 border border-green-300 text-green-700 rounded-full px-2 py-0.5 text-xs font-medium">
+                                  Listo
+                                </span>
+                              ) : (
+                                <span className="status-preparing text-xs">
+                                  Preparación
+                                </span>
+                              )}
                             </div>
                             <div className="text-center font-semibold text-gray-800 text-sm">
                               {formatChileanCurrency(order.total || 0)}
@@ -1744,7 +1751,13 @@ const Mostrador = () => {
                             <div className="flex justify-between items-start mb-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-gray-800 text-sm">#{order.orderNumber}</span>
-                                <span className="status-preparing text-xs">Preparación</span>
+                                {order.kitchenReadyAt ? (
+                                  <span className="bg-green-100 border border-green-300 text-green-700 rounded-full px-2 py-0.5 text-xs font-medium">
+                                    Listo
+                                  </span>
+                                ) : (
+                                  <span className="status-preparing text-xs">Preparación</span>
+                                )}
                               </div>
                               <span className="font-semibold text-gray-800 text-sm">{formatChileanCurrency(order.total || 0)}</span>
                             </div>
@@ -1888,7 +1901,7 @@ const Mostrador = () => {
                     >
                       <PrinterIcon className="w-4 h-4" />
                     </button>
-                    {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                    {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                       <button
                         onClick={async () => {
                           const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;

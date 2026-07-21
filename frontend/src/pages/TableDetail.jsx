@@ -80,7 +80,9 @@ const TableDetail = () => {
     const canCurrentUserCloseTable = () => {
         const onlyOwnerCanClose = printingService.getOnlyOwnerCanCloseTable();
         if (!onlyOwnerCanClose) return true;
-        return user?.role === 'owner' || user?.role === 'super_admin';
+        if (user?.role === 'owner' || user?.role === 'super_admin') return true;
+        // Permitir cerrar si la mesa no tiene productos activos, sin importar la configuración
+        return cart.filter(item => !item.deleted).length === 0;
     };
 
     // Cargar pedido actual de la mesa si existe
@@ -1367,6 +1369,11 @@ const TableDetail = () => {
                                         ({cart.filter(i => i.deleted).length} eliminado{cart.filter(i => i.deleted).length > 1 ? 's' : ''})
                                     </span>
                                 )}
+                                {table.currentOrder?.kitchenReadyAt && (
+                                    <span className="ml-2 bg-green-100 border border-green-300 text-green-700 rounded-full px-2 py-0.5 text-xs font-medium align-middle">
+                                        Listo en cocina
+                                    </span>
+                                )}
                             </h2>
 
                             {cart.length === 0 ? (
@@ -1698,7 +1705,7 @@ const TableDetail = () => {
                     <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xl font-bold text-gray-900">Cerrar Mesa {table.tableNumber}</h3>
-                            {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                            {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                                 <button
                                     onClick={async () => {
                                         const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;

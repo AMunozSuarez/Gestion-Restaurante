@@ -1075,6 +1075,7 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
     name: restaurant?.name || '',
     address: restaurant?.address || '',
     isActive: restaurant?.isActive !== undefined ? restaurant.isActive : true,
+    kitchenDisplayEnabled: Boolean(restaurant?.settings?.kitchenDisplay?.enabled),
     ownerName: '',
     ownerEmail: '',
     ownerPassword: '',
@@ -1090,6 +1091,7 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
         name: formData.name,
         address: formData.address,
         isActive: formData.isActive,
+        kitchenDisplayEnabled: formData.kitchenDisplayEnabled,
       });
     } else {
       // Crear restaurante con propietario
@@ -1152,6 +1154,21 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
               Restaurante Activo
             </label>
           </div>
+
+          {restaurant && (
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="kitchenDisplayEnabled"
+                checked={formData.kitchenDisplayEnabled}
+                onChange={(e) => setFormData({ ...formData, kitchenDisplayEnabled: e.target.checked })}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="kitchenDisplayEnabled" className="ml-2 text-sm font-medium text-gray-700">
+                Pantalla de Cocina (KDS) habilitada
+              </label>
+            </div>
+          )}
 
           {!restaurant && (
             <>

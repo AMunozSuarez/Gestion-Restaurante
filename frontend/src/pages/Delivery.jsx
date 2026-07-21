@@ -1884,7 +1884,7 @@ const Delivery = () => {
                     {isCreateDraftLoaded && createDraftTime && (
                       <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">Borrador {createDraftTime}</span>
                     )}
-                    {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                    {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                       <button
                         onClick={async () => {
                           const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
@@ -2435,10 +2435,16 @@ const Delivery = () => {
                             <div className="text-center text-blue-600 text-xs truncate">
                               {getCustomerPhone(order) || 'N/A'}
                             </div>
-                            <div className="text-center">
-                              <span className="bg-yellow-100 border border-yellow-300 text-yellow-700 rounded-full px-2 py-1 text-xs font-medium">
-                                Preparación
-                              </span>
+                            <div className="text-center flex items-center justify-center gap-1">
+                              {order.kitchenReadyAt ? (
+                                <span className="bg-green-100 border border-green-300 text-green-700 rounded-full px-2 py-0.5 text-xs font-medium">
+                                  Listo
+                                </span>
+                              ) : (
+                                <span className="bg-yellow-100 border border-yellow-300 text-yellow-700 rounded-full px-2 py-1 text-xs font-medium">
+                                  Preparación
+                                </span>
+                              )}
                             </div>
                             <div className="text-center font-semibold text-blue-body text-sm">
                               {formatChileanCurrency(order.total || 0)}
@@ -2455,9 +2461,15 @@ const Delivery = () => {
                             <div className="flex justify-between items-start mb-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-blue-900 text-sm">#{order.orderNumber}</span>
-                                <span className="bg-yellow-100 border border-yellow-300 text-yellow-700 rounded-full px-2 py-0.5 text-xs font-medium">
-                                  Preparación
-                                </span>
+                                {order.kitchenReadyAt ? (
+                                  <span className="bg-green-100 border border-green-300 text-green-700 rounded-full px-2 py-0.5 text-xs font-medium">
+                                    Listo
+                                  </span>
+                                ) : (
+                                  <span className="bg-yellow-100 border border-yellow-300 text-yellow-700 rounded-full px-2 py-0.5 text-xs font-medium">
+                                    Preparación
+                                  </span>
+                                )}
                               </div>
                               <span className="font-semibold text-blue-900 text-sm">{formatChileanCurrency(order.total || 0)}</span>
                             </div>
@@ -2604,7 +2616,7 @@ const Delivery = () => {
                       <PrinterIcon className="w-4 h-4" />
 
                     </button>
-                    {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+                    {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                       <button
                         onClick={async () => {
                           const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;

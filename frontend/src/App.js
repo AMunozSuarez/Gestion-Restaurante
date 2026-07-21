@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import printingService from './services/printingService';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { CashRegisterProvider } from './store/CashRegisterContext';
 import Layout from './components/layout/Layout';
@@ -24,11 +24,18 @@ import SubscriptionAdmin from './pages/SubscriptionAdmin';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Reportes from './pages/Reportes';
 import Inventario from './pages/Inventario';
+import KitchenDisplay from './pages/KitchenDisplay';
+
+// El rol mesero solo tiene acceso al módulo de Mesas
+const MESERO_ALLOWED_PATH_PREFIXES = ['/mesas'];
+const isPathAllowedForMesero = (pathname) =>
+  MESERO_ALLOWED_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const location = useLocation();
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-cream-50 flex items-center justify-center">
@@ -39,8 +46,22 @@ const ProtectedRoute = ({ children }) => {
       </div>
     );
   }
-  
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role === 'mesero' && !isPathAllowedForMesero(location.pathname)) {
+    return <Navigate to="/mesas" replace />;
+  }
+
+  return children;
+};
+
+// Redirección por defecto según el rol del usuario autenticado
+const DefaultRedirect = () => {
+  const { user } = useAuth();
+  return <Navigate to={user?.role === 'mesero' ? '/mesas' : '/mostrador'} replace />;
 };
 
 function App() {
@@ -103,6 +124,16 @@ function App() {
         <Routes>
           {/* Ruta de login sin layout */}
           <Route path="/login" element={<Login />} />
+
+          {/* Pantalla de cocina: protegida pero sin Layout, pensada para un monitor dedicado */}
+          <Route
+            path="/cocina"
+            element={
+              <ProtectedRoute>
+                <KitchenDisplay />
+              </ProtectedRoute>
+            }
+          />
           
           {/* Ruta de Super Admin Dashboard */}
           <Route
@@ -300,10 +331,10 @@ function App() {
           />
           
           {/* Redirección por defecto */}
-          <Route path="/" element={<Navigate to="/mostrador" replace />} />
-          
+          <Route path="/" element={<DefaultRedirect />} />
+
           {/* Ruta 404 */}
-          <Route path="*" element={<Navigate to="/mostrador" replace />} />
+          <Route path="*" element={<DefaultRedirect />} />
         </Routes>
       </Router>
       </CashRegisterProvider>

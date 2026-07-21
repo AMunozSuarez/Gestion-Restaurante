@@ -1,5 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
+const denyRoleMiddleware = require('../middlewares/denyRoleMiddleware');
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
 const {
     getItems,
@@ -18,24 +19,27 @@ const {
 
 const router = express.Router();
 
+// El módulo de inventario no forma parte del módulo de mesas del rol mesero
+router.use(authMiddleware, denyRoleMiddleware('mesero'));
+
 // Insumos
-router.get('/items', authMiddleware, filterByRestaurant, getItems);
-router.post('/items', authMiddleware, filterByRestaurant, createItem);
-router.put('/items/:id', authMiddleware, filterByRestaurant, updateItem);
-router.delete('/items/:id', authMiddleware, filterByRestaurant, deleteItem);
-router.post('/items/:id/adjust', authMiddleware, filterByRestaurant, adjustStock);
+router.get('/items', filterByRestaurant, getItems);
+router.post('/items', filterByRestaurant, createItem);
+router.put('/items/:id', filterByRestaurant, updateItem);
+router.delete('/items/:id', filterByRestaurant, deleteItem);
+router.post('/items/:id/adjust', filterByRestaurant, adjustStock);
 
 // Movimientos
-router.get('/movements', authMiddleware, filterByRestaurant, getMovements);
+router.get('/movements', filterByRestaurant, getMovements);
 
 // Recetas de productos
-router.get('/recipe/food/:foodId', authMiddleware, filterByRestaurant, getFoodRecipe);
-router.put('/recipe/food/:foodId', authMiddleware, filterByRestaurant, updateFoodRecipe);
-router.patch('/recipe/food/:foodId/toggle', authMiddleware, filterByRestaurant, toggleFoodRecipeEnabled);
+router.get('/recipe/food/:foodId', filterByRestaurant, getFoodRecipe);
+router.put('/recipe/food/:foodId', filterByRestaurant, updateFoodRecipe);
+router.patch('/recipe/food/:foodId/toggle', filterByRestaurant, toggleFoodRecipeEnabled);
 
 // Recetas de extras
-router.get('/recipe/extra/:sectionId/:extraId', authMiddleware, filterByRestaurant, getExtraRecipe);
-router.put('/recipe/extra/:sectionId/:extraId', authMiddleware, filterByRestaurant, updateExtraRecipe);
-router.patch('/recipe/extra/:sectionId/:extraId/toggle', authMiddleware, filterByRestaurant, toggleExtraRecipeEnabled);
+router.get('/recipe/extra/:sectionId/:extraId', filterByRestaurant, getExtraRecipe);
+router.put('/recipe/extra/:sectionId/:extraId', filterByRestaurant, updateExtraRecipe);
+router.patch('/recipe/extra/:sectionId/:extraId/toggle', filterByRestaurant, toggleExtraRecipeEnabled);
 
 module.exports = router;

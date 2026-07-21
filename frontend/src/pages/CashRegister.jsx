@@ -389,7 +389,7 @@ const CashRegister = () => {
                   Cerrar Caja
                 </button>
               )}
-              {(printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
+              {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                 <button
                   onClick={async () => {
                     const printer = printingService.getDrawerPrinter() || localStorage.getItem('drawerPrinter') || null;
