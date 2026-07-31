@@ -47,6 +47,8 @@ const SuperAdminDashboard = () => {
   const [subscriptionsTotalPages, setSubscriptionsTotalPages] = useState(1);
   const [subscriptionStats, setSubscriptionStats] = useState(null);
   const [showAssignSubscriptionModal, setShowAssignSubscriptionModal] = useState(false);
+  const [assignableRestaurants, setAssignableRestaurants] = useState([]);
+  const [loadingAssignableRestaurants, setLoadingAssignableRestaurants] = useState(false);
 
   // Mostrar notificación
   const showNotification = (message, type = 'success') => {
@@ -132,6 +134,22 @@ const SuperAdminDashboard = () => {
       showNotification('Error al cargar restaurantes: ' + error.message, 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Carga la lista completa de restaurantes (sin filtros ni paginación) para el modal de asignar suscripción
+  const loadAssignableRestaurants = async () => {
+    try {
+      setLoadingAssignableRestaurants(true);
+      const response = await adminService.getAllRestaurants({ page: 1, limit: 9999 });
+      if (response.success) {
+        setAssignableRestaurants(response.restaurants);
+      }
+    } catch (error) {
+      console.error('Error al cargar restaurantes para asignar suscripción:', error);
+      showNotification('Error al cargar restaurantes: ' + error.message, 'error');
+    } finally {
+      setLoadingAssignableRestaurants(false);
     }
   };
 
@@ -700,8 +718,7 @@ const SuperAdminDashboard = () => {
           <button
             onClick={() => {
               setShowAssignSubscriptionModal(true);
-              // Asegurar que la lista de restaurantes esté cargada
-              if (restaurants.length === 0) loadRestaurants();
+              loadAssignableRestaurants();
             }}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors"
           >
@@ -895,7 +912,8 @@ const SuperAdminDashboard = () => {
       {/* Modal de Asignar Suscripción */}
       {showAssignSubscriptionModal && (
         <AssignSubscriptionModal
-          restaurants={restaurants}
+          restaurants={assignableRestaurants}
+          loadingRestaurants={loadingAssignableRestaurants}
           onClose={() => setShowAssignSubscriptionModal(false)}
           onSave={handleAssignSubscription}
         />
@@ -1243,7 +1261,7 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
 };
 
 // =================== COMPONENTE MODAL DE ASIGNAR SUSCRIPCIÓN ===================
-const AssignSubscriptionModal = ({ restaurants, onClose, onSave }) => {
+const AssignSubscriptionModal = ({ restaurants, loadingRestaurants, onClose, onSave }) => {
   const planOptions = [
     { value: 'trial', label: 'Trial (7 días)', duration: 7, price: 0 },
     { value: 'monthly', label: 'Mensual ($20.000)', duration: 30, price: 20000 },
@@ -1354,7 +1372,9 @@ const AssignSubscriptionModal = ({ restaurants, onClose, onSave }) => {
                   />
                 </div>
                 <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
-                  {filteredRestaurants.length === 0 ? (
+                  {loadingRestaurants ? (
+                    <p className="text-sm text-gray-400 text-center py-3">Cargando restaurantes...</p>
+                  ) : filteredRestaurants.length === 0 ? (
                     <p className="text-sm text-gray-400 text-center py-3">No se encontraron restaurantes</p>
                   ) : (
                     filteredRestaurants.map((rest) => (
