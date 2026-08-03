@@ -512,6 +512,30 @@ const updateOrderController = async (req, res) => {
         }
 
 
+        if ((status === 'Completado' || status === 'Enviado') && kitchenReadyAt === undefined) {
+            const restaurant = await Restaurant.findById(restaurantId)
+                .select('settings.kitchenDisplay')
+                .lean();
+            const kitchenDisplayEnabled = restaurant?.settings?.kitchenDisplay?.enabled === true;
+            const requireKitchenReadyToClose = restaurant?.settings?.kitchenDisplay?.requireReadyToClose === true;
+
+            if (kitchenDisplayEnabled && requireKitchenReadyToClose) {
+                const orderForReadyCheck = await orderModel
+                    .findOne({ _id: req.params.id, restaurant: restaurantId })
+                    .select('kitchenReadyAt foods')
+                    .lean();
+
+                const orderHasProducts = Array.isArray(orderForReadyCheck?.foods) && orderForReadyCheck.foods.length > 0;
+
+                if (orderForReadyCheck && orderHasProducts && !orderForReadyCheck.kitchenReadyAt) {
+                    return res.status(409).json({
+                        success: false,
+                        message: 'El pedido aún no está listo en cocina',
+                    });
+                }
+            }
+        }
+
         // Preparar objeto de actualización con campos simples
         const updateData = {};
         if (payment !== undefined) updateData.payment = payment;

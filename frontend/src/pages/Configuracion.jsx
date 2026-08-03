@@ -99,6 +99,7 @@ const Configuracion = () => {
 
   // Estado (solo lectura) de la pantalla de cocina: la habilita el administrador del sistema desde /admin
   const [kitchenDisplayEnabled, setKitchenDisplayEnabled] = useState(false);
+  const [kitchenDisplayRequireReadyToClose, setKitchenDisplayRequireReadyToClose] = useState(() => printingService.getKitchenDisplayRequireReadyToClose());
 
   // Estados para usuarios
   const [users, setUsers] = useState([]);
@@ -162,6 +163,8 @@ const Configuracion = () => {
       const response = await api.get('/restaurant/settings/me');
       setInventoryEnabled(Boolean(response.data?.settings?.inventory?.enabled));
       setKitchenDisplayEnabled(Boolean(response.data?.settings?.kitchenDisplay?.enabled));
+      await printingService.syncRestaurantSettingsFromBackend();
+      setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
     } catch (error) {
       console.error('Error al cargar configuración de inventario:', error);
     } finally {
@@ -196,6 +199,7 @@ const Configuracion = () => {
     setPrintOnDeletedItemsUpdate(printingService.getPrintOnDeletedItemsUpdate());
     setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
+    setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
     setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
     setDrawerOpenOnCloseOrder(printingService.getDrawerOpenOnCloseOrder());
@@ -215,6 +219,7 @@ const Configuracion = () => {
     setPrintOnDeletedItemsUpdate(printingService.getPrintOnDeletedItemsUpdate());
     setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
+    setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
     setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
     setDrawerOpenOnCloseOrder(printingService.getDrawerOpenOnCloseOrder());
@@ -502,6 +507,29 @@ const Configuracion = () => {
       text: enabled
         ? 'Solo el dueño podrá cerrar mesas en todo el restaurante'
         : 'Cualquier usuario con acceso podrá cerrar mesas'
+    });
+  };
+
+  // Activar o desactivar la exigencia de "pedido listo" (KDS) para poder cerrar mesa/pedido
+  const handleKitchenDisplayRequireReadyToCloseChange = async (enabled) => {
+    setKitchenDisplayRequireReadyToClose(enabled);
+    printingService.setKitchenDisplayRequireReadyToClose(enabled);
+    const result = await printingService.saveRestaurantSettingsToBackend({ kitchenDisplayRequireReadyToClose: enabled });
+
+    if (!result.success) {
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: `No se pudo guardar en el restaurante: ${result.error}. Se restauró el valor compartido.`,
+      });
+      return;
+    }
+
+    setMessage({
+      type: 'success',
+      text: enabled
+        ? 'No se podrá cerrar la mesa/pedido hasta que esté marcado como listo en la pantalla de cocina'
+        : 'Se podrá cerrar la mesa/pedido sin esperar la confirmación de la pantalla de cocina'
     });
   };
 
@@ -2647,6 +2675,32 @@ const Configuracion = () => {
                       <span className={`w-1.5 h-1.5 rounded-full ${kitchenDisplayEnabled ? 'bg-green-500' : 'bg-gray-400'}`}></span>
                       {kitchenDisplayEnabled ? 'Activa' : 'Inactiva'}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {!loadingInventory && kitchenDisplayEnabled && (
+                <div className="mt-4 p-4 border border-amber-200 rounded-lg bg-amber-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Exigir "pedido listo" para cerrar mesa/pedido
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Si está activo, no se podrá completar ni cerrar una mesa o pedido con productos
+                        hasta que la cocina lo marque como listo en la pantalla de cocina (KDS).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleKitchenDisplayRequireReadyToCloseChange(!kitchenDisplayRequireReadyToClose)}
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${kitchenDisplayRequireReadyToClose ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                      aria-pressed={kitchenDisplayRequireReadyToClose}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${kitchenDisplayRequireReadyToClose ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
                   </div>
                 </div>
               )}

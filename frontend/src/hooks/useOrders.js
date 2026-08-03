@@ -69,7 +69,7 @@ export const useOrders = (filters = {}, callbacks = {}) => {
       
       return { success: true };
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   };
 
@@ -100,7 +100,7 @@ export const useOrders = (filters = {}, callbacks = {}) => {
         return { success: false, error: response.message || 'Error desconocido' };
       }
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   };
 
@@ -135,7 +135,7 @@ export const useOrders = (filters = {}, callbacks = {}) => {
         return { success: false, error: response.message || 'Error desconocido' };
       }
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   };
 
@@ -178,7 +178,7 @@ export const useOrders = (filters = {}, callbacks = {}) => {
         return { success: false, error: response.message || 'Error desconocido' };
       }
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: error.response?.data?.message || error.message };
     }
   };
 
@@ -324,7 +324,7 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
       }
       return { success: true };
     } catch (err) {
-      return { success: false, error: err.message };
+      return { success: false, error: err.response?.data?.message || err.message };
     }
   };
 
@@ -343,7 +343,7 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
       }
       return { success: false, error: response.message || 'Error desconocido' };
     } catch (err) {
-      return { success: false, error: err.message };
+      return { success: false, error: err.response?.data?.message || err.message };
     }
   };
 
@@ -366,7 +366,7 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
       }
       return { success: false, error: response.message || 'Error desconocido' };
     } catch (err) {
-      return { success: false, error: err.message };
+      return { success: false, error: err.response?.data?.message || err.message };
     }
   };
 
@@ -391,7 +391,7 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
       }
       return { success: false, error: response.message || 'Error desconocido' };
     } catch (err) {
-      return { success: false, error: err.message };
+      return { success: false, error: err.response?.data?.message || err.message };
     }
   };
 

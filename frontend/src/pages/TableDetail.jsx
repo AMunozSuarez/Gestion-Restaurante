@@ -22,6 +22,7 @@ import {
 import { Button } from '../components/ui';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import ProductExtrasModal from '../components/common/ProductExtrasModal';
+import ButtonAlertBubble from '../components/common/ButtonAlertBubble';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import printingService from '../services/printingService';
 import { useAuth } from '../hooks/useAuth';
@@ -41,6 +42,7 @@ const TableDetail = () => {
     // Estados
     const [showCashAlert, setShowCashAlert] = useState(false);
     const [notification, setNotification] = useState(null);
+    const [closeTableAlert, setCloseTableAlert] = useState(null);
     const [cart, setCart] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -75,6 +77,12 @@ const TableDetail = () => {
     const showNotification = (message, type = 'success', duration = 3000) => {
         setNotification({ message, type });
         setTimeout(() => setNotification(null), duration);
+    };
+
+    // Alerta contextual que aparece sobre el botón de cerrar mesa/cobrar, en vez del toast genérico
+    const showCloseTableAlert = (message, type = 'warning', duration = 4000) => {
+        setCloseTableAlert({ message, type });
+        setTimeout(() => setCloseTableAlert((current) => (current?.message === message ? null : current)), duration);
     };
 
     const canCurrentUserCloseTable = () => {
@@ -704,8 +712,10 @@ const TableDetail = () => {
 
     // Abrir modal de pago o cerrar mesa vacía
     const handleOpenPayment = async () => {
+        setCloseTableAlert(null);
+
         if (!canCurrentUserCloseTable()) {
-            showNotification('Solo el dueño o super admin puede cerrar mesa con la configuración actual', 'warning');
+            showCloseTableAlert('Solo el dueño puede cerrar esta mesa', 'warning');
             return;
         }
 
@@ -719,7 +729,7 @@ const TableDetail = () => {
                     navigate('/mesas');
                 }, 500);
             } catch (error) {
-                showNotification('Error al cerrar mesa: ' + error.message, 'error');
+                showCloseTableAlert(error.response?.data?.message || error.message || 'Error al cerrar mesa');
             } finally {
                 setIsProcessing(false);
             }
@@ -859,8 +869,10 @@ const TableDetail = () => {
 
     // Cerrar mesa y completar pago
     const handleCloseTable = async () => {
+        setCloseTableAlert(null);
+
         if (!canCurrentUserCloseTable()) {
-            showNotification('Solo el dueño o super admin puede cerrar mesa con la configuración actual', 'warning');
+            showCloseTableAlert('Solo el dueño puede cerrar esta mesa');
             return;
         }
 
@@ -874,15 +886,12 @@ const TableDetail = () => {
                 .filter(item => !item.deleted)
                 .some(item => getRemainingQuantity(item) > 0);
             if (unassigned) {
-                showNotification('Quedan productos por asignar', 'warning');
+                showCloseTableAlert('Quedan productos por asignar');
                 return;
             }
             const missingAccounts = getMissingSplitPaymentAccounts();
             if (missingAccounts.length > 0) {
-                showNotification(
-                    `Falta método de pago en: ${missingAccounts.join(', ')}`,
-                    'warning'
-                );
+                showCloseTableAlert(`Falta método de pago: ${missingAccounts.join(', ')}`);
                 return;
             }
         }
@@ -890,7 +899,7 @@ const TableDetail = () => {
         const validPayments = getValidPaymentMethods();
 
         if (validPayments.length === 0) {
-            showNotification('Selecciona al menos un método de pago', 'warning');
+            showCloseTableAlert('Selecciona un método de pago');
             return;
         }
 
@@ -899,7 +908,7 @@ const TableDetail = () => {
         const totalTip = splitEnabled ? getSplitTipTotal() : suggestedTip;
 
         if (totalPaymentAmount < orderTotal) {
-            showNotification(`Falta pagar: ${formatChileanCurrency(orderTotal - totalPaymentAmount)}`, 'warning');
+            showCloseTableAlert(`Falta pagar ${formatChileanCurrency(orderTotal - totalPaymentAmount)}`);
             return;
         }
 
@@ -1008,10 +1017,10 @@ const TableDetail = () => {
                     navigate('/mesas');
                 }, 500);
             } else {
-                showNotification(response.error || response.message || 'Error al cerrar mesa', 'error');
+                showCloseTableAlert(response.error || response.message || 'Error al cerrar mesa');
             }
         } catch (error) {
-            showNotification('Error al cerrar mesa: ' + error.message, 'error');
+            showCloseTableAlert(error.response?.data?.message || error.message || 'Error al cerrar mesa');
         } finally {
             setIsProcessing(false);
         }
@@ -1238,15 +1247,20 @@ const TableDetail = () => {
                                 <span className="hidden sm:inline">Enviar a Cocina</span>
                                 <span className="sm:hidden">Cocina</span>
                             </Button>
-                            <Button
-                                onClick={handleOpenPayment}
-                                disabled={isProcessing}
-                                className="bg-teal-600 hover:bg-teal-700 justify-center"
-                            >
-                                <CurrencyDollarIcon className="w-5 h-5 mr-2" />
-                                <span className="hidden sm:inline">{cart.length === 0 ? 'Cerrar Mesa' : 'Cobrar y Cerrar'}</span>
-                                <span className="sm:hidden">{cart.length === 0 ? 'Cerrar' : 'Cobrar'}</span>
-                            </Button>
+                            <div className="relative">
+                                {!showPaymentModal && closeTableAlert && (
+                                    <ButtonAlertBubble alert={closeTableAlert} onDismiss={() => setCloseTableAlert(null)} />
+                                )}
+                                <Button
+                                    onClick={handleOpenPayment}
+                                    disabled={isProcessing}
+                                    className="bg-teal-600 hover:bg-teal-700 justify-center w-full"
+                                >
+                                    <CurrencyDollarIcon className="w-5 h-5 mr-2" />
+                                    <span className="hidden sm:inline">{cart.length === 0 ? 'Cerrar Mesa' : 'Cobrar y Cerrar'}</span>
+                                    <span className="sm:hidden">{cart.length === 0 ? 'Cerrar' : 'Cobrar'}</span>
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2134,20 +2148,28 @@ const TableDetail = () => {
 
                             <div className="flex gap-3">
                                 <Button
-                                    onClick={() => setShowPaymentModal(false)}
+                                    onClick={() => {
+                                        setShowPaymentModal(false);
+                                        setCloseTableAlert(null);
+                                    }}
                                     variant="outline"
                                     className="flex-1"
                                 >
                                     Cancelar
                                 </Button>
-                                <Button
-                                    onClick={handleCloseTable}
-                                    disabled={isProcessing}
-                                    className="flex-1 bg-teal-600 hover:bg-teal-700"
-                                >
-                                    <CheckIcon className="w-5 h-5 mr-2" />
-                                    {isProcessing ? 'Procesando...' : 'Cerrar Mesa'}
-                                </Button>
+                                <div className="relative flex-1">
+                                    {showPaymentModal && closeTableAlert && (
+                                        <ButtonAlertBubble alert={closeTableAlert} onDismiss={() => setCloseTableAlert(null)} />
+                                    )}
+                                    <Button
+                                        onClick={handleCloseTable}
+                                        disabled={isProcessing}
+                                        className="w-full bg-teal-600 hover:bg-teal-700"
+                                    >
+                                        <CheckIcon className="w-5 h-5 mr-2" />
+                                        {isProcessing ? 'Procesando...' : 'Cerrar Mesa'}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>

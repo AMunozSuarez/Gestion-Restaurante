@@ -20,6 +20,7 @@ const RESTAURANT_SETTINGS_STORAGE_KEYS = {
   printOnDeletedItemsUpdate: 'printOnDeletedItemsUpdate',
   onlyOwnerCanCloseTable: 'onlyOwnerCanCloseTable',
   onlyOwnerCanDeleteOrderItems: 'onlyOwnerCanDeleteOrderItems',
+  kitchenDisplayRequireReadyToClose: 'kitchenDisplayRequireReadyToClose',
   avoidDuplicateKitchenUpdatePrint: 'avoidDuplicateKitchenUpdatePrint',
   extraSectionPrintDestinations: 'extraSectionPrintDestinations',
   drawerPrinter: 'drawerPrinter',
@@ -37,6 +38,7 @@ const DEFAULT_RESTAURANT_SETTINGS = {
   printOnDeletedItemsUpdate: false,
   onlyOwnerCanCloseTable: false,
   onlyOwnerCanDeleteOrderItems: false,
+  kitchenDisplayRequireReadyToClose: false,
   avoidDuplicateKitchenUpdatePrint: false,
   extraSectionPrintDestinations: {},
   drawerPrinter: '',
@@ -132,6 +134,7 @@ const normalizeExtraSectionPrintDestinations = (value = {}) => {
 const normalizeRestaurantSettings = (settings = {}) => {
   const printing = settings?.printing || {};
   const permissions = settings?.permissions || {};
+  const kitchenDisplay = settings?.kitchenDisplay || {};
 
   const updatePrintMode = printing.updatePrintMode || settings.updatePrintMode || DEFAULT_RESTAURANT_SETTINGS.updatePrintMode;
   const rawExtraSectionPrintDestinations =
@@ -154,6 +157,10 @@ const normalizeRestaurantSettings = (settings = {}) => {
     onlyOwnerCanDeleteOrderItems: parseBooleanValue(
       permissions.onlyOwnerCanDeleteOrderItems ?? settings.onlyOwnerCanDeleteOrderItems,
       DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanDeleteOrderItems,
+    ),
+    kitchenDisplayRequireReadyToClose: parseBooleanValue(
+      kitchenDisplay.requireReadyToClose ?? settings.kitchenDisplayRequireReadyToClose,
+      DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayRequireReadyToClose,
     ),
     avoidDuplicateKitchenUpdatePrint: parseBooleanValue(
       printing.avoidDuplicateKitchenUpdatePrint ?? settings.avoidDuplicateKitchenUpdatePrint,
@@ -203,6 +210,10 @@ const getRestaurantSettingsFromStorage = () => ({
   onlyOwnerCanDeleteOrderItems: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanDeleteOrderItems,
     DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanDeleteOrderItems,
+  ),
+  kitchenDisplayRequireReadyToClose: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayRequireReadyToClose,
+    DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayRequireReadyToClose,
   ),
   avoidDuplicateKitchenUpdatePrint: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
@@ -266,6 +277,10 @@ const applyRestaurantSettingsLocally = (settings = {}) => {
       String(Boolean(normalized.onlyOwnerCanDeleteOrderItems)),
     );
     localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayRequireReadyToClose,
+      String(Boolean(normalized.kitchenDisplayRequireReadyToClose)),
+    );
+    localStorage.setItem(
       RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
       String(Boolean(normalized.avoidDuplicateKitchenUpdatePrint)),
     );
@@ -318,6 +333,9 @@ const buildRestaurantSettingsPayload = (settings = {}) => {
       onlyOwnerCanCloseTable: normalized.onlyOwnerCanCloseTable,
       onlyOwnerCanDeleteOrderItems: normalized.onlyOwnerCanDeleteOrderItems,
       drawerConfigOwnerOnly: normalized.drawerConfigOwnerOnly,
+    },
+    kitchenDisplay: {
+      requireReadyToClose: normalized.kitchenDisplayRequireReadyToClose,
     },
   };
 };
@@ -682,6 +700,19 @@ la fuente esta configurada bien.
     applyRestaurantSettingsLocally({
       ...getRestaurantSettingsSnapshot(),
       onlyOwnerCanDeleteOrderItems: Boolean(enabled),
+    });
+  },
+
+  // Obtener si se requiere que el pedido esté marcado como listo en el KDS para poder cerrarlo
+  getKitchenDisplayRequireReadyToClose() {
+    return getRestaurantSettingsSnapshot().kitchenDisplayRequireReadyToClose;
+  },
+
+  // Guardar preferencia de exigir "listo" en el KDS antes de cerrar mesa/pedido
+  setKitchenDisplayRequireReadyToClose(enabled) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      kitchenDisplayRequireReadyToClose: Boolean(enabled),
     });
   },
 
