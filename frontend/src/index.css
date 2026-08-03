@@ -10,6 +10,16 @@ select {
   touch-action: manipulation;
 }
 
+/* Evitar el zoom automático de iOS/Android al hacer focus en un input: los navegadores
+   móviles hacen zoom cuando el font-size calculado es menor a 16px. */
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* Clases para truncar texto */
 @layer utilities {
   .line-clamp-1 {
