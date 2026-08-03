@@ -145,6 +145,14 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
         },
         // kitchenDisplay.enabled NO se expone aquí a propósito: solo el super_admin puede
         // activarla/desactivarla, vía PUT /admin/restaurants/:id (adminController.updateRestaurant).
+        {
+            nested: payload?.kitchenDisplay?.requireReadyToClose,
+            flat: payload?.kitchenDisplayRequireReadyToClose,
+            assign: (value) => {
+                nextSettings.kitchenDisplay.requireReadyToClose = value;
+            },
+            fieldName: 'kitchenDisplayRequireReadyToClose',
+        },
     ];
 
     for (const field of booleanFieldMap) {
