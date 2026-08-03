@@ -2644,22 +2644,17 @@ const Configuracion = () => {
               )}
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center mb-4">
-                <CogIcon className="w-6 h-6 text-green-600 mr-3" />
-                <h2 className="text-xl font-semibold text-brown-900">Pantalla de Cocina</h2>
-              </div>
-              <p className="text-sm text-gray-500 mb-6">
-                Pantalla de cocina (KDS) para que el personal vea los pedidos entrantes en tiempo real,
-                con indicador de tiempo de espera, y pueda marcarlos como listos.
-              </p>
-
-              {loadingInventory ? (
-                <div className="flex items-center gap-2 text-gray-500">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
-                  <span className="text-sm">Cargando configuración...</span>
+            {!loadingInventory && kitchenDisplayEnabled && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center mb-4">
+                  <CogIcon className="w-6 h-6 text-green-600 mr-3" />
+                  <h2 className="text-xl font-semibold text-brown-900">Pantalla de Cocina</h2>
                 </div>
-              ) : (
+                <p className="text-sm text-gray-500 mb-6">
+                  Pantalla de cocina (KDS) para que el personal vea los pedidos entrantes en tiempo real,
+                  con indicador de tiempo de espera, y pueda marcarlos como listos.
+                </p>
+
                 <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-gray-900">
@@ -2669,17 +2664,13 @@ const Configuracion = () => {
                       Esta función la habilita el administrador del sistema para tu restaurante.
                       Si necesitas activarla, contáctalo directamente.
                     </p>
-                    <div className={`mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                      kitchenDisplayEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${kitchenDisplayEnabled ? 'bg-green-500' : 'bg-gray-400'}`}></span>
-                      {kitchenDisplayEnabled ? 'Activa' : 'Inactiva'}
+                    <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                      Activa
                     </div>
                   </div>
                 </div>
-              )}
 
-              {!loadingInventory && kitchenDisplayEnabled && (
                 <div className="mt-4 p-4 border border-amber-200 rounded-lg bg-amber-50">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -2703,8 +2694,8 @@ const Configuracion = () => {
                     </button>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
