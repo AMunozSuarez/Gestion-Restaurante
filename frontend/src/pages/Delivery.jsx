@@ -1370,6 +1370,9 @@ const Delivery = () => {
         setTimeout(() => setAddedProductNotification(null), 3000);
 
         // Limpiar formulario y cerrar
+        if (isCreateDraftLoaded) {
+          clearCreateDraft();
+        }
         clearForm();
         setIsCreatingOrder(false);
 
@@ -1529,7 +1532,9 @@ const Delivery = () => {
         setTimeout(() => setAddedProductNotification(null), 3000);
 
         // Limpiar formulario y cerrar
-        clearEditDraft();
+        if (editDraftMeta?.orderId === orderId) {
+          clearEditDraft();
+        }
         clearEditForm();
         setIsEditingOrder(false);
         setSelectedOrder(null);
@@ -1713,7 +1718,9 @@ const Delivery = () => {
         showEditPanelAlert(response.error || 'No se pudo enviar el pedido', 'error');
         return;
       }
-      clearEditDraft();
+      if (editDraftMeta?.orderId === orderId) {
+        clearEditDraft();
+      }
     } catch (error) {
       console.error('Error al enviar el pedido:', error);
       showEditPanelAlert(error.message || 'No se pudo enviar el pedido', 'error');
@@ -1736,7 +1743,7 @@ const Delivery = () => {
       const result = await handleCancelOrderWithNotification(orderId);
       if (!result.success) {
         showEditPanelAlert(result.error || 'No se pudo cancelar el pedido', 'error');
-      } else {
+      } else if (editDraftMeta?.orderId === orderId) {
         clearEditDraft();
       }
     } catch (error) {
