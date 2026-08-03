@@ -9,6 +9,7 @@ import ProductModal from '../components/common/ProductModal';
 import ProductExtrasModal from '../components/common/ProductExtrasModal';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import printingService from '../services/printingService';
+import ButtonAlertBubble from '../components/common/ButtonAlertBubble';
 
 const MOSTRADOR_CREATE_DRAFT_KEY = 'mostrador.createDraft';
 const MOSTRADOR_EDIT_DRAFT_KEY = 'mostrador.editDraft';
@@ -40,6 +41,13 @@ const Mostrador = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [cart, setCart] = React.useState([]);
   const [addedProductNotification, setAddedProductNotification] = React.useState(null);
+  const [editPanelAlert, setEditPanelAlert] = React.useState(null);
+
+  // Alerta contextual que aparece sobre los botones de Actualizar/Completar/Cancelar pedido
+  const showEditPanelAlert = (message, type = 'warning', duration = 4000) => {
+    setEditPanelAlert({ message, type });
+    setTimeout(() => setEditPanelAlert((current) => (current?.message === message ? null : current)), duration);
+  };
   const [commentingProduct, setCommentingProduct] = React.useState(null);
   const [productComment, setProductComment] = React.useState('');
   const [isCreatingOrderRequest, setIsCreatingOrderRequest] = React.useState(false);
@@ -907,6 +915,9 @@ const Mostrador = () => {
         setTimeout(() => setAddedProductNotification(null), 3000);
 
         // Limpiar formulario y cerrar
+        if (isCreateDraftLoaded) {
+          clearCreateDraft();
+        }
         clearForm();
         setIsCreatingOrder(false);
 
@@ -973,6 +984,8 @@ const Mostrador = () => {
   // Función para actualizar el pedido
   const handleUpdateOrder = async () => {
     if (isUpdatingOrderRequest || !selectedOrder) return;
+
+    setEditPanelAlert(null);
 
     try {
       setIsUpdatingOrderRequest(true);
@@ -1050,7 +1063,9 @@ const Mostrador = () => {
         setTimeout(() => setAddedProductNotification(null), 3000);
 
         // Limpiar formulario y cerrar
-        clearEditDraft();
+        if (editDraftMeta?.orderId === orderId) {
+          clearEditDraft();
+        }
         clearEditForm();
         setIsEditingOrder(false);
         setSelectedOrder(null);
@@ -1058,12 +1073,12 @@ const Mostrador = () => {
         // El estado ya se actualiza automáticamente en el hook useOrders
         // No necesitamos refetchOrders() aquí
       } else {
-        alert('Error al actualizar el pedido: ' + (response.error || 'Error desconocido'));
+        showEditPanelAlert(response.error || 'No se pudo actualizar el pedido', 'error');
       }
 
     } catch (error) {
       console.error('Error updating order:', error);
-      alert('Error al actualizar el pedido: ' + error.message);
+      showEditPanelAlert(error.message || 'No se pudo actualizar el pedido', 'error');
     } finally {
       setIsUpdatingOrderRequest(false);
     }
@@ -1071,9 +1086,11 @@ const Mostrador = () => {
 
   const handleCompleteOrder = async (orderId) => {
     if (isCompletingOrder || !orderId) {
-      if (!orderId) alert('Error: ID del pedido no válido');
+      if (!orderId) showEditPanelAlert('Pedido no válido', 'error');
       return;
     }
+
+    setEditPanelAlert(null);
 
     try {
       setIsCompletingOrder(true);
@@ -1081,21 +1098,21 @@ const Mostrador = () => {
       // Validaciones simples
       const activeFoodsForComplete = editCart.filter(item => !item.deleted);
       if (!activeFoodsForComplete || activeFoodsForComplete.length === 0) {
-        alert('⚠️ Debe agregar al menos un producto al pedido');
+        showEditPanelAlert('Agrega al menos un producto');
         return;
       }
 
       // Validar que todos los métodos de pago tengan método seleccionado
       const invalidPayments = editPaymentMethods.filter(p => !p.method || p.method.trim() === '' || p.method === 'Método' || p.method === 'Pendiente');
       if (invalidPayments.length > 0) {
-        alert('⚠️ Todos los métodos de pago deben tener un método seleccionado. Por favor, complete todos los campos o elimine los métodos vacíos.');
+        showEditPanelAlert('Selecciona un método de pago válido');
         return;
       }
 
       // Validar métodos de pago
       const validEditPayments = editPaymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Método' && p.method !== 'Pendiente');
       if (validEditPayments.length === 0) {
-        alert('⚠️ Debe agregar al menos un método de pago');
+        showEditPanelAlert('Agrega un método de pago');
         return;
       }
 
@@ -1103,7 +1120,7 @@ const Mostrador = () => {
       const editOrderTotal = calculateEditTotal();
 
       if (totalEditPaymentAmount < editOrderTotal - 0.01) {
-        alert(`⚠️ El monto pagado (${formatChileanCurrency(totalEditPaymentAmount)}) es menor al total del pedido (${formatChileanCurrency(editOrderTotal)})`);
+        showEditPanelAlert(`Falta pagar ${formatChileanCurrency(editOrderTotal - totalEditPaymentAmount)}`);
         return;
       }
 
@@ -1139,13 +1156,15 @@ const Mostrador = () => {
       const response = await handleCompleteOrderWithCash(orderId, orderData, 'Pedido completado exitosamente');
 
       if (!response.success) {
-        alert('Error al completar el pedido: ' + (response.error || 'Error desconocido'));
+        showEditPanelAlert(response.error || 'No se pudo completar el pedido', 'error');
         return;
       }
-      clearEditDraft();
+      if (editDraftMeta?.orderId === orderId) {
+        clearEditDraft();
+      }
     } catch (error) {
       console.error('Error al completar el pedido:', error);
-      alert('Error al completar el pedido: ' + error.message);
+      showEditPanelAlert(error.message || 'No se pudo completar el pedido', 'error');
     } finally {
       setIsCompletingOrder(false);
     }
@@ -1153,21 +1172,23 @@ const Mostrador = () => {
 
   const handleCancelOrder = async (orderId) => {
     if (isCancelingOrder || !orderId) {
-      if (!orderId) alert('Error: ID del pedido no válido');
+      if (!orderId) showEditPanelAlert('Pedido no válido', 'error');
       return;
     }
+
+    setEditPanelAlert(null);
 
     try {
       setIsCancelingOrder(true);
       const result = await handleCancelOrderWithNotification(orderId);
       if (!result.success) {
-        alert('Error al cancelar el pedido: ' + result.error);
-      } else {
+        showEditPanelAlert(result.error || 'No se pudo cancelar el pedido', 'error');
+      } else if (editDraftMeta?.orderId === orderId) {
         clearEditDraft();
       }
     } catch (error) {
       console.error('Error al cancelar el pedido:', error);
-      alert('Error al cancelar el pedido: ' + error.message);
+      showEditPanelAlert(error.message || 'No se pudo cancelar el pedido', 'error');
     } finally {
       setIsCancelingOrder(false);
     }
@@ -2254,7 +2275,10 @@ const Mostrador = () => {
                     </div>
 
                     {/* Botones al final del scroll */}
-                    <div className="pt-3 space-y-2">
+                    <div className="relative pt-3 space-y-2">
+                      {editPanelAlert && (
+                        <ButtonAlertBubble alert={editPanelAlert} onDismiss={() => setEditPanelAlert(null)} />
+                      )}
                       <button
                         className="w-full btn-professional-primary"
                         disabled={editCart.length === 0 || isUpdatingOrderRequest}

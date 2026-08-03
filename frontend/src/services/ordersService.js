@@ -96,18 +96,20 @@ export const ordersService = {
       const skipKitchenPrint = options.skipKitchenPrint === true;
       const hasProducts = Array.isArray(orderData.foods) && orderData.foods.length > 0;
       if (!skipKitchenPrint && response.data && response.data.order && hasProducts) {
-        try {
-          const defaultPrinter = printingService.getDefaultPrinter();
-          const hasMultiConfig = printerConfigService.hasMultiPrinterConfig();
-          if (defaultPrinter || hasMultiConfig) {
-            const categories = hasMultiConfig ? await getCachedCategories() : [];
-            await printingService.printKitchenOrder(response.data.order, { categories });
+        // No esperamos la impresión: el pedido ya se creó exitosamente y no debe
+        // bloquear la respuesta al UI si la impresora está lenta/desconectada.
+        (async () => {
+          try {
+            const defaultPrinter = printingService.getDefaultPrinter();
+            const hasMultiConfig = printerConfigService.hasMultiPrinterConfig();
+            if (defaultPrinter || hasMultiConfig) {
+              const categories = hasMultiConfig ? await getCachedCategories() : [];
+              await printingService.printKitchenOrder(response.data.order, { categories });
+            }
+          } catch (printError) {
+            console.error('Error al imprimir comanda automáticamente:', printError);
           }
-        } catch (printError) {
-          console.error('Error al imprimir comanda automáticamente:', printError);
-          // No lanzamos el error porque el pedido se creó exitosamente
-          // Solo logueamos el error de impresión
-        }
+        })();
       }
 
       return response.data;

@@ -209,7 +209,21 @@ const closeTable = async (req, res) => {
                 message: 'Solo el dueño puede cerrar mesas con productos según la configuración del restaurante.',
             });
         }
-        
+
+        const kitchenDisplayEnabled = Boolean(settings?.kitchenDisplay?.enabled);
+        const requireKitchenReadyToClose = Boolean(settings?.kitchenDisplay?.requireReadyToClose);
+        const orderNeedsKitchenReady =
+            table.currentOrder &&
+            table.currentOrder.status !== 'Completado' &&
+            table.currentOrder.status !== 'Cancelado' &&
+            !tableHasNoProducts;
+
+        if (kitchenDisplayEnabled && requireKitchenReadyToClose && orderNeedsKitchenReady && !table.currentOrder.kitchenReadyAt) {
+            return res.status(409).json({
+                message: 'El pedido aún no está listo en cocina',
+            });
+        }
+
         // Si hay una orden, completarla primero
         if (table.currentOrder) {
             const order = await Order.findById(table.currentOrder._id);
