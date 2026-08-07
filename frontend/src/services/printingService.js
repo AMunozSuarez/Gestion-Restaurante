@@ -21,6 +21,7 @@ const RESTAURANT_SETTINGS_STORAGE_KEYS = {
   onlyOwnerCanCloseTable: 'onlyOwnerCanCloseTable',
   onlyOwnerCanDeleteOrderItems: 'onlyOwnerCanDeleteOrderItems',
   kitchenDisplayRequireReadyToClose: 'kitchenDisplayRequireReadyToClose',
+  kitchenDisplayRequireAllItemsReady: 'kitchenDisplayRequireAllItemsReady',
   avoidDuplicateKitchenUpdatePrint: 'avoidDuplicateKitchenUpdatePrint',
   extraSectionPrintDestinations: 'extraSectionPrintDestinations',
   drawerPrinter: 'drawerPrinter',
@@ -39,6 +40,7 @@ const DEFAULT_RESTAURANT_SETTINGS = {
   onlyOwnerCanCloseTable: false,
   onlyOwnerCanDeleteOrderItems: false,
   kitchenDisplayRequireReadyToClose: false,
+  kitchenDisplayRequireAllItemsReady: false,
   avoidDuplicateKitchenUpdatePrint: false,
   extraSectionPrintDestinations: {},
   drawerPrinter: '',
@@ -162,6 +164,10 @@ const normalizeRestaurantSettings = (settings = {}) => {
       kitchenDisplay.requireReadyToClose ?? settings.kitchenDisplayRequireReadyToClose,
       DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayRequireReadyToClose,
     ),
+    kitchenDisplayRequireAllItemsReady: parseBooleanValue(
+      kitchenDisplay.requireAllItemsReady ?? settings.kitchenDisplayRequireAllItemsReady,
+      DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayRequireAllItemsReady,
+    ),
     avoidDuplicateKitchenUpdatePrint: parseBooleanValue(
       printing.avoidDuplicateKitchenUpdatePrint ?? settings.avoidDuplicateKitchenUpdatePrint,
       DEFAULT_RESTAURANT_SETTINGS.avoidDuplicateKitchenUpdatePrint,
@@ -214,6 +220,10 @@ const getRestaurantSettingsFromStorage = () => ({
   kitchenDisplayRequireReadyToClose: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayRequireReadyToClose,
     DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayRequireReadyToClose,
+  ),
+  kitchenDisplayRequireAllItemsReady: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayRequireAllItemsReady,
+    DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayRequireAllItemsReady,
   ),
   avoidDuplicateKitchenUpdatePrint: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
@@ -281,6 +291,10 @@ const applyRestaurantSettingsLocally = (settings = {}) => {
       String(Boolean(normalized.kitchenDisplayRequireReadyToClose)),
     );
     localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayRequireAllItemsReady,
+      String(Boolean(normalized.kitchenDisplayRequireAllItemsReady)),
+    );
+    localStorage.setItem(
       RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
       String(Boolean(normalized.avoidDuplicateKitchenUpdatePrint)),
     );
@@ -336,6 +350,7 @@ const buildRestaurantSettingsPayload = (settings = {}) => {
     },
     kitchenDisplay: {
       requireReadyToClose: normalized.kitchenDisplayRequireReadyToClose,
+      requireAllItemsReady: normalized.kitchenDisplayRequireAllItemsReady,
     },
   };
 };
@@ -713,6 +728,19 @@ la fuente esta configurada bien.
     applyRestaurantSettingsLocally({
       ...getRestaurantSettingsSnapshot(),
       kitchenDisplayRequireReadyToClose: Boolean(enabled),
+    });
+  },
+
+  // Obtener si se requiere marcar cada producto como listo individualmente en el KDS
+  getKitchenDisplayRequireAllItemsReady() {
+    return getRestaurantSettingsSnapshot().kitchenDisplayRequireAllItemsReady;
+  },
+
+  // Guardar preferencia de marcado individual por producto en el KDS
+  setKitchenDisplayRequireAllItemsReady(enabled) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      kitchenDisplayRequireAllItemsReady: Boolean(enabled),
     });
   },
 

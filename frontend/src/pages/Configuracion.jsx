@@ -100,6 +100,7 @@ const Configuracion = () => {
   // Estado (solo lectura) de la pantalla de cocina: la habilita el administrador del sistema desde /admin
   const [kitchenDisplayEnabled, setKitchenDisplayEnabled] = useState(false);
   const [kitchenDisplayRequireReadyToClose, setKitchenDisplayRequireReadyToClose] = useState(() => printingService.getKitchenDisplayRequireReadyToClose());
+  const [kitchenDisplayRequireAllItemsReady, setKitchenDisplayRequireAllItemsReady] = useState(() => printingService.getKitchenDisplayRequireAllItemsReady());
 
   // Estados para usuarios
   const [users, setUsers] = useState([]);
@@ -165,6 +166,7 @@ const Configuracion = () => {
       setKitchenDisplayEnabled(Boolean(response.data?.settings?.kitchenDisplay?.enabled));
       await printingService.syncRestaurantSettingsFromBackend();
       setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
+      setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
     } catch (error) {
       console.error('Error al cargar configuración de inventario:', error);
     } finally {
@@ -200,6 +202,7 @@ const Configuracion = () => {
     setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
     setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
+    setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
     setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
     setDrawerOpenOnCloseOrder(printingService.getDrawerOpenOnCloseOrder());
@@ -220,6 +223,7 @@ const Configuracion = () => {
     setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
     setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
+    setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
     setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
     setDrawerOpenOnCloseOrder(printingService.getDrawerOpenOnCloseOrder());
@@ -530,6 +534,29 @@ const Configuracion = () => {
       text: enabled
         ? 'No se podrá cerrar la mesa/pedido hasta que esté marcado como listo en la pantalla de cocina'
         : 'Se podrá cerrar la mesa/pedido sin esperar la confirmación de la pantalla de cocina'
+    });
+  };
+
+  // Activar o desactivar el marcado individual por producto en la pantalla de cocina
+  const handleKitchenDisplayRequireAllItemsReadyChange = async (enabled) => {
+    setKitchenDisplayRequireAllItemsReady(enabled);
+    printingService.setKitchenDisplayRequireAllItemsReady(enabled);
+    const result = await printingService.saveRestaurantSettingsToBackend({ kitchenDisplayRequireAllItemsReady: enabled });
+
+    if (!result.success) {
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: `No se pudo guardar en el restaurante: ${result.error}. Se restauró el valor compartido.`,
+      });
+      return;
+    }
+
+    setMessage({
+      type: 'success',
+      text: enabled
+        ? 'Ahora cada producto del pedido deberá marcarse como listo individualmente en la pantalla de cocina'
+        : 'El pedido se marcará como listo completo desde la pantalla de cocina, sin marcar cada producto por separado'
     });
   };
 
@@ -2690,6 +2717,31 @@ const Configuracion = () => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${kitchenDisplayRequireReadyToClose ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-4 border border-amber-200 rounded-lg bg-amber-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Marcado individual por producto
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Si está activo, en la pantalla de cocina cada producto del pedido deberá marcarse
+                        como listo por separado. El pedido completo se marcará como listo automáticamente
+                        cuando todos sus productos estén listos.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleKitchenDisplayRequireAllItemsReadyChange(!kitchenDisplayRequireAllItemsReady)}
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${kitchenDisplayRequireAllItemsReady ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                      aria-pressed={kitchenDisplayRequireAllItemsReady}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${kitchenDisplayRequireAllItemsReady ? 'translate-x-5' : 'translate-x-0.5'}`}
                       />
                     </button>
                   </div>

@@ -64,6 +64,7 @@ const KitchenDisplay = () => {
   const { restaurant, isLoading: isRestaurantLoading } = useRestaurant();
 
   const kitchenDisplayEnabled = Boolean(restaurant?.settings?.kitchenDisplay?.enabled);
+  const requireAllItemsReady = Boolean(restaurant?.settings?.kitchenDisplay?.requireAllItemsReady);
 
   const [orders, setOrders] = useState([]);
   const [sectionFilter, setSectionFilter] = useState('all');
@@ -181,6 +182,20 @@ const KitchenDisplay = () => {
     }
   };
 
+  const handleToggleItemReady = async (orderId, foodItemId, nextReady) => {
+    markOwnUpdate(orderId);
+    try {
+      const response = await ordersService.updateOrderItemReady(orderId, foodItemId, nextReady);
+      const updatedOrder = response.order;
+      if (!updatedOrder) return;
+      setOrders((prev) =>
+        prev.map((o) => (getOrderId(o) === orderId ? updatedOrder : o))
+      );
+    } catch (err) {
+      setError(err.message || 'Error al actualizar el producto');
+    }
+  };
+
   if (!isRestaurantLoading && !kitchenDisplayEnabled) {
     return (
       <div className="h-screen w-screen bg-gray-900 text-white flex items-center justify-center p-6">
@@ -251,6 +266,8 @@ const KitchenDisplay = () => {
                     order={order}
                     now={now}
                     onMarkReady={handleMarkReady}
+                    requireAllItemsReady={requireAllItemsReady}
+                    onToggleItemReady={handleToggleItemReady}
                   />
                 ))}
               </div>
@@ -273,6 +290,8 @@ const KitchenDisplay = () => {
                   order={order}
                   now={now}
                   onMarkReady={handleMarkReady}
+                  requireAllItemsReady={requireAllItemsReady}
+                  onToggleItemReady={handleToggleItemReady}
                 />
               ))}
             </div>
@@ -283,12 +302,13 @@ const KitchenDisplay = () => {
   );
 };
 
-const KitchenOrderCard = ({ order, now, onMarkReady }) => {
+const KitchenOrderCard = ({ order, now, onMarkReady, requireAllItemsReady, onToggleItemReady }) => {
   const orderId = getOrderId(order);
   const elapsedMinutes = getElapsedMinutes(order, now);
   const urgencyVariant = getUrgencyVariant(elapsedMinutes);
   const items = normalizeKitchenItems(order);
   const isReady = Boolean(order.kitchenReadyAt);
+  const readyItemsCount = items.filter((item) => item.ready).length;
 
   return (
     <div
@@ -314,21 +334,57 @@ const KitchenOrderCard = ({ order, now, onMarkReady }) => {
         <div className="font-medium text-white">{getOrderLabel(order)}</div>
       </div>
 
-      <ul className="space-y-1 text-lg">
-        {items.map((item, idx) => (
-          <li key={idx}>
-            <span className="font-semibold">{item.quantity}x</span> {item.productName}
-            {item.notes && (
-              <div className={`text-sm pl-4 ${isReady ? 'text-green-200' : 'text-amber-300'}`}>— {item.notes}</div>
-            )}
-            {item.selectedExtras.length > 0 && (
-              <div className={`text-sm pl-4 ${isReady ? 'text-green-300' : 'text-gray-400'}`}>
-                {item.selectedExtras.map((extra) => extra.extraName).join(', ')}
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+      {requireAllItemsReady ? (
+        <ul className="space-y-1.5 text-lg">
+          {items.map((item, idx) => (
+            <li key={item.id || idx}>
+              <button
+                type="button"
+                onClick={() => onToggleItemReady(orderId, item.id, !item.ready)}
+                disabled={!item.id}
+                className={`w-full flex items-start gap-2 text-left px-2 py-1.5 rounded-lg transition-colors ${
+                  item.ready ? 'bg-green-950/60' : 'bg-gray-900/40 hover:bg-gray-900/70'
+                }`}
+              >
+                <span
+                  className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center text-sm ${
+                    item.ready ? 'bg-green-500 border-green-500 text-gray-900' : 'border-gray-500 text-transparent'
+                  }`}
+                >
+                  ✓
+                </span>
+                <span className={item.ready ? 'line-through text-green-300' : ''}>
+                  <span className="font-semibold">{item.quantity}x</span> {item.productName}
+                  {item.notes && (
+                    <div className="text-sm pl-1 text-amber-300 no-underline">— {item.notes}</div>
+                  )}
+                  {item.selectedExtras.length > 0 && (
+                    <div className="text-sm pl-1 text-gray-400 no-underline">
+                      {item.selectedExtras.map((extra) => extra.extraName).join(', ')}
+                    </div>
+                  )}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="space-y-1 text-lg">
+          {items.map((item, idx) => (
+            <li key={idx}>
+              <span className="font-semibold">{item.quantity}x</span> {item.productName}
+              {item.notes && (
+                <div className={`text-sm pl-4 ${isReady ? 'text-green-200' : 'text-amber-300'}`}>— {item.notes}</div>
+              )}
+              {item.selectedExtras.length > 0 && (
+                <div className={`text-sm pl-4 ${isReady ? 'text-green-300' : 'text-gray-400'}`}>
+                  {item.selectedExtras.map((extra) => extra.extraName).join(', ')}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {order.comment && (
         <div className={`text-sm border-t pt-2 ${isReady ? 'text-green-200 border-green-700' : 'text-amber-300 border-gray-700'}`}>
@@ -336,17 +392,27 @@ const KitchenOrderCard = ({ order, now, onMarkReady }) => {
         </div>
       )}
 
-      <button
-        onClick={() => onMarkReady(orderId)}
-        disabled={isReady}
-        className={`mt-2 py-3 rounded-lg text-lg font-bold transition-colors ${
-          isReady
-            ? 'bg-green-950 text-green-300 cursor-default'
-            : 'bg-green-600 hover:bg-green-500 text-white'
-        }`}
-      >
-        {isReady ? 'Listo' : 'Marcar Listo'}
-      </button>
+      {requireAllItemsReady ? (
+        <div
+          className={`mt-2 py-2.5 rounded-lg text-center text-sm font-bold ${
+            isReady ? 'bg-green-950 text-green-300' : 'bg-gray-900 text-gray-400'
+          }`}
+        >
+          {isReady ? '✓ Todos los productos listos' : `${readyItemsCount}/${items.length} productos listos`}
+        </div>
+      ) : (
+        <button
+          onClick={() => onMarkReady(orderId)}
+          disabled={isReady}
+          className={`mt-2 py-3 rounded-lg text-lg font-bold transition-colors ${
+            isReady
+              ? 'bg-green-950 text-green-300 cursor-default'
+              : 'bg-green-600 hover:bg-green-500 text-white'
+          }`}
+        >
+          {isReady ? 'Listo' : 'Marcar Listo'}
+        </button>
+      )}
     </div>
   );
 };

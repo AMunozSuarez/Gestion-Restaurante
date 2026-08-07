@@ -772,6 +772,70 @@ const updateOrderController = async (req, res) => {
     }
 };
 
+// MARCAR/DESMARCAR UN PRODUCTO DE LA ORDEN COMO LISTO (KDS por producto)
+const updateOrderItemReadyController = async (req, res) => {
+    try {
+        const { foodId, ready } = req.body;
+        const restaurantId = req.user.restaurant;
+
+        if (!foodId || typeof ready !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                message: 'foodId y ready (booleano) son requeridos',
+            });
+        }
+
+        const order = await orderModel.findOne({ _id: req.params.id, restaurant: restaurantId });
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Pedido no encontrado o no pertenece a este restaurante' });
+        }
+
+        const item = order.foods.find((foodItem) => foodItem._id.toString() === foodId);
+        if (!item) {
+            return res.status(404).json({ success: false, message: 'Producto no encontrado en el pedido' });
+        }
+
+        item.ready = ready;
+
+        const restaurant = await Restaurant.findById(restaurantId).select('settings.kitchenDisplay').lean();
+        const requireAllItemsReady = restaurant?.settings?.kitchenDisplay?.requireAllItemsReady === true;
+
+        if (requireAllItemsReady) {
+            const allItemsReady = order.foods.length > 0 && order.foods.every((foodItem) => foodItem.ready);
+            order.kitchenReadyAt = allItemsReady ? (order.kitchenReadyAt || new Date()) : null;
+        }
+
+        await order.save();
+
+        const populatedOrder = await orderModel.findById(order._id)
+            .populate('foods.food', 'title price category extraSections')
+            .populate('deletedFoods.food', 'title price extraSections')
+            .populate('buyer', 'name phone')
+            .populate('waiter', 'userName name')
+            .lean();
+
+        try {
+            const senderSocketId = req.headers['x-socket-id'] || null;
+            getIO().to(`restaurant:${restaurantId}`).emit('order:updated', { order: populatedOrder, _fromSocketId: senderSocketId });
+        } catch (socketErr) {
+            console.error('Error emitiendo socket order:updated:', socketErr.message);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Producto actualizado correctamente',
+            order: populatedOrder,
+        });
+    } catch (error) {
+        console.error('Error actualizando estado de producto del pedido:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error actualizando estado de producto del pedido',
+            error: error.message,
+        });
+    }
+};
+
 // DELETE AN ORDER
 const deleteOrderController = async (req, res) => {
     try {
@@ -1317,6 +1381,7 @@ module.exports = {
     createOrderController,
     getAllOrdersController,
     updateOrderController,
+    updateOrderItemReadyController,
     deleteOrderController,
     getOrderByIdController,
     getOrderByNumberController,
