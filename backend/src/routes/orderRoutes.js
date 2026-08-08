@@ -1,7 +1,7 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
 const denyRoleMiddleware = require('../middlewares/denyRoleMiddleware');
-const { createOrderController, getAllOrdersController, updateOrderController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders, getRecentOrders, getSectionOrders, getAllSalesController, getTipsController, printTicketController } = require('../controllers/orderController');
+const { createOrderController, getAllOrdersController, updateOrderController, updateOrderItemReadyController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders, getRecentOrders, getSectionOrders, getAllSalesController, getTipsController, printTicketController } = require('../controllers/orderController');
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
 const router = express.Router();
 
@@ -19,6 +19,9 @@ router.get('/getByNumber/:orderNumber', authMiddleware, filterByRestaurant, getO
 
 // UPDATE AN ORDER
 router.put('/update/:id', authMiddleware, filterByRestaurant, updateOrderController);
+
+// MARK/UNMARK A SINGLE ORDER ITEM AS READY (KDS per-item)
+router.put('/item-ready/:id', authMiddleware, filterByRestaurant, updateOrderItemReadyController);
 
 // DELETE AN ORDER
 router.delete('/delete/:id', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, deleteOrderController);

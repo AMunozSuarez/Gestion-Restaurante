@@ -200,6 +200,18 @@ export const ordersService = {
     }
   },
 
+  // Marcar/desmarcar un producto de la orden como listo (KDS por producto)
+  updateOrderItemReady: async (id, foodId, ready) => {
+    try {
+      const response = await api.put(`/order/item-ready/${id}`, { foodId, ready });
+      invalidateOrderCache();
+      markOwnUpdate(id);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al actualizar producto del pedido');
+    }
+  },
+
   // Eliminar pedido
   deleteOrder: async (id) => {
     try {

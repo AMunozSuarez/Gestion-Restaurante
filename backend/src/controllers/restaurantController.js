@@ -153,6 +153,14 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
             },
             fieldName: 'kitchenDisplayRequireReadyToClose',
         },
+        {
+            nested: payload?.kitchenDisplay?.requireAllItemsReady,
+            flat: payload?.kitchenDisplayRequireAllItemsReady,
+            assign: (value) => {
+                nextSettings.kitchenDisplay.requireAllItemsReady = value;
+            },
+            fieldName: 'kitchenDisplayRequireAllItemsReady',
+        },
     ];
 
     for (const field of booleanFieldMap) {

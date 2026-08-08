@@ -20,6 +20,7 @@ const RESTAURANT_SETTINGS_DEFAULTS = Object.freeze({
     kitchenDisplay: {
         enabled: false,
         requireReadyToClose: false,
+        requireAllItemsReady: false,
     },
 });
 
@@ -71,6 +72,7 @@ const normalizeRestaurantSettings = (settings = {}) => {
         kitchenDisplay: {
             enabled: Boolean(settings?.kitchenDisplay?.enabled),
             requireReadyToClose: Boolean(settings?.kitchenDisplay?.requireReadyToClose),
+            requireAllItemsReady: Boolean(settings?.kitchenDisplay?.requireAllItemsReady),
         },
     };
 };
@@ -185,6 +187,10 @@ const restaurantSchema = new mongoose.Schema({
             requireReadyToClose: {
                 type: Boolean,
                 default: RESTAURANT_SETTINGS_DEFAULTS.kitchenDisplay.requireReadyToClose,
+            },
+            requireAllItemsReady: {
+                type: Boolean,
+                default: RESTAURANT_SETTINGS_DEFAULTS.kitchenDisplay.requireAllItemsReady,
             },
         },
     },

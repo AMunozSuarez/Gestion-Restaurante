@@ -10,6 +10,7 @@ const orderSchema = new mongoose.Schema({
             food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food', required: true },
             quantity: { type: Number, required: true },
             comment: { type: String, default: '' },
+            ready: { type: Boolean, default: false },
             selectedExtras: [{
                 sectionName: { type: String, required: true },
                 extraName: { type: String, required: true },
