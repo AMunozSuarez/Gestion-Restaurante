@@ -20,7 +20,7 @@ const {
 const router = express.Router();
 
 // El módulo de inventario no forma parte del módulo de mesas del rol mesero
-router.use(authMiddleware, denyRoleMiddleware('mesero'));
+router.use(authMiddleware, denyRoleMiddleware('mesero', 'cocina'));
 
 // Insumos
 router.get('/items', filterByRestaurant, getItems);

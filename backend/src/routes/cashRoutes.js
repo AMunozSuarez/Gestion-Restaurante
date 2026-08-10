@@ -14,31 +14,31 @@ router.use(authMiddleware);
 // pueda abrirla/cerrarla ni ver movimientos o ventas.
 
 // create cash register
-router.post('/create', denyRoleMiddleware('mesero'), filterByRestaurant, createCashRegister); // Route to create a new cash register
+router.post('/create', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, createCashRegister); // Route to create a new cash register
 
 // get current cash register (estado visible también para mesero)
 router.get('/current', filterByRestaurant, getCurrentCashRegister); // Route to get the current cash register
 
 // close cash register
-router.put('/close', denyRoleMiddleware('mesero'), filterByRestaurant, closeCashRegister); // Route to close the current cash register
+router.put('/close', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, closeCashRegister); // Route to close the current cash register
 
 // get all cash registers
-router.get('/cashRegister', denyRoleMiddleware('mesero'), filterByRestaurant, getAllCashRegisters); // Route to get all cash registers for a restaurant
+router.get('/cashRegister', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getAllCashRegisters); // Route to get all cash registers for a restaurant
 
 // get cash register by id
-router.get('/cashRegister/:id', denyRoleMiddleware('mesero'), filterByRestaurant, getCashRegisterById); // Route to get cash register by ID
+router.get('/cashRegister/:id', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getCashRegisterById); // Route to get cash register by ID
 
 // add cash movement
-router.post('/movement', denyRoleMiddleware('mesero'), filterByRestaurant, addCashMovement); // Route to add a cash movement
+router.post('/movement', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, addCashMovement); // Route to add a cash movement
 
 // get cash movements
-router.get('/movement', denyRoleMiddleware('mesero'), filterByRestaurant, getCashMovements); // Route to get all cash movements for a restaurant
+router.get('/movement', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getCashMovements); // Route to get all cash movements for a restaurant
 
 
 // get sales from specific cash register
-router.get('/sales/:cashRegisterId', denyRoleMiddleware('mesero'), filterByRestaurant, getCashRegisterSales); // Route to get sales from specific cash register
+router.get('/sales/:cashRegisterId', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getCashRegisterSales); // Route to get sales from specific cash register
 
 // get sales from current active cash register
-router.get('/sales', denyRoleMiddleware('mesero'), filterByRestaurant, getCurrentCashRegisterSales); // Route to get sales from current active cash register
+router.get('/sales', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getCurrentCashRegisterSales); // Route to get sales from current active cash register
 
 module.exports = router; // Export the router

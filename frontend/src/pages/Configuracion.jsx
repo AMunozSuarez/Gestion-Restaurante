@@ -101,6 +101,7 @@ const Configuracion = () => {
   const [kitchenDisplayEnabled, setKitchenDisplayEnabled] = useState(false);
   const [kitchenDisplayRequireReadyToClose, setKitchenDisplayRequireReadyToClose] = useState(() => printingService.getKitchenDisplayRequireReadyToClose());
   const [kitchenDisplayRequireAllItemsReady, setKitchenDisplayRequireAllItemsReady] = useState(() => printingService.getKitchenDisplayRequireAllItemsReady());
+  const [kitchenDisplayOnlyOwnerCanMarkReady, setKitchenDisplayOnlyOwnerCanMarkReady] = useState(() => printingService.getKitchenDisplayOnlyOwnerCanMarkReady());
 
   // Estados para usuarios
   const [users, setUsers] = useState([]);
@@ -167,6 +168,7 @@ const Configuracion = () => {
       await printingService.syncRestaurantSettingsFromBackend();
       setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
       setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
+      setKitchenDisplayOnlyOwnerCanMarkReady(printingService.getKitchenDisplayOnlyOwnerCanMarkReady());
     } catch (error) {
       console.error('Error al cargar configuración de inventario:', error);
     } finally {
@@ -203,6 +205,7 @@ const Configuracion = () => {
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
     setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
     setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
+    setKitchenDisplayOnlyOwnerCanMarkReady(printingService.getKitchenDisplayOnlyOwnerCanMarkReady());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
     setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
     setDrawerOpenOnCloseOrder(printingService.getDrawerOpenOnCloseOrder());
@@ -224,6 +227,7 @@ const Configuracion = () => {
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
     setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
     setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
+    setKitchenDisplayOnlyOwnerCanMarkReady(printingService.getKitchenDisplayOnlyOwnerCanMarkReady());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
     setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
     setDrawerOpenOnCloseOrder(printingService.getDrawerOpenOnCloseOrder());
@@ -557,6 +561,29 @@ const Configuracion = () => {
       text: enabled
         ? 'Ahora cada producto del pedido deberá marcarse como listo individualmente en la pantalla de cocina'
         : 'El pedido se marcará como listo completo desde la pantalla de cocina, sin marcar cada producto por separado'
+    });
+  };
+
+  // Activar o desactivar que solo el dueño pueda confirmar un pedido como listo en el KDS
+  const handleKitchenDisplayOnlyOwnerCanMarkReadyChange = async (enabled) => {
+    setKitchenDisplayOnlyOwnerCanMarkReady(enabled);
+    printingService.setKitchenDisplayOnlyOwnerCanMarkReady(enabled);
+    const result = await printingService.saveRestaurantSettingsToBackend({ kitchenDisplayOnlyOwnerCanMarkReady: enabled });
+
+    if (!result.success) {
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: `No se pudo guardar en el restaurante: ${result.error}. Se restauró el valor compartido.`,
+      });
+      return;
+    }
+
+    setMessage({
+      type: 'success',
+      text: enabled
+        ? 'Solo el dueño podrá confirmar un pedido como listo en la pantalla de cocina'
+        : 'Cualquier usuario con acceso a la pantalla de cocina podrá confirmar un pedido como listo'
     });
   };
 
@@ -2730,8 +2757,8 @@ const Configuracion = () => {
                       </p>
                       <p className="text-xs text-gray-600 mt-1">
                         Si está activo, en la pantalla de cocina cada producto del pedido deberá marcarse
-                        como listo por separado. El pedido completo se marcará como listo automáticamente
-                        cuando todos sus productos estén listos.
+                        como listo por separado. Una vez que todos estén listos, se deberá presionar
+                        "Confirmar Listo" para marcar el pedido completo como listo.
                       </p>
                     </div>
                     <button
@@ -2742,6 +2769,31 @@ const Configuracion = () => {
                     >
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${kitchenDisplayRequireAllItemsReady ? 'translate-x-5' : 'translate-x-0.5'}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-4 border border-amber-200 rounded-lg bg-amber-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Solo el dueño puede confirmar pedidos listos
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Si está activo, solo el dueño (u otro administrador) podrá confirmar un pedido
+                        como listo en la pantalla de cocina. El resto del personal solo podrá marcar
+                        los productos individuales.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleKitchenDisplayOnlyOwnerCanMarkReadyChange(!kitchenDisplayOnlyOwnerCanMarkReady)}
+                      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${kitchenDisplayOnlyOwnerCanMarkReady ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                      aria-pressed={kitchenDisplayOnlyOwnerCanMarkReady}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${kitchenDisplayOnlyOwnerCanMarkReady ? 'translate-x-5' : 'translate-x-0.5'}`}
                       />
                     </button>
                   </div>
@@ -2987,6 +3039,7 @@ const Configuracion = () => {
                   >
                     <option value="employee">Empleado (acceso completo)</option>
                     <option value="mesero">Mesero (solo acceso a Mesas)</option>
+                    <option value="cocina">Cocina (solo acceso a Cocina)</option>
                   </select>
                 </div>
 

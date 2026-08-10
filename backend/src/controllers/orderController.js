@@ -536,6 +536,20 @@ const updateOrderController = async (req, res) => {
             }
         }
 
+        if (kitchenReadyAt && !isPrivilegedUser) {
+            const restaurant = await Restaurant.findById(restaurantId)
+                .select('settings.kitchenDisplay')
+                .lean();
+            const onlyOwnerCanMarkReady = restaurant?.settings?.kitchenDisplay?.onlyOwnerCanMarkReady === true;
+
+            if (onlyOwnerCanMarkReady) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Solo el dueño puede confirmar el pedido como listo.',
+                });
+            }
+        }
+
         // Preparar objeto de actualización con campos simples
         const updateData = {};
         if (payment !== undefined) updateData.payment = payment;
@@ -703,6 +717,7 @@ const updateOrderController = async (req, res) => {
             updateData.name = !customer && buyer ? buyer.name : null;
             updateData.buyer = customer ? customer._id : null;
             updateData.foods = foods;
+            updateData.kitchenReadyAt = null;
             if (section !== undefined) updateData.section = section;
             updateData.total = total - (discount || 0);
             updateData.deliveryCost = deliveryCost;
@@ -796,14 +811,6 @@ const updateOrderItemReadyController = async (req, res) => {
         }
 
         item.ready = ready;
-
-        const restaurant = await Restaurant.findById(restaurantId).select('settings.kitchenDisplay').lean();
-        const requireAllItemsReady = restaurant?.settings?.kitchenDisplay?.requireAllItemsReady === true;
-
-        if (requireAllItemsReady) {
-            const allItemsReady = order.foods.length > 0 && order.foods.every((foodItem) => foodItem.ready);
-            order.kitchenReadyAt = allItemsReady ? (order.kitchenReadyAt || new Date()) : null;
-        }
 
         await order.save();
 

@@ -6,7 +6,7 @@ const { searchCustomersController, createCustomerController, createOrUpdateCusto
 const router = express.Router();
 
 // El módulo de clientes no forma parte del módulo de mesas del rol mesero
-router.use(authMiddleware, denyRoleMiddleware('mesero'));
+router.use(authMiddleware, denyRoleMiddleware('mesero', 'cocina'));
 
 // Ruta para buscar clientes
 router.get('/search', filterByRestaurant, searchCustomersController);

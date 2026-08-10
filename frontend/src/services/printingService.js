@@ -22,6 +22,7 @@ const RESTAURANT_SETTINGS_STORAGE_KEYS = {
   onlyOwnerCanDeleteOrderItems: 'onlyOwnerCanDeleteOrderItems',
   kitchenDisplayRequireReadyToClose: 'kitchenDisplayRequireReadyToClose',
   kitchenDisplayRequireAllItemsReady: 'kitchenDisplayRequireAllItemsReady',
+  kitchenDisplayOnlyOwnerCanMarkReady: 'kitchenDisplayOnlyOwnerCanMarkReady',
   avoidDuplicateKitchenUpdatePrint: 'avoidDuplicateKitchenUpdatePrint',
   extraSectionPrintDestinations: 'extraSectionPrintDestinations',
   drawerPrinter: 'drawerPrinter',
@@ -41,6 +42,7 @@ const DEFAULT_RESTAURANT_SETTINGS = {
   onlyOwnerCanDeleteOrderItems: false,
   kitchenDisplayRequireReadyToClose: false,
   kitchenDisplayRequireAllItemsReady: false,
+  kitchenDisplayOnlyOwnerCanMarkReady: false,
   avoidDuplicateKitchenUpdatePrint: false,
   extraSectionPrintDestinations: {},
   drawerPrinter: '',
@@ -168,6 +170,10 @@ const normalizeRestaurantSettings = (settings = {}) => {
       kitchenDisplay.requireAllItemsReady ?? settings.kitchenDisplayRequireAllItemsReady,
       DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayRequireAllItemsReady,
     ),
+    kitchenDisplayOnlyOwnerCanMarkReady: parseBooleanValue(
+      kitchenDisplay.onlyOwnerCanMarkReady ?? settings.kitchenDisplayOnlyOwnerCanMarkReady,
+      DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayOnlyOwnerCanMarkReady,
+    ),
     avoidDuplicateKitchenUpdatePrint: parseBooleanValue(
       printing.avoidDuplicateKitchenUpdatePrint ?? settings.avoidDuplicateKitchenUpdatePrint,
       DEFAULT_RESTAURANT_SETTINGS.avoidDuplicateKitchenUpdatePrint,
@@ -224,6 +230,10 @@ const getRestaurantSettingsFromStorage = () => ({
   kitchenDisplayRequireAllItemsReady: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayRequireAllItemsReady,
     DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayRequireAllItemsReady,
+  ),
+  kitchenDisplayOnlyOwnerCanMarkReady: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayOnlyOwnerCanMarkReady,
+    DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayOnlyOwnerCanMarkReady,
   ),
   avoidDuplicateKitchenUpdatePrint: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
@@ -295,6 +305,10 @@ const applyRestaurantSettingsLocally = (settings = {}) => {
       String(Boolean(normalized.kitchenDisplayRequireAllItemsReady)),
     );
     localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayOnlyOwnerCanMarkReady,
+      String(Boolean(normalized.kitchenDisplayOnlyOwnerCanMarkReady)),
+    );
+    localStorage.setItem(
       RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
       String(Boolean(normalized.avoidDuplicateKitchenUpdatePrint)),
     );
@@ -351,6 +365,7 @@ const buildRestaurantSettingsPayload = (settings = {}) => {
     kitchenDisplay: {
       requireReadyToClose: normalized.kitchenDisplayRequireReadyToClose,
       requireAllItemsReady: normalized.kitchenDisplayRequireAllItemsReady,
+      onlyOwnerCanMarkReady: normalized.kitchenDisplayOnlyOwnerCanMarkReady,
     },
   };
 };
@@ -744,10 +759,36 @@ la fuente esta configurada bien.
     });
   },
 
+  // Obtener si solo el dueño puede confirmar un pedido como listo en el KDS
+  getKitchenDisplayOnlyOwnerCanMarkReady() {
+    return getRestaurantSettingsSnapshot().kitchenDisplayOnlyOwnerCanMarkReady;
+  },
+
+  // Guardar preferencia de restringir la confirmación de "listo" al dueño
+  setKitchenDisplayOnlyOwnerCanMarkReady(enabled) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      kitchenDisplayOnlyOwnerCanMarkReady: Boolean(enabled),
+    });
+  },
+
   // Verificar si el usuario actual puede eliminar productos de una orden
   canCurrentUserDeleteOrderItems() {
     const onlyOwnerCanDelete = this.getOnlyOwnerCanDeleteOrderItems();
     if (!onlyOwnerCanDelete) return true;
+
+    try {
+      const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+      return localUser?.role === 'owner' || localUser?.role === 'super_admin';
+    } catch {
+      return false;
+    }
+  },
+
+  // Verificar si el usuario actual puede confirmar un pedido como listo en el KDS
+  canCurrentUserMarkOrderReady() {
+    const onlyOwnerCanMarkReady = this.getKitchenDisplayOnlyOwnerCanMarkReady();
+    if (!onlyOwnerCanMarkReady) return true;
 
     try {
       const localUser = JSON.parse(localStorage.getItem('user') || '{}');

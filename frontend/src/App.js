@@ -31,6 +31,11 @@ const MESERO_ALLOWED_PATH_PREFIXES = ['/mesas'];
 const isPathAllowedForMesero = (pathname) =>
   MESERO_ALLOWED_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
+// El rol cocina solo tiene acceso a la pantalla de cocina (KDS)
+const COCINA_ALLOWED_PATH_PREFIXES = ['/cocina'];
+const isPathAllowedForCocina = (pathname) =>
+  COCINA_ALLOWED_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -55,13 +60,19 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/mesas" replace />;
   }
 
+  if (user?.role === 'cocina' && !isPathAllowedForCocina(location.pathname)) {
+    return <Navigate to="/cocina" replace />;
+  }
+
   return children;
 };
 
 // Redirección por defecto según el rol del usuario autenticado
 const DefaultRedirect = () => {
   const { user } = useAuth();
-  return <Navigate to={user?.role === 'mesero' ? '/mesas' : '/mostrador'} replace />;
+  if (user?.role === 'mesero') return <Navigate to="/mesas" replace />;
+  if (user?.role === 'cocina') return <Navigate to="/cocina" replace />;
+  return <Navigate to="/mostrador" replace />;
 };
 
 function App() {
