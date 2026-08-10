@@ -4,6 +4,7 @@ import { Badge } from '../components/ui';
 import ordersService from '../services/ordersService';
 import { useRestaurant } from '../hooks/useRestaurant';
 import { useAuth } from '../hooks/useAuth';
+import { ArrowRightEndOnRectangleIcon } from '@heroicons/react/24/outline';
 import { onSocketEvent, isOwnUpdate, markOwnUpdate } from '../services/socketService';
 import { normalizeKitchenItems } from '../utils/kitchenOrderNormalize';
 
@@ -48,7 +49,12 @@ const getOrderLabel = (order) => {
 const KitchenDisplay = () => {
   const navigate = useNavigate();
   const { restaurant, isLoading: isRestaurantLoading } = useRestaurant();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const kitchenDisplayEnabled = Boolean(restaurant?.settings?.kitchenDisplay?.enabled);
   const requireAllItemsReady = Boolean(restaurant?.settings?.kitchenDisplay?.requireAllItemsReady);
@@ -218,6 +224,14 @@ const KitchenDisplay = () => {
               {section === 'all' ? 'Todas' : SECTION_LABELS[section]}
             </button>
           ))}
+          <div className="w-px h-6 bg-gray-700 mx-1" />
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 rounded-lg text-lg font-medium transition-colors flex items-center gap-2 bg-gray-800 text-red-300 hover:bg-red-900/60"
+          >
+            <ArrowRightEndOnRectangleIcon className="w-5 h-5" />
+            Cerrar sesión
+          </button>
         </div>
       </div>
 
