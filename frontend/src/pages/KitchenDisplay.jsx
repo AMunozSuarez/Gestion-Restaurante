@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Badge } from '../components/ui';
 import ordersService from '../services/ordersService';
 import { useRestaurant } from '../hooks/useRestaurant';
-import { onSocketEvent, isOwnUpdate, markOwnUpdate } from '../services/socketService';
+import { useAuth } from '../hooks/useAuth';
+import { ArrowRightEndOnRectangleIcon } from '@heroicons/react/24/outline';
+import { onSocketEvent, markOwnUpdate } from '../services/socketService';
 import { normalizeKitchenItems } from '../utils/kitchenOrderNormalize';
 
 // Umbrales del semáforo (minutos desde la creación del pedido). Ajustar aquí si se necesita otro ritmo de cocina.
@@ -19,27 +21,40 @@ const SECTION_LABELS = {
 
 const SECTION_FILTERS = ['all', 'mesas', 'mostrador', 'delivery'];
 
-// Cantidad de columnas según ancho de pantalla (tarjetas angostas para caber más pedidos por fila)
-const COLUMN_BREAKPOINTS = [
-  { minWidth: 1536, columns: 6 },
-  { minWidth: 1280, columns: 5 },
-  { minWidth: 1024, columns: 4 },
-  { minWidth: 768, columns: 3 },
-  { minWidth: 640, columns: 2 },
-  { minWidth: 0, columns: 1 },
-];
-
-const getColumnCount = (width) => {
-  const match = COLUMN_BREAKPOINTS.find((bp) => width >= bp.minWidth);
-  return match ? match.columns : 1;
-};
-
 const getOrderId = (order) => order._id || order.id;
 
-const getElapsedMinutes = (order, now) => {
-  const createdAt = new Date(order.createdAt).getTime();
-  return (now - createdAt) / 60000;
+const playNewOrderSound = () => {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioContextClass();
+    const now = ctx.currentTime;
+
+    [880, 1320].forEach((freq, idx) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = freq;
+      const start = now + idx * 0.15;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.3, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.25);
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start(start);
+      oscillator.stop(start + 0.3);
+    });
+
+    setTimeout(() => ctx.close(), 800);
+  } catch {
+    // Web Audio no disponible; se ignora en silencio.
+  }
 };
+
+// kitchenActivityAt se reinicia cuando se agregan productos a una orden que ya
+// estaba lista, para que vuelva a mostrarse como recién ingresada.
+const getKitchenTimeReference = (order) => new Date(order.kitchenActivityAt || order.createdAt).getTime();
+
+const getElapsedMinutes = (order, now) => (now - getKitchenTimeReference(order)) / 60000;
 
 const getUrgencyVariant = (elapsedMinutes) => {
   if (elapsedMinutes >= KDS_OVERDUE_MINUTES) return 'danger';
@@ -62,22 +77,23 @@ const getOrderLabel = (order) => {
 const KitchenDisplay = () => {
   const navigate = useNavigate();
   const { restaurant, isLoading: isRestaurantLoading } = useRestaurant();
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const kitchenDisplayEnabled = Boolean(restaurant?.settings?.kitchenDisplay?.enabled);
   const requireAllItemsReady = Boolean(restaurant?.settings?.kitchenDisplay?.requireAllItemsReady);
+  const onlyOwnerCanMarkReady = Boolean(restaurant?.settings?.kitchenDisplay?.onlyOwnerCanMarkReady);
+  const canMarkReady = !onlyOwnerCanMarkReady || ['owner', 'super_admin'].includes(user?.role);
 
   const [orders, setOrders] = useState([]);
   const [sectionFilter, setSectionFilter] = useState('all');
   const [now, setNow] = useState(Date.now());
   const [error, setError] = useState('');
-  const [columnCount, setColumnCount] = useState(() => getColumnCount(window.innerWidth));
   const [showReady, setShowReady] = useState(false);
-
-  useEffect(() => {
-    const handleResize = () => setColumnCount(getColumnCount(window.innerWidth));
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -105,6 +121,7 @@ const KitchenDisplay = () => {
       if (!order || !Array.isArray(order.foods) || order.foods.length === 0) return;
       setOrders((prev) => {
         if (prev.some((o) => getOrderId(o) === getOrderId(order))) return prev;
+        playNewOrderSound();
         return [order, ...prev];
       });
     });
@@ -112,14 +129,19 @@ const KitchenDisplay = () => {
     const unsubUpdated = onSocketEvent('order:updated', ({ order }) => {
       if (!order) return;
       const orderId = getOrderId(order);
-      if (isOwnUpdate(orderId)) return;
 
       setOrders((prev) => {
         if (order.status !== 'Preparacion') {
           return prev.filter((o) => getOrderId(o) !== orderId);
         }
-        const exists = prev.some((o) => getOrderId(o) === orderId);
-        if (!exists) return [order, ...prev];
+        const previous = prev.find((o) => getOrderId(o) === orderId);
+        if (!previous) {
+          playNewOrderSound();
+          return [order, ...prev];
+        }
+        if (previous.kitchenReadyAt && !order.kitchenReadyAt) {
+          playNewOrderSound();
+        }
         return prev.map((o) => (getOrderId(o) === orderId ? order : o));
       });
     });
@@ -135,7 +157,7 @@ const KitchenDisplay = () => {
       ? orders
       : orders.filter((order) => order.section === sectionFilter);
     // Más antiguos primero, más nuevos al final
-    return [...bySection].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    return [...bySection].sort((a, b) => getKitchenTimeReference(a) - getKitchenTimeReference(b));
   }, [orders, sectionFilter]);
 
   // Los pedidos listos se sacan de la lista principal para no estorbar; se ven
@@ -148,23 +170,6 @@ const KitchenDisplay = () => {
     () => filteredOrders.filter((order) => order.kitchenReadyAt),
     [filteredOrders]
   );
-
-  // Distribución en columnas independientes: si una tarjeta crece por tener más
-  // productos, solo empuja hacia abajo a las tarjetas de SU misma columna,
-  // sin desordenar ni ocupar el lugar de tarjetas de otras columnas.
-  const buildColumns = useCallback(
-    (list) => {
-      const cols = Array.from({ length: columnCount }, () => []);
-      list.forEach((order, index) => {
-        cols[index % columnCount].push(order);
-      });
-      return cols;
-    },
-    [columnCount]
-  );
-
-  const activeColumns = useMemo(() => buildColumns(activeOrders), [activeOrders, buildColumns]);
-  const readyColumns = useMemo(() => buildColumns(readyOrders), [readyOrders, buildColumns]);
 
   const handleMarkReady = async (orderId) => {
     markOwnUpdate(orderId);
@@ -220,7 +225,12 @@ const KitchenDisplay = () => {
   return (
     <div className="h-screen w-screen overflow-y-auto bg-gray-900 text-white p-6">
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-        <h1 className="text-3xl font-bold">Cocina</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold">Cocina</h1>
+          <span className="px-3 py-1 rounded-full text-lg font-bold bg-amber-500 text-gray-900">
+            {activeOrders.length} en preparación
+          </span>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setShowReady((prev) => !prev)}
@@ -248,6 +258,14 @@ const KitchenDisplay = () => {
               {section === 'all' ? 'Todas' : SECTION_LABELS[section]}
             </button>
           ))}
+          <div className="w-px h-6 bg-gray-700 mx-1" />
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 rounded-lg text-lg font-medium transition-colors flex items-center gap-2 bg-gray-800 text-red-300 hover:bg-red-900/60"
+          >
+            <ArrowRightEndOnRectangleIcon className="w-5 h-5" />
+            Cerrar sesión
+          </button>
         </div>
       </div>
 
@@ -257,20 +275,17 @@ const KitchenDisplay = () => {
 
       {showReady && readyOrders.length > 0 && (
         <div className="mb-6 pb-6 border-b border-gray-700">
-          <div className="flex gap-4 items-start">
-            {readyColumns.map((column, columnIndex) => (
-              <div key={columnIndex} className="flex-1 min-w-0 flex flex-col gap-4">
-                {column.map((order) => (
-                  <KitchenOrderCard
-                    key={getOrderId(order)}
-                    order={order}
-                    now={now}
-                    onMarkReady={handleMarkReady}
-                    requireAllItemsReady={requireAllItemsReady}
-                    onToggleItemReady={handleToggleItemReady}
-                  />
-                ))}
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+            {readyOrders.map((order) => (
+              <KitchenOrderCard
+                key={getOrderId(order)}
+                order={order}
+                now={now}
+                onMarkReady={handleMarkReady}
+                requireAllItemsReady={requireAllItemsReady}
+                onToggleItemReady={handleToggleItemReady}
+                canMarkReady={canMarkReady}
+              />
             ))}
           </div>
         </div>
@@ -281,20 +296,17 @@ const KitchenDisplay = () => {
           No hay pedidos en preparación
         </p>
       ) : (
-        <div className="flex gap-4 items-start">
-          {activeColumns.map((column, columnIndex) => (
-            <div key={columnIndex} className="flex-1 min-w-0 flex flex-col gap-4">
-              {column.map((order) => (
-                <KitchenOrderCard
-                  key={getOrderId(order)}
-                  order={order}
-                  now={now}
-                  onMarkReady={handleMarkReady}
-                  requireAllItemsReady={requireAllItemsReady}
-                  onToggleItemReady={handleToggleItemReady}
-                />
-              ))}
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+          {activeOrders.map((order) => (
+            <KitchenOrderCard
+              key={getOrderId(order)}
+              order={order}
+              now={now}
+              onMarkReady={handleMarkReady}
+              requireAllItemsReady={requireAllItemsReady}
+              onToggleItemReady={handleToggleItemReady}
+              canMarkReady={canMarkReady}
+            />
           ))}
         </div>
       )}
@@ -302,13 +314,14 @@ const KitchenDisplay = () => {
   );
 };
 
-const KitchenOrderCard = ({ order, now, onMarkReady, requireAllItemsReady, onToggleItemReady }) => {
+const KitchenOrderCard = ({ order, now, onMarkReady, requireAllItemsReady, onToggleItemReady, canMarkReady }) => {
   const orderId = getOrderId(order);
   const elapsedMinutes = getElapsedMinutes(order, now);
   const urgencyVariant = getUrgencyVariant(elapsedMinutes);
   const items = normalizeKitchenItems(order);
   const isReady = Boolean(order.kitchenReadyAt);
   const readyItemsCount = items.filter((item) => item.ready).length;
+  const allItemsReady = items.length > 0 && readyItemsCount === items.length;
 
   return (
     <div
@@ -393,21 +406,40 @@ const KitchenOrderCard = ({ order, now, onMarkReady, requireAllItemsReady, onTog
       )}
 
       {requireAllItemsReady ? (
-        <div
-          className={`mt-2 py-2.5 rounded-lg text-center text-sm font-bold ${
-            isReady ? 'bg-green-950 text-green-300' : 'bg-gray-900 text-gray-400'
-          }`}
-        >
-          {isReady ? '✓ Todos los productos listos' : `${readyItemsCount}/${items.length} productos listos`}
-        </div>
+        <>
+          <div
+            className={`mt-2 py-1.5 rounded-lg text-center text-sm font-bold ${
+              isReady ? 'bg-green-950 text-green-300' : 'bg-gray-900 text-gray-400'
+            }`}
+          >
+            {isReady ? '✓ Todos los productos listos' : `${readyItemsCount}/${items.length} productos listos`}
+          </div>
+          <button
+            onClick={() => onMarkReady(orderId)}
+            disabled={isReady || !allItemsReady || !canMarkReady}
+            title={!canMarkReady ? 'Solo el dueño puede confirmar el pedido como listo' : undefined}
+            className={`py-3 rounded-lg text-lg font-bold transition-colors ${
+              isReady
+                ? 'bg-green-950 text-green-300 cursor-default'
+                : allItemsReady && canMarkReady
+                  ? 'bg-green-600 hover:bg-green-500 text-white'
+                  : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            {isReady ? 'Listo' : 'Confirmar Listo'}
+          </button>
+        </>
       ) : (
         <button
           onClick={() => onMarkReady(orderId)}
-          disabled={isReady}
+          disabled={isReady || !canMarkReady}
+          title={!canMarkReady ? 'Solo el dueño puede confirmar el pedido como listo' : undefined}
           className={`mt-2 py-3 rounded-lg text-lg font-bold transition-colors ${
             isReady
               ? 'bg-green-950 text-green-300 cursor-default'
-              : 'bg-green-600 hover:bg-green-500 text-white'
+              : canMarkReady
+                ? 'bg-green-600 hover:bg-green-500 text-white'
+                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
           }`}
         >
           {isReady ? 'Listo' : 'Marcar Listo'}

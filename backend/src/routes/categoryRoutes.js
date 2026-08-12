@@ -5,19 +5,19 @@ const { createCategoryController, getAllCategoriesController, updateCategoryCont
 const router = express.Router();
 
 // CREATE CATEGORY
-router.post('/create', authMiddleware, denyRoleMiddleware('mesero'), createCategoryController);
+router.post('/create', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), createCategoryController);
 
 // GET ALL CATEGORIES
 router.get('/getAll', authMiddleware, getAllCategoriesController);
 
 // UPDATE CATEGORY
-router.put('/update/:id', authMiddleware, denyRoleMiddleware('mesero'), updateCategoryController);
+router.put('/update/:id', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), updateCategoryController);
 
 // BATCH UPDATE PRINT DESTINATIONS
-router.put('/print-destinations/batch', authMiddleware, denyRoleMiddleware('mesero'), batchUpdatePrintDestinationsController);
+router.put('/print-destinations/batch', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), batchUpdatePrintDestinationsController);
 
 // DELETE CATEGORY
-router.delete('/delete/:id', authMiddleware, denyRoleMiddleware('mesero'), deleteCategoryController);
+router.delete('/delete/:id', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), deleteCategoryController);
 
 
 

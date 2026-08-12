@@ -31,19 +31,19 @@ router.get('/plans', getPlans);
  * GET /api/subscriptions/current
  * Obtener la suscripción actual del usuario autenticado
  */
-router.get('/current', authMiddleware, denyRoleMiddleware('mesero'), getCurrentSubscription);
+router.get('/current', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), getCurrentSubscription);
 
 /**
  * GET /api/subscriptions/:subscriptionId/history
  * Obtener historial de pagos de una suscripción
  */
-router.get('/:subscriptionId/history', authMiddleware, denyRoleMiddleware('mesero'), getPaymentHistory);
+router.get('/:subscriptionId/history', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), getPaymentHistory);
 
 /**
  * POST /api/subscriptions/checkout
  * Iniciar proceso de checkout
  */
-router.post('/checkout', authMiddleware, denyRoleMiddleware('mesero'), initiateCheckout);
+router.post('/checkout', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), initiateCheckout);
 
 /**
  * GET /api/subscriptions/verify-payment
@@ -55,25 +55,25 @@ router.get('/verify-payment', verifyMercadoPagoPayment);
  * POST /api/subscriptions/create
  * Crear una nueva suscripción
  */
-router.post('/create', authMiddleware, denyRoleMiddleware('mesero'), createSubscription);
+router.post('/create', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), createSubscription);
 
 /**
  * PUT /api/subscriptions/:subscriptionId/renew
  * Renovar una suscripción existente
  */
-router.put('/:subscriptionId/renew', authMiddleware, denyRoleMiddleware('mesero'), updateSubscription);
+router.put('/:subscriptionId/renew', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), updateSubscription);
 
 /**
  * PUT /api/subscriptions/:subscriptionId/upgrade
  * Cambiar el plan de una suscripción
  */
-router.put('/:subscriptionId/upgrade', authMiddleware, denyRoleMiddleware('mesero'), upgradePlan);
+router.put('/:subscriptionId/upgrade', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), upgradePlan);
 
 /**
  * PUT /api/subscriptions/:subscriptionId/cancel
  * Cancelar una suscripción
  */
-router.put('/:subscriptionId/cancel', authMiddleware, denyRoleMiddleware('mesero'), cancelSubscriptionHandler);
+router.put('/:subscriptionId/cancel', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), cancelSubscriptionHandler);
 
 // Rutas de administrador (solo super_admin)
 /**

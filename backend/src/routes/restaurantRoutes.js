@@ -18,6 +18,6 @@ router.get('/get/:id', getRestaurantById);
 
 // Configuracion compartida del restaurante (web + app meseros)
 router.get('/settings/me', authMiddleware, filterByRestaurant, getMyRestaurantSettings);
-router.put('/settings/me', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, updateMyRestaurantSettings);
+router.put('/settings/me', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, updateMyRestaurantSettings);
 
 module.exports = router;

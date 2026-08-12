@@ -13,7 +13,7 @@ const {
 const router = express.Router();
 
 // El módulo de reportes no forma parte del módulo de mesas del rol mesero
-router.use(authMiddleware, denyRoleMiddleware('mesero'));
+router.use(authMiddleware, denyRoleMiddleware('mesero', 'cocina'));
 
 // Dashboard resumen rápido
 router.get('/dashboard', filterByRestaurant, getDashboardReport);

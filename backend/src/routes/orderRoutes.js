@@ -9,7 +9,7 @@ const router = express.Router();
 router.post('/create', authMiddleware, filterByRestaurant, createOrderController);
 
 // GET ALL ORDERS
-router.get('/getAll', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, getAllOrdersController);
+router.get('/getAll', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getAllOrdersController);
 
 // GET AN ORDER BY ID
 router.get('/get/:id', authMiddleware, filterByRestaurant, getOrderByIdController);
@@ -24,25 +24,26 @@ router.put('/update/:id', authMiddleware, filterByRestaurant, updateOrderControl
 router.put('/item-ready/:id', authMiddleware, filterByRestaurant, updateOrderItemReadyController);
 
 // DELETE AN ORDER
-router.delete('/delete/:id', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, deleteOrderController);
+router.delete('/delete/:id', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, deleteOrderController);
 
 // GET TIPS WITH FILTERS (debe ir antes de rutas genéricas)
-router.get('/tips', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, getTipsController);
+router.get('/tips', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getTipsController);
 
 // GET FILTERED ORDERS
-router.get('/sales', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, getFilteredOrders);
+router.get('/sales', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getFilteredOrders);
 
 // GET FILTERED ORDERS BY CASH REGISTER
-router.get('/sales/cash/:cashRegisterId', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, getFilteredOrders);
+router.get('/sales/cash/:cashRegisterId', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getFilteredOrders);
 
 // GET RECENT ORDERS (limit, status, section)
-router.get('/recent', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, getRecentOrders);
+router.get('/recent', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getRecentOrders);
 
 // GET SECTION ORDERS (active + recent in one call)
+// NOTA: 'cocina' SÍ necesita esta ruta — es la que usa el KDS para cargar los pedidos.
 router.get('/section', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, getSectionOrders);
 
 // GET ALL SALES FOR SALES PAGE (WITHOUT CASH REGISTER FILTER)
-router.get('/getAllSales', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, getAllSalesController);
+router.get('/getAllSales', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getAllSalesController);
 
 // SOLICITAR IMPRESIÓN DE TICKET DE CLIENTE (desde app)
 router.post('/print-ticket/:id', authMiddleware, filterByRestaurant, printTicketController);

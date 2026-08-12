@@ -161,6 +161,14 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
             },
             fieldName: 'kitchenDisplayRequireAllItemsReady',
         },
+        {
+            nested: payload?.kitchenDisplay?.onlyOwnerCanMarkReady,
+            flat: payload?.kitchenDisplayOnlyOwnerCanMarkReady,
+            assign: (value) => {
+                nextSettings.kitchenDisplay.onlyOwnerCanMarkReady = value;
+            },
+            fieldName: 'kitchenDisplayOnlyOwnerCanMarkReady',
+        },
     ];
 
     for (const field of booleanFieldMap) {

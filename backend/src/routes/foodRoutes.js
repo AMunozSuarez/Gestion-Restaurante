@@ -7,7 +7,7 @@ const filterByRestaurant = require('../middlewares/filterByRestaurant');
 const router = express.Router();
 
 // CREATE A NEW FOOD
-router.post('/create', authMiddleware, denyRoleMiddleware('mesero'), filterByRestaurant, createFoodController);
+router.post('/create', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, createFoodController);
 
 // GET ALL FOODS
 router.get('/getAll', authMiddleware, filterByRestaurant, getAllFoodsController);
@@ -19,10 +19,10 @@ router.get('/get/:id', authMiddleware, getFoodByIdController);
 router.get('/getByRestaurant/:restaurantId', authMiddleware, getFoodByRestaurantIdController);
 
 // UPDATE A FOOD BY ID
-router.put('/update/:id', authMiddleware, denyRoleMiddleware('mesero'), updateFoodController);
+router.put('/update/:id', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), updateFoodController);
 
 // DELETE A FOOD BY ID
-router.delete('/delete/:id', authMiddleware, denyRoleMiddleware('mesero'), deleteFoodController);
+router.delete('/delete/:id', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), deleteFoodController);
 
 
 

@@ -126,6 +126,13 @@ const orderSchema = new mongoose.Schema({
         type: Date,
         default: null,
     },
+    // Se actualiza cuando se agregan productos a una orden que ya estaba lista,
+    // para que la pantalla de cocina reinicie el tiempo transcurrido y la
+    // muestre como recién ingresada en lugar de conservar el tiempo original.
+    kitchenActivityAt: {
+        type: Date,
+        default: null,
+    },
     deletedFoods: [
         {
             food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food' },
