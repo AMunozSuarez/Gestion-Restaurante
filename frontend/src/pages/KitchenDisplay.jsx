@@ -5,7 +5,7 @@ import ordersService from '../services/ordersService';
 import { useRestaurant } from '../hooks/useRestaurant';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowRightEndOnRectangleIcon } from '@heroicons/react/24/outline';
-import { onSocketEvent, isOwnUpdate, markOwnUpdate } from '../services/socketService';
+import { onSocketEvent, markOwnUpdate } from '../services/socketService';
 import { normalizeKitchenItems } from '../utils/kitchenOrderNormalize';
 
 // Umbrales del semáforo (minutos desde la creación del pedido). Ajustar aquí si se necesita otro ritmo de cocina.
@@ -23,10 +23,38 @@ const SECTION_FILTERS = ['all', 'mesas', 'mostrador', 'delivery'];
 
 const getOrderId = (order) => order._id || order.id;
 
-const getElapsedMinutes = (order, now) => {
-  const createdAt = new Date(order.createdAt).getTime();
-  return (now - createdAt) / 60000;
+const playNewOrderSound = () => {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioContextClass();
+    const now = ctx.currentTime;
+
+    [880, 1320].forEach((freq, idx) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = freq;
+      const start = now + idx * 0.15;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.3, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.25);
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start(start);
+      oscillator.stop(start + 0.3);
+    });
+
+    setTimeout(() => ctx.close(), 800);
+  } catch {
+    // Web Audio no disponible; se ignora en silencio.
+  }
 };
+
+// kitchenActivityAt se reinicia cuando se agregan productos a una orden que ya
+// estaba lista, para que vuelva a mostrarse como recién ingresada.
+const getKitchenTimeReference = (order) => new Date(order.kitchenActivityAt || order.createdAt).getTime();
+
+const getElapsedMinutes = (order, now) => (now - getKitchenTimeReference(order)) / 60000;
 
 const getUrgencyVariant = (elapsedMinutes) => {
   if (elapsedMinutes >= KDS_OVERDUE_MINUTES) return 'danger';
@@ -93,6 +121,7 @@ const KitchenDisplay = () => {
       if (!order || !Array.isArray(order.foods) || order.foods.length === 0) return;
       setOrders((prev) => {
         if (prev.some((o) => getOrderId(o) === getOrderId(order))) return prev;
+        playNewOrderSound();
         return [order, ...prev];
       });
     });
@@ -100,14 +129,19 @@ const KitchenDisplay = () => {
     const unsubUpdated = onSocketEvent('order:updated', ({ order }) => {
       if (!order) return;
       const orderId = getOrderId(order);
-      if (isOwnUpdate(orderId)) return;
 
       setOrders((prev) => {
         if (order.status !== 'Preparacion') {
           return prev.filter((o) => getOrderId(o) !== orderId);
         }
-        const exists = prev.some((o) => getOrderId(o) === orderId);
-        if (!exists) return [order, ...prev];
+        const previous = prev.find((o) => getOrderId(o) === orderId);
+        if (!previous) {
+          playNewOrderSound();
+          return [order, ...prev];
+        }
+        if (previous.kitchenReadyAt && !order.kitchenReadyAt) {
+          playNewOrderSound();
+        }
         return prev.map((o) => (getOrderId(o) === orderId ? order : o));
       });
     });
@@ -123,7 +157,7 @@ const KitchenDisplay = () => {
       ? orders
       : orders.filter((order) => order.section === sectionFilter);
     // Más antiguos primero, más nuevos al final
-    return [...bySection].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    return [...bySection].sort((a, b) => getKitchenTimeReference(a) - getKitchenTimeReference(b));
   }, [orders, sectionFilter]);
 
   // Los pedidos listos se sacan de la lista principal para no estorbar; se ven

@@ -67,6 +67,36 @@ const hasReducedExistingFoodQuantities = (currentFoods = [], nextFoods = []) => 
     return false;
 };
 
+// Firma de un item incluyendo comentario, para emparejar productos ya existentes
+// con los nuevos foods enviados al editar la orden y así conservar su estado "ready".
+const buildOrderFoodItemSignature = (item = {}) => JSON.stringify({
+    foodId: String(item?.food || ''),
+    comment: String(item?.comment || '').trim(),
+    selectedExtras: normalizeSelectedExtrasForSignature(item?.selectedExtras),
+});
+
+// Al editar los productos de una orden, el frontend reconstruye el array `foods`
+// completo sin el flag `ready` (ese estado solo se guarda en la BD). Para no perder
+// el check de los productos que ya estaban listos, se empareja cada item nuevo con
+// uno existente por firma (mismo producto + comentario + extras) y se reutiliza su
+// valor de `ready`; los productos realmente nuevos quedan sin marcar.
+const mergeFoodsReadyState = (previousFoods = [], nextFoods = []) => {
+    const readyQueueBySignature = new Map();
+    for (const item of previousFoods) {
+        const signature = buildOrderFoodItemSignature(item);
+        const queue = readyQueueBySignature.get(signature) || [];
+        queue.push(Boolean(item?.ready));
+        readyQueueBySignature.set(signature, queue);
+    }
+
+    return nextFoods.map((item) => {
+        const signature = buildOrderFoodItemSignature(item);
+        const queue = readyQueueBySignature.get(signature);
+        const ready = queue && queue.length > 0 ? queue.shift() : false;
+        return { ...item, ready };
+    });
+};
+
 // CREATE A NEW ORDER
 
 const createOrderController = async (req, res) => {
@@ -470,7 +500,7 @@ const updateOrderController = async (req, res) => {
         if (foods !== undefined || deletedFoods !== undefined || discount !== undefined) {
             currentOrderSnapshot = await orderModel
                 .findOne({ _id: req.params.id, restaurant: restaurantId })
-                .select('foods deletedFoods total discount')
+                .select('foods deletedFoods total discount kitchenReadyAt')
                 .lean();
 
             if (!currentOrderSnapshot) {
@@ -716,8 +746,11 @@ const updateOrderController = async (req, res) => {
 
             updateData.name = !customer && buyer ? buyer.name : null;
             updateData.buyer = customer ? customer._id : null;
-            updateData.foods = foods;
+            updateData.foods = mergeFoodsReadyState(currentOrderSnapshot.foods || [], foods);
             updateData.kitchenReadyAt = null;
+            if (currentOrderSnapshot.kitchenReadyAt) {
+                updateData.kitchenActivityAt = new Date();
+            }
             if (section !== undefined) updateData.section = section;
             updateData.total = total - (discount || 0);
             updateData.deliveryCost = deliveryCost;
