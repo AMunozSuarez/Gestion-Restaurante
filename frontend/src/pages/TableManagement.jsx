@@ -616,9 +616,13 @@ const TableManagement = () => {
                                         }`}
                                     >
                                         {section}
-                                        {filteredTables.filter(t => (t.section || 'Salón') === section && t.status === 'occupied').length > 0 && currentSection === section && (
-                                            <span className="ml-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
-                                                {filteredTables.filter(t => (t.section || 'Salón') === section && t.status === 'occupied').length}
+                                        {tables.filter(t => (t.section || 'Salón') === section && t.status === 'occupied').length > 0 && (
+                                            <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                                                currentSection === section
+                                                    ? 'bg-orange-500 text-white'
+                                                    : 'bg-orange-100 text-orange-700'
+                                            }`}>
+                                                {tables.filter(t => (t.section || 'Salón') === section && t.status === 'occupied').length}
                                             </span>
                                         )}
                                     </button>
