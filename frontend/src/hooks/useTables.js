@@ -53,13 +53,23 @@ export const useTables = () => {
     }, []);
 
     const updateTable = useCallback(async (id, tableData) => {
+        let previousTable;
+        setTables(prev => prev.map(table => {
+            if (table._id !== id) return table;
+            previousTable = table;
+            return { ...table, ...tableData };
+        }));
+
         try {
             const updatedTable = await tablesService.updateTable(id, tableData);
-            setTables(prev => prev.map(table => 
+            setTables(prev => prev.map(table =>
                 table._id === id ? updatedTable : table
             ));
             return updatedTable;
         } catch (err) {
+            setTables(prev => prev.map(table =>
+                table._id === id && previousTable ? previousTable : table
+            ));
             setError(err.message);
             throw err;
         }

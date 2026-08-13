@@ -16,6 +16,53 @@ import {
     ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { Button } from '../components/ui';
+import {
+    DndContext,
+    useDraggable,
+    useDroppable,
+    PointerSensor,
+    TouchSensor,
+    useSensor,
+    useSensors
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+
+const DraggableTable = ({ table, isEditMode, children, className, style }) => {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+        id: table._id,
+        disabled: !isEditMode
+    });
+
+    return (
+        <div
+            ref={setNodeRef}
+            {...(isEditMode ? listeners : {})}
+            {...(isEditMode ? attributes : {})}
+            style={{
+                ...style,
+                transform: transform ? CSS.Translate.toString(transform) : undefined,
+                zIndex: isDragging ? 50 : undefined,
+                position: isDragging ? 'relative' : style?.position
+            }}
+            className={className}
+        >
+            {children}
+        </div>
+    );
+};
+
+const DroppableCell = ({ position, isEditMode, children, className }) => {
+    const { setNodeRef } = useDroppable({
+        id: `${position.x}-${position.y}`,
+        disabled: !isEditMode
+    });
+
+    return (
+        <div ref={setNodeRef} className={className}>
+            {children}
+        </div>
+    );
+};
 
 const TableManagement = () => {
     const navigate = useNavigate();
@@ -46,6 +93,12 @@ const TableManagement = () => {
     const [editingSectionName, setEditingSectionName] = useState(null);
     const [sectionToEdit, setSectionToEdit] = useState('');
     const [customSections, setCustomSections] = useState(['Salón']);
+
+    // Sensores dnd-kit: mouse (con distancia mínima para no romper el click) y touch
+    const dndSensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
+    );
 
     // Cargar secciones personalizadas desde localStorage al montar
     useEffect(() => {
@@ -221,62 +274,71 @@ const TableManagement = () => {
         }
     };
 
-    // Funciones para drag and drop
-    const handleDragStart = (e, table) => {
-        setDraggedTable(table);
-        e.dataTransfer.effectAllowed = 'move';
-    };
-
-    const handleDragOver = (e, position) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        setDragOverPosition(position);
-    };
-
-    const handleDragLeave = () => {
-        setDragOverPosition(null);
-    };
-
-    const handleDrop = async (e, newPosition) => {
-        e.preventDefault();
-        setDragOverPosition(null);
-
-        if (!draggedTable) return;
-
+    // Funciones para drag and drop (dnd-kit: funciona con mouse, touch y teclado)
+    const moveTableTo = async (draggedTableRef, newPosition) => {
         // Verificar si hay otra mesa en la posición destino (solo en la sección actual)
         const tableInPosition = filteredTables.find(t =>
-            t._id !== draggedTable._id &&
+            t._id !== draggedTableRef._id &&
             t.position?.x === newPosition.x &&
             t.position?.y === newPosition.y
         );
+
+        // Si es la misma posición, no hacer nada
+        if (!tableInPosition &&
+            draggedTableRef.position?.x === newPosition.x &&
+            draggedTableRef.position?.y === newPosition.y) {
+            return;
+        }
 
         try {
             if (tableInPosition) {
                 // Intercambiar posiciones
                 await Promise.all([
-                    updateTable(draggedTable._id, {
+                    updateTable(draggedTableRef._id, {
                         position: { x: newPosition.x, y: newPosition.y }
                     }),
                     updateTable(tableInPosition._id, {
-                        position: { x: draggedTable.position?.x || 0, y: draggedTable.position?.y || 0 }
+                        position: { x: draggedTableRef.position?.x || 0, y: draggedTableRef.position?.y || 0 }
                     })
                 ]);
             } else {
                 // Mover a posición vacía
-                await updateTable(draggedTable._id, {
+                await updateTable(draggedTableRef._id, {
                     position: { x: newPosition.x, y: newPosition.y }
                 });
             }
         } catch (error) {
             showNotification('Error al mover mesa: ' + error.message, 'error');
         }
-        
-        setDraggedTable(null);
     };
 
-    const handleDragEnd = () => {
+    const handleDndDragStart = (event) => {
+        const table = filteredTables.find(t => t._id === event.active.id);
+        setDraggedTable(table || null);
+    };
+
+    const handleDndDragOver = (event) => {
+        const { over } = event;
+        if (!over) {
+            setDragOverPosition(null);
+            return;
+        }
+        const [x, y] = over.id.split('-').map(Number);
+        setDragOverPosition({ x, y });
+    };
+
+    const handleDndDragEnd = async (event) => {
+        const { active, over } = event;
         setDraggedTable(null);
         setDragOverPosition(null);
+
+        if (!over) return;
+
+        const table = filteredTables.find(t => t._id === active.id);
+        if (!table) return;
+
+        const [x, y] = over.id.split('-').map(Number);
+        await moveTableTo(table, { x, y });
     };
 
     // Funciones para manejar secciones
@@ -581,13 +643,7 @@ const TableManagement = () => {
                 ) : (
                     // Vista responsive: mobile en tarjetas compactas, desktop en grilla
                     <div>
-                        <div className="md:hidden">
-                            {isEditMode && (
-                                <div className="mb-3 text-center">
-                                    <p className="text-xs text-gray-600">En mobile puedes editar y eliminar mesas. Para mover posiciones, usa desktop.</p>
-                                </div>
-                            )}
-
+                        <div className={isEditMode ? 'hidden' : 'md:hidden'}>
                             <div className="flex flex-wrap gap-2">
                                 {[...filteredTables]
                                     .sort((a, b) => a.tableNumber - b.tableNumber)
@@ -662,94 +718,108 @@ const TableManagement = () => {
                             </div>
                         </div>
 
-                        <div className="hidden md:block">
+                        <div className={isEditMode ? 'block' : 'hidden md:block'}>
                             {isEditMode && (
                                 <div className="mb-4 text-center">
                                     <p className="text-sm text-gray-600">Arrastra las mesas para cambiar su posición</p>
                                 </div>
                             )}
-                                <div className={`grid grid-cols-7 gap-2 p-4 rounded-xl ${
-                                isEditMode 
-                                    ? 'bg-gray-100' 
-                                        : 'bg-[#f4f6f2] border border-[#dfe6d8]'
-                            }`}>
-                                {createGrid().map(({ position, table }) => (
-                                    <div
-                                        key={`${position.x}-${position.y}`}
-                                        onDragOver={isEditMode ? (e) => handleDragOver(e, position) : undefined}
-                                        onDragLeave={isEditMode ? handleDragLeave : undefined}
-                                        onDrop={isEditMode ? (e) => handleDrop(e, position) : undefined}
-                                        className={`
-                                            aspect-square rounded-lg transition-all
-                                            ${isEditMode ? 'border-2 border-dashed' : !table ? 'border border-gray-200 bg-white/80' : ''}
-                                            ${isEditMode && dragOverPosition?.x === position.x && dragOverPosition?.y === position.y
-                                                ? 'border-green-500 bg-green-50'
-                                                : isEditMode ? 'border-gray-300 bg-white' : ''
-                                            }
-                                            ${isEditMode && table ? '' : isEditMode ? 'hover:border-gray-400' : ''}
-                                        `}
-                                    >
-                                        {table ? (
-                                            <div
-                                                draggable={isEditMode}
-                                                onDragStart={isEditMode ? (e) => handleDragStart(e, table) : undefined}
-                                                onDragEnd={isEditMode ? handleDragEnd : undefined}
-                                                onClick={() => handleTableClick(table)}
+                            <div className={isEditMode ? 'overflow-x-auto -mx-4 px-4' : ''}>
+                                <DndContext
+                                    sensors={dndSensors}
+                                    onDragStart={handleDndDragStart}
+                                    onDragOver={handleDndDragOver}
+                                    onDragEnd={handleDndDragEnd}
+                                >
+                                    <div className={`grid grid-cols-7 gap-2 p-4 rounded-xl ${
+                                        isEditMode ? 'min-w-[560px]' : ''
+                                    } ${
+                                        isEditMode
+                                            ? 'bg-gray-100'
+                                            : 'bg-[#f4f6f2] border border-[#dfe6d8]'
+                                    }`}>
+                                        {createGrid().map(({ position, table }) => (
+                                            <DroppableCell
+                                                key={`${position.x}-${position.y}`}
+                                                position={position}
+                                                isEditMode={isEditMode}
                                                 className={`
-                                                    w-full h-full rounded-lg transition-all relative
-                                                    ${getTableStatusColor(table)}
-                                                    ${draggedTable?._id === table._id ? 'opacity-50' : 'opacity-100'}
-                                                    ${getTableHoverClasses(table, isEditMode)}
+                                                    aspect-square rounded-lg transition-all
+                                                    ${isEditMode ? 'border-2 border-dashed' : !table ? 'border border-gray-200 bg-white/80' : ''}
+                                                    ${isEditMode && dragOverPosition?.x === position.x && dragOverPosition?.y === position.y
+                                                        ? 'border-green-500 bg-green-50'
+                                                        : isEditMode ? 'border-gray-300 bg-white' : ''
+                                                    }
+                                                    ${isEditMode && table ? '' : isEditMode ? 'hover:border-gray-400' : ''}
                                                 `}
                                             >
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
-                                                    <div className={`font-bold ${
-                                                        isEditMode ? 'text-xl' : 'text-2xl'
-                                                    }`}>
-                                                        {table.tableNumber}
-                                                    </div>
-                                                    <div className={`flex items-center gap-1 ${
-                                                        isEditMode ? 'text-xs' : 'text-sm'
-                                                    }`}>
-                                                        <UserGroupIcon className={isEditMode ? 'w-3 h-3' : 'w-4 h-4'} />
-                                                        <span>
-                                                            {!isEditMode && table.status === 'occupied' && table.currentGuests 
-                                                                ? `${table.currentGuests}/${table.capacity}`
-                                                                : table.capacity
-                                                            }
-                                                        </span>
-                                                    </div>
-                                                    
-                                                    {/* Tiempo activo - solo en vista normal */}
-                                                    {!isEditMode && table.status === 'occupied' && table.openedAt && (
-                                                        <div className="flex items-center gap-1 text-xs mt-1 font-semibold text-orange-800">
-                                                            <ClockIcon className="w-3 h-3" />
-                                                            <span>{getTableDuration(table.openedAt)}</span>
+                                                {table ? (
+                                                    <DraggableTable
+                                                        table={table}
+                                                        isEditMode={isEditMode}
+                                                        style={{ touchAction: isEditMode ? 'none' : undefined }}
+                                                        className={`
+                                                            w-full h-full rounded-lg transition-all relative
+                                                            ${getTableStatusColor(table)}
+                                                            ${draggedTable?._id === table._id ? 'opacity-50' : 'opacity-100'}
+                                                            ${getTableHoverClasses(table, isEditMode)}
+                                                        `}
+                                                    >
+                                                        <div
+                                                            onClick={() => !isEditMode && handleTableClick(table)}
+                                                            className="absolute inset-0 flex flex-col items-center justify-center p-2"
+                                                        >
+                                                            <div className={`font-bold ${
+                                                                isEditMode ? 'text-xl' : 'text-2xl'
+                                                            }`}>
+                                                                {table.tableNumber}
+                                                            </div>
+                                                            <div className={`flex items-center gap-1 ${
+                                                                isEditMode ? 'text-xs' : 'text-sm'
+                                                            }`}>
+                                                                <UserGroupIcon className={isEditMode ? 'w-3 h-3' : 'w-4 h-4'} />
+                                                                <span>
+                                                                    {!isEditMode && table.status === 'occupied' && table.currentGuests
+                                                                        ? `${table.currentGuests}/${table.capacity}`
+                                                                        : table.capacity
+                                                                    }
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Tiempo activo - solo en vista normal */}
+                                                            {!isEditMode && table.status === 'occupied' && table.openedAt && (
+                                                                <div className="flex items-center gap-1 text-xs mt-1 font-semibold text-orange-800">
+                                                                    <ClockIcon className="w-3 h-3" />
+                                                                    <span>{getTableDuration(table.openedAt)}</span>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                </div>
-                                                
-                                                {/* Botones de edición - solo en modo edición */}
-                                                {isEditMode && (
-                                                    <div className="absolute top-1 right-1 flex gap-1">
-                                                        <button
-                                                            onClick={(e) => handleEditTable(table, e)}
-                                                            className="p-1 bg-white bg-opacity-90 hover:bg-opacity-100 rounded transition-all"
-                                                        >
-                                                            <PencilIcon className="w-3 h-3 text-teal-600" />
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => handleDeleteTable(table, e)}
-                                                            className="p-1 bg-white bg-opacity-90 hover:bg-opacity-100 rounded transition-all"
-                                                        >
-                                                            <TrashIcon className="w-3 h-3 text-red-600" />
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : null}
+
+                                                        {/* Botones de edición - solo en modo edición */}
+                                                        {isEditMode && (
+                                                            <div className="absolute top-1 right-1 flex gap-1">
+                                                                <button
+                                                                    onPointerDown={(e) => e.stopPropagation()}
+                                                                    onClick={(e) => handleEditTable(table, e)}
+                                                                    className="p-1 bg-white bg-opacity-90 hover:bg-opacity-100 rounded transition-all"
+                                                                >
+                                                                    <PencilIcon className="w-3 h-3 text-teal-600" />
+                                                                </button>
+                                                                <button
+                                                                    onPointerDown={(e) => e.stopPropagation()}
+                                                                    onClick={(e) => handleDeleteTable(table, e)}
+                                                                    className="p-1 bg-white bg-opacity-90 hover:bg-opacity-100 rounded transition-all"
+                                                                >
+                                                                    <TrashIcon className="w-3 h-3 text-red-600" />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </DraggableTable>
+                                                ) : null}
+                                            </DroppableCell>
+                                        ))}
                                     </div>
-                                ))}
+                                </DndContext>
                             </div>
                         </div>
                     </div>
