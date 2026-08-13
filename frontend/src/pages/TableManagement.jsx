@@ -41,6 +41,9 @@ const DraggableTable = ({ table, isEditMode, children, className, style }) => {
             style={{
                 ...style,
                 transform: transform ? CSS.Translate.toString(transform) : undefined,
+                // Sin esto, la clase "transition-all" anima el transform y la mesa queda
+                // "persiguiendo" al puntero en vez de moverse junto a él al instante.
+                transition: isDragging ? 'none' : style?.transition,
                 zIndex: isDragging ? 50 : undefined,
                 position: isDragging ? 'relative' : style?.position
             }}
@@ -87,6 +90,9 @@ const TableManagement = () => {
     const [selectedWaiter, setSelectedWaiter] = useState(null);
     const [draggedTable, setDraggedTable] = useState(null);
     const [dragOverPosition, setDragOverPosition] = useState(null);
+    // Posiciones movidas durante el modo edición, aún no guardadas en el servidor: { [tableId]: {x, y} }
+    const [pendingPositions, setPendingPositions] = useState({});
+    const [isSavingPositions, setIsSavingPositions] = useState(false);
     const [currentSection, setCurrentSection] = useState('Salón');
     const [showSectionModal, setShowSectionModal] = useState(false);
     const [newSectionName, setNewSectionName] = useState('');
@@ -124,6 +130,9 @@ const TableManagement = () => {
     
     // Filtrar mesas por sección actual
     const filteredTables = tables.filter(t => (t.section || 'Salón') === currentSection);
+
+    // Posición efectiva de una mesa: la pendiente (si se movió durante la edición) o la guardada
+    const getEffectivePosition = (table) => pendingPositions[table._id] || table.position || { x: 0, y: 0 };
 
     // Función para mostrar notificación
     const showNotification = (message, type = 'success', duration = 3000) => {
@@ -203,9 +212,10 @@ const TableManagement = () => {
             outerLoop:
             for (let y = 0; y < rows; y++) {
                 for (let x = 0; x < cols; x++) {
-                    const occupied = filteredTables.some(t => 
-                        t.position?.x === x && t.position?.y === y
-                    );
+                    const occupied = filteredTables.some(t => {
+                        const pos = getEffectivePosition(t);
+                        return pos.x === x && pos.y === y;
+                    });
                     if (!occupied) {
                         availablePosition = { x, y };
                         break outerLoop;
@@ -274,44 +284,9 @@ const TableManagement = () => {
         }
     };
 
-    // Funciones para drag and drop (dnd-kit: funciona con mouse, touch y teclado)
-    const moveTableTo = async (draggedTableRef, newPosition) => {
-        // Verificar si hay otra mesa en la posición destino (solo en la sección actual)
-        const tableInPosition = filteredTables.find(t =>
-            t._id !== draggedTableRef._id &&
-            t.position?.x === newPosition.x &&
-            t.position?.y === newPosition.y
-        );
-
-        // Si es la misma posición, no hacer nada
-        if (!tableInPosition &&
-            draggedTableRef.position?.x === newPosition.x &&
-            draggedTableRef.position?.y === newPosition.y) {
-            return;
-        }
-
-        try {
-            if (tableInPosition) {
-                // Intercambiar posiciones
-                await Promise.all([
-                    updateTable(draggedTableRef._id, {
-                        position: { x: newPosition.x, y: newPosition.y }
-                    }),
-                    updateTable(tableInPosition._id, {
-                        position: { x: draggedTableRef.position?.x || 0, y: draggedTableRef.position?.y || 0 }
-                    })
-                ]);
-            } else {
-                // Mover a posición vacía
-                await updateTable(draggedTableRef._id, {
-                    position: { x: newPosition.x, y: newPosition.y }
-                });
-            }
-        } catch (error) {
-            showNotification('Error al mover mesa: ' + error.message, 'error');
-        }
-    };
-
+    // Funciones para drag and drop (dnd-kit: funciona con mouse y touch)
+    // Mientras se edita, el movimiento solo actualiza estado local (instantáneo);
+    // recién se guarda en el servidor al terminar la edición (ver handleToggleEditMode).
     const handleDndDragStart = (event) => {
         const table = filteredTables.find(t => t._id === event.active.id);
         setDraggedTable(table || null);
@@ -327,7 +302,7 @@ const TableManagement = () => {
         setDragOverPosition({ x, y });
     };
 
-    const handleDndDragEnd = async (event) => {
+    const handleDndDragEnd = (event) => {
         const { active, over } = event;
         setDraggedTable(null);
         setDragOverPosition(null);
@@ -338,7 +313,45 @@ const TableManagement = () => {
         if (!table) return;
 
         const [x, y] = over.id.split('-').map(Number);
-        await moveTableTo(table, { x, y });
+        const newPosition = { x, y };
+        const currentPosition = getEffectivePosition(table);
+
+        if (currentPosition.x === newPosition.x && currentPosition.y === newPosition.y) return;
+
+        // Si hay otra mesa en la posición destino (solo en la sección actual), se intercambian
+        const tableInPosition = filteredTables.find(t => {
+            if (t._id === table._id) return false;
+            const pos = getEffectivePosition(t);
+            return pos.x === newPosition.x && pos.y === newPosition.y;
+        });
+
+        setPendingPositions(prev => {
+            const next = { ...prev, [table._id]: newPosition };
+            if (tableInPosition) {
+                next[tableInPosition._id] = currentPosition;
+            }
+            return next;
+        });
+    };
+
+    // Guarda en el servidor todas las posiciones movidas durante la edición
+    const handleToggleEditMode = async () => {
+        if (isEditMode) {
+            const changes = Object.entries(pendingPositions).map(([id, position]) => ({ id, position }));
+            if (changes.length > 0) {
+                setIsSavingPositions(true);
+                try {
+                    await updateTablePositions(changes);
+                    setPendingPositions({});
+                } catch (error) {
+                    showNotification('Error al guardar posiciones: ' + error.message, 'error');
+                    return; // se mantiene en modo edición para poder reintentar
+                } finally {
+                    setIsSavingPositions(false);
+                }
+            }
+        }
+        setIsEditMode(prev => !prev);
     };
 
     // Funciones para manejar secciones
@@ -434,9 +447,10 @@ const TableManagement = () => {
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
                 const position = { x, y };
-                const table = filteredTables.find(t => 
-                    t.position?.x === x && t.position?.y === y
-                );
+                const table = filteredTables.find(t => {
+                    const pos = getEffectivePosition(t);
+                    return pos.x === x && pos.y === y;
+                });
                 grid.push({ position, table });
             }
         }
@@ -522,6 +536,16 @@ const TableManagement = () => {
                 />
             )}
 
+            {/* Overlay de bloqueo mientras se guardan las posiciones */}
+            {isSavingPositions && (
+                <div className="fixed inset-0 bg-black/30 z-[60] flex items-center justify-center">
+                    <div className="bg-white rounded-xl shadow-xl px-6 py-5 flex flex-col items-center gap-3">
+                        <span className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin" />
+                        <p className="text-gray-700 font-medium">Guardando posiciones...</p>
+                    </div>
+                </div>
+            )}
+
             {/* Notificación toast */}
             {notification && (
                 <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg animate-fade-in ${
@@ -556,12 +580,17 @@ const TableManagement = () => {
                         </div>
                         <div className="flex gap-3">
                             <Button
-                                onClick={() => setIsEditMode(!isEditMode)}
+                                onClick={handleToggleEditMode}
+                                disabled={isSavingPositions}
                                 variant={isEditMode ? 'primary' : 'outline'}
                                 className={isEditMode ? 'bg-teal-600 hover:bg-teal-700' : ''}
                             >
-                                <Squares2X2Icon className="w-5 h-5 mr-2" />
-                                {isEditMode ? 'Terminar edición' : 'Editar mesas'}
+                                {isSavingPositions ? (
+                                    <span className="w-5 h-5 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
+                                ) : (
+                                    <Squares2X2Icon className="w-5 h-5 mr-2" />
+                                )}
+                                {isSavingPositions ? 'Guardando...' : isEditMode ? 'Terminar edición' : 'Editar mesas'}
                             </Button>
                             <Button
                                 onClick={() => setShowAddTableModal(true)}
