@@ -1757,12 +1757,13 @@ const Delivery = () => {
 
   // Función para imprimir ticket de cliente
   const handlePrintCustomerTicket = async (order) => {
+    // Retransmitir siempre a los demás dispositivos, sin depender de si este equipo tiene impresora propia
+    api.post('/order/broadcast-ticket', { order }).catch((err) => {
+      console.error('Error al retransmitir ticket a otros dispositivos:', err);
+    });
     try {
       const result = await printingService.printCustomerTicket(order);
       if (result.success) {
-        api.post('/order/broadcast-ticket', { order }).catch((err) => {
-          console.error('Error al retransmitir ticket a otros dispositivos:', err);
-        });
         // Mostrar notificación de éxito
         console.log('Ticket impreso exitosamente');
         // Aquí podrías agregar una notificación toast si tienes un sistema de notificaciones

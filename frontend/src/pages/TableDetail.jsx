@@ -986,13 +986,13 @@ const TableDetail = () => {
                         discount: calculateDiscountAmount(),
                         paymentMethods: orderData.paymentMethods,
                     };
+                    broadcastTicketToOtherDevices(ticketOrder);
                     try {
                         await printingService.printCustomerTicket(ticketOrder);
                     } catch (printError) {
                         reprintFailed = true;
                         console.error('Error al reimprimir ticket al cerrar mesa:', printError);
                     }
-                    broadcastTicketToOtherDevices(ticketOrder);
                 }
 
                 // Cerrar mesa usando el hook
@@ -1060,8 +1060,8 @@ const TableDetail = () => {
                         : payment.amount
                 })) : undefined
             };
-            await printingService.printCustomerTicket(ticketOrder);
             broadcastTicketToOtherDevices(ticketOrder);
+            await printingService.printCustomerTicket(ticketOrder);
             showNotification('Ticket impreso exitosamente', 'success', 2000);
         } catch (error) {
             console.error('Error al imprimir ticket:', error);
@@ -1095,8 +1095,8 @@ const TableDetail = () => {
                 showNotification('No se pudo preparar la cuenta para imprimir', 'error');
                 return;
             }
-            await printingService.printCustomerTicket(orderForPrint);
             broadcastTicketToOtherDevices(orderForPrint);
+            await printingService.printCustomerTicket(orderForPrint);
             showNotification('Ticket de cuenta impreso', 'success', 2000);
         } catch (error) {
             console.error('Error al imprimir ticket por cuenta:', error);

@@ -334,15 +334,16 @@ const CashRegister = () => {
     try {
       // Calcular totales por método de pago desde las ventas reales de la caja seleccionada
       const systemTotalsByPayment = calculateSystemTotalsByPaymentMethod(selectedCashSales || []);
+      // Retransmitir siempre a los demás dispositivos, sin depender de si este equipo tiene impresora propia
+      api.post('/cash/broadcast-report', {
+        cashRegister,
+        systemTotalsByPayment,
+        tipsStatistics: selectedTipsStatistics,
+      }).catch((err) => {
+        console.error('Error al retransmitir reporte de caja a otros dispositivos:', err);
+      });
       const result = await printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment, selectedTipsStatistics);
       if (result.success) {
-        api.post('/cash/broadcast-report', {
-          cashRegister,
-          systemTotalsByPayment,
-          tipsStatistics: selectedTipsStatistics,
-        }).catch((err) => {
-          console.error('Error al retransmitir reporte de caja a otros dispositivos:', err);
-        });
         setNotification('Reporte de caja impreso exitosamente');
         setTimeout(() => setNotification(null), 3000);
       } else {

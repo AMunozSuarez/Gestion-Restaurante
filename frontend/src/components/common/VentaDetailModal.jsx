@@ -262,10 +262,10 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
         items: venta.foods || [] // Para compatibilidad
       };
       
-      await printingService.printCustomerTicket(orderForPrint);
       api.post('/order/broadcast-ticket', { order: orderForPrint }).catch((err) => {
         console.error('Error al retransmitir ticket a otros dispositivos:', err);
       });
+      await printingService.printCustomerTicket(orderForPrint);
     } catch (error) {
       console.error('Error al imprimir ticket:', error);
       setNotification('Error al imprimir el ticket. Verifique que el servicio de impresión esté funcionando.');
