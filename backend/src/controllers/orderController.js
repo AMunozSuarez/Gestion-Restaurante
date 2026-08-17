@@ -1408,12 +1408,31 @@ const printTicketController = async (req, res) => {
             ? { ...order, printSplitAccountIndex: accountIndex }
             : order;
 
-        getIO().to(`restaurant:${req.restaurantId}`).emit('ticket:print', { order: payloadOrder });
+        const senderSocketId = req.headers['x-socket-id'] || null;
+        getIO().to(`restaurant:${req.restaurantId}`).emit('ticket:print', { order: payloadOrder, _fromSocketId: senderSocketId });
 
         res.json({ success: true });
     } catch (error) {
         console.error('Error al solicitar impresión de ticket:', error);
         res.status(500).json({ success: false, message: 'Error al solicitar impresión', error });
+    }
+};
+
+// RETRANSMITIR TICKET YA ARMADO POR EL CLIENTE (cierre de mesa, impresión manual, cuentas divididas)
+const broadcastTicketPrint = async (req, res) => {
+    try {
+        const order = req.body?.order;
+        if (!order) {
+            return res.status(400).json({ success: false, message: 'order es requerido' });
+        }
+
+        const senderSocketId = req.headers['x-socket-id'] || null;
+        getIO().to(`restaurant:${req.restaurantId}`).emit('ticket:print', { order, _fromSocketId: senderSocketId });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error al retransmitir ticket:', error);
+        res.status(500).json({ success: false, message: 'Error al retransmitir ticket', error: error.message });
     }
 };
 
@@ -1430,5 +1449,6 @@ module.exports = {
     getSectionOrders,
     getAllSalesController,
     getTipsController,
-    printTicketController
+    printTicketController,
+    broadcastTicketPrint
 };

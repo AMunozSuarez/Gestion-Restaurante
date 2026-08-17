@@ -12,6 +12,7 @@ import ProductExtrasModal from '../components/common/ProductExtrasModal';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import AddressModal from '../components/common/AddressModal';
 import printingService from '../services/printingService';
+import api from '../services/api';
 import ButtonAlertBubble from '../components/common/ButtonAlertBubble';
 import '../styles/professional.css';
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
@@ -1756,6 +1757,17 @@ const Delivery = () => {
 
   // Función para imprimir ticket de cliente
   const handlePrintCustomerTicket = async (order) => {
+    // Retransmitir siempre a los demás dispositivos, sin depender de si este equipo tiene impresora propia
+    api.post('/order/broadcast-ticket', { order }).catch((err) => {
+      console.error('Error al retransmitir ticket a otros dispositivos:', err);
+    });
+
+    // Si este equipo no tiene impresora propia configurada, delega la impresión a otro dispositivo
+    if (!printingService.hasLocalPrinterConfigured()) {
+      console.log('Ticket enviado para impresión en otro dispositivo');
+      return;
+    }
+
     try {
       const result = await printingService.printCustomerTicket(order);
       if (result.success) {

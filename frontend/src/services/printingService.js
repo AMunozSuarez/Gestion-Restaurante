@@ -594,6 +594,22 @@ la fuente esta configurada bien.
     localStorage.removeItem('defaultPrinter');
   },
 
+  // Obtener si este dispositivo debe imprimir tickets/reportes de caja recibidos por socket de otros dispositivos
+  getRemotePrintEnabled() {
+    const raw = localStorage.getItem('remotePrintEnabled');
+    return raw === null ? true : raw === 'true';
+  },
+
+  // Establecer si este dispositivo debe imprimir tickets/reportes de caja remotos
+  setRemotePrintEnabled(enabled) {
+    localStorage.setItem('remotePrintEnabled', String(Boolean(enabled)));
+  },
+
+  // Indica si este dispositivo tiene alguna impresora propia configurada (predeterminada o por rol)
+  hasLocalPrinterConfigured() {
+    return Boolean(this.getDefaultPrinter()) || printerConfigService.hasMultiPrinterConfig();
+  },
+
   // Imprimir con impresora predeterminada
   async printWithDefault(content, copies = 1, isKitchen = false) {
     const defaultPrinter = this.getDefaultPrinter();

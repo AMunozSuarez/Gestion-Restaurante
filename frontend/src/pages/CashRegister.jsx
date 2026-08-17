@@ -6,6 +6,7 @@ import { useTips } from '../hooks/useTips';
 import { PlusIcon, XMarkIcon, PrinterIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import VentaDetailModal from '../components/common/VentaDetailModal';
 import printingService from '../services/printingService';
+import api from '../services/api';
 import { useProducts } from '../hooks/useProducts';
 
 const CashRegister = () => {
@@ -333,6 +334,22 @@ const CashRegister = () => {
     try {
       // Calcular totales por método de pago desde las ventas reales de la caja seleccionada
       const systemTotalsByPayment = calculateSystemTotalsByPaymentMethod(selectedCashSales || []);
+      // Retransmitir siempre a los demás dispositivos, sin depender de si este equipo tiene impresora propia
+      api.post('/cash/broadcast-report', {
+        cashRegister,
+        systemTotalsByPayment,
+        tipsStatistics: selectedTipsStatistics,
+      }).catch((err) => {
+        console.error('Error al retransmitir reporte de caja a otros dispositivos:', err);
+      });
+
+      // Si este equipo no tiene impresora propia configurada, delega la impresión a otro dispositivo
+      if (!printingService.hasLocalPrinterConfigured()) {
+        setNotification('Reporte enviado para impresión en otro dispositivo');
+        setTimeout(() => setNotification(null), 3000);
+        return;
+      }
+
       const result = await printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment, selectedTipsStatistics);
       if (result.success) {
         setNotification('Reporte de caja impreso exitosamente');

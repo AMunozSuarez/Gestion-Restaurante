@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { formatChileanCurrency } from '../../utils/dateUtils';
 import { printingService } from '../../services/printingService';
+import api from '../../services/api';
 import { useAuth } from '../../hooks/useAuth';
 import ordersService from '../../services/ordersService';
 import ProductModal from './ProductModal';
@@ -261,6 +262,9 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
         items: venta.foods || [] // Para compatibilidad
       };
       
+      api.post('/order/broadcast-ticket', { order: orderForPrint }).catch((err) => {
+        console.error('Error al retransmitir ticket a otros dispositivos:', err);
+      });
       await printingService.printCustomerTicket(orderForPrint);
     } catch (error) {
       console.error('Error al imprimir ticket:', error);

@@ -1,7 +1,7 @@
 const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
 const denyRoleMiddleware = require('../middlewares/denyRoleMiddleware');
-const { createOrderController, getAllOrdersController, updateOrderController, updateOrderItemReadyController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders, getRecentOrders, getSectionOrders, getAllSalesController, getTipsController, printTicketController } = require('../controllers/orderController');
+const { createOrderController, getAllOrdersController, updateOrderController, updateOrderItemReadyController, deleteOrderController, getOrderByIdController, getOrderByNumberController, closeOrder, getFilteredOrders, getRecentOrders, getSectionOrders, getAllSalesController, getTipsController, printTicketController, broadcastTicketPrint } = require('../controllers/orderController');
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
 const router = express.Router();
 
@@ -47,5 +47,8 @@ router.get('/getAllSales', authMiddleware, denyRoleMiddleware('mesero', 'cocina'
 
 // SOLICITAR IMPRESIÓN DE TICKET DE CLIENTE (desde app)
 router.post('/print-ticket/:id', authMiddleware, filterByRestaurant, printTicketController);
+
+// RETRANSMITIR TICKET YA ARMADO POR EL CLIENTE A LOS DEMÁS DISPOSITIVOS (cierre de mesa, impresión manual, cuentas divididas)
+router.post('/broadcast-ticket', authMiddleware, filterByRestaurant, broadcastTicketPrint);
 
 module.exports = router; // Export the router

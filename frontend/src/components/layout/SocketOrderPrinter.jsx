@@ -105,11 +105,24 @@ const SocketOrderPrinter = () => {
       }
     });
 
-    const unsubTicket = onSocketEvent('ticket:print', ({ order }) => {
+    const unsubTicket = onSocketEvent('ticket:print', ({ order, _fromSocketId }) => {
       if (!order) return;
+      if (_fromSocketId && _fromSocketId === getSocketId()) return;
+      if (!printingService.getRemotePrintEnabled()) return;
       if (canPrint()) {
         printingService.printCustomerTicket(order).catch((err) => {
           console.error('Error al imprimir ticket solicitado:', err);
+        });
+      }
+    });
+
+    const unsubCashRegisterReport = onSocketEvent('cashregister:print', ({ cashRegister, systemTotalsByPayment, tipsStatistics, _fromSocketId }) => {
+      if (!cashRegister) return;
+      if (_fromSocketId && _fromSocketId === getSocketId()) return;
+      if (!printingService.getRemotePrintEnabled()) return;
+      if (canPrint()) {
+        printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment || {}, tipsStatistics || null).catch((err) => {
+          console.error('Error al imprimir reporte de caja solicitado:', err);
         });
       }
     });
@@ -118,6 +131,7 @@ const SocketOrderPrinter = () => {
       unsubCreated();
       unsubUpdated();
       unsubTicket();
+      unsubCashRegisterReport();
     };
   }, []);
 

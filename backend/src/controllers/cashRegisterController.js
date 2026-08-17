@@ -1,6 +1,7 @@
 const cashRegisterModel = require('../models/cashRegisterModel');
 const subscriptionModel = require('../models/subscriptionModel');
 const { getChileDayRange } = require('../utils/dateUtils');
+const { getIO } = require('../socket');
 
 
 // Create a new cash register
@@ -368,6 +369,29 @@ const getCurrentCashRegisterSales = async (req, res) => {
 
 
 
+// RETRANSMITIR REPORTE DE CAJA YA ARMADO POR EL CLIENTE A LOS DEMÁS DISPOSITIVOS
+const broadcastCashRegisterReport = async (req, res) => {
+    try {
+        const { cashRegister, systemTotalsByPayment, tipsStatistics } = req.body || {};
+        if (!cashRegister) {
+            return res.status(400).send({ success: false, message: 'cashRegister es requerido' });
+        }
+
+        const senderSocketId = req.headers['x-socket-id'] || null;
+        getIO().to(`restaurant:${req.restaurantId}`).emit('cashregister:print', {
+            cashRegister,
+            systemTotalsByPayment: systemTotalsByPayment || {},
+            tipsStatistics: tipsStatistics || null,
+            _fromSocketId: senderSocketId,
+        });
+
+        res.send({ success: true });
+    } catch (error) {
+        console.error('Error al retransmitir reporte de caja:', error);
+        res.status(500).send({ success: false, message: 'Error al retransmitir reporte de caja', error: error.message });
+    }
+};
+
 module.exports = {
     createCashRegister,
     getCurrentCashRegister,
@@ -378,4 +402,5 @@ module.exports = {
     getCashMovements,
     getCashRegisterSales,
     getCurrentCashRegisterSales,
+    broadcastCashRegisterReport,
 };
