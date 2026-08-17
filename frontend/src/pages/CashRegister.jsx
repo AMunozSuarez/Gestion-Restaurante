@@ -6,6 +6,7 @@ import { useTips } from '../hooks/useTips';
 import { PlusIcon, XMarkIcon, PrinterIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import VentaDetailModal from '../components/common/VentaDetailModal';
 import printingService from '../services/printingService';
+import api from '../services/api';
 import { useProducts } from '../hooks/useProducts';
 
 const CashRegister = () => {
@@ -335,6 +336,13 @@ const CashRegister = () => {
       const systemTotalsByPayment = calculateSystemTotalsByPaymentMethod(selectedCashSales || []);
       const result = await printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment, selectedTipsStatistics);
       if (result.success) {
+        api.post('/cash/broadcast-report', {
+          cashRegister,
+          systemTotalsByPayment,
+          tipsStatistics: selectedTipsStatistics,
+        }).catch((err) => {
+          console.error('Error al retransmitir reporte de caja a otros dispositivos:', err);
+        });
         setNotification('Reporte de caja impreso exitosamente');
         setTimeout(() => setNotification(null), 3000);
       } else {

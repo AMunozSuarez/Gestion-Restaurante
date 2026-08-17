@@ -3,7 +3,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const denyRoleMiddleware = require('../middlewares/denyRoleMiddleware');
 
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
-const { addCashMovement, getCashMovements, createCashRegister, getCurrentCashRegister, getAllCashRegisters, closeCashRegister, getCashRegisterById, getCashRegisterSales, getCurrentCashRegisterSales } = require('../controllers/cashRegisterController');
+const { addCashMovement, getCashMovements, createCashRegister, getCurrentCashRegister, getAllCashRegisters, closeCashRegister, getCashRegisterById, getCashRegisterSales, getCurrentCashRegisterSales, broadcastCashRegisterReport } = require('../controllers/cashRegisterController');
 const router = express.Router();
 
 router.use(authMiddleware);
@@ -40,5 +40,8 @@ router.get('/sales/:cashRegisterId', denyRoleMiddleware('mesero', 'cocina'), fil
 
 // get sales from current active cash register
 router.get('/sales', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getCurrentCashRegisterSales); // Route to get sales from current active cash register
+
+// retransmitir reporte de caja ya armado por el cliente a los demás dispositivos
+router.post('/broadcast-report', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, broadcastCashRegisterReport);
 
 module.exports = router; // Export the router

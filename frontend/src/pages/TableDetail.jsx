@@ -25,6 +25,7 @@ import ProductExtrasModal from '../components/common/ProductExtrasModal';
 import ButtonAlertBubble from '../components/common/ButtonAlertBubble';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import printingService from '../services/printingService';
+import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 
 const TableDetail = () => {
@@ -978,18 +979,20 @@ const TableDetail = () => {
                 let reprintFailed = false;
 
                 if (printingService.getReprintTicketOnCloseTable()) {
+                    const ticketOrder = {
+                        ...(response.order || table.currentOrder),
+                        tableNumber: table.tableNumber,
+                        tip: totalTip || 0,
+                        discount: calculateDiscountAmount(),
+                        paymentMethods: orderData.paymentMethods,
+                    };
                     try {
-                        await printingService.printCustomerTicket({
-                            ...(response.order || table.currentOrder),
-                            tableNumber: table.tableNumber,
-                            tip: totalTip || 0,
-                            discount: calculateDiscountAmount(),
-                            paymentMethods: orderData.paymentMethods,
-                        });
+                        await printingService.printCustomerTicket(ticketOrder);
                     } catch (printError) {
                         reprintFailed = true;
                         console.error('Error al reimprimir ticket al cerrar mesa:', printError);
                     }
+                    broadcastTicketToOtherDevices(ticketOrder);
                 }
 
                 // Cerrar mesa usando el hook
@@ -1026,6 +1029,13 @@ const TableDetail = () => {
         }
     };
 
+    // Avisa a los demás dispositivos del restaurante para que también impriman el ticket
+    const broadcastTicketToOtherDevices = (order) => {
+        api.post('/order/broadcast-ticket', { order }).catch((err) => {
+            console.error('Error al retransmitir ticket a otros dispositivos:', err);
+        });
+    };
+
     // Imprimir ticket del cliente manualmente
     const handlePrintTicket = async () => {
         if (!table.currentOrder) {
@@ -1038,7 +1048,7 @@ const TableDetail = () => {
             const validPayments = getValidPaymentMethods();
             const totalTip = splitEnabled ? getSplitTipTotal() : suggestedTip;
 
-            await printingService.printCustomerTicket({
+            const ticketOrder = {
                 ...table.currentOrder,
                 suggestedTip: totalTip,
                 discount: calculateDiscountAmount(),
@@ -1049,7 +1059,9 @@ const TableDetail = () => {
                         ? calculateSubtotalWithDiscount() + totalTip
                         : payment.amount
                 })) : undefined
-            });
+            };
+            await printingService.printCustomerTicket(ticketOrder);
+            broadcastTicketToOtherDevices(ticketOrder);
             showNotification('Ticket impreso exitosamente', 'success', 2000);
         } catch (error) {
             console.error('Error al imprimir ticket:', error);
@@ -1084,6 +1096,7 @@ const TableDetail = () => {
                 return;
             }
             await printingService.printCustomerTicket(orderForPrint);
+            broadcastTicketToOtherDevices(orderForPrint);
             showNotification('Ticket de cuenta impreso', 'success', 2000);
         } catch (error) {
             console.error('Error al imprimir ticket por cuenta:', error);

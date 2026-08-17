@@ -12,6 +12,7 @@ import ProductExtrasModal from '../components/common/ProductExtrasModal';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import AddressModal from '../components/common/AddressModal';
 import printingService from '../services/printingService';
+import api from '../services/api';
 import ButtonAlertBubble from '../components/common/ButtonAlertBubble';
 import '../styles/professional.css';
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
@@ -1759,6 +1760,9 @@ const Delivery = () => {
     try {
       const result = await printingService.printCustomerTicket(order);
       if (result.success) {
+        api.post('/order/broadcast-ticket', { order }).catch((err) => {
+          console.error('Error al retransmitir ticket a otros dispositivos:', err);
+        });
         // Mostrar notificación de éxito
         console.log('Ticket impreso exitosamente');
         // Aquí podrías agregar una notificación toast si tienes un sistema de notificaciones

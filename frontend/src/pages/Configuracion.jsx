@@ -70,6 +70,7 @@ const Configuracion = () => {
   const [drawerAlwaysOpen, setDrawerAlwaysOpen] = useState(() => printingService.getDrawerAlwaysOpen());
   const [drawerOpenOnCloseOrder, setDrawerOpenOnCloseOrder] = useState(() => printingService.getDrawerOpenOnCloseOrder());
   const [drawerHotkey, setDrawerHotkey] = useState(() => printingService.getDrawerHotkey() || '');
+  const [remotePrintEnabled, setRemotePrintEnabledState] = useState(() => printingService.getRemotePrintEnabled());
   const [capturingHotkey, setCapturingHotkey] = useState(false);
   const [allPrinters, setAllPrinters] = useState([]);
 
@@ -852,6 +853,18 @@ const Configuracion = () => {
     setMessage({
       type: 'info',
       text: `Impresora removida de ${printerConfigService.getRoleLabels()[role] || role}`
+    });
+  };
+
+  // Activar o desactivar la impresión remota (tickets y reportes de caja de otros dispositivos) en este equipo
+  const handleRemotePrintEnabledChange = (enabled) => {
+    setRemotePrintEnabledState(enabled);
+    printingService.setRemotePrintEnabled(enabled);
+    setMessage({
+      type: 'success',
+      text: enabled
+        ? 'Este equipo imprimirá tickets y reportes de caja solicitados desde otros dispositivos'
+        : 'Este equipo ya no imprimirá tickets ni reportes de caja solicitados desde otros dispositivos'
     });
   };
 
@@ -1852,6 +1865,42 @@ const Configuracion = () => {
                 </p>
               </div>
             )}
+
+            {/* Impresión remota */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center mb-4">
+                <CogIcon className="w-6 h-6 text-brown-600 mr-3" />
+                <div>
+                  <h2 className="text-xl font-semibold text-brown-900">Impresión Remota</h2>
+                  <p className="text-sm text-gray-500">Controla si este equipo imprime lo solicitado desde otros dispositivos</p>
+                </div>
+              </div>
+
+              <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Recibir impresiones remotas</p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Si está activo, la impresora conectada a este equipo imprimirá tickets de cliente y reportes de caja solicitados desde otros dispositivos del restaurante.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemotePrintEnabledChange(!remotePrintEnabled)}
+                    className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${remotePrintEnabled ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                    aria-pressed={remotePrintEnabled}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${remotePrintEnabled ? 'translate-x-5' : 'translate-x-0.5'}`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-400 mt-3">
+                Esta configuración es local a este equipo, no se sincroniza con otras computadoras.
+              </p>
+            </div>
 
             {/* Impresión por Categoría */}
             {serviceStatus === 'online' && Object.keys(printerRoles).length > 0 && (
