@@ -1761,6 +1761,13 @@ const Delivery = () => {
     api.post('/order/broadcast-ticket', { order }).catch((err) => {
       console.error('Error al retransmitir ticket a otros dispositivos:', err);
     });
+
+    // Si este equipo no tiene impresora propia configurada, delega la impresión a otro dispositivo
+    if (!printingService.hasLocalPrinterConfigured()) {
+      console.log('Ticket enviado para impresión en otro dispositivo');
+      return;
+    }
+
     try {
       const result = await printingService.printCustomerTicket(order);
       if (result.success) {

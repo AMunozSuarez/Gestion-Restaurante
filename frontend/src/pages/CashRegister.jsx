@@ -342,6 +342,14 @@ const CashRegister = () => {
       }).catch((err) => {
         console.error('Error al retransmitir reporte de caja a otros dispositivos:', err);
       });
+
+      // Si este equipo no tiene impresora propia configurada, delega la impresión a otro dispositivo
+      if (!printingService.hasLocalPrinterConfigured()) {
+        setNotification('Reporte enviado para impresión en otro dispositivo');
+        setTimeout(() => setNotification(null), 3000);
+        return;
+      }
+
       const result = await printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment, selectedTipsStatistics);
       if (result.success) {
         setNotification('Reporte de caja impreso exitosamente');

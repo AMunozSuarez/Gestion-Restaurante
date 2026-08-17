@@ -1208,6 +1208,14 @@ const Mostrador = () => {
     api.post('/order/broadcast-ticket', { order }).catch((err) => {
       console.error('Error al retransmitir ticket a otros dispositivos:', err);
     });
+
+    // Si este equipo no tiene impresora propia configurada, delega la impresión a otro dispositivo
+    if (!printingService.hasLocalPrinterConfigured()) {
+      setAddedProductNotification('Ticket enviado para impresión en otro dispositivo');
+      setTimeout(() => setAddedProductNotification(null), 3000);
+      return;
+    }
+
     try {
       const result = await printingService.printCustomerTicket(order);
       if (result.success) {
