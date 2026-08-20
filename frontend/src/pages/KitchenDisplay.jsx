@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../components/ui';
 import ordersService from '../services/ordersService';
@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { ArrowRightEndOnRectangleIcon } from '@heroicons/react/24/outline';
 import { onSocketEvent, markOwnUpdate } from '../services/socketService';
 import { normalizeKitchenItems } from '../utils/kitchenOrderNormalize';
+import categoriesService from '../services/categoriesService';
 
 // Umbrales del semáforo (minutos desde la creación del pedido). Ajustar aquí si se necesita otro ritmo de cocina.
 const KDS_WARNING_MINUTES = 10;
@@ -22,6 +23,20 @@ const SECTION_LABELS = {
 const SECTION_FILTERS = ['all', 'mesas', 'mostrador', 'delivery'];
 
 const getOrderId = (order) => order._id || order.id;
+
+const getItemCategoryId = (item) => {
+  const category = item.food?.category;
+  return (category && (category._id || category)) || null;
+};
+
+const orderMatchesCategories = (order, categoryIds) => {
+  if (categoryIds.size === 0) return true;
+  if (!Array.isArray(order.foods)) return false;
+  return order.foods.some((item) => {
+    const categoryId = getItemCategoryId(item);
+    return categoryId && categoryIds.has(String(categoryId));
+  });
+};
 
 const playNewOrderSound = () => {
   try {
@@ -94,6 +109,39 @@ const KitchenDisplay = () => {
   const [now, setNow] = useState(Date.now());
   const [error, setError] = useState('');
   const [showReady, setShowReady] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState(() => new Set());
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const categoryMenuRef = useRef(null);
+
+  const toggleCategoryFilter = (categoryId) => {
+    setSelectedCategoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) next.delete(categoryId);
+      else next.add(categoryId);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!categoryMenuOpen) return;
+    const handleClickOutside = (event) => {
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(event.target)) {
+        setCategoryMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [categoryMenuOpen]);
+
+  useEffect(() => {
+    categoriesService
+      .getCategories({ availableOnly: true })
+      .then((response) => {
+        if (response.success) setCategories(response.categories || []);
+      })
+      .catch(() => {});
+  }, []);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -156,9 +204,10 @@ const KitchenDisplay = () => {
     const bySection = sectionFilter === 'all'
       ? orders
       : orders.filter((order) => order.section === sectionFilter);
+    const byCategory = bySection.filter((order) => orderMatchesCategories(order, selectedCategoryIds));
     // Más antiguos primero, más nuevos al final
-    return [...bySection].sort((a, b) => getKitchenTimeReference(a) - getKitchenTimeReference(b));
-  }, [orders, sectionFilter]);
+    return [...byCategory].sort((a, b) => getKitchenTimeReference(a) - getKitchenTimeReference(b));
+  }, [orders, sectionFilter, selectedCategoryIds]);
 
   // Los pedidos listos se sacan de la lista principal para no estorbar; se ven
   // aparte, en un panel plegable, para no perder de vista los que aún se preparan.
@@ -258,6 +307,70 @@ const KitchenDisplay = () => {
               {section === 'all' ? 'Todas' : SECTION_LABELS[section]}
             </button>
           ))}
+          {categories.length > 0 && (
+            <>
+              <div className="w-px h-6 bg-gray-700 mx-1" />
+              <div className="relative" ref={categoryMenuRef}>
+                <button
+                  onClick={() => setCategoryMenuOpen((prev) => !prev)}
+                  className={`px-4 py-2 rounded-lg text-lg font-medium transition-colors flex items-center gap-2 ${
+                    selectedCategoryIds.size > 0
+                      ? 'bg-amber-500 text-gray-900'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  Categorías
+                  {selectedCategoryIds.size > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-sm bg-gray-900/20">
+                      {selectedCategoryIds.size}
+                    </span>
+                  )}
+                  <span className={`transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`}>▾</span>
+                </button>
+
+                {categoryMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-72 max-h-96 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 p-2">
+                    <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-gray-700">
+                      <span className="text-sm font-semibold text-gray-400 uppercase">Filtrar categorías</span>
+                      {selectedCategoryIds.size > 0 && (
+                        <button
+                          onClick={() => setSelectedCategoryIds(new Set())}
+                          className="text-sm font-medium text-amber-400 hover:text-amber-300"
+                        >
+                          Limpiar
+                        </button>
+                      )}
+                    </div>
+                    <ul className="space-y-0.5">
+                      {categories.map((category) => {
+                        const categoryId = String(category._id);
+                        const isSelected = selectedCategoryIds.has(categoryId);
+                        return (
+                          <li key={categoryId}>
+                            <button
+                              onClick={() => toggleCategoryFilter(categoryId)}
+                              className="w-full flex items-center gap-2 text-left px-2 py-2 rounded-lg text-base hover:bg-gray-700/70 transition-colors"
+                            >
+                              <span
+                                className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center text-sm ${
+                                  isSelected
+                                    ? 'bg-amber-500 border-amber-500 text-gray-900'
+                                    : 'border-gray-500 text-transparent'
+                                }`}
+                              >
+                                ✓
+                              </span>
+                              <span className={isSelected ? 'text-white' : 'text-gray-300'}>{category.title}</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
           <div className="w-px h-6 bg-gray-700 mx-1" />
           <button
             onClick={handleLogout}
@@ -285,6 +398,7 @@ const KitchenDisplay = () => {
                 requireAllItemsReady={requireAllItemsReady}
                 onToggleItemReady={handleToggleItemReady}
                 canMarkReady={canMarkReady}
+                selectedCategoryIds={selectedCategoryIds}
               />
             ))}
           </div>
@@ -306,6 +420,7 @@ const KitchenDisplay = () => {
               requireAllItemsReady={requireAllItemsReady}
               onToggleItemReady={handleToggleItemReady}
               canMarkReady={canMarkReady}
+              selectedCategoryIds={selectedCategoryIds}
             />
           ))}
         </div>
@@ -314,14 +429,19 @@ const KitchenDisplay = () => {
   );
 };
 
-const KitchenOrderCard = ({ order, now, onMarkReady, requireAllItemsReady, onToggleItemReady, canMarkReady }) => {
+const KitchenOrderCard = ({ order, now, onMarkReady, requireAllItemsReady, onToggleItemReady, canMarkReady, selectedCategoryIds }) => {
   const orderId = getOrderId(order);
   const elapsedMinutes = getElapsedMinutes(order, now);
   const urgencyVariant = getUrgencyVariant(elapsedMinutes);
-  const items = normalizeKitchenItems(order);
+  const allItems = normalizeKitchenItems(order);
+  // Solo se muestran los productos de las categorías filtradas, pero la
+  // confirmación de "listo" sigue dependiendo del pedido completo.
+  const items = selectedCategoryIds && selectedCategoryIds.size > 0
+    ? allItems.filter((item) => item.categoryId && selectedCategoryIds.has(String(item.categoryId)))
+    : allItems;
   const isReady = Boolean(order.kitchenReadyAt);
-  const readyItemsCount = items.filter((item) => item.ready).length;
-  const allItemsReady = items.length > 0 && readyItemsCount === items.length;
+  const readyItemsCount = allItems.filter((item) => item.ready).length;
+  const allItemsReady = allItems.length > 0 && readyItemsCount === allItems.length;
 
   return (
     <div
@@ -412,7 +532,7 @@ const KitchenOrderCard = ({ order, now, onMarkReady, requireAllItemsReady, onTog
               isReady ? 'bg-green-950 text-green-300' : 'bg-gray-900 text-gray-400'
             }`}
           >
-            {isReady ? '✓ Todos los productos listos' : `${readyItemsCount}/${items.length} productos listos`}
+            {isReady ? '✓ Todos los productos listos' : `${readyItemsCount}/${allItems.length} productos listos`}
           </div>
           <button
             onClick={() => onMarkReady(orderId)}
