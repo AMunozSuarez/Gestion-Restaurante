@@ -588,6 +588,56 @@ const Configuracion = () => {
     });
   };
 
+  // Genera y descarga un .bat que crea en el Escritorio un acceso directo
+  // a la pantalla de cocina, con el flag de Chrome que habilita el sonido
+  // de nuevos pedidos sin requerir click previo del usuario (autoplay policy).
+  const handleDownloadKitchenShortcut = () => {
+    const kitchenUrl = `${window.location.origin}/cocina`;
+    const batContent = `@echo off
+setlocal enabledelayedexpansion
+
+rem Crea en el Escritorio un acceso directo "Cocina" que abre Chrome
+rem con el flag necesario para que el sonido de nuevos pedidos suene
+rem automaticamente, sin requerir click del usuario (autoplay policy).
+
+set "KITCHEN_URL=${kitchenUrl}"
+
+set "CHROME_PATH=%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe"
+if not exist "%CHROME_PATH%" set "CHROME_PATH=%ProgramFiles(x86)%\\Google\\Chrome\\Application\\chrome.exe"
+if not exist "%CHROME_PATH%" set "CHROME_PATH=%LocalAppData%\\Google\\Chrome\\Application\\chrome.exe"
+
+if not exist "%CHROME_PATH%" (
+    echo No se encontro Google Chrome instalado en este equipo.
+    echo Instala Chrome y vuelve a ejecutar este script.
+    pause
+    exit /b 1
+)
+
+for %%I in ("%CHROME_PATH%") do set "CHROME_DIR=%%~dpI"
+
+set "SHORTCUT=%USERPROFILE%\\Desktop\\Cocina.lnk"
+
+powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('%SHORTCUT%'); $s.TargetPath='%CHROME_PATH%'; $s.Arguments='--autoplay-policy=no-user-gesture-required --kiosk \\"%KITCHEN_URL%\\"'; $s.IconLocation='%CHROME_PATH%,0'; $s.WorkingDirectory='%CHROME_DIR%'; $s.Save()"
+
+if exist "%SHORTCUT%" (
+    echo Listo. Se creo el acceso directo "Cocina" en el Escritorio.
+) else (
+    echo Ocurrio un error al crear el acceso directo.
+)
+
+pause
+`;
+    const blob = new Blob([batContent], { type: 'application/bat' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'instalar-acceso-cocina.bat';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Activar o desactivar eliminación de productos de orden solo para owner
   const handleOnlyOwnerCanDeleteOrderItemsChange = async (enabled) => {
     setOnlyOwnerCanDeleteOrderItems(enabled);
@@ -2844,6 +2894,29 @@ const Configuracion = () => {
                       <span
                         className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${kitchenDisplayOnlyOwnerCanMarkReady ? 'translate-x-5' : 'translate-x-0.5'}`}
                       />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-4 border border-blue-200 rounded-lg bg-blue-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Acceso directo para la pantalla de cocina
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Descarga este instalador y ejecútalo (doble click) en el computador o tablet
+                        donde se mostrará la pantalla de cocina. Crea un acceso directo "Cocina" en el
+                        Escritorio que abre Chrome en pantalla completa.
+                        Requiere tener Google Chrome instalado.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadKitchenShortcut}
+                      className="flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                    >
+                      Descargar
                     </button>
                   </div>
                 </div>
