@@ -113,6 +113,45 @@ const KitchenDisplay = () => {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState(() => new Set());
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const categoryMenuRef = useRef(null);
+  // Guardas de cambios optimistas en curso: evitan que un evento de socket o una
+  // respuesta desactualizada revierta momentáneamente un "listo" que el usuario
+  // acaba de marcar/desmarcar, hasta que el servidor confirme el mismo valor.
+  const pendingItemReadyRef = useRef({});
+  const pendingOrderReadyRef = useRef({});
+
+  // Aplica las guardas pendientes sobre un pedido recién recibido (socket o respuesta HTTP),
+  // limpiando las que ya coinciden con el valor confirmado por el servidor.
+  const applyPendingGuards = useCallback((order) => {
+    if (!order) return order;
+    const orderId = getOrderId(order);
+
+    let kitchenReadyAt = order.kitchenReadyAt;
+    if (Object.prototype.hasOwnProperty.call(pendingOrderReadyRef.current, orderId)) {
+      const pendingValue = pendingOrderReadyRef.current[orderId];
+      const serverHasIt = Boolean(order.kitchenReadyAt);
+      if (serverHasIt === pendingValue) {
+        delete pendingOrderReadyRef.current[orderId];
+      } else if (pendingValue) {
+        kitchenReadyAt = kitchenReadyAt || new Date().toISOString();
+      }
+    }
+
+    const foods = Array.isArray(order.foods)
+      ? order.foods.map((food) => {
+          const key = `${orderId}:${food._id}`;
+          if (!Object.prototype.hasOwnProperty.call(pendingItemReadyRef.current, key)) return food;
+          const pendingValue = pendingItemReadyRef.current[key];
+          const serverReady = Boolean(food.ready);
+          if (pendingValue === serverReady) {
+            delete pendingItemReadyRef.current[key];
+            return food;
+          }
+          return { ...food, ready: pendingValue };
+        })
+      : order.foods;
+
+    return { ...order, kitchenReadyAt, foods };
+  }, []);
 
   const toggleCategoryFilter = (categoryId) => {
     setSelectedCategoryIds((prev) => {
@@ -147,13 +186,13 @@ const KitchenDisplay = () => {
     try {
       const response = await ordersService.getSectionOrders();
       if (response.success) {
-        setOrders(response.active || []);
+        setOrders((response.active || []).map(applyPendingGuards));
         setError('');
       }
     } catch (err) {
       setError(err.message || 'Error al cargar pedidos de cocina');
     }
-  }, []);
+  }, [applyPendingGuards]);
 
   useEffect(() => {
     loadOrders();
@@ -177,20 +216,21 @@ const KitchenDisplay = () => {
     const unsubUpdated = onSocketEvent('order:updated', ({ order }) => {
       if (!order) return;
       const orderId = getOrderId(order);
+      const guardedOrder = applyPendingGuards(order);
 
       setOrders((prev) => {
-        if (order.status !== 'Preparacion') {
+        if (guardedOrder.status !== 'Preparacion') {
           return prev.filter((o) => getOrderId(o) !== orderId);
         }
         const previous = prev.find((o) => getOrderId(o) === orderId);
         if (!previous) {
           playNewOrderSound();
-          return [order, ...prev];
+          return [guardedOrder, ...prev];
         }
-        if (previous.kitchenReadyAt && !order.kitchenReadyAt) {
+        if (previous.kitchenReadyAt && !guardedOrder.kitchenReadyAt) {
           playNewOrderSound();
         }
-        return prev.map((o) => (getOrderId(o) === orderId ? order : o));
+        return prev.map((o) => (getOrderId(o) === orderId ? guardedOrder : o));
       });
     });
 
@@ -198,7 +238,7 @@ const KitchenDisplay = () => {
       unsubCreated();
       unsubUpdated();
     };
-  }, []);
+  }, [applyPendingGuards]);
 
   const filteredOrders = useMemo(() => {
     const bySection = sectionFilter === 'all'
@@ -222,30 +262,60 @@ const KitchenDisplay = () => {
 
   const handleMarkReady = async (orderId) => {
     markOwnUpdate(orderId);
+    const readyAt = new Date().toISOString();
+    pendingOrderReadyRef.current[orderId] = true;
+    setOrders((prev) =>
+      prev.map((o) => (getOrderId(o) === orderId ? { ...o, kitchenReadyAt: readyAt } : o))
+    );
+
     try {
-      await ordersService.updateOrderWithoutPrint(orderId, {
-        kitchenReadyAt: new Date().toISOString(),
-      });
-      setOrders((prev) =>
-        prev.map((o) =>
-          getOrderId(o) === orderId ? { ...o, kitchenReadyAt: new Date().toISOString() } : o
-        )
-      );
+      await ordersService.updateOrderWithoutPrint(orderId, { kitchenReadyAt: readyAt });
     } catch (err) {
+      delete pendingOrderReadyRef.current[orderId];
+      setOrders((prev) =>
+        prev.map((o) => (getOrderId(o) === orderId ? { ...o, kitchenReadyAt: null } : o))
+      );
       setError(err.message || 'Error al marcar el pedido como listo');
     }
   };
 
   const handleToggleItemReady = async (orderId, foodItemId, nextReady) => {
     markOwnUpdate(orderId);
+    const key = `${orderId}:${foodItemId}`;
+    pendingItemReadyRef.current[key] = nextReady;
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (getOrderId(o) !== orderId) return o;
+        return {
+          ...o,
+          foods: (o.foods || []).map((food) =>
+            food._id === foodItemId ? { ...food, ready: nextReady } : food
+          ),
+        };
+      })
+    );
+
     try {
       const response = await ordersService.updateOrderItemReady(orderId, foodItemId, nextReady);
       const updatedOrder = response.order;
       if (!updatedOrder) return;
+      const guardedOrder = applyPendingGuards(updatedOrder);
       setOrders((prev) =>
-        prev.map((o) => (getOrderId(o) === orderId ? updatedOrder : o))
+        prev.map((o) => (getOrderId(o) === orderId ? guardedOrder : o))
       );
     } catch (err) {
+      delete pendingItemReadyRef.current[key];
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (getOrderId(o) !== orderId) return o;
+          return {
+            ...o,
+            foods: (o.foods || []).map((food) =>
+              food._id === foodItemId ? { ...food, ready: !nextReady } : food
+            ),
+          };
+        })
+      );
       setError(err.message || 'Error al actualizar el producto');
     }
   };
