@@ -1024,7 +1024,11 @@ const getSectionOrders = async (req, res) => {
         const [active, recent] = await Promise.all([
             orderModel.find({ ...baseFilter, status: 'Preparacion' })
                 .sort({ createdAt: -1 })
-                .populate('foods.food', 'title price category extraSections')
+                .populate({
+                    path: 'foods.food',
+                    select: 'title price category extraSections',
+                    populate: { path: 'category', select: 'title' },
+                })
                 .populate('deletedFoods.food', 'title price extraSections')
                 .populate('buyer', 'name phone addresses')
                 .populate('waiter', 'userName name')
@@ -1032,7 +1036,11 @@ const getSectionOrders = async (req, res) => {
             orderModel.find({ ...baseFilter, status: { $in: recentStatusList } })
                 .sort({ updatedAt: -1 })
                 .limit(Number(recentLimit))
-                .populate('foods.food', 'title price category extraSections')
+                .populate({
+                    path: 'foods.food',
+                    select: 'title price category extraSections',
+                    populate: { path: 'category', select: 'title' },
+                })
                 .populate('buyer', 'name phone')
                 .lean(),
         ]);

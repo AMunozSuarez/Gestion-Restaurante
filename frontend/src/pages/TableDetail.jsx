@@ -5,6 +5,7 @@ import { useOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../store/CashRegisterContext';
 import { useWaiters } from '../hooks/useUsers';
+import { useRestaurant } from '../hooks/useRestaurant';
 import { 
     ArrowLeftIcon, 
     PlusIcon, 
@@ -25,6 +26,7 @@ import ProductExtrasModal from '../components/common/ProductExtrasModal';
 import ButtonAlertBubble from '../components/common/ButtonAlertBubble';
 import { formatChileanCurrency } from '../utils/dateUtils';
 import printingService from '../services/printingService';
+import ordersService from '../services/ordersService';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 
@@ -39,6 +41,10 @@ const TableDetail = () => {
     const { searchResults, searchProducts } = useProductSearch();
     const { createOrder, updateOrder } = useOrders({ section: 'mesas' });
     const { waiters } = useWaiters();
+    const { restaurant } = useRestaurant();
+
+    const kitchenDisplayEnabled = Boolean(restaurant?.settings?.kitchenDisplay?.enabled);
+    const canMarkItemReady = printingService.canCurrentUserMarkOrderReady();
 
     // Estados
     const [showCashAlert, setShowCashAlert] = useState(false);
@@ -73,6 +79,7 @@ const TableDetail = () => {
     const [activeSplitAccountIndex, setActiveSplitAccountIndex] = useState(0);
 
     const productCommentInputRef = useRef(null);
+    const pendingReadyRef = useRef({});
 
     // Función para mostrar notificación
     const showNotification = (message, type = 'success', duration = 3000) => {
@@ -98,8 +105,24 @@ const TableDetail = () => {
     useEffect(() => {
         if (table?.currentOrder && table.currentOrder.foods) {
             // Cargar productos activos
-            const orderProducts = table.currentOrder.foods.map((food, index) => ({
+            const orderProducts = table.currentOrder.foods.map((food, index) => {
+                // Si hay un cambio de "ready" optimista en curso para este item, se respeta
+                // hasta que el dato del servidor confirme el mismo valor. Esto evita que una
+                // respuesta desactualizada (petición GET/socket en curso antes del toggle)
+                // revierta momentáneamente el estado que el usuario acaba de fijar.
+                const serverReady = Boolean(food.ready);
+                const pendingReady = pendingReadyRef.current[food._id];
+                let resolvedReady = serverReady;
+                if (pendingReady !== undefined) {
+                    if (pendingReady === serverReady) {
+                        delete pendingReadyRef.current[food._id];
+                    } else {
+                        resolvedReady = pendingReady;
+                    }
+                }
+                return {
                 id: food.food?._id || food.food,
+                orderItemId: food._id,
                 cartId: `orig_${index}_${food.food?._id || food.food}`,
                 name: food.food?.title || 'Producto',
                 price: food.food?.price || 0,
@@ -108,11 +131,13 @@ const TableDetail = () => {
                 selectedExtras: food.selectedExtras || [],
                 extraSections: food.food?.extraSections || [],
                 category: food.food?.category,
+                ready: resolvedReady,
                 isOriginal: true,
                 isNew: false,
                 deleted: false,
                 isPendingDelete: false
-            }));
+                };
+            });
 
             // Cargar productos eliminados si existen
             const deletedProducts = (table.currentOrder.deletedFoods || []).map((food, index) => {
@@ -288,6 +313,31 @@ const TableDetail = () => {
             }
             return item;
         }).filter(Boolean));
+    };
+
+    const toggleItemReady = async (item) => {
+        if (!table?.currentOrder?._id || !item.orderItemId) return;
+
+        if (!printingService.canCurrentUserMarkOrderReady()) {
+            showNotification('Solo el dueño puede marcar productos como listos con la configuración actual', 'warning');
+            return;
+        }
+
+        const nextReady = !item.ready;
+        pendingReadyRef.current[item.orderItemId] = nextReady;
+        setCart(prev => prev.map(cartItem =>
+            cartItem.cartId === item.cartId ? { ...cartItem, ready: nextReady } : cartItem
+        ));
+
+        try {
+            await ordersService.updateOrderItemReady(table.currentOrder._id, item.orderItemId, nextReady);
+        } catch (error) {
+            delete pendingReadyRef.current[item.orderItemId];
+            setCart(prev => prev.map(cartItem =>
+                cartItem.cartId === item.cartId ? { ...cartItem, ready: !nextReady } : cartItem
+            ));
+            showNotification(error.message || 'Error al actualizar el producto', 'error');
+        }
     };
 
     const restoreDeletedItem = (cartId) => {
@@ -1528,10 +1578,18 @@ const TableDetail = () => {
                                                 const itemExtrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
                                                 const canDeleteOriginalOrderItems = printingService.canCurrentUserDeleteOrderItems();
                                                 return (
-                                                <div key={item.cartId} className="border border-gray-200 rounded-lg p-3 mb-2">
+                                                <div key={item.cartId} className={`border rounded-lg p-3 mb-2 ${item.ready ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}>
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div className="flex-1">
-                                                            <div className="font-medium text-sm">{item.name}</div>
+                                                            <div className="font-medium text-sm flex items-center gap-2">
+                                                                {item.name}
+                                                                {item.ready && (
+                                                                    <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                                        <CheckIcon className="w-3 h-3" />
+                                                                        Listo
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <div className="text-teal-600 text-sm">
                                                                 {formatChileanCurrency(item.price)}
                                                                 {itemExtrasTotal > 0 && (
@@ -1541,15 +1599,26 @@ const TableDetail = () => {
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        {canDeleteOriginalOrderItems && (
-                                                            <button
-                                                                onClick={() => removeFromCart(item.cartId)}
-                                                                className="p-1 hover:bg-red-100 rounded"
-                                                                title="Marcar como eliminado"
-                                                            >
-                                                                <TrashIcon className="w-4 h-4 text-red-600" />
-                                                            </button>
-                                                        )}
+                                                        <div className="flex items-center gap-1">
+                                                            {kitchenDisplayEnabled && item.orderItemId && canMarkItemReady && (
+                                                                <button
+                                                                    onClick={() => toggleItemReady(item)}
+                                                                    className={`p-1 rounded ${item.ready ? 'hover:bg-green-100' : 'hover:bg-gray-100'}`}
+                                                                    title={item.ready ? 'Marcar como no listo' : 'Marcar como listo'}
+                                                                >
+                                                                    <CheckIcon className={`w-4 h-4 ${item.ready ? 'text-green-600' : 'text-gray-400'}`} />
+                                                                </button>
+                                                            )}
+                                                            {canDeleteOriginalOrderItems && (
+                                                                <button
+                                                                    onClick={() => removeFromCart(item.cartId)}
+                                                                    className="p-1 hover:bg-red-100 rounded"
+                                                                    title="Marcar como eliminado"
+                                                                >
+                                                                    <TrashIcon className="w-4 h-4 text-red-600" />
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </div>
 
                                                     {/* Extras de productos originales (solo lectura) */}

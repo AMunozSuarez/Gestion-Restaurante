@@ -10,5 +10,7 @@ export const normalizeKitchenItems = (order) => {
     notes: item.comment || '',
     selectedExtras: item.selectedExtras || [],
     ready: Boolean(item.ready),
+    categoryId: item.food?.category?._id || item.food?.category || null,
+    categoryTitle: item.food?.category?.title || '',
   }));
 };
