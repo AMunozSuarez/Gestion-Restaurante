@@ -248,6 +248,9 @@ export const ordersService = {
   },
 
   // Obtener pedidos de sección (activos + recientes en una sola llamada)
+  // skipCache: fuerza ir al servidor ignorando la caché de 10s. Necesario para
+  // resincronizar pantallas siempre-abiertas (KDS) donde un snapshot viejo puede
+  // revivir pedidos ya cerrados o esconder los que llegaron sin conexión.
   getSectionOrders: async (filters = {}) => {
     try {
       const params = new URLSearchParams();
@@ -258,8 +261,10 @@ export const ordersService = {
 
       const url = `/order/section?${params.toString()}`;
 
-      const cached = getCachedResponse(getCacheKey(url));
-      if (cached) return cached;
+      if (!filters.skipCache) {
+        const cached = getCachedResponse(getCacheKey(url));
+        if (cached) return cached;
+      }
 
       const response = await api.get(url);
       setCachedResponse(getCacheKey(url), response.data);

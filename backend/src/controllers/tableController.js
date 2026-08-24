@@ -225,11 +225,13 @@ const closeTable = async (req, res) => {
         }
 
         // Si hay una orden, completarla primero
+        let completedOrder = null;
         if (table.currentOrder) {
             const order = await Order.findById(table.currentOrder._id);
             if (order && order.status !== 'Completado' && order.status !== 'Cancelado') {
                 order.status = 'Completado';
                 await order.save();
+                completedOrder = order;
 
                 // Descontar inventario (fire-and-forget)
                 deductStockForOrder(order._id, req.restaurantId).catch(err =>
@@ -247,7 +249,26 @@ const closeTable = async (req, res) => {
         await table.save();
 
         try {
-            getIO().to(`restaurant:${req.restaurantId}`).emit('table:updated', { table });
+            const io = getIO();
+            io.to(`restaurant:${req.restaurantId}`).emit('table:updated', { table });
+
+            // Cerrar la mesa completa la orden aquí mismo: sin este evento la
+            // pantalla de cocina seguiría mostrando un pedido ya cobrado hasta
+            // la próxima resincronización.
+            if (completedOrder) {
+                const populatedOrder = await Order.findById(completedOrder._id)
+                    .populate('foods.food', 'title price category extraSections')
+                    .populate('deletedFoods.food', 'title price extraSections')
+                    .populate('buyer', 'name phone')
+                    .populate('waiter', 'userName name')
+                    .lean();
+                if (populatedOrder) {
+                    io.to(`restaurant:${req.restaurantId}`).emit('order:updated', {
+                        order: populatedOrder,
+                        _fromSocketId: req.headers['x-socket-id'] || null,
+                    });
+                }
+            }
         } catch (socketErr) {
             console.error('Error emitiendo socket table:updated:', socketErr.message);
         }
