@@ -13,6 +13,12 @@ import categoriesService from '../services/categoriesService';
 const KDS_WARNING_MINUTES = 10;
 const KDS_OVERDUE_MINUTES = 20;
 const KDS_TICK_MS = 15 * 1000;
+// Resincronización periódica contra el servidor: red de seguridad para eventos
+// perdidos (caída de socket, pedido eliminado o mesa cerrada desde otro equipo).
+const KDS_RESYNC_MS = 60 * 1000;
+// Vida máxima de una guarda optimista. Sin este límite, una guarda que el
+// servidor nunca confirma dejaría un "listo" congelado para siempre.
+const PENDING_GUARD_TTL_MS = 20 * 1000;
 
 const SECTION_LABELS = {
   mesas: 'Mesas',
@@ -23,6 +29,50 @@ const SECTION_LABELS = {
 const SECTION_FILTERS = ['all', 'mesas', 'mostrador', 'delivery'];
 
 const getOrderId = (order) => order._id || order.id;
+
+// Devuelve la guarda vigente y descarta la que ya expiró.
+const readPendingGuard = (store, key) => {
+  const entry = store[key];
+  if (!entry) return null;
+  if (Date.now() - entry.at > PENDING_GUARD_TTL_MS) {
+    delete store[key];
+    return null;
+  }
+  return entry;
+};
+
+const isKitchenOrder = (order) =>
+  Boolean(order) && order.status === 'Preparacion' && Array.isArray(order.foods) && order.foods.length > 0;
+
+// Combina el snapshot HTTP con el estado local. Los pedidos que el socket tocó
+// mientras la consulta viajaba se conservan tal cual: el snapshot puede ser
+// anterior a ese cambio y lo revertiría (pedido cerrado que reaparece, o pedido
+// nuevo que desaparece).
+const mergeSnapshot = (prev, snapshot, touchedIds) => {
+  const localById = new Map(prev.map((order) => [String(getOrderId(order)), order]));
+  const snapshotIds = new Set(snapshot.map((order) => String(getOrderId(order))));
+
+  const merged = snapshot.reduce((acc, order) => {
+    const id = String(getOrderId(order));
+    if (!touchedIds.has(id)) {
+      acc.push(order);
+      return acc;
+    }
+    // El socket lo tocó durante la consulta: si sigue local, gana la versión
+    // local; si el socket lo quitó, no se vuelve a agregar.
+    const local = localById.get(id);
+    if (local) acc.push(local);
+    return acc;
+  }, []);
+
+  // Pedidos que llegaron por socket después de que salió la consulta.
+  const socketOnly = prev.filter((order) => {
+    const id = String(getOrderId(order));
+    return touchedIds.has(id) && !snapshotIds.has(id);
+  });
+
+  return [...socketOnly, ...merged];
+};
 
 const getItemCategoryId = (item) => {
   const category = item.food?.category;
@@ -105,6 +155,11 @@ const KitchenDisplay = () => {
   const canMarkReady = !onlyOwnerCanMarkReady || ['owner', 'super_admin'].includes(user?.role);
 
   const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [connectionLost, setConnectionLost] = useState(false);
+  // Mensaje del backend cuando la lista viene vacía por una razón concreta
+  // (ej: no hay caja abierta), para no mostrar "no hay pedidos" y confundir.
+  const [emptyNotice, setEmptyNotice] = useState('');
   const [sectionFilter, setSectionFilter] = useState('all');
   const [now, setNow] = useState(Date.now());
   const [error, setError] = useState('');
@@ -118,6 +173,15 @@ const KitchenDisplay = () => {
   // acaba de marcar/desmarcar, hasta que el servidor confirme el mismo valor.
   const pendingItemReadyRef = useRef({});
   const pendingOrderReadyRef = useRef({});
+  // IDs que el socket (o una acción local) modificó desde que salió la última
+  // consulta HTTP: mergeSnapshot los protege de un snapshot desactualizado.
+  const socketTouchedRef = useRef(new Set());
+  // Secuencia de consultas: descarta respuestas que llegan fuera de orden.
+  const syncSeqRef = useRef(0);
+
+  const markTouched = useCallback((orderId) => {
+    socketTouchedRef.current.add(String(orderId));
+  }, []);
 
   // Aplica las guardas pendientes sobre un pedido recién recibido (socket o respuesta HTTP),
   // limpiando las que ya coinciden con el valor confirmado por el servidor.
@@ -126,27 +190,29 @@ const KitchenDisplay = () => {
     const orderId = getOrderId(order);
 
     let kitchenReadyAt = order.kitchenReadyAt;
-    if (Object.prototype.hasOwnProperty.call(pendingOrderReadyRef.current, orderId)) {
-      const pendingValue = pendingOrderReadyRef.current[orderId];
+    const orderGuard = readPendingGuard(pendingOrderReadyRef.current, orderId);
+    if (orderGuard) {
       const serverHasIt = Boolean(order.kitchenReadyAt);
-      if (serverHasIt === pendingValue) {
+      if (serverHasIt === orderGuard.value) {
         delete pendingOrderReadyRef.current[orderId];
-      } else if (pendingValue) {
+      } else if (orderGuard.value) {
         kitchenReadyAt = kitchenReadyAt || new Date().toISOString();
+      } else {
+        kitchenReadyAt = null;
       }
     }
 
     const foods = Array.isArray(order.foods)
       ? order.foods.map((food) => {
           const key = `${orderId}:${food._id}`;
-          if (!Object.prototype.hasOwnProperty.call(pendingItemReadyRef.current, key)) return food;
-          const pendingValue = pendingItemReadyRef.current[key];
+          const guard = readPendingGuard(pendingItemReadyRef.current, key);
+          if (!guard) return food;
           const serverReady = Boolean(food.ready);
-          if (pendingValue === serverReady) {
+          if (guard.value === serverReady) {
             delete pendingItemReadyRef.current[key];
             return food;
           }
-          return { ...food, ready: pendingValue };
+          return { ...food, ready: guard.value };
         })
       : order.foods;
 
@@ -182,20 +248,60 @@ const KitchenDisplay = () => {
       .catch(() => {});
   }, []);
 
-  const loadOrders = useCallback(async () => {
+  const loadOrders = useCallback(async ({ silent = false } = {}) => {
+    const seq = ++syncSeqRef.current;
+    // A partir de aquí se registran los IDs que toque el socket mientras la
+    // consulta está en vuelo, para que el snapshot no los pise.
+    const touched = new Set();
+    socketTouchedRef.current = touched;
+    if (!silent) setIsLoading(true);
+
     try {
-      const response = await ordersService.getSectionOrders();
-      if (response.success) {
-        setOrders((response.active || []).map(applyPendingGuards));
-        setError('');
+      const response = await ordersService.getSectionOrders({ skipCache: true });
+      if (seq !== syncSeqRef.current) return; // llegó una respuesta más nueva
+      if (!response.success) {
+        setError(response.message || 'Error al cargar pedidos de cocina');
+        return;
       }
+      const snapshot = (response.active || []).filter(isKitchenOrder).map(applyPendingGuards);
+      setOrders((prev) => mergeSnapshot(prev, snapshot, touched));
+      setEmptyNotice(snapshot.length === 0 && response.message ? response.message : '');
+      setError('');
     } catch (err) {
+      if (seq !== syncSeqRef.current) return;
       setError(err.message || 'Error al cargar pedidos de cocina');
+    } finally {
+      if (seq === syncSeqRef.current) setIsLoading(false);
     }
   }, [applyPendingGuards]);
 
   useEffect(() => {
     loadOrders();
+  }, [loadOrders]);
+
+  // Resincronización: al (re)conectar el socket, al volver a la pestaña y cada
+  // minuto. Cubre los eventos perdidos sin red y los pedidos que se cerraron o
+  // eliminaron desde otro dispositivo mientras esta pantalla estaba abierta.
+  useEffect(() => {
+    const unsubConnect = onSocketEvent('connect', () => {
+      setConnectionLost(false);
+      loadOrders({ silent: true });
+    });
+    const unsubDisconnect = onSocketEvent('disconnect', () => setConnectionLost(true));
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadOrders({ silent: true });
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    const resync = setInterval(() => loadOrders({ silent: true }), KDS_RESYNC_MS);
+
+    return () => {
+      unsubConnect();
+      unsubDisconnect();
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(resync);
+    };
   }, [loadOrders]);
 
   useEffect(() => {
@@ -205,7 +311,10 @@ const KitchenDisplay = () => {
 
   useEffect(() => {
     const unsubCreated = onSocketEvent('order:created', ({ order }) => {
-      if (!order || !Array.isArray(order.foods) || order.foods.length === 0) return;
+      // Solo entran a cocina los pedidos en preparación: una venta directa se
+      // crea ya "Completado" y no debe aparecer aquí.
+      if (!isKitchenOrder(order)) return;
+      markTouched(getOrderId(order));
       setOrders((prev) => {
         if (prev.some((o) => getOrderId(o) === getOrderId(order))) return prev;
         playNewOrderSound();
@@ -216,10 +325,12 @@ const KitchenDisplay = () => {
     const unsubUpdated = onSocketEvent('order:updated', ({ order }) => {
       if (!order) return;
       const orderId = getOrderId(order);
+      markTouched(orderId);
       const guardedOrder = applyPendingGuards(order);
 
       setOrders((prev) => {
-        if (guardedOrder.status !== 'Preparacion') {
+        // Cobrado, cancelado o sin productos: fuera de la pantalla de cocina.
+        if (!isKitchenOrder(guardedOrder)) {
           return prev.filter((o) => getOrderId(o) !== orderId);
         }
         const previous = prev.find((o) => getOrderId(o) === orderId);
@@ -234,11 +345,18 @@ const KitchenDisplay = () => {
       });
     });
 
+    const unsubDeleted = onSocketEvent('order:deleted', ({ orderId }) => {
+      if (!orderId) return;
+      markTouched(orderId);
+      setOrders((prev) => prev.filter((o) => String(getOrderId(o)) !== String(orderId)));
+    });
+
     return () => {
       unsubCreated();
       unsubUpdated();
+      unsubDeleted();
     };
-  }, [applyPendingGuards]);
+  }, [applyPendingGuards, markTouched]);
 
   const filteredOrders = useMemo(() => {
     const bySection = sectionFilter === 'all'
@@ -262,8 +380,9 @@ const KitchenDisplay = () => {
 
   const handleMarkReady = async (orderId) => {
     markOwnUpdate(orderId);
+    markTouched(orderId);
     const readyAt = new Date().toISOString();
-    pendingOrderReadyRef.current[orderId] = true;
+    pendingOrderReadyRef.current[orderId] = { value: true, at: Date.now() };
     setOrders((prev) =>
       prev.map((o) => (getOrderId(o) === orderId ? { ...o, kitchenReadyAt: readyAt } : o))
     );
@@ -281,8 +400,9 @@ const KitchenDisplay = () => {
 
   const handleToggleItemReady = async (orderId, foodItemId, nextReady) => {
     markOwnUpdate(orderId);
+    markTouched(orderId);
     const key = `${orderId}:${foodItemId}`;
-    pendingItemReadyRef.current[key] = nextReady;
+    pendingItemReadyRef.current[key] = { value: nextReady, at: Date.now() };
     setOrders((prev) =>
       prev.map((o) => {
         if (getOrderId(o) !== orderId) return o;
@@ -347,7 +467,7 @@ const KitchenDisplay = () => {
         <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold">Cocina</h1>
           <span className="px-3 py-1 rounded-full text-lg font-bold bg-amber-500 text-gray-900">
-            {activeOrders.length} en preparación
+            {isLoading ? 'Cargando…' : `${activeOrders.length} en preparación`}
           </span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -452,6 +572,13 @@ const KitchenDisplay = () => {
         </div>
       </div>
 
+      {connectionLost && (
+        <div className="mb-4 p-3 bg-amber-900 text-amber-100 rounded-lg flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-300 animate-pulse" />
+          Sin conexión con el servidor — reconectando. La pantalla puede estar desactualizada.
+        </div>
+      )}
+
       {error && (
         <div className="mb-4 p-3 bg-red-900 text-red-100 rounded-lg">{error}</div>
       )}
@@ -477,7 +604,9 @@ const KitchenDisplay = () => {
 
       {activeOrders.length === 0 ? (
         <p className="text-gray-400 text-xl text-center mt-12">
-          No hay pedidos en preparación
+          {isLoading
+            ? 'Cargando pedidos…'
+            : emptyNotice || 'No hay pedidos en preparación'}
         </p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">

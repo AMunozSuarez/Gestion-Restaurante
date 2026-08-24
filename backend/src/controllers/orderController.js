@@ -886,6 +886,18 @@ const deleteOrderController = async (req, res) => {
                 message: 'Pedido no encontrado o no pertenece a este restaurante'
             });
         }
+
+        // Sin este evento, un pedido borrado queda como fantasma en la pantalla
+        // de cocina hasta que se recargue la página.
+        try {
+            getIO().to(`restaurant:${req.user.restaurant}`).emit('order:deleted', {
+                orderId: String(order._id),
+                _fromSocketId: req.headers['x-socket-id'] || null,
+            });
+        } catch (socketErr) {
+            console.error('Error emitiendo socket order:deleted:', socketErr.message);
+        }
+
         res.status(200).send({
             success: true,
             message: 'Pedido eliminado exitosamente',
