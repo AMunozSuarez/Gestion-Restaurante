@@ -116,12 +116,12 @@ const SocketOrderPrinter = () => {
       }
     });
 
-    const unsubCashRegisterReport = onSocketEvent('cashregister:print', ({ cashRegister, systemTotalsByPayment, tipsStatistics, _fromSocketId }) => {
+    const unsubCashRegisterReport = onSocketEvent('cashregister:print', ({ cashRegister, systemTotalsByPayment, tipsStatistics, movements, _fromSocketId }) => {
       if (!cashRegister) return;
       if (_fromSocketId && _fromSocketId === getSocketId()) return;
       if (!printingService.getRemotePrintEnabled()) return;
       if (canPrint()) {
-        printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment || {}, tipsStatistics || null).catch((err) => {
+        printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment || {}, tipsStatistics || null, movements || []).catch((err) => {
           console.error('Error al imprimir reporte de caja solicitado:', err);
         });
       }

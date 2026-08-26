@@ -3,6 +3,7 @@ import cashRegisterService from '../services/cashRegisterService';
 
 export const useCashRegisterSales = (cashRegisterId = null, filters = {}) => {
   const [sales, setSales] = useState([]);
+  const [movements, setMovements] = useState([]);
   const [cashRegister, setCashRegister] = useState(null);
   const [statistics, setStatistics] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,10 +26,12 @@ export const useCashRegisterSales = (cashRegisterId = null, filters = {}) => {
       
       if (response && response.success) {
         setSales(response.orders || []);
+        setMovements(response.movements || []);
         setCashRegister(response.cashRegister);
         setStatistics(response.statistics);
       } else {
         setSales([]);
+        setMovements([]);
         setCashRegister(null);
         setStatistics(null);
         if (response && response.message) {
@@ -38,6 +41,7 @@ export const useCashRegisterSales = (cashRegisterId = null, filters = {}) => {
     } catch (error) {
       setError(error.message);
       setSales([]);
+      setMovements([]);
       setCashRegister(null);
       setStatistics(null);
     } finally {
@@ -49,6 +53,7 @@ export const useCashRegisterSales = (cashRegisterId = null, filters = {}) => {
     // Clear stale data immediately when cashRegisterId changes so the UI
     // doesn't show the previous cash register's data while the new fetch runs.
     setSales([]);
+    setMovements([]);
     setStatistics(null);
     setCashRegister(null);
     fetchSales();
@@ -60,6 +65,7 @@ export const useCashRegisterSales = (cashRegisterId = null, filters = {}) => {
 
   return {
     sales,
+    movements,
     cashRegister,
     statistics,
     isLoading,

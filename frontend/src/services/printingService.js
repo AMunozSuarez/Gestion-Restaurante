@@ -2139,7 +2139,7 @@ RESUMEN
   },
 
   // Generar reporte de caja cerrada
-  generateCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null) {
+  generateCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null, movements = []) {
     
     const date = new Date();
     
@@ -2270,6 +2270,90 @@ Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
       content += '\n';
     }
 
+    // Agregar ingresos y egresos manuales de caja si existen
+    const cashMovements = Array.isArray(movements) ? movements : [];
+    if (cashMovements.length > 0) {
+      const movementFontSettings = this.getLocalFontSettings();
+      const movementLineWidth = movementFontSettings.bold ? 26 : 32;
+
+      // Alinea la etiqueta a la izquierda y el monto a la derecha del ancho del ticket
+      const lineWithAmount = (label, value) => {
+        const padding = ' '.repeat(Math.max(1, movementLineWidth - label.length - value.length));
+        return `${label}${padding}${value}\n`;
+      };
+
+      const formatShortDate = (dateString) => {
+        if (!dateString) return '';
+        const d = new Date(dateString);
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      };
+
+      const incomes = cashMovements.filter(m => m.type === 'Ingreso');
+      const expenses = cashMovements.filter(m => m.type === 'Egreso');
+      const totalIncome = incomes.reduce((sum, m) => sum + (m.amount || 0), 0);
+      const totalExpense = expenses.reduce((sum, m) => sum + (m.amount || 0), 0);
+      const netMovements = totalIncome - totalExpense;
+
+      // En el ticket los movimientos van del mas antiguo al mas reciente
+      const renderMovements = (list) => {
+        let block = '';
+        [...list]
+          .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+          .forEach((movement) => {
+            block += lineWithAmount(formatShortDate(movement.createdAt), formatCurrency(movement.amount));
+            const comment = normalizeText((movement.description || '').trim());
+            if (comment) {
+              block += `  ${comment.slice(0, movementLineWidth - 2)}\n`;
+            }
+          });
+        return block;
+      };
+
+      content += `
+================================
+   INGRESOS Y EGRESOS DE CAJA
+================================
+
+`;
+
+      if (incomes.length > 0) {
+        content += 'INGRESOS\n';
+        content += renderMovements(incomes);
+        content += lineWithAmount('Total ingresos:', formatCurrency(totalIncome));
+        content += '\n';
+      }
+
+      if (expenses.length > 0) {
+        content += 'EGRESOS\n';
+        content += renderMovements(expenses);
+        content += lineWithAmount('Total egresos:', formatCurrency(totalExpense));
+        content += '\n';
+      }
+
+      content += lineWithAmount(
+        'Neto movimientos:',
+        `${netMovements >= 0 ? '+' : '-'}${formatCurrency(Math.abs(netMovements))}`
+      );
+
+      // Arqueo de efectivo: lo que deberia haber fisicamente en la caja
+      const cashSales = systemTotalsByPayment?.Efectivo || 0;
+      const expectedCash = (cashRegister.initialBalance || 0) + cashSales + netMovements;
+
+      content += `
+================================
+       EFECTIVO ESPERADO
+================================
+
+`;
+      content += lineWithAmount('Monto inicial:', formatCurrency(cashRegister.initialBalance));
+      content += lineWithAmount('Ventas en efectivo:', formatCurrency(cashSales));
+      content += lineWithAmount('(+) Ingresos:', formatCurrency(totalIncome));
+      content += lineWithAmount('(-) Egresos:', formatCurrency(totalExpense));
+      content += lineWithAmount('Efectivo esperado:', formatCurrency(expectedCash));
+      content += '\n';
+    }
+
     // Agregar comentarios si existen
     if (cashRegister.comment && cashRegister.comment.trim()) {
       content += `
@@ -2297,8 +2381,8 @@ ${cashRegister.comment.trim()}
   },
 
   // Imprimir reporte de caja automaticamente
-  async printCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null) {
-    const content = this.generateCashRegisterReport(cashRegister, systemTotalsByPayment, tipsStatistics);
+  async printCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null, movements = []) {
+    const content = this.generateCashRegisterReport(cashRegister, systemTotalsByPayment, tipsStatistics, movements);
     // Use caja printer if configured, otherwise default
     const cajaPrinter = printerConfigService.getPrinterForRole('caja');
     if (cajaPrinter) {
