@@ -857,6 +857,20 @@ const updateOrderItemReadyController = async (req, res) => {
         try {
             const senderSocketId = req.headers['x-socket-id'] || null;
             getIO().to(`restaurant:${restaurantId}`).emit('order:updated', { order: populatedOrder, _fromSocketId: senderSocketId });
+
+            // Notificacion ligera al mesero cuando un producto queda listo (para sonido en el celular)
+            if (ready) {
+                const populatedItem = populatedOrder.foods.find((foodItem) => foodItem._id.toString() === foodId);
+                getIO().to(`restaurant:${restaurantId}`).emit('order:item-ready', {
+                    orderId: populatedOrder._id,
+                    foodId,
+                    productId: populatedItem?.food?._id || null,
+                    comment: populatedItem?.comment || '',
+                    foodName: populatedItem?.food?.title || populatedItem?.name || '',
+                    tableNumber: populatedOrder.tableNumber,
+                    waiterId: populatedOrder.waiter?._id || null,
+                });
+            }
         } catch (socketErr) {
             console.error('Error emitiendo socket order:updated:', socketErr.message);
         }
