@@ -18,7 +18,8 @@ import {
     ClockIcon,
     CurrencyDollarIcon,
     CheckIcon,
-    ExclamationTriangleIcon
+    ExclamationTriangleIcon,
+    LinkSlashIcon
 } from '@heroicons/react/24/outline';
 import { Button } from '../components/ui';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
@@ -34,7 +35,7 @@ const TableDetail = () => {
     const { tableId } = useParams();
     const navigate = useNavigate();
     const { table, isLoading: tableLoading, refetch: refetchTable } = useTable(tableId);
-    const { closeTable, assignOrderToTable, assignWaiterToTable } = useTables();
+    const { closeTable, assignOrderToTable, assignWaiterToTable, splitTable } = useTables();
     const { user } = useAuth();
     const { isOpen: isCashOpen, isLoading: cashLoading } = useCashRegister();
     const { products } = useProducts({ available: true });
@@ -77,6 +78,8 @@ const TableDetail = () => {
     const [splitCount, setSplitCount] = useState(2);
     const [splitAccounts, setSplitAccounts] = useState([]);
     const [activeSplitAccountIndex, setActiveSplitAccountIndex] = useState(0);
+    const [showSeparateTablesModal, setShowSeparateTablesModal] = useState(false);
+    const [isSeparatingTables, setIsSeparatingTables] = useState(false);
 
     const productCommentInputRef = useRef(null);
     const pendingReadyRef = useRef({});
@@ -85,6 +88,26 @@ const TableDetail = () => {
     const showNotification = (message, type = 'success', duration = 3000) => {
         setNotification({ message, type });
         setTimeout(() => setNotification(null), duration);
+    };
+
+    // Separar esta mesa (o todo su grupo, si es la principal) de la unión
+    const confirmSeparateTables = async () => {
+        setIsSeparatingTables(true);
+        try {
+            const isSecondary = Boolean(table.mergedInto);
+            await splitTable(table._id, isSecondary ? [table._id] : undefined);
+            setShowSeparateTablesModal(false);
+            if (isSecondary) {
+                navigate('/mesas');
+            } else {
+                showNotification('Grupo de mesas separado exitosamente');
+                await refetchTable();
+            }
+        } catch (error) {
+            showNotification('Error al separar mesas: ' + error.message, 'error');
+        } finally {
+            setIsSeparatingTables(false);
+        }
     };
 
     // Alerta contextual que aparece sobre el botón de cerrar mesa/cobrar, en vez del toast genérico
@@ -1328,6 +1351,55 @@ const TableDetail = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Banner de mesa unida */}
+            {Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0 && (
+                <div className="bg-teal-50 border-b border-teal-200">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm text-teal-800">
+                            Mesa unida con: <strong>{table.mergedGroup.map(t => t.tableNumber).join(', ')}</strong>
+                        </p>
+                        <button
+                            onClick={() => setShowSeparateTablesModal(true)}
+                            className="text-sm font-medium text-teal-700 hover:text-teal-900 flex items-center gap-1"
+                        >
+                            <LinkSlashIcon className="w-4 h-4" />
+                            Separar mesas
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Confirmar separación de mesas */}
+            {showSeparateTablesModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">Separar Mesas</h3>
+                        <p className="text-gray-600 mb-6">
+                            {table.mergedInto
+                                ? `¿Separar la Mesa ${table.tableNumber} del grupo? Volverá a estar disponible de forma independiente.`
+                                : `¿Separar todo el grupo? Las mesas unidas volverán a estar disponibles de forma independiente y la Mesa ${table.tableNumber} conservará el pedido activo.`}
+                        </p>
+                        <div className="flex gap-3">
+                            <Button
+                                onClick={() => setShowSeparateTablesModal(false)}
+                                variant="outline"
+                                className="flex-1"
+                                disabled={isSeparatingTables}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={confirmSeparateTables}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                                disabled={isSeparatingTables}
+                            >
+                                {isSeparatingTables ? 'Separando...' : 'Separar'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Notificación */}
             {addedProductNotification && (

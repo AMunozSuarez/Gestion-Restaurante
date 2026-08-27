@@ -40,6 +40,15 @@ const tableSchema = new mongoose.Schema({
         type: Date,
         default: null,
     },
+    mergedGroup: {
+        type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Table' }],
+        default: [],
+    },
+    mergedInto: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Table',
+        default: null,
+    },
     restaurant: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Restaurant',

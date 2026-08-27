@@ -144,7 +144,7 @@ const createOrderController = async (req, res) => {
             return null;
         })();
 
-        const [customer, existingFoods, currentCashRegister, table] = await Promise.all([
+        const [customer, existingFoods, currentCashRegister, resolvedTable] = await Promise.all([
             customerPromise,
             foodModel.find({ _id: { $in: uniqueFoodIds }, restaurant: restaurantId })
                 .select('_id price extraSections')
@@ -153,6 +153,12 @@ const createOrderController = async (req, res) => {
             cashRegisterModel.findOne({ restaurant: restaurantId, status: 'Abierta' }).select('_id').lean(),
             tablePromise,
         ]);
+
+        // Si la mesa buscada es secundaria de un grupo unido, el pedido se
+        // asigna a la mesa principal para que la cuenta quede compartida.
+        const table = (resolvedTable && resolvedTable.mergedInto)
+            ? await Table.findOne({ _id: resolvedTable.mergedInto, restaurant: restaurantId })
+            : resolvedTable;
 
         // ── Validaciones rápidas (sin queries) ──
         if (buyer && typeof buyer === 'string' && !customer) {

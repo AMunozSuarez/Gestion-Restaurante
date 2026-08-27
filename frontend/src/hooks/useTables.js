@@ -138,10 +138,34 @@ export const useTables = () => {
     const assignWaiterToTable = useCallback(async (id, waiterId) => {
         try {
             const updatedTable = await tablesService.assignWaiterToTable(id, waiterId);
-            setTables(prev => prev.map(table => 
+            setTables(prev => prev.map(table =>
                 table._id === id ? updatedTable : table
             ));
             return updatedTable;
+        } catch (err) {
+            setError(err.message);
+            throw err;
+        }
+    }, []);
+
+    const mergeTables = useCallback(async (tableIds) => {
+        try {
+            const result = await tablesService.mergeTables(tableIds);
+            const updatedById = new Map(result.tables.map(t => [t._id, t]));
+            setTables(prev => prev.map(table => updatedById.get(table._id) || table));
+            return result;
+        } catch (err) {
+            setError(err.message);
+            throw err;
+        }
+    }, []);
+
+    const splitTable = useCallback(async (id, tableIds) => {
+        try {
+            const result = await tablesService.splitTable(id, tableIds);
+            const updatedById = new Map(result.tables.map(t => [t._id, t]));
+            setTables(prev => prev.map(table => updatedById.get(table._id) || table));
+            return result;
         } catch (err) {
             setError(err.message);
             throw err;
@@ -161,6 +185,8 @@ export const useTables = () => {
         assignOrderToTable,
         updateTablePositions,
         assignWaiterToTable,
+        mergeTables,
+        splitTable,
     };
 };
 

@@ -13,7 +13,9 @@ import {
     ClockIcon,
     XMarkIcon,
     CheckIcon,
-    ExclamationTriangleIcon
+    ExclamationTriangleIcon,
+    LinkIcon,
+    LinkSlashIcon
 } from '@heroicons/react/24/outline';
 import { Button } from '../components/ui';
 import {
@@ -69,7 +71,7 @@ const DroppableCell = ({ position, isEditMode, children, className }) => {
 
 const TableManagement = () => {
     const navigate = useNavigate();
-    const { tables, isLoading, createTable, updateTable, deleteTable, openTable, updateTablePositions } = useTables();
+    const { tables, isLoading, createTable, updateTable, deleteTable, openTable, updateTablePositions, mergeTables, splitTable } = useTables();
     const { isOpen: isCashOpen, isLoading: cashLoading, openCashRegister } = useCashRegister();
     const { waiters } = useWaiters();
     
@@ -99,6 +101,12 @@ const TableManagement = () => {
     const [editingSectionName, setEditingSectionName] = useState(null);
     const [sectionToEdit, setSectionToEdit] = useState('');
     const [customSections, setCustomSections] = useState(['Salón']);
+    const [mergeMode, setMergeMode] = useState(false);
+    const [selectedForMerge, setSelectedForMerge] = useState([]);
+    const [showMergeConfirmModal, setShowMergeConfirmModal] = useState(false);
+    const [showSplitConfirmModal, setShowSplitConfirmModal] = useState(false);
+    const [tableToSplit, setTableToSplit] = useState(null);
+    const [isMergeSubmitting, setIsMergeSubmitting] = useState(false);
 
     // Sensores dnd-kit: mouse (con distancia mínima para no romper el click) y touch
     const dndSensors = useSensors(
@@ -190,10 +198,71 @@ const TableManagement = () => {
 
     // Función para ir al detalle de la mesa
     const handleTableClick = (table) => {
-        if (table.status === 'occupied') {
-            navigate(`/mesas/${table._id}`);
+        if (mergeMode) {
+            toggleTableForMerge(table);
+            return;
+        }
+
+        // Las mesas unidas siempre actúan a través de la mesa principal del grupo
+        const isMerged = Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0;
+        const targetTable = isMerged
+            ? tables.find(t => t._id === (table.mergedInto || table._id)) || table
+            : table;
+
+        if (targetTable.status === 'occupied') {
+            navigate(`/mesas/${targetTable._id}`);
         } else if (!isEditMode) {
-            handleOpenTable(table);
+            handleOpenTable(targetTable);
+        }
+    };
+
+    // Funciones para unir/separar mesas
+    const handleToggleMergeMode = () => {
+        setMergeMode(prev => !prev);
+        setSelectedForMerge([]);
+    };
+
+    const toggleTableForMerge = (table) => {
+        if (Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0) {
+            showNotification(`La mesa ${table.tableNumber} ya está unida a otro grupo`, 'warning');
+            return;
+        }
+        setSelectedForMerge(prev =>
+            prev.includes(table._id) ? prev.filter(id => id !== table._id) : [...prev, table._id]
+        );
+    };
+
+    const confirmMergeTables = async () => {
+        setIsMergeSubmitting(true);
+        try {
+            await mergeTables(selectedForMerge);
+            showNotification('Mesas unidas exitosamente');
+            setShowMergeConfirmModal(false);
+            setMergeMode(false);
+            setSelectedForMerge([]);
+        } catch (error) {
+            showNotification('Error al unir mesas: ' + error.message, 'error');
+        } finally {
+            setIsMergeSubmitting(false);
+        }
+    };
+
+    const handleUnlinkTable = (table, e) => {
+        e.stopPropagation();
+        setTableToSplit(table);
+        setShowSplitConfirmModal(true);
+    };
+
+    const confirmSplitTable = async () => {
+        try {
+            // Si es una mesa secundaria, se separa solo ella; si es la principal, se separa todo el grupo
+            const isSecondary = Boolean(tableToSplit.mergedInto);
+            await splitTable(tableToSplit._id, isSecondary ? [tableToSplit._id] : undefined);
+            showNotification(isSecondary ? 'Mesa separada exitosamente' : 'Grupo de mesas separado exitosamente');
+            setShowSplitConfirmModal(false);
+            setTableToSplit(null);
+        } catch (error) {
+            showNotification('Error al separar mesa: ' + error.message, 'error');
         }
     };
 
@@ -458,8 +527,30 @@ const TableManagement = () => {
         return grid;
     };
 
+    // Determina si una mesa unida tiene compañeras de grupo justo a la derecha/abajo
+    // en la grilla, para dibujar un conector visual entre ellas (solo si son adyacentes)
+    const getAdjacentMergedDirections = (table) => {
+        if (!Array.isArray(table.mergedGroup) || table.mergedGroup.length === 0) {
+            return { right: false, bottom: false };
+        }
+        const pos = getEffectivePosition(table);
+        const groupNumbers = new Set(table.mergedGroup.map(t => t.tableNumber));
+        let right = false;
+        let bottom = false;
+        filteredTables.forEach(partner => {
+            if (!groupNumbers.has(partner.tableNumber)) return;
+            const p = getEffectivePosition(partner);
+            if (p.y === pos.y && p.x === pos.x + 1) right = true;
+            if (p.x === pos.x && p.y === pos.y + 1) bottom = true;
+        });
+        return { right, bottom };
+    };
+
     // Obtener color de estado de mesa
     const getTableStatusColor = (table) => {
+        if (Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0) {
+            return 'bg-indigo-100 border-2 border-indigo-600 text-indigo-800 shadow-sm';
+        }
         if (table.status === 'occupied') {
             return 'bg-orange-100 border-2 border-orange-600 text-orange-800 shadow-sm';
         } else if (table.status === 'reserved') {
@@ -473,6 +564,10 @@ const TableManagement = () => {
     const getTableHoverClasses = (table, isEditModeView) => {
         if (isEditModeView) {
             return 'cursor-move';
+        }
+
+        if (Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0) {
+            return 'cursor-pointer hover:bg-indigo-200 hover:border-indigo-700 hover:shadow-lg hover:-translate-y-0.5';
         }
 
         if (table.status === 'occupied') {
@@ -580,8 +675,17 @@ const TableManagement = () => {
                         </div>
                         <div className="flex gap-3">
                             <Button
+                                onClick={handleToggleMergeMode}
+                                disabled={isEditMode || isSavingPositions}
+                                variant={mergeMode ? 'primary' : 'outline'}
+                                className={mergeMode ? 'bg-teal-600 hover:bg-teal-700' : ''}
+                            >
+                                <LinkIcon className="w-5 h-5 mr-2" />
+                                {mergeMode ? 'Cancelar unión' : 'Unir mesas'}
+                            </Button>
+                            <Button
                                 onClick={handleToggleEditMode}
-                                disabled={isSavingPositions}
+                                disabled={mergeMode || isSavingPositions}
                                 variant={isEditMode ? 'primary' : 'outline'}
                                 className={isEditMode ? 'bg-teal-600 hover:bg-teal-700' : ''}
                             >
@@ -684,12 +788,18 @@ const TableManagement = () => {
                                         const isOccupied = table.status === 'occupied';
                                         const isReserved = table.status === 'reserved';
                                         const isInactive = table.status === 'inactive';
+                                        const isMerged = Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0;
+                                        const isSelectedForMerge = selectedForMerge.includes(table._id);
 
                                         return (
                                             <div
                                                 key={table._id}
                                                 className={`relative w-[56px] h-[72px] rounded-xl border-2 shadow-sm transition-all duration-200 active:scale-[0.98] ${
-                                                    isOccupied
+                                                    isSelectedForMerge
+                                                        ? 'bg-teal-100 border-teal-600 ring-2 ring-teal-400'
+                                                        : isMerged
+                                                        ? 'bg-indigo-100 border-indigo-600'
+                                                        : isOccupied
                                                         ? 'bg-orange-100 border-orange-600'
                                                         : isReserved
                                                         ? 'bg-blue-100 border-blue-600'
@@ -703,7 +813,9 @@ const TableManagement = () => {
                                                     className="w-full h-full flex flex-col items-center justify-center px-1"
                                                 >
                                                     <UserGroupIcon className={`w-3.5 h-3.5 mb-0.5 ${
-                                                        isOccupied
+                                                        isMerged
+                                                            ? 'text-indigo-700'
+                                                            : isOccupied
                                                             ? 'text-orange-700'
                                                             : isReserved
                                                             ? 'text-blue-700'
@@ -712,7 +824,9 @@ const TableManagement = () => {
                                                             : 'text-green-800'
                                                     }`} />
                                                     <span className={`font-bold leading-none ${
-                                                        isOccupied
+                                                        isMerged
+                                                            ? 'text-indigo-700'
+                                                            : isOccupied
                                                             ? 'text-orange-700'
                                                             : isReserved
                                                             ? 'text-blue-700'
@@ -728,6 +842,25 @@ const TableManagement = () => {
                                                         </span>
                                                     )}
                                                 </button>
+
+                                                {isMerged && !isEditMode && !mergeMode && (
+                                                    <div
+                                                        className="absolute -bottom-1 -left-1 flex items-center gap-0.5 bg-teal-600 text-white text-[9px] px-1 py-0.5 rounded-full shadow"
+                                                        title={`Unida con: ${table.mergedGroup.map(t => t.tableNumber).join(', ')}`}
+                                                    >
+                                                        <LinkIcon className="w-2 h-2" />
+                                                    </div>
+                                                )}
+
+                                                {isMerged && !isEditMode && !mergeMode && (
+                                                    <button
+                                                        onClick={(e) => handleUnlinkTable(table, e)}
+                                                        className="absolute -top-1 -left-1 p-0.5 bg-white rounded-full shadow"
+                                                        title="Separar mesa"
+                                                    >
+                                                        <LinkSlashIcon className="w-2.5 h-2.5 text-gray-600" />
+                                                    </button>
+                                                )}
 
                                                 {isEditMode && (
                                                     <div className="absolute -top-1 -right-1 flex gap-1">
@@ -755,6 +888,11 @@ const TableManagement = () => {
                             {isEditMode && (
                                 <div className="mb-4 text-center">
                                     <p className="text-sm text-gray-600">Arrastra las mesas para cambiar su posición</p>
+                                </div>
+                            )}
+                            {mergeMode && (
+                                <div className="mb-4 text-center">
+                                    <p className="text-sm text-gray-600">Toca 2 o más mesas para unirlas en una sola cuenta</p>
                                 </div>
                             )}
                             <div className={isEditMode ? 'overflow-x-auto -mx-4 px-4' : ''}>
@@ -793,9 +931,11 @@ const TableManagement = () => {
                                                         style={{ touchAction: isEditMode ? 'none' : undefined }}
                                                         className={`
                                                             w-full h-full rounded-lg transition-all relative
-                                                            ${getTableStatusColor(table)}
+                                                            ${selectedForMerge.includes(table._id)
+                                                                ? 'bg-teal-100 border-2 border-teal-600 text-teal-800 shadow-sm ring-2 ring-teal-400'
+                                                                : getTableStatusColor(table)}
                                                             ${draggedTable?._id === table._id ? 'opacity-50' : 'opacity-100'}
-                                                            ${getTableHoverClasses(table, isEditMode)}
+                                                            ${mergeMode ? 'cursor-pointer' : getTableHoverClasses(table, isEditMode)}
                                                         `}
                                                     >
                                                         <div
@@ -826,7 +966,42 @@ const TableManagement = () => {
                                                                     <span>{getTableDuration(table.openedAt)}</span>
                                                                 </div>
                                                             )}
+
+                                                            {/* Badge de mesas unidas */}
+                                                            {Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0 && !isEditMode && !mergeMode && (
+                                                                <div className="flex items-center gap-1 text-[10px] mt-1 font-semibold text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-full">
+                                                                    <LinkIcon className="w-2.5 h-2.5" />
+                                                                    <span>{table.mergedGroup.map(t => t.tableNumber).join(', ')}</span>
+                                                                </div>
+                                                            )}
                                                         </div>
+
+                                                        {/* Conector visual hacia mesas unidas adyacentes en la grilla */}
+                                                        {!isEditMode && !mergeMode && (() => {
+                                                            const { right, bottom } = getAdjacentMergedDirections(table);
+                                                            return (
+                                                                <>
+                                                                    {right && (
+                                                                        <div className="absolute top-1/4 bottom-1/4 -right-2 w-2 bg-indigo-500 z-10" />
+                                                                    )}
+                                                                    {bottom && (
+                                                                        <div className="absolute left-1/4 right-1/4 -bottom-2 h-2 bg-indigo-500 z-10" />
+                                                                    )}
+                                                                </>
+                                                            );
+                                                        })()}
+
+                                                        {/* Botón de separar - solo si la mesa está unida y no hay otro modo activo */}
+                                                        {Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0 && !isEditMode && !mergeMode && (
+                                                            <button
+                                                                onPointerDown={(e) => e.stopPropagation()}
+                                                                onClick={(e) => handleUnlinkTable(table, e)}
+                                                                className="absolute top-1 left-1 p-1 bg-white bg-opacity-90 hover:bg-opacity-100 rounded transition-all"
+                                                                title="Separar mesa"
+                                                            >
+                                                                <LinkSlashIcon className="w-3 h-3 text-gray-600" />
+                                                            </button>
+                                                        )}
 
                                                         {/* Botones de edición - solo en modo edición */}
                                                         {isEditMode && (
@@ -858,6 +1033,95 @@ const TableManagement = () => {
                     </div>
                 )}
             </div>
+
+            {/* Barra flotante de confirmación al unir mesas */}
+            {mergeMode && (
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-white rounded-full shadow-xl border border-gray-200 px-5 py-3 flex items-center gap-4">
+                    <span className="text-sm font-medium text-gray-700">
+                        {selectedForMerge.length} mesa{selectedForMerge.length !== 1 ? 's' : ''} seleccionada{selectedForMerge.length !== 1 ? 's' : ''}
+                    </span>
+                    <Button
+                        onClick={() => { setMergeMode(false); setSelectedForMerge([]); }}
+                        variant="outline"
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        onClick={() => setShowMergeConfirmModal(true)}
+                        disabled={selectedForMerge.length < 2}
+                        className="bg-teal-600 hover:bg-teal-700"
+                    >
+                        <LinkIcon className="w-4 h-4 mr-2" />
+                        Confirmar
+                    </Button>
+                </div>
+            )}
+
+            {/* Modal: Confirmar unión de mesas */}
+            {showMergeConfirmModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">Unir Mesas</h3>
+                        <p className="text-gray-600 mb-6">
+                            Se unirán las mesas{' '}
+                            <strong>
+                                {tables
+                                    .filter(t => selectedForMerge.includes(t._id))
+                                    .sort((a, b) => a.tableNumber - b.tableNumber)
+                                    .map(t => t.tableNumber)
+                                    .join(', ')}
+                            </strong>
+                            {' '}en una sola cuenta. Podrás separarlas en cualquier momento.
+                        </p>
+                        <div className="flex gap-3">
+                            <Button
+                                onClick={() => setShowMergeConfirmModal(false)}
+                                variant="outline"
+                                className="flex-1"
+                                disabled={isMergeSubmitting}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={confirmMergeTables}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                                disabled={isMergeSubmitting}
+                            >
+                                {isMergeSubmitting ? 'Uniendo...' : 'Unir Mesas'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Confirmar separación de mesas */}
+            {showSplitConfirmModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">Separar Mesas</h3>
+                        <p className="text-gray-600 mb-6">
+                            {tableToSplit?.mergedInto
+                                ? `¿Separar la Mesa ${tableToSplit?.tableNumber} del grupo? Volverá a estar disponible de forma independiente.`
+                                : `¿Separar todo el grupo de la Mesa ${tableToSplit?.tableNumber}? Las mesas unidas volverán a estar disponibles de forma independiente y la Mesa ${tableToSplit?.tableNumber} conservará el pedido activo.`}
+                        </p>
+                        <div className="flex gap-3">
+                            <Button
+                                onClick={() => { setShowSplitConfirmModal(false); setTableToSplit(null); }}
+                                variant="outline"
+                                className="flex-1"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={confirmSplitTable}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                            >
+                                Separar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Modal: Agregar mesa */}
             {showAddTableModal && (

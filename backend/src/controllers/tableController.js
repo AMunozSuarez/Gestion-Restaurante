@@ -10,8 +10,9 @@ const getTables = async (req, res) => {
         const tables = await Table.find({ restaurant: req.restaurantId })
             .populate('currentOrder')
             .populate('waiter', 'userName email')
+            .populate('mergedGroup', 'tableNumber')
             .sort({ tableNumber: 1 });
-        
+
         res.json(tables);
     } catch (error) {
         console.error('Error al obtener mesas:', error);
@@ -33,7 +34,8 @@ const getTableById = async (req, res) => {
                     { path: 'deletedFoods.food', model: 'Food', select: 'title price extraSections' }
                 ]
             })
-            .populate('waiter', 'userName email');
+            .populate('waiter', 'userName email')
+            .populate('mergedGroup', 'tableNumber');
 
         if (!table) {
             return res.status(404).json({ message: 'Mesa no encontrada' });
@@ -148,16 +150,24 @@ const deleteTable = async (req, res) => {
 const openTable = async (req, res) => {
     try {
         const { currentGuests, waiter } = req.body;
-        
-        const table = await Table.findOne({ 
-            _id: req.params.id, 
-            restaurant: req.restaurantId 
+
+        let table = await Table.findOne({
+            _id: req.params.id,
+            restaurant: req.restaurantId
         });
-        
+
         if (!table) {
             return res.status(404).json({ message: 'Mesa no encontrada' });
         }
-        
+
+        // Si es una mesa secundaria de un grupo unido, se abre la mesa principal
+        if (table.mergedInto) {
+            table = await Table.findOne({ _id: table.mergedInto, restaurant: req.restaurantId });
+            if (!table) {
+                return res.status(404).json({ message: 'Mesa principal no encontrada' });
+            }
+        }
+
         if (table.status === 'occupied') {
             return res.status(400).json({ message: 'La mesa ya está ocupada' });
         }
@@ -171,7 +181,8 @@ const openTable = async (req, res) => {
         
         const populatedTable = await Table.findById(table._id)
             .populate('waiter', 'userName email')
-            .populate('currentOrder');
+            .populate('currentOrder')
+            .populate('mergedGroup', 'tableNumber');
 
         try {
             getIO().to(`restaurant:${req.restaurantId}`).emit('table:updated', { table: populatedTable });
@@ -245,12 +256,38 @@ const closeTable = async (req, res) => {
         table.currentOrder = null;
         table.openedAt = null;
         table.waiter = null;
-        
+
+        // Si esta mesa era la principal de un grupo unido, el grupo pierde su
+        // razón de ser al cerrarse la cuenta: se liberan también las secundarias.
+        let releasedSecondaries = [];
+        if (!table.mergedInto && Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0) {
+            const secondaryIds = table.mergedGroup;
+            table.mergedGroup = [];
+            await Table.updateMany(
+                { _id: { $in: secondaryIds }, restaurant: req.restaurantId },
+                {
+                    $set: {
+                        mergedInto: null,
+                        mergedGroup: [],
+                        currentOrder: null,
+                        status: 'available',
+                        currentGuests: 0,
+                        openedAt: null,
+                        waiter: null,
+                    },
+                }
+            );
+            releasedSecondaries = await Table.find({ _id: { $in: secondaryIds }, restaurant: req.restaurantId });
+        }
+
         await table.save();
 
         try {
             const io = getIO();
             io.to(`restaurant:${req.restaurantId}`).emit('table:updated', { table });
+            releasedSecondaries.forEach((secondaryTable) => {
+                io.to(`restaurant:${req.restaurantId}`).emit('table:updated', { table: secondaryTable });
+            });
 
             // Cerrar la mesa completa la orden aquí mismo: sin este evento la
             // pantalla de cocina seguiría mostrando un pedido ya cobrado hasta
@@ -315,16 +352,24 @@ const updateTablePositions = async (req, res) => {
 const assignOrderToTable = async (req, res) => {
     try {
         const { orderId } = req.body;
-        
-        const table = await Table.findOne({ 
-            _id: req.params.id, 
-            restaurant: req.restaurantId 
+
+        let table = await Table.findOne({
+            _id: req.params.id,
+            restaurant: req.restaurantId
         });
-        
+
         if (!table) {
             return res.status(404).json({ message: 'Mesa no encontrada' });
         }
-        
+
+        // Si la mesa es secundaria de un grupo unido, la orden se asigna a la mesa principal
+        if (table.mergedInto) {
+            table = await Table.findOne({ _id: table.mergedInto, restaurant: req.restaurantId });
+            if (!table) {
+                return res.status(404).json({ message: 'Mesa principal no encontrada' });
+            }
+        }
+
         if (table.currentOrder && table.currentOrder.toString() === orderId) {
             const populatedTable = await Table.findById(table._id)
                 .populate({
@@ -335,7 +380,8 @@ const assignOrderToTable = async (req, res) => {
                         select: 'title price category extraSections'
                     }
                 })
-                .populate('waiter', 'userName email');
+                .populate('waiter', 'userName email')
+                .populate('mergedGroup', 'tableNumber');
             return res.json(populatedTable);
         }
 
@@ -374,7 +420,8 @@ const assignOrderToTable = async (req, res) => {
                     select: 'title price category extraSections'
                 }
             })
-            .populate('waiter', 'userName email');
+            .populate('waiter', 'userName email')
+            .populate('mergedGroup', 'tableNumber');
 
         try {
             getIO().to(`restaurant:${req.restaurantId}`).emit('table:updated', { table: populatedTable });
@@ -424,6 +471,182 @@ const assignWaiterToTable = async (req, res) => {
     }
 };
 
+const populateForBroadcast = (query) => query
+    .populate({
+        path: 'currentOrder',
+        populate: { path: 'foods.food', model: 'Food', select: 'title price category extraSections' },
+    })
+    .populate('waiter', 'userName email')
+    .populate('mergedGroup', 'tableNumber');
+
+const emitTableUpdated = (restaurantId, table) => {
+    try {
+        getIO().to(`restaurant:${restaurantId}`).emit('table:updated', { table });
+    } catch (socketErr) {
+        console.error('Error emitiendo socket table:updated:', socketErr.message);
+    }
+};
+
+// Unir varias mesas en un solo grupo con una cuenta compartida
+const mergeTables = async (req, res) => {
+    try {
+        const { tableIds } = req.body;
+
+        if (!Array.isArray(tableIds) || tableIds.length < 2) {
+            return res.status(400).json({ message: 'Se requieren al menos 2 mesas para unir' });
+        }
+
+        const tables = await Table.find({
+            _id: { $in: tableIds },
+            restaurant: req.restaurantId,
+        });
+
+        if (tables.length !== tableIds.length) {
+            return res.status(404).json({ message: 'Una o más mesas no fueron encontradas' });
+        }
+
+        const alreadyGrouped = tables.find((t) => Array.isArray(t.mergedGroup) && t.mergedGroup.length > 0);
+        if (alreadyGrouped) {
+            return res.status(400).json({
+                message: `La mesa ${alreadyGrouped.tableNumber} ya está unida a otro grupo. Sepárala primero.`,
+            });
+        }
+
+        const primary = tables.reduce((min, t) => (t.tableNumber < min.tableNumber ? t : min), tables[0]);
+        const secondaries = tables.filter((t) => t._id.toString() !== primary._id.toString());
+
+        // Resolver cuál orden activa (si alguna) queda como la compartida
+        const activeOrderStatuses = ['Completado', 'Cancelado'];
+        const getActiveOrder = async (table) => {
+            if (!table.currentOrder) return null;
+            const order = await Order.findById(table.currentOrder).select('status').lean();
+            if (order && !activeOrderStatuses.includes(order.status)) return order;
+            return null;
+        };
+
+        let sharedOrder = await getActiveOrder(primary);
+        if (!sharedOrder) {
+            const secondaryActiveOrders = [];
+            for (const secondary of secondaries) {
+                const activeOrder = await getActiveOrder(secondary);
+                if (activeOrder) secondaryActiveOrders.push({ secondary, activeOrder });
+            }
+            if (secondaryActiveOrders.length > 1) {
+                return res.status(409).json({
+                    message: 'Varias mesas seleccionadas tienen pedidos activos distintos. Cierra o unifica los pedidos antes de unir las mesas.',
+                });
+            }
+            if (secondaryActiveOrders.length === 1) {
+                sharedOrder = secondaryActiveOrders[0].activeOrder;
+            }
+        }
+
+        const groupIds = tables.map((t) => t._id);
+
+        primary.currentOrder = sharedOrder ? sharedOrder._id : primary.currentOrder;
+        primary.mergedInto = null;
+        primary.mergedGroup = groupIds.filter((id) => id.toString() !== primary._id.toString());
+        if (sharedOrder && primary.status !== 'occupied') {
+            primary.status = 'occupied';
+            primary.openedAt = primary.openedAt || new Date();
+        }
+        await primary.save();
+
+        for (const secondary of secondaries) {
+            secondary.mergedInto = primary._id;
+            secondary.mergedGroup = groupIds.filter((id) => id.toString() !== secondary._id.toString());
+            secondary.currentOrder = null;
+            secondary.status = sharedOrder ? 'occupied' : secondary.status;
+            if (sharedOrder) secondary.openedAt = secondary.openedAt || new Date();
+            await secondary.save();
+        }
+
+        const populatedTables = await populateForBroadcast(
+            Table.find({ _id: { $in: groupIds } })
+        );
+
+        populatedTables.forEach((t) => emitTableUpdated(req.restaurantId, t));
+
+        res.json({ primaryTableId: primary._id, tables: populatedTables });
+    } catch (error) {
+        console.error('Error al unir mesas:', error);
+        res.status(500).json({ message: 'Error al unir mesas', error: error.message });
+    }
+};
+
+// Separar una o más mesas de su grupo unido
+const splitTable = async (req, res) => {
+    try {
+        const { tableIds } = req.body;
+
+        const table = await Table.findOne({
+            _id: req.params.id,
+            restaurant: req.restaurantId,
+        });
+
+        if (!table) {
+            return res.status(404).json({ message: 'Mesa no encontrada' });
+        }
+
+        if (!Array.isArray(table.mergedGroup) || table.mergedGroup.length === 0) {
+            return res.status(400).json({ message: 'La mesa no forma parte de un grupo unido' });
+        }
+
+        const primaryId = table.mergedInto || table._id;
+        const primary = table.mergedInto
+            ? await Table.findOne({ _id: primaryId, restaurant: req.restaurantId })
+            : table;
+
+        if (!primary) {
+            return res.status(404).json({ message: 'Mesa principal no encontrada' });
+        }
+
+        const allSecondaryIds = primary.mergedGroup.map((id) => id.toString());
+        const idsToRelease = Array.isArray(tableIds) && tableIds.length > 0
+            ? tableIds.map(String).filter((id) => allSecondaryIds.includes(id))
+            : allSecondaryIds;
+
+        if (idsToRelease.length === 0) {
+            return res.status(400).json({ message: 'No hay mesas secundarias para separar' });
+        }
+
+        await Table.updateMany(
+            { _id: { $in: idsToRelease }, restaurant: req.restaurantId },
+            {
+                $set: {
+                    mergedInto: null,
+                    mergedGroup: [],
+                    currentOrder: null,
+                    status: 'available',
+                    currentGuests: 0,
+                    openedAt: null,
+                    waiter: null,
+                },
+            }
+        );
+
+        const remainingSecondaries = allSecondaryIds.filter((id) => !idsToRelease.includes(id));
+        primary.mergedGroup = remainingSecondaries;
+        if (remainingSecondaries.length === 0) {
+            // El grupo quedó con un solo miembro: se disuelve por completo
+            primary.mergedGroup = [];
+        }
+        await primary.save();
+
+        const affectedIds = [primary._id.toString(), ...idsToRelease];
+        const populatedTables = await populateForBroadcast(
+            Table.find({ _id: { $in: affectedIds } })
+        );
+
+        populatedTables.forEach((t) => emitTableUpdated(req.restaurantId, t));
+
+        res.json({ tables: populatedTables });
+    } catch (error) {
+        console.error('Error al separar mesas:', error);
+        res.status(500).json({ message: 'Error al separar mesas', error: error.message });
+    }
+};
+
 module.exports = {
     getTables,
     getTableById,
@@ -435,4 +658,6 @@ module.exports = {
     updateTablePositions,
     assignOrderToTable,
     assignWaiterToTable,
+    mergeTables,
+    splitTable,
 };
