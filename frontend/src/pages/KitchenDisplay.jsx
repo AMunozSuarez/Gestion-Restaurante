@@ -44,6 +44,15 @@ const readPendingGuard = (store, key) => {
 const isKitchenOrder = (order) =>
   Boolean(order) && order.status === 'Preparacion' && Array.isArray(order.foods) && order.foods.length > 0;
 
+// El pedido sigue esperando una reconfirmación manual mientras la última edición
+// (kitchenActivityAt) sea más reciente que la última vez que se confirmó como listo
+// (kitchenReadyAt). Marcar los productos nuevos en el checklist NO limpia esto por
+// sí solo — solo el botón "Confirmar Listo" actualiza kitchenReadyAt.
+const orderNeedsReconfirmation = (order) =>
+  Boolean(order.kitchenReadyAt) &&
+  Boolean(order.kitchenActivityAt) &&
+  new Date(order.kitchenActivityAt).getTime() > new Date(order.kitchenReadyAt).getTime();
+
 // Combina el snapshot HTTP con el estado local. Los pedidos que el socket tocó
 // mientras la consulta viajaba se conservan tal cual: el snapshot puede ser
 // anterior a ese cambio y lo revertiría (pedido cerrado que reaparece, o pedido
@@ -369,9 +378,16 @@ const KitchenDisplay = () => {
 
   // Los pedidos listos se sacan de la lista principal para no estorbar; se ven
   // aparte, en un panel plegable, para no perder de vista los que aún se preparan.
+  // Excepción (solo aplica con el checklist de "requireAllItemsReady", donde el
+  // ready por producto es real): si a un pedido ya listo le agregaron un producto
+  // nuevo, ese pedido aparece en AMBAS listas hasta que se presione "Confirmar
+  // Listo" — cada tarjeta filtra a solo lo que corresponde según viewContext.
   const activeOrders = useMemo(
-    () => filteredOrders.filter((order) => !order.kitchenReadyAt),
-    [filteredOrders]
+    () =>
+      filteredOrders.filter(
+        (order) => !order.kitchenReadyAt || (requireAllItemsReady && orderNeedsReconfirmation(order))
+      ),
+    [filteredOrders, requireAllItemsReady]
   );
   const readyOrders = useMemo(
     () => filteredOrders.filter((order) => order.kitchenReadyAt),
@@ -596,6 +612,7 @@ const KitchenDisplay = () => {
                 onToggleItemReady={handleToggleItemReady}
                 canMarkReady={canMarkReady}
                 selectedCategoryIds={selectedCategoryIds}
+                viewContext="ready"
               />
             ))}
           </div>
@@ -620,6 +637,7 @@ const KitchenDisplay = () => {
               onToggleItemReady={handleToggleItemReady}
               canMarkReady={canMarkReady}
               selectedCategoryIds={selectedCategoryIds}
+              viewContext="active"
             />
           ))}
         </div>
@@ -628,36 +646,75 @@ const KitchenDisplay = () => {
   );
 };
 
-const KitchenOrderCard = ({ order, now, onMarkReady, requireAllItemsReady, onToggleItemReady, canMarkReady, selectedCategoryIds }) => {
+const KitchenOrderCard = ({ order, now, onMarkReady, requireAllItemsReady, onToggleItemReady, canMarkReady, selectedCategoryIds, viewContext }) => {
   const orderId = getOrderId(order);
   const elapsedMinutes = getElapsedMinutes(order, now);
   const urgencyVariant = getUrgencyVariant(elapsedMinutes);
   const allItems = normalizeKitchenItems(order);
   // Solo se muestran los productos de las categorías filtradas, pero la
   // confirmación de "listo" sigue dependiendo del pedido completo.
-  const items = selectedCategoryIds && selectedCategoryIds.size > 0
+  const categoryItems = selectedCategoryIds && selectedCategoryIds.size > 0
     ? allItems.filter((item) => item.categoryId && selectedCategoryIds.has(String(item.categoryId)))
     : allItems;
-  const isReady = Boolean(order.kitchenReadyAt);
+  const orderReadyFlag = Boolean(order.kitchenReadyAt);
   const readyItemsCount = allItems.filter((item) => item.ready).length;
   const allItemsReady = allItems.length > 0 && readyItemsCount === allItems.length;
+  // Se agregó un producto después de marcar el pedido como listo: el pedido se
+  // divide en dos vistas — la de "Listos" solo con lo ya preparado, y la de
+  // "En preparación" solo con lo nuevo. Sigue "mixto" (pendiente de reconfirmar)
+  // hasta que alguien presiona "Confirmar Listo", aunque ya se hayan marcado
+  // todos los productos nuevos en el checklist.
+  // Solo aplica con el checklist activado: es el único modo donde food.ready
+  // por producto refleja algo real (en modo simple ningún item se marca individual).
+  const isMixed = requireAllItemsReady && orderNeedsReconfirmation(order);
+  // Un producto es "nuevo" si se agregó después de la última vez que se confirmó
+  // el pedido como listo — a diferencia de `ready`, esto no cambia al marcarlo en
+  // el checklist, así que sigue apareciendo solo en "En preparación" hasta que se
+  // presione "Confirmar Listo".
+  const isNewItem = (item) =>
+    Boolean(order.kitchenReadyAt) &&
+    Boolean(item.addedAt) &&
+    new Date(item.addedAt).getTime() > new Date(order.kitchenReadyAt).getTime();
+
+  // La vista determina cómo se muestra la tarjeta, no solo el estado guardado:
+  // un pedido mixto aparece en ambas listas con contenido y estilo distintos.
+  const isReady = viewContext === 'ready' ? true : viewContext === 'active' ? false : orderReadyFlag;
+  const items = viewContext === 'ready' && isMixed
+    ? categoryItems.filter((item) => !isNewItem(item))
+    : viewContext === 'active' && isMixed
+      ? categoryItems.filter(isNewItem)
+      : categoryItems;
 
   return (
     <div
       className={`rounded-xl border-2 p-4 flex flex-col gap-3 ${
         isReady
           ? 'bg-green-900 border-green-400 shadow-lg shadow-green-900/50'
-          : 'bg-gray-800 border-gray-700'
+          : isMixed
+            ? 'bg-gray-800 border-amber-400 shadow-lg shadow-amber-900/30'
+            : 'bg-gray-800 border-gray-700'
       }`}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-2 flex-wrap">
         <span className="text-xl font-bold">#{order.orderNumber}</span>
         {isReady ? (
-          <Badge variant="success" size="lg">✓ Listo</Badge>
+          <Badge variant="success" size="lg" className="whitespace-nowrap">✓ Listo</Badge>
         ) : (
-          <Badge variant={urgencyVariant} size="lg">
-            {Math.max(0, Math.floor(elapsedMinutes))} min
-          </Badge>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {isMixed && (
+              <Badge
+                variant="secondary"
+                size="md"
+                className="whitespace-nowrap"
+                title="Este pedido ya tenía productos listos; se agregó uno nuevo"
+              >
+                ⚠ Agregado
+              </Badge>
+            )}
+            <Badge variant={urgencyVariant} size="lg" className="whitespace-nowrap">
+              {Math.max(0, Math.floor(elapsedMinutes))} min
+            </Badge>
+          </div>
         )}
       </div>
 
@@ -728,10 +785,10 @@ const KitchenOrderCard = ({ order, now, onMarkReady, requireAllItemsReady, onTog
         <>
           <div
             className={`mt-2 py-1.5 rounded-lg text-center text-sm font-bold ${
-              isReady ? 'bg-green-950 text-green-300' : 'bg-gray-900 text-gray-400'
+              allItemsReady ? 'bg-green-950 text-green-300' : 'bg-gray-900 text-gray-400'
             }`}
           >
-            {isReady ? '✓ Todos los productos listos' : `${readyItemsCount}/${allItems.length} productos listos`}
+            {allItemsReady ? '✓ Todos los productos listos' : `${readyItemsCount}/${allItems.length} productos listos`}
           </div>
           <button
             onClick={() => onMarkReady(orderId)}
