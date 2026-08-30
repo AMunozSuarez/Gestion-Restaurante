@@ -591,7 +591,11 @@ const updateOrderController = async (req, res) => {
         if (payment !== undefined) updateData.payment = payment;
         if (paymentMethods !== undefined) updateData.paymentMethods = paymentMethods;
         if (status !== undefined) updateData.status = status;
-        if (kitchenReadyAt !== undefined) updateData.kitchenReadyAt = kitchenReadyAt;
+        // No confiar en el timestamp que manda el cliente: si su reloj está atrasado
+        // respecto al del servidor, quedaría antes que kitchenActivityAt (que sí se
+        // genera en el servidor) y el pedido nunca dejaría de pedir reconfirmación
+        // en el KDS sin importar cuántas veces se confirme.
+        if (kitchenReadyAt !== undefined) updateData.kitchenReadyAt = kitchenReadyAt ? new Date() : null;
         if (comment !== undefined) updateData.comment = comment;
         if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
         if (waiter !== undefined) updateData.waiter = waiter;
