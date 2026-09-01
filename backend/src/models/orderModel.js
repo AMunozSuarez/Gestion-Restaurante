@@ -11,6 +11,10 @@ const orderSchema = new mongoose.Schema({
             quantity: { type: Number, required: true },
             comment: { type: String, default: '' },
             ready: { type: Boolean, default: false },
+            // Cuándo se agregó este producto al pedido (ver mergeFoodsReadyState en el
+            // controller): permite distinguir en el KDS los productos nuevos de los que
+            // ya estaban listos, incluso después de marcar el nuevo como "ready" también.
+            addedAt: { type: Date, default: Date.now },
             selectedExtras: [{
                 sectionName: { type: String, required: true },
                 extraName: { type: String, required: true },

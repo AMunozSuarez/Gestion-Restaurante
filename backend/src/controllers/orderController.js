@@ -79,21 +79,27 @@ const buildOrderFoodItemSignature = (item = {}) => JSON.stringify({
 // completo sin el flag `ready` (ese estado solo se guarda en la BD). Para no perder
 // el check de los productos que ya estaban listos, se empareja cada item nuevo con
 // uno existente por firma (mismo producto + comentario + extras) y se reutiliza su
-// valor de `ready`; los productos realmente nuevos quedan sin marcar.
+// valor de `ready` y `addedAt`; los productos realmente nuevos quedan sin marcar y
+// con addedAt de ahora, para que el KDS los siga distinguiendo aunque se marquen listos.
 const mergeFoodsReadyState = (previousFoods = [], nextFoods = []) => {
-    const readyQueueBySignature = new Map();
+    const stateQueueBySignature = new Map();
     for (const item of previousFoods) {
         const signature = buildOrderFoodItemSignature(item);
-        const queue = readyQueueBySignature.get(signature) || [];
-        queue.push(Boolean(item?.ready));
-        readyQueueBySignature.set(signature, queue);
+        const queue = stateQueueBySignature.get(signature) || [];
+        queue.push({ ready: Boolean(item?.ready), addedAt: item?.addedAt || null });
+        stateQueueBySignature.set(signature, queue);
     }
 
+    const now = new Date();
     return nextFoods.map((item) => {
         const signature = buildOrderFoodItemSignature(item);
-        const queue = readyQueueBySignature.get(signature);
-        const ready = queue && queue.length > 0 ? queue.shift() : false;
-        return { ...item, ready };
+        const queue = stateQueueBySignature.get(signature);
+        const state = queue && queue.length > 0 ? queue.shift() : null;
+        return {
+            ...item,
+            ready: state ? state.ready : false,
+            addedAt: state?.addedAt || now,
+        };
     });
 };
 
@@ -591,7 +597,11 @@ const updateOrderController = async (req, res) => {
         if (payment !== undefined) updateData.payment = payment;
         if (paymentMethods !== undefined) updateData.paymentMethods = paymentMethods;
         if (status !== undefined) updateData.status = status;
-        if (kitchenReadyAt !== undefined) updateData.kitchenReadyAt = kitchenReadyAt;
+        // No confiar en el timestamp que manda el cliente: si su reloj está atrasado
+        // respecto al del servidor, quedaría antes que kitchenActivityAt (que sí se
+        // genera en el servidor) y el pedido nunca dejaría de pedir reconfirmación
+        // en el KDS sin importar cuántas veces se confirme.
+        if (kitchenReadyAt !== undefined) updateData.kitchenReadyAt = kitchenReadyAt ? new Date() : null;
         if (comment !== undefined) updateData.comment = comment;
         if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
         if (waiter !== undefined) updateData.waiter = waiter;
@@ -753,8 +763,14 @@ const updateOrderController = async (req, res) => {
             updateData.name = !customer && buyer ? buyer.name : null;
             updateData.buyer = customer ? customer._id : null;
             updateData.foods = mergeFoodsReadyState(currentOrderSnapshot.foods || [], foods);
-            updateData.kitchenReadyAt = null;
-            if (currentOrderSnapshot.kitchenReadyAt) {
+            // Si el pedido ya estaba marcado como listo, no se desmarca solo por
+            // agregarle productos: el producto nuevo queda sin "ready" (arriba) pero
+            // el pedido se queda en "Listos" hasta que alguien lo desmarque manualmente.
+            // Eso sí, se reinicia kitchenActivityAt para que el tiempo transcurrido del
+            // producto nuevo (mostrado de vuelta en "En preparación") arranque desde cero.
+            if (!currentOrderSnapshot.kitchenReadyAt) {
+                updateData.kitchenReadyAt = null;
+            } else {
                 updateData.kitchenActivityAt = new Date();
             }
             if (section !== undefined) updateData.section = section;
