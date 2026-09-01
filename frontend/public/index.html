@@ -3,13 +3,21 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
+    <!-- viewport-fit + user-scalable=no: en las tablets de cocina un pellizco
+         accidental deja la pantalla con un zoom que nadie sabe deshacer. El
+         tamaño se ajusta desde la configuración de la pantalla, no con gestos. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#111827" />
     <meta
       name="description"
-      content="Web site created using create-react-app"
+      content="Punto de venta y pantalla de cocina para restaurantes."
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <!-- Para que en iPad "Añadir a pantalla de inicio" abra sin barra de Safari -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Orden+" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <!-- Google Fonts para un diseño más hogareño -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,7 +36,7 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <title>React App</title>
+    <title>Orden+ · Gestión Restaurante</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

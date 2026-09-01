@@ -1,34 +1,38 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge } from '../components/ui';
 import ordersService from '../services/ordersService';
+import categoriesService from '../services/categoriesService';
 import { useRestaurant } from '../hooks/useRestaurant';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowRightEndOnRectangleIcon } from '@heroicons/react/24/outline';
+import { ArrowRightEndOnRectangleIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { onSocketEvent, markOwnUpdate } from '../services/socketService';
+import KitchenOrderCard from '../components/kitchen/KitchenOrderCard';
+import KdsBoard from '../components/kitchen/KdsBoard';
+import KdsSettingsPanel from '../components/kitchen/KdsSettingsPanel';
 import { normalizeKitchenItems } from '../utils/kitchenOrderNormalize';
-import categoriesService from '../services/categoriesService';
-
-// Umbrales del semáforo (minutos desde la creación del pedido). Ajustar aquí si se necesita otro ritmo de cocina.
-const KDS_WARNING_MINUTES = 10;
-const KDS_OVERDUE_MINUTES = 20;
-const KDS_TICK_MS = 15 * 1000;
-// Resincronización periódica contra el servidor: red de seguridad para eventos
-// perdidos (caída de socket, pedido eliminado o mesa cerrada desde otro equipo).
-const KDS_RESYNC_MS = 60 * 1000;
-// Vida máxima de una guarda optimista. Sin este límite, una guarda que el
-// servidor nunca confirma dejaría un "listo" congelado para siempre.
-const PENDING_GUARD_TTL_MS = 20 * 1000;
-
-const SECTION_LABELS = {
-  mesas: 'Mesas',
-  mostrador: 'Mostrador',
-  delivery: 'Delivery',
-};
-
-const SECTION_FILTERS = ['all', 'mesas', 'mostrador', 'delivery'];
-
-const getOrderId = (order) => order._id || order.id;
+import {
+  KDS_MODES,
+  clearStoredKdsConfig,
+  initKdsScreenConfig,
+  saveKdsConfig,
+} from '../services/kdsScreenConfig';
+import {
+  KDS_RESYNC_MS,
+  KDS_TICK_MS,
+  MAX_CARD_PARTS,
+  PENDING_GUARD_TTL_MS,
+  SECTION_FILTERS,
+  SECTION_LABELS,
+  getKitchenTimeReference,
+  getOrderId,
+  getVisibleKitchenItems,
+  isFragmented,
+  isKitchenOrder,
+  orderMatchesCategories,
+  orderNeedsReconfirmation,
+  playNewOrderSound,
+  splitItemsIntoParts,
+} from '../utils/kdsShared';
 
 // Devuelve la guarda vigente y descarta la que ya expiró.
 const readPendingGuard = (store, key) => {
@@ -40,18 +44,6 @@ const readPendingGuard = (store, key) => {
   }
   return entry;
 };
-
-const isKitchenOrder = (order) =>
-  Boolean(order) && order.status === 'Preparacion' && Array.isArray(order.foods) && order.foods.length > 0;
-
-// El pedido sigue esperando una reconfirmación manual mientras la última edición
-// (kitchenActivityAt) sea más reciente que la última vez que se confirmó como listo
-// (kitchenReadyAt). Marcar los productos nuevos en el checklist NO limpia esto por
-// sí solo — solo el botón "Confirmar Listo" actualiza kitchenReadyAt.
-const orderNeedsReconfirmation = (order) =>
-  Boolean(order.kitchenReadyAt) &&
-  Boolean(order.kitchenActivityAt) &&
-  new Date(order.kitchenActivityAt).getTime() > new Date(order.kitchenReadyAt).getTime();
 
 // Combina el snapshot HTTP con el estado local. Los pedidos que el socket tocó
 // mientras la consulta viajaba se conservan tal cual: el snapshot puede ser
@@ -83,71 +75,6 @@ const mergeSnapshot = (prev, snapshot, touchedIds) => {
   return [...socketOnly, ...merged];
 };
 
-const getItemCategoryId = (item) => {
-  const category = item.food?.category;
-  return (category && (category._id || category)) || null;
-};
-
-const orderMatchesCategories = (order, categoryIds) => {
-  if (categoryIds.size === 0) return true;
-  if (!Array.isArray(order.foods)) return false;
-  return order.foods.some((item) => {
-    const categoryId = getItemCategoryId(item);
-    return categoryId && categoryIds.has(String(categoryId));
-  });
-};
-
-const playNewOrderSound = () => {
-  try {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    const ctx = new AudioContextClass();
-    const now = ctx.currentTime;
-
-    [880, 1320].forEach((freq, idx) => {
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      oscillator.type = 'sine';
-      oscillator.frequency.value = freq;
-      const start = now + idx * 0.15;
-      gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(0.3, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.25);
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.start(start);
-      oscillator.stop(start + 0.3);
-    });
-
-    setTimeout(() => ctx.close(), 800);
-  } catch {
-    // Web Audio no disponible; se ignora en silencio.
-  }
-};
-
-// kitchenActivityAt se reinicia cuando se agregan productos a una orden que ya
-// estaba lista, para que vuelva a mostrarse como recién ingresada.
-const getKitchenTimeReference = (order) => new Date(order.kitchenActivityAt || order.createdAt).getTime();
-
-const getElapsedMinutes = (order, now) => (now - getKitchenTimeReference(order)) / 60000;
-
-const getUrgencyVariant = (elapsedMinutes) => {
-  if (elapsedMinutes >= KDS_OVERDUE_MINUTES) return 'danger';
-  if (elapsedMinutes >= KDS_WARNING_MINUTES) return 'secondary'; // naranjo
-  return 'success';
-};
-
-const getOrderLabel = (order) => {
-  if (order.section === 'mesas') {
-    const table = order.tableNumber ? `Mesa ${order.tableNumber}` : 'Mesa s/n';
-    const waiterName = order.waiter?.userName || order.waiter?.name || '';
-    return waiterName ? `${table} · ${waiterName}` : table;
-  }
-  if (order.section === 'delivery') {
-    return order.selectedAddress || order.buyer?.name || order.name || 'Delivery';
-  }
-  return order.buyer?.name || order.name || 'Mostrador';
-};
-
 const KitchenDisplay = () => {
   const navigate = useNavigate();
   const { restaurant, isLoading: isRestaurantLoading } = useRestaurant();
@@ -163,18 +90,37 @@ const KitchenDisplay = () => {
   const onlyOwnerCanMarkReady = Boolean(restaurant?.settings?.kitchenDisplay?.onlyOwnerCanMarkReady);
   const canMarkReady = !onlyOwnerCanMarkReady || ['owner', 'super_admin'].includes(user?.role);
 
+  // Configuración propia de este dispositivo: la URL la siembra una vez y
+  // localStorage la sostiene desde ahí. Ver services/kdsScreenConfig.
+  const [screenConfig, setScreenConfig] = useState(initKdsScreenConfig);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const updateScreenConfig = useCallback((patch) => {
+    setScreenConfig((prev) => saveKdsConfig({ ...prev, ...patch }));
+  }, []);
+
+  const isTvMode = screenConfig.mode === KDS_MODES.TV;
+  const selectedCategoryIds = useMemo(
+    () => new Set(screenConfig.categoryIds.map(String)),
+    [screenConfig.categoryIds]
+  );
+  const stationFilterActive = selectedCategoryIds.size > 0;
+  // Con un filtro de categorías la pantalla es una estación, y el único modo
+  // coherente es el checklist por producto: la estación marca lo suyo y el
+  // pedido lo cierra la última en terminar. Sin checklist, "Marcar Listo"
+  // cerraría el pedido entero incluyendo lo que otra estación no ha preparado.
+  const checklistMode = requireAllItemsReady || stationFilterActive;
+
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [connectionLost, setConnectionLost] = useState(false);
   // Mensaje del backend cuando la lista viene vacía por una razón concreta
   // (ej: no hay caja abierta), para no mostrar "no hay pedidos" y confundir.
   const [emptyNotice, setEmptyNotice] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('all');
   const [now, setNow] = useState(Date.now());
   const [error, setError] = useState('');
   const [showReady, setShowReady] = useState(false);
   const [categories, setCategories] = useState([]);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState(() => new Set());
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const categoryMenuRef = useRef(null);
   // Guardas de cambios optimistas en curso: evitan que un evento de socket o una
@@ -187,10 +133,28 @@ const KitchenDisplay = () => {
   const socketTouchedRef = useRef(new Set());
   // Secuencia de consultas: descarta respuestas que llegan fuera de orden.
   const syncSeqRef = useRef(0);
+  // Espejo de `orders` para decidir el sonido FUERA del updater de estado: los
+  // updaters deben ser puros y React 19 en StrictMode los invoca dos veces.
+  const ordersRef = useRef([]);
+
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
 
   const markTouched = useCallback((orderId) => {
     socketTouchedRef.current.add(String(orderId));
   }, []);
+
+  // El sonido solo tiene sentido si esta pantalla realmente va a mostrar el
+  // pedido: la tablet de parrilla no debe pitar por un pedido de solo postres.
+  const shouldNotifyForOrder = useCallback(
+    (order) => {
+      if (!screenConfig.sound || !order) return false;
+      if (screenConfig.section !== 'all' && order.section !== screenConfig.section) return false;
+      return orderMatchesCategories(order, selectedCategoryIds);
+    },
+    [screenConfig.sound, screenConfig.section, selectedCategoryIds]
+  );
 
   // Aplica las guardas pendientes sobre un pedido recién recibido (socket o respuesta HTTP),
   // limpiando las que ya coinciden con el valor confirmado por el servidor.
@@ -229,16 +193,14 @@ const KitchenDisplay = () => {
   }, []);
 
   const toggleCategoryFilter = (categoryId) => {
-    setSelectedCategoryIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(categoryId)) next.delete(categoryId);
-      else next.add(categoryId);
-      return next;
-    });
+    const next = new Set(selectedCategoryIds);
+    if (next.has(categoryId)) next.delete(categoryId);
+    else next.add(categoryId);
+    updateScreenConfig({ categoryIds: [...next] });
   };
 
   useEffect(() => {
-    if (!categoryMenuOpen) return;
+    if (!categoryMenuOpen) return undefined;
     const handleClickOutside = (event) => {
       if (categoryMenuRef.current && !categoryMenuRef.current.contains(event.target)) {
         setCategoryMenuOpen(false);
@@ -323,10 +285,14 @@ const KitchenDisplay = () => {
       // Solo entran a cocina los pedidos en preparación: una venta directa se
       // crea ya "Completado" y no debe aparecer aquí.
       if (!isKitchenOrder(order)) return;
-      markTouched(getOrderId(order));
+      const orderId = getOrderId(order);
+      markTouched(orderId);
+
+      const alreadyListed = ordersRef.current.some((o) => getOrderId(o) === orderId);
+      if (!alreadyListed && shouldNotifyForOrder(order)) playNewOrderSound();
+
       setOrders((prev) => {
-        if (prev.some((o) => getOrderId(o) === getOrderId(order))) return prev;
-        playNewOrderSound();
+        if (prev.some((o) => getOrderId(o) === orderId)) return prev;
         return [order, ...prev];
       });
     });
@@ -337,19 +303,24 @@ const KitchenDisplay = () => {
       markTouched(orderId);
       const guardedOrder = applyPendingGuards(order);
 
+      if (isKitchenOrder(guardedOrder)) {
+        const previous = ordersRef.current.find((o) => getOrderId(o) === orderId);
+        // Suena cuando el pedido entra a esta pantalla, y cuando uno que estaba
+        // listo vuelve a preparación (le agregaron productos).
+        const isNewHere = !previous;
+        const wentBackToPreparation = Boolean(previous?.kitchenReadyAt) && !guardedOrder.kitchenReadyAt;
+        if ((isNewHere || wentBackToPreparation) && shouldNotifyForOrder(guardedOrder)) {
+          playNewOrderSound();
+        }
+      }
+
       setOrders((prev) => {
         // Cobrado, cancelado o sin productos: fuera de la pantalla de cocina.
         if (!isKitchenOrder(guardedOrder)) {
           return prev.filter((o) => getOrderId(o) !== orderId);
         }
         const previous = prev.find((o) => getOrderId(o) === orderId);
-        if (!previous) {
-          playNewOrderSound();
-          return [guardedOrder, ...prev];
-        }
-        if (previous.kitchenReadyAt && !guardedOrder.kitchenReadyAt) {
-          playNewOrderSound();
-        }
+        if (!previous) return [guardedOrder, ...prev];
         return prev.map((o) => (getOrderId(o) === orderId ? guardedOrder : o));
       });
     });
@@ -365,33 +336,125 @@ const KitchenDisplay = () => {
       unsubUpdated();
       unsubDeleted();
     };
-  }, [applyPendingGuards, markTouched]);
+  }, [applyPendingGuards, markTouched, shouldNotifyForOrder]);
 
   const filteredOrders = useMemo(() => {
-    const bySection = sectionFilter === 'all'
+    const bySection = screenConfig.section === 'all'
       ? orders
-      : orders.filter((order) => order.section === sectionFilter);
+      : orders.filter((order) => order.section === screenConfig.section);
     const byCategory = bySection.filter((order) => orderMatchesCategories(order, selectedCategoryIds));
     // Más antiguos primero, más nuevos al final
     return [...byCategory].sort((a, b) => getKitchenTimeReference(a) - getKitchenTimeReference(b));
-  }, [orders, sectionFilter, selectedCategoryIds]);
+  }, [orders, screenConfig.section, selectedCategoryIds]);
 
   // Los pedidos listos se sacan de la lista principal para no estorbar; se ven
   // aparte, en un panel plegable, para no perder de vista los que aún se preparan.
-  // Excepción (solo aplica con el checklist de "requireAllItemsReady", donde el
-  // ready por producto es real): si a un pedido ya listo le agregaron un producto
-  // nuevo, ese pedido aparece en AMBAS listas hasta que se presione "Confirmar
-  // Listo" — cada tarjeta filtra a solo lo que corresponde según viewContext.
+  // Excepción (solo con checklist, donde el ready por producto es real): si a un
+  // pedido ya listo le agregaron un producto nuevo, aparece en AMBAS listas hasta
+  // que se presione "Confirmar Listo" — cada tarjeta filtra a solo lo que
+  // corresponde según viewContext.
+  // Una tarjeta sin productos visibles no aporta nada y confunde. Se descarta
+  // antes de renderizar, y así el contador de la cabecera coincide siempre con
+  // lo que se ve en pantalla.
+  const hasVisibleItems = useCallback(
+    (order, viewContext) =>
+      getVisibleKitchenItems({
+        order,
+        items: normalizeKitchenItems(order),
+        categoryIds: selectedCategoryIds,
+        viewContext,
+        checklistMode,
+      }).length > 0,
+    [selectedCategoryIds, checklistMode]
+  );
+
   const activeOrders = useMemo(
     () =>
       filteredOrders.filter(
-        (order) => !order.kitchenReadyAt || (requireAllItemsReady && orderNeedsReconfirmation(order))
+        (order) =>
+          (!order.kitchenReadyAt || (checklistMode && orderNeedsReconfirmation(order))) &&
+          hasVisibleItems(order, 'active')
       ),
-    [filteredOrders, requireAllItemsReady]
+    [filteredOrders, checklistMode, hasVisibleItems]
   );
   const readyOrders = useMemo(
-    () => filteredOrders.filter((order) => order.kitchenReadyAt),
-    [filteredOrders]
+    () => filteredOrders.filter((order) => order.kitchenReadyAt && hasVisibleItems(order, 'ready')),
+    [filteredOrders, hasVisibleItems]
+  );
+
+  // Cuántas partes necesita cada pedido para no quedar cortado. No se calcula:
+  // se mide después de renderizar (ver el efecto de abajo). La clave incluye la
+  // cantidad de productos, así que si al pedido le agregan uno, ese pedido
+  // vuelve a medirse solo, sin perturbar a los demás.
+  const [partSplits, setPartSplits] = useState({});
+  const boardWrapRef = useRef(null);
+
+  const getSplitKey = useCallback(
+    (order) => `${getOrderId(order)}:${order.foods?.length || 0}`,
+    []
+  );
+
+  // Cambió algo que altera la altura de las tarjetas: las medidas anteriores ya
+  // no valen y hay que volver a medir desde una parte.
+  const layoutSignature = `${screenConfig.columnWidth}:${screenConfig.scale}:${screenConfig.interactive}:${checklistMode}:${isTvMode}`;
+  useEffect(() => {
+    setPartSplits({});
+  }, [layoutSignature]);
+
+  // Tarjetas del tablero paginado: un pedido más largo que la columna se reparte
+  // en varias tarjetas numeradas, porque si lo parte el navegador el trozo de la
+  // columna siguiente queda sin encabezado y no se sabe de qué pedido es.
+  const boardCards = useMemo(() => {
+    if (!isTvMode) return [];
+
+    return activeOrders.flatMap((order) => {
+      const items = getVisibleKitchenItems({
+        order,
+        items: normalizeKitchenItems(order),
+        categoryIds: selectedCategoryIds,
+        viewContext: 'active',
+        checklistMode,
+      });
+      const splitKey = getSplitKey(order);
+      const parts = splitItemsIntoParts(items, partSplits[splitKey] || 1);
+
+      return parts.map((chunk, index) => ({
+        key: `${splitKey}:${index}`,
+        splitKey,
+        order,
+        items: chunk,
+        part: parts.length > 1 ? { index: index + 1, total: parts.length } : null,
+      }));
+    });
+  }, [isTvMode, activeOrders, selectedCategoryIds, checklistMode, partSplits, getSplitKey]);
+
+  // Mide lo que realmente pasó: si el navegador cortó una tarjeta entre columnas,
+  // ese pedido se reparte en una parte más y se vuelve a medir. Converge porque
+  // cada vuelta acorta las tarjetas, y el tope evita el ciclo infinito cuando un
+  // solo producto ya no cabe. useLayoutEffect corrige antes de pintar, así que no
+  // se alcanza a ver la tarjeta cortada.
+  useLayoutEffect(() => {
+    if (!isTvMode || !boardWrapRef.current) return;
+
+    const updates = {};
+    boardWrapRef.current.querySelectorAll('[data-kds-split-key]').forEach((node) => {
+      if (!isFragmented(node)) return;
+      const key = node.dataset.kdsSplitKey;
+      const current = partSplits[key] || 1;
+      if (current >= MAX_CARD_PARTS) return;
+      updates[key] = Math.max(updates[key] || 0, current + 1);
+    });
+
+    if (Object.keys(updates).length > 0) {
+      setPartSplits((prev) => ({ ...prev, ...updates }));
+    }
+  }, [isTvMode, boardCards, partSplits]);
+
+  // El tablero necesita volver a medir cuántas páginas hacen falta cada vez que
+  // cambia la altura del contenido: cambian los pedidos, sus productos o el reparto.
+  const boardRevision = useMemo(
+    () => boardCards.map((card) => `${card.key}:${card.items.length}`).join('|'),
+    [boardCards]
   );
 
   const handleMarkReady = async (orderId) => {
@@ -456,6 +519,49 @@ const KitchenDisplay = () => {
     }
   };
 
+  const settingsButton = (
+    <button
+      onClick={() => setSettingsOpen(true)}
+      title="Configuración de esta pantalla"
+      className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
+    >
+      <Cog6ToothIcon className="w-6 h-6" />
+    </button>
+  );
+
+  const stationSummary = useMemo(() => {
+    const parts = [];
+    if (screenConfig.section !== 'all') parts.push(SECTION_LABELS[screenConfig.section]);
+    if (stationFilterActive) {
+      const names = categories
+        .filter((category) => selectedCategoryIds.has(String(category._id)))
+        .map((category) => category.title);
+      if (names.length > 0) parts.push(names.join(' · '));
+      else parts.push(`${selectedCategoryIds.size} categorías`);
+    }
+    return parts.join(' — ');
+  }, [screenConfig.section, stationFilterActive, categories, selectedCategoryIds]);
+
+  const emptyMessage = isLoading
+    ? 'Cargando pedidos…'
+    : emptyNotice || 'No hay pedidos en preparación';
+
+  const cards = (orderList, viewContext) =>
+    orderList.map((order) => (
+      <KitchenOrderCard
+        key={getOrderId(order)}
+        order={order}
+        now={now}
+        onMarkReady={handleMarkReady}
+        onToggleItemReady={handleToggleItemReady}
+        checklistMode={checklistMode}
+        canMarkReady={canMarkReady}
+        selectedCategoryIds={selectedCategoryIds}
+        viewContext={viewContext}
+        interactive={screenConfig.interactive}
+      />
+    ));
+
   if (!isRestaurantLoading && !kitchenDisplayEnabled) {
     return (
       <div className="h-screen w-screen bg-gray-900 text-white flex items-center justify-center p-6">
@@ -478,348 +584,240 @@ const KitchenDisplay = () => {
   }
 
   return (
-    <div className="h-screen w-screen overflow-y-auto bg-gray-900 text-white p-6">
-      <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold">Cocina</h1>
-          <span className="px-3 py-1 rounded-full text-lg font-bold bg-amber-500 text-gray-900">
-            {isLoading ? 'Cargando…' : `${activeOrders.length} en preparación`}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setShowReady((prev) => !prev)}
-            disabled={readyOrders.length === 0}
-            className={`px-4 py-2 rounded-lg text-lg font-medium transition-colors flex items-center gap-2 ${
-              showReady
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            } disabled:opacity-50 disabled:cursor-default`}
-          >
-            ✓ Listos ({readyOrders.length})
-            <span className={`transition-transform ${showReady ? 'rotate-180' : ''}`}>▾</span>
-          </button>
-          <div className="w-px h-6 bg-gray-700 mx-1" />
-          {SECTION_FILTERS.map((section) => (
-            <button
-              key={section}
-              onClick={() => setSectionFilter(section)}
-              className={`px-4 py-2 rounded-lg text-lg font-medium transition-colors ${
-                sectionFilter === section
-                  ? 'bg-amber-500 text-gray-900'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              {section === 'all' ? 'Todas' : SECTION_LABELS[section]}
-            </button>
-          ))}
-          {categories.length > 0 && (
-            <>
-              <div className="w-px h-6 bg-gray-700 mx-1" />
-              <div className="relative" ref={categoryMenuRef}>
-                <button
-                  onClick={() => setCategoryMenuOpen((prev) => !prev)}
-                  className={`px-4 py-2 rounded-lg text-lg font-medium transition-colors flex items-center gap-2 ${
-                    selectedCategoryIds.size > 0
-                      ? 'bg-amber-500 text-gray-900'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                  }`}
-                >
-                  Categorías
-                  {selectedCategoryIds.size > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-sm bg-gray-900/20">
-                      {selectedCategoryIds.size}
-                    </span>
-                  )}
-                  <span className={`transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`}>▾</span>
-                </button>
-
-                {categoryMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-72 max-h-96 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 p-2">
-                    <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-gray-700">
-                      <span className="text-sm font-semibold text-gray-400 uppercase">Filtrar categorías</span>
-                      {selectedCategoryIds.size > 0 && (
-                        <button
-                          onClick={() => setSelectedCategoryIds(new Set())}
-                          className="text-sm font-medium text-amber-400 hover:text-amber-300"
-                        >
-                          Limpiar
-                        </button>
-                      )}
-                    </div>
-                    <ul className="space-y-0.5">
-                      {categories.map((category) => {
-                        const categoryId = String(category._id);
-                        const isSelected = selectedCategoryIds.has(categoryId);
-                        return (
-                          <li key={categoryId}>
-                            <button
-                              onClick={() => toggleCategoryFilter(categoryId)}
-                              className="w-full flex items-center gap-2 text-left px-2 py-2 rounded-lg text-base hover:bg-gray-700/70 transition-colors"
-                            >
-                              <span
-                                className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center text-sm ${
-                                  isSelected
-                                    ? 'bg-amber-500 border-amber-500 text-gray-900'
-                                    : 'border-gray-500 text-transparent'
-                                }`}
-                              >
-                                ✓
-                              </span>
-                              <span className={isSelected ? 'text-white' : 'text-gray-300'}>{category.title}</span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-          <div className="w-px h-6 bg-gray-700 mx-1" />
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 rounded-lg text-lg font-medium transition-colors flex items-center gap-2 bg-gray-800 text-red-300 hover:bg-red-900/60"
-          >
-            <ArrowRightEndOnRectangleIcon className="w-5 h-5" />
-            Cerrar sesión
-          </button>
-        </div>
-      </div>
-
-      {connectionLost && (
-        <div className="mb-4 p-3 bg-amber-900 text-amber-100 rounded-lg flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-300 animate-pulse" />
-          Sin conexión con el servidor — reconectando. La pantalla puede estar desactualizada.
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-4 p-3 bg-red-900 text-red-100 rounded-lg">{error}</div>
-      )}
-
-      {showReady && readyOrders.length > 0 && (
-        <div className="mb-6 pb-6 border-b border-gray-700">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-            {readyOrders.map((order) => (
-              <KitchenOrderCard
-                key={getOrderId(order)}
-                order={order}
-                now={now}
-                onMarkReady={handleMarkReady}
-                requireAllItemsReady={requireAllItemsReady}
-                onToggleItemReady={handleToggleItemReady}
-                canMarkReady={canMarkReady}
-                selectedCategoryIds={selectedCategoryIds}
-                viewContext="ready"
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeOrders.length === 0 ? (
-        <p className="text-gray-400 text-xl text-center mt-12">
-          {isLoading
-            ? 'Cargando pedidos…'
-            : emptyNotice || 'No hay pedidos en preparación'}
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-          {activeOrders.map((order) => (
-            <KitchenOrderCard
-              key={getOrderId(order)}
-              order={order}
-              now={now}
-              onMarkReady={handleMarkReady}
-              requireAllItemsReady={requireAllItemsReady}
-              onToggleItemReady={handleToggleItemReady}
-              canMarkReady={canMarkReady}
-              selectedCategoryIds={selectedCategoryIds}
-              viewContext="active"
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const KitchenOrderCard = ({ order, now, onMarkReady, requireAllItemsReady, onToggleItemReady, canMarkReady, selectedCategoryIds, viewContext }) => {
-  const orderId = getOrderId(order);
-  const elapsedMinutes = getElapsedMinutes(order, now);
-  const urgencyVariant = getUrgencyVariant(elapsedMinutes);
-  const allItems = normalizeKitchenItems(order);
-  // Solo se muestran los productos de las categorías filtradas, pero la
-  // confirmación de "listo" sigue dependiendo del pedido completo.
-  const categoryItems = selectedCategoryIds && selectedCategoryIds.size > 0
-    ? allItems.filter((item) => item.categoryId && selectedCategoryIds.has(String(item.categoryId)))
-    : allItems;
-  const orderReadyFlag = Boolean(order.kitchenReadyAt);
-  const readyItemsCount = allItems.filter((item) => item.ready).length;
-  const allItemsReady = allItems.length > 0 && readyItemsCount === allItems.length;
-  // Se agregó un producto después de marcar el pedido como listo: el pedido se
-  // divide en dos vistas — la de "Listos" solo con lo ya preparado, y la de
-  // "En preparación" solo con lo nuevo. Sigue "mixto" (pendiente de reconfirmar)
-  // hasta que alguien presiona "Confirmar Listo", aunque ya se hayan marcado
-  // todos los productos nuevos en el checklist.
-  // Solo aplica con el checklist activado: es el único modo donde food.ready
-  // por producto refleja algo real (en modo simple ningún item se marca individual).
-  const isMixed = requireAllItemsReady && orderNeedsReconfirmation(order);
-  // Un producto es "nuevo" si se agregó después de la última vez que se confirmó
-  // el pedido como listo — a diferencia de `ready`, esto no cambia al marcarlo en
-  // el checklist, así que sigue apareciendo solo en "En preparación" hasta que se
-  // presione "Confirmar Listo".
-  const isNewItem = (item) =>
-    Boolean(order.kitchenReadyAt) &&
-    Boolean(item.addedAt) &&
-    new Date(item.addedAt).getTime() > new Date(order.kitchenReadyAt).getTime();
-
-  // La vista determina cómo se muestra la tarjeta, no solo el estado guardado:
-  // un pedido mixto aparece en ambas listas con contenido y estilo distintos.
-  const isReady = viewContext === 'ready' ? true : viewContext === 'active' ? false : orderReadyFlag;
-  const items = viewContext === 'ready' && isMixed
-    ? categoryItems.filter((item) => !isNewItem(item))
-    : viewContext === 'active' && isMixed
-      ? categoryItems.filter(isNewItem)
-      : categoryItems;
-
-  return (
-    <div
-      className={`rounded-xl border-2 p-4 flex flex-col gap-3 ${
-        isReady
-          ? 'bg-green-900 border-green-400 shadow-lg shadow-green-900/50'
-          : isMixed
-            ? 'bg-gray-800 border-amber-400 shadow-lg shadow-amber-900/30'
-            : 'bg-gray-800 border-gray-700'
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2 flex-wrap">
-        <span className="text-xl font-bold">#{order.orderNumber}</span>
-        {isReady ? (
-          <Badge variant="success" size="lg" className="whitespace-nowrap">✓ Listo</Badge>
-        ) : (
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            {isMixed && (
-              <Badge
-                variant="secondary"
-                size="md"
-                className="whitespace-nowrap"
-                title="Este pedido ya tenía productos listos; se agregó uno nuevo"
-              >
-                ⚠ Agregado
-              </Badge>
+    <div className="h-screen w-screen overflow-hidden bg-gray-900 text-white flex flex-col">
+      {/* En modo TV la cabecera se reduce al mínimo: cada píxel que ocupa es un
+          píxel menos para los pedidos, y los filtros ya vienen configurados. */}
+      {isTvMode ? (
+        <div className="flex-shrink-0 flex items-center justify-between gap-4 px-6 pt-4 pb-3">
+          <div className="flex items-baseline gap-3 min-w-0">
+            <h1 className="text-2xl font-bold whitespace-nowrap">
+              {screenConfig.screenName || 'Cocina'}
+            </h1>
+            {stationSummary && (
+              <span className="text-sm text-gray-400 truncate">{stationSummary}</span>
             )}
-            <Badge variant={urgencyVariant} size="lg" className="whitespace-nowrap">
-              {Math.max(0, Math.floor(elapsedMinutes))} min
-            </Badge>
           </div>
-        )}
-      </div>
-
-      <div className={`text-sm ${isReady ? 'text-green-200' : 'text-gray-300'}`}>
-        <div>{SECTION_LABELS[order.section] || order.section}</div>
-        <div className="font-medium text-white">{getOrderLabel(order)}</div>
-      </div>
-
-      {requireAllItemsReady ? (
-        <ul className="space-y-1.5 text-lg">
-          {items.map((item, idx) => (
-            <li key={item.id || idx}>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="px-3 py-1 rounded-full text-lg font-bold bg-amber-500 text-gray-900">
+              {isLoading ? 'Cargando…' : `${activeOrders.length} en preparación`}
+            </span>
+            {settingsButton}
+            {/* En un TV colgado nadie va a cerrar sesión, pero si alguien usa
+                este layout en una tablet sí necesita poder salir. */}
+            {screenConfig.interactive && (
               <button
-                type="button"
-                onClick={() => onToggleItemReady(orderId, item.id, !item.ready)}
-                disabled={!item.id}
-                className={`w-full flex items-start gap-2 text-left px-2 py-1.5 rounded-lg transition-colors ${
-                  item.ready ? 'bg-green-950/60' : 'bg-gray-900/40 hover:bg-gray-900/70'
+                onClick={handleLogout}
+                title="Cerrar sesión"
+                className="p-2 rounded-lg text-red-300 hover:bg-red-900/60 transition-colors"
+              >
+                <ArrowRightEndOnRectangleIcon className="w-6 h-6" />
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex-shrink-0 flex items-center justify-between mb-4 gap-4 flex-wrap px-6 pt-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold">{screenConfig.screenName || 'Cocina'}</h1>
+            <span className="px-3 py-1 rounded-full text-lg font-bold bg-amber-500 text-gray-900">
+              {isLoading ? 'Cargando…' : `${activeOrders.length} en preparación`}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setShowReady((prev) => !prev)}
+              disabled={readyOrders.length === 0}
+              className={`px-4 py-2 rounded-lg text-lg font-medium transition-colors flex items-center gap-2 ${
+                showReady ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              } disabled:opacity-50 disabled:cursor-default`}
+            >
+              ✓ Listos ({readyOrders.length})
+              <span className={`transition-transform ${showReady ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            <div className="w-px h-6 bg-gray-700 mx-1" />
+            {SECTION_FILTERS.map((section) => (
+              <button
+                key={section}
+                onClick={() => updateScreenConfig({ section })}
+                className={`px-4 py-2 rounded-lg text-lg font-medium transition-colors ${
+                  screenConfig.section === section
+                    ? 'bg-amber-500 text-gray-900'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
               >
-                <span
-                  className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center text-sm ${
-                    item.ready ? 'bg-green-500 border-green-500 text-gray-900' : 'border-gray-500 text-transparent'
-                  }`}
-                >
-                  ✓
-                </span>
-                <span className={item.ready ? 'line-through text-green-300' : ''}>
-                  <span className="font-semibold">{item.quantity}x</span> {item.productName}
-                  {item.notes && (
-                    <div className="text-sm pl-1 text-amber-300 no-underline">— {item.notes}</div>
-                  )}
-                  {item.selectedExtras.length > 0 && (
-                    <div className="text-sm pl-1 text-gray-400 no-underline">
-                      {item.selectedExtras.map((extra) => extra.extraName).join(', ')}
+                {section === 'all' ? 'Todas' : SECTION_LABELS[section]}
+              </button>
+            ))}
+            {categories.length > 0 && (
+              <>
+                <div className="w-px h-6 bg-gray-700 mx-1" />
+                <div className="relative" ref={categoryMenuRef}>
+                  <button
+                    onClick={() => setCategoryMenuOpen((prev) => !prev)}
+                    className={`px-4 py-2 rounded-lg text-lg font-medium transition-colors flex items-center gap-2 ${
+                      stationFilterActive
+                        ? 'bg-amber-500 text-gray-900'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    Categorías
+                    {stationFilterActive && (
+                      <span className="px-2 py-0.5 rounded-full text-sm bg-gray-900/20">
+                        {selectedCategoryIds.size}
+                      </span>
+                    )}
+                    <span className={`transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`}>▾</span>
+                  </button>
+
+                  {categoryMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-72 max-h-96 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 p-2">
+                      <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-gray-700">
+                        <span className="text-sm font-semibold text-gray-400 uppercase">Filtrar categorías</span>
+                        {stationFilterActive && (
+                          <button
+                            onClick={() => updateScreenConfig({ categoryIds: [] })}
+                            className="text-sm font-medium text-amber-400 hover:text-amber-300"
+                          >
+                            Limpiar
+                          </button>
+                        )}
+                      </div>
+                      <ul className="space-y-0.5">
+                        {categories.map((category) => {
+                          const categoryId = String(category._id);
+                          const isSelected = selectedCategoryIds.has(categoryId);
+                          return (
+                            <li key={categoryId}>
+                              <button
+                                onClick={() => toggleCategoryFilter(categoryId)}
+                                className="w-full flex items-center gap-2 text-left px-2 py-2 rounded-lg text-base hover:bg-gray-700/70 transition-colors"
+                              >
+                                <span
+                                  className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center text-sm ${
+                                    isSelected
+                                      ? 'bg-amber-500 border-amber-500 text-gray-900'
+                                      : 'border-gray-500 text-transparent'
+                                  }`}
+                                >
+                                  ✓
+                                </span>
+                                <span className={isSelected ? 'text-white' : 'text-gray-300'}>{category.title}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
                   )}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <ul className="space-y-1 text-lg">
-          {items.map((item, idx) => (
-            <li key={idx}>
-              <span className="font-semibold">{item.quantity}x</span> {item.productName}
-              {item.notes && (
-                <div className={`text-sm pl-4 ${isReady ? 'text-green-200' : 'text-amber-300'}`}>— {item.notes}</div>
-              )}
-              {item.selectedExtras.length > 0 && (
-                <div className={`text-sm pl-4 ${isReady ? 'text-green-300' : 'text-gray-400'}`}>
-                  {item.selectedExtras.map((extra) => extra.extraName).join(', ')}
                 </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {order.comment && (
-        <div className={`text-sm border-t pt-2 ${isReady ? 'text-green-200 border-green-700' : 'text-amber-300 border-gray-700'}`}>
-          {order.comment}
+              </>
+            )}
+            <div className="w-px h-6 bg-gray-700 mx-1" />
+            {settingsButton}
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 rounded-lg text-lg font-medium transition-colors flex items-center gap-2 bg-gray-800 text-red-300 hover:bg-red-900/60"
+            >
+              <ArrowRightEndOnRectangleIcon className="w-5 h-5" />
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       )}
 
-      {requireAllItemsReady ? (
-        <>
-          <div
-            className={`mt-2 py-1.5 rounded-lg text-center text-sm font-bold ${
-              allItemsReady ? 'bg-green-950 text-green-300' : 'bg-gray-900 text-gray-400'
-            }`}
-          >
-            {allItemsReady ? '✓ Todos los productos listos' : `${readyItemsCount}/${allItems.length} productos listos`}
-          </div>
-          <button
-            onClick={() => onMarkReady(orderId)}
-            disabled={isReady || !allItemsReady || !canMarkReady}
-            title={!canMarkReady ? 'Solo el dueño puede confirmar el pedido como listo' : undefined}
-            className={`py-3 rounded-lg text-lg font-bold transition-colors ${
-              isReady
-                ? 'bg-green-950 text-green-300 cursor-default'
-                : allItemsReady && canMarkReady
-                  ? 'bg-green-600 hover:bg-green-500 text-white'
-                  : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {isReady ? 'Listo' : 'Confirmar Listo'}
-          </button>
-        </>
+      {(connectionLost || error) && (
+        <div className="flex-shrink-0 px-6 pb-3 space-y-2">
+          {connectionLost && (
+            <div className="p-3 bg-amber-900 text-amber-100 rounded-lg flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-300 animate-pulse" />
+              Sin conexión con el servidor — reconectando. La pantalla puede estar desactualizada.
+            </div>
+          )}
+          {error && <div className="p-3 bg-red-900 text-red-100 rounded-lg">{error}</div>}
+        </div>
+      )}
+
+      {isTvMode ? (
+        <div ref={boardWrapRef} className="flex-1 min-h-0 px-6 pb-6">
+          {activeOrders.length === 0 ? (
+            <p className="text-gray-400 text-2xl text-center mt-12">{emptyMessage}</p>
+          ) : (
+            <KdsBoard
+              columnWidth={screenConfig.columnWidth}
+              rotateSeconds={screenConfig.rotateSeconds}
+              scale={screenConfig.scale}
+              revision={boardRevision}
+              interactive={screenConfig.interactive}
+              autoRotate={screenConfig.autoRotate}
+            >
+              {boardCards.map((card) => (
+                <div
+                  key={card.key}
+                  data-kds-split-key={card.splitKey}
+                  className="break-inside-avoid mb-4"
+                >
+                  <KitchenOrderCard
+                    order={card.order}
+                    now={now}
+                    onMarkReady={handleMarkReady}
+                    onToggleItemReady={handleToggleItemReady}
+                    checklistMode={checklistMode}
+                    canMarkReady={canMarkReady}
+                    selectedCategoryIds={selectedCategoryIds}
+                    viewContext="active"
+                    interactive={screenConfig.interactive}
+                    itemsOverride={card.items}
+                    part={card.part}
+                    // Red de seguridad: si aun así una tarjeta no cabe en la
+                    // columna, cada trozo conserva su borde y se sigue leyendo
+                    // como tarjeta en vez de quedar como texto suelto.
+                    className="kds-card-part"
+                  />
+                </div>
+              ))}
+            </KdsBoard>
+          )}
+        </div>
       ) : (
-        <button
-          onClick={() => onMarkReady(orderId)}
-          disabled={isReady || !canMarkReady}
-          title={!canMarkReady ? 'Solo el dueño puede confirmar el pedido como listo' : undefined}
-          className={`mt-2 py-3 rounded-lg text-lg font-bold transition-colors ${
-            isReady
-              ? 'bg-green-950 text-green-300 cursor-default'
-              : canMarkReady
-                ? 'bg-green-600 hover:bg-green-500 text-white'
-                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {isReady ? 'Listo' : 'Marcar Listo'}
-        </button>
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          {showReady && readyOrders.length > 0 && (
+            <div className="mb-6 pb-6 border-b border-gray-700">
+              <div
+                className="grid gap-4"
+                style={{
+                  gridTemplateColumns: `repeat(auto-fill, minmax(${screenConfig.columnWidth}px, 1fr))`,
+                  zoom: screenConfig.scale,
+                }}
+              >
+                {cards(readyOrders, 'ready')}
+              </div>
+            </div>
+          )}
+
+          {activeOrders.length === 0 ? (
+            <p className="text-gray-400 text-xl text-center mt-12">{emptyMessage}</p>
+          ) : (
+            <div
+              className="grid gap-4"
+              style={{
+                gridTemplateColumns: `repeat(auto-fill, minmax(${screenConfig.columnWidth}px, 1fr))`,
+                zoom: screenConfig.scale,
+              }}
+            >
+              {cards(activeOrders, 'active')}
+            </div>
+          )}
+        </div>
+      )}
+
+      {settingsOpen && (
+        <KdsSettingsPanel
+          config={screenConfig}
+          categories={categories}
+          onChange={updateScreenConfig}
+          onReset={() => setScreenConfig(clearStoredKdsConfig())}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
     </div>
   );
