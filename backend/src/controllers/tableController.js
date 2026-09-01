@@ -339,6 +339,7 @@ const updateTablePositions = async (req, res) => {
         const updatedTables = await Table.find({ restaurant: req.restaurantId })
             .populate('currentOrder')
             .populate('waiter', 'userName email')
+            .populate('mergedGroup', 'tableNumber')
             .sort({ tableNumber: 1 });
         
         res.json(updatedTables);

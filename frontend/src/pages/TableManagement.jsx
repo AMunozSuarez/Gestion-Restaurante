@@ -411,12 +411,29 @@ const TableManagement = () => {
                 setIsSavingPositions(true);
                 try {
                     await updateTablePositions(changes);
-                    setPendingPositions({});
                 } catch (error) {
                     showNotification('Error al guardar posiciones: ' + error.message, 'error');
                     return; // se mantiene en modo edición para poder reintentar
                 } finally {
                     setIsSavingPositions(false);
+                }
+
+                // Avisar si alguna union quedó separada tras el movimiento. Se valida con
+                // las posiciones que se acaban de guardar porque el estado de `tables`
+                // todavía no refleja la respuesta del servidor en este punto.
+                const savedPositions = pendingPositions;
+                setPendingPositions({});
+
+                const disconnected = getDisconnectedMergedGroups(
+                    table => savedPositions[table._id] || table.position || { x: 0, y: 0 }
+                );
+                if (disconnected.length > 0) {
+                    const detalle = disconnected.map(numbers => numbers.join(' + ')).join('; ');
+                    showNotification(
+                        `Mesas unidas que quedaron separadas: ${detalle}.`,
+                        'warning',
+                        6000
+                    );
                 }
             }
         }
@@ -527,6 +544,38 @@ const TableManagement = () => {
         return grid;
     };
 
+    // Grilla compacta para mobile: recorta las filas y columnas vacías de los bordes
+    // para no desperdiciar pantalla, pero conserva los huecos internos y por lo tanto
+    // la disposición real que se armó en modo edición
+    const createCompactGrid = () => {
+        const byCell = new Map();
+        const overflow = [];
+        filteredTables.forEach(table => {
+            const { x, y } = getEffectivePosition(table);
+            const key = `${x}-${y}`;
+            // Dos mesas en la misma celda (típicamente mesas sin position guardada,
+            // que caen todas en 0-0): las extra se muestran aparte para no ocultarlas
+            if (byCell.has(key)) overflow.push(table);
+            else byCell.set(key, table);
+        });
+
+        if (byCell.size === 0) return { cols: 0, cells: [], overflow };
+
+        const placed = [...byCell.values()].map(getEffectivePosition);
+        const minX = Math.min(...placed.map(pos => pos.x));
+        const maxX = Math.max(...placed.map(pos => pos.x));
+        const minY = Math.min(...placed.map(pos => pos.y));
+        const maxY = Math.max(...placed.map(pos => pos.y));
+
+        const cells = [];
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                cells.push({ position: { x, y }, table: byCell.get(`${x}-${y}`) });
+            }
+        }
+        return { cols: maxX - minX + 1, cells, overflow };
+    };
+
     // Determina si una mesa unida tiene compañeras de grupo justo a la derecha/abajo
     // en la grilla, para dibujar un conector visual entre ellas (solo si son adyacentes)
     const getAdjacentMergedDirections = (table) => {
@@ -544,6 +593,139 @@ const TableManagement = () => {
             if (p.x === pos.x && p.y === pos.y + 1) bottom = true;
         });
         return { right, bottom };
+    };
+
+    // Tarjeta compacta de mesa (vista mobile). Ocupa toda la celda de la grilla.
+    const renderCompactTable = (table) => {
+        const isOccupied = table.status === 'occupied';
+        const isReserved = table.status === 'reserved';
+        const isInactive = table.status === 'inactive';
+        const isMerged = Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0;
+        const isSelectedForMerge = selectedForMerge.includes(table._id);
+
+        const textColor = isMerged
+            ? 'text-indigo-700'
+            : isOccupied
+            ? 'text-orange-700'
+            : isReserved
+            ? 'text-blue-700'
+            : isInactive
+            ? 'text-gray-600'
+            : 'text-green-800';
+
+        return (
+            <div
+                className={`relative w-full h-full rounded-xl border-2 shadow-sm transition-all duration-200 active:scale-[0.98] ${
+                    isSelectedForMerge
+                        ? 'bg-teal-100 border-teal-600 ring-2 ring-teal-400'
+                        : isMerged
+                        ? 'bg-indigo-100 border-indigo-600'
+                        : isOccupied
+                        ? 'bg-orange-100 border-orange-600'
+                        : isReserved
+                        ? 'bg-blue-100 border-blue-600'
+                        : isInactive
+                        ? 'bg-gray-300 border-gray-400'
+                        : 'bg-green-100 border-green-600'
+                }`}
+            >
+                <button
+                    onClick={() => handleTableClick(table)}
+                    className="w-full h-full flex flex-col items-center justify-center px-0.5"
+                >
+                    <UserGroupIcon className={`w-3.5 h-3.5 mb-0.5 ${textColor}`} />
+                    <span className={`font-bold leading-none ${textColor}`}>
+                        {table.tableNumber}
+                    </span>
+                    {isOccupied && table.openedAt && (
+                        <span className="text-[9px] leading-none mt-1 text-orange-800 whitespace-nowrap">
+                            {getCompactTableDuration(table.openedAt)}
+                        </span>
+                    )}
+                </button>
+
+                {/* Conector hacia mesas unidas contiguas, igual que en la grilla de desktop.
+                    w-1.5/h-1.5 coincide con el gap-1.5 de la grilla mobile */}
+                {isMerged && !mergeMode && (() => {
+                    const { right, bottom } = getAdjacentMergedDirections(table);
+                    return (
+                        <>
+                            {right && (
+                                <div className="absolute top-1/4 bottom-1/4 -right-1.5 w-1.5 bg-indigo-500 z-10" />
+                            )}
+                            {bottom && (
+                                <div className="absolute left-1/4 right-1/4 -bottom-1.5 h-1.5 bg-indigo-500 z-10" />
+                            )}
+                        </>
+                    );
+                })()}
+
+                {isMerged && !mergeMode && (
+                    <>
+                        <div
+                            className="absolute -bottom-1 -right-1 flex items-center gap-0.5 bg-teal-600 text-white text-[9px] px-1 py-0.5 rounded-full shadow"
+                            title={`Unida con: ${table.mergedGroup.map(t => t.tableNumber).join(', ')}`}
+                        >
+                            <LinkIcon className="w-2 h-2" />
+                        </div>
+                        <button
+                            onClick={(e) => handleUnlinkTable(table, e)}
+                            className="absolute -top-1 -left-1 p-0.5 bg-white rounded-full shadow"
+                            title="Separar mesa"
+                        >
+                            <LinkSlashIcon className="w-2.5 h-2.5 text-gray-600" />
+                        </button>
+                    </>
+                )}
+            </div>
+        );
+    };
+
+    // Grupos de mesas unidas que quedaron separados en el plano. El conector visual
+    // solo se dibuja entre mesas contiguas, asi que si un grupo no forma una region
+    // conectada (vecinos arriba/abajo/izq/der) la union no se ve por ningun lado.
+    // `positionOf` se inyecta para poder validar con posiciones recien guardadas.
+    const getDisconnectedMergedGroups = (positionOf) => {
+        const groups = new Map();
+        tables.forEach(table => {
+            if (!Array.isArray(table.mergedGroup) || table.mergedGroup.length === 0) return;
+            const numbers = [table.tableNumber, ...table.mergedGroup.map(t => t.tableNumber)]
+                .filter(n => n !== undefined && n !== null)
+                .sort((a, b) => a - b);
+            if (numbers.length > 1) groups.set(numbers.join('-'), numbers);
+        });
+
+        const sectionOf = (table) => table.section || 'Salón';
+        const disconnected = [];
+
+        groups.forEach(numbers => {
+            const members = numbers
+                .map(n => tables.find(t => t.tableNumber === n))
+                .filter(Boolean);
+            // Si no se resolvieron todos los miembros no opinamos: seria un falso positivo
+            if (members.length !== numbers.length) return;
+
+            // BFS sobre vecinos ortogonales dentro del grupo
+            const pending = members.slice(1);
+            const queue = [members[0]];
+            while (queue.length > 0) {
+                const current = queue.shift();
+                const pos = positionOf(current);
+                for (let i = pending.length - 1; i >= 0; i--) {
+                    const other = pending[i];
+                    if (sectionOf(other) !== sectionOf(current)) continue;
+                    const otherPos = positionOf(other);
+                    if (Math.abs(otherPos.x - pos.x) + Math.abs(otherPos.y - pos.y) === 1) {
+                        pending.splice(i, 1);
+                        queue.push(other);
+                    }
+                }
+            }
+
+            if (pending.length > 0) disconnected.push(numbers);
+        });
+
+        return disconnected;
     };
 
     // Obtener color de estado de mesa
@@ -665,55 +847,61 @@ const TableManagement = () => {
 
             {/* Header */}
             <div className="bg-white shadow-sm border-b border-gray-200">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <div className="flex justify-between items-center">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
+                    <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
                         <div>
-                            <h1 className="text-3xl font-bold text-teal-900">Gestión de Mesas</h1>
-                            <p className="text-gray-600 mt-1">
+                            <h1 className="text-2xl md:text-3xl font-bold text-teal-900">Gestión de Mesas</h1>
+                            <p className="text-sm md:text-base text-gray-600 mt-0.5 md:mt-1">
                                 {tables.filter(t => t.status === 'occupied').length} de {tables.length} mesas ocupadas
                             </p>
                         </div>
-                        <div className="flex gap-3">
+                        {/* En mobile: 3 columnas iguales con etiquetas cortas; en desktop: fila con etiquetas completas */}
+                        <div className="grid grid-cols-3 gap-2 md:flex md:gap-3">
                             <Button
                                 onClick={handleToggleMergeMode}
                                 disabled={isEditMode || isSavingPositions}
                                 variant={mergeMode ? 'primary' : 'outline'}
-                                className={mergeMode ? 'bg-teal-600 hover:bg-teal-700' : ''}
+                                className={`whitespace-nowrap px-2 md:px-5 ${mergeMode ? 'bg-teal-600 hover:bg-teal-700' : ''}`}
                             >
-                                <LinkIcon className="w-5 h-5 mr-2" />
-                                {mergeMode ? 'Cancelar unión' : 'Unir mesas'}
+                                <LinkIcon className="w-4 h-4 mr-1.5 md:w-5 md:h-5 md:mr-2 shrink-0" />
+                                <span className="md:hidden">{mergeMode ? 'Salir' : 'Unir'}</span>
+                                <span className="hidden md:inline">{mergeMode ? 'Cancelar unión' : 'Unir mesas'}</span>
                             </Button>
                             <Button
                                 onClick={handleToggleEditMode}
                                 disabled={mergeMode || isSavingPositions}
                                 variant={isEditMode ? 'primary' : 'outline'}
-                                className={isEditMode ? 'bg-teal-600 hover:bg-teal-700' : ''}
+                                className={`whitespace-nowrap px-2 md:px-5 ${isEditMode ? 'bg-teal-600 hover:bg-teal-700' : ''}`}
                             >
                                 {isSavingPositions ? (
-                                    <span className="w-5 h-5 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
+                                    <span className="w-4 h-4 mr-1.5 md:w-5 md:h-5 md:mr-2 shrink-0 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
                                 ) : (
-                                    <Squares2X2Icon className="w-5 h-5 mr-2" />
+                                    <Squares2X2Icon className="w-4 h-4 mr-1.5 md:w-5 md:h-5 md:mr-2 shrink-0" />
                                 )}
-                                {isSavingPositions ? 'Guardando...' : isEditMode ? 'Terminar edición' : 'Editar mesas'}
+                                {!isSavingPositions && (
+                                    <span className="md:hidden">{isEditMode ? 'Listo' : 'Editar'}</span>
+                                )}
+                                <span className="hidden md:inline">{isSavingPositions ? 'Guardando...' : isEditMode ? 'Terminar edición' : 'Editar mesas'}</span>
                             </Button>
                             <Button
                                 onClick={() => setShowAddTableModal(true)}
-                                className="bg-teal-600 hover:bg-teal-700"
+                                className="bg-teal-600 hover:bg-teal-700 whitespace-nowrap px-2 md:px-5"
                             >
-                                <PlusIcon className="w-5 h-5 mr-2" />
-                                Nueva Mesa
+                                <PlusIcon className="w-4 h-4 mr-1.5 md:w-5 md:h-5 md:mr-2 shrink-0" />
+                                <span className="md:hidden">Nueva</span>
+                                <span className="hidden md:inline">Nueva Mesa</span>
                             </Button>
                         </div>
                     </div>
 
                     {/* Tabs de secciones */}
-                    <div className="mt-6 flex items-center gap-3 flex-wrap">
+                    <div className="mt-4 md:mt-6 flex items-center gap-3 flex-wrap">
                         <div className="flex gap-2 flex-wrap">
                             {sections.map(section => (
                                 <div key={section} className="relative group">
                                     <button
                                         onClick={() => setCurrentSection(section)}
-                                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                        className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-medium transition-all ${
                                             currentSection === section
                                                 ? 'bg-teal-600 text-white shadow-md'
                                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -763,7 +951,7 @@ const TableManagement = () => {
             </div>
 
             {/* Grid de mesas */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
                 {filteredTables.length === 0 ? (
                     <div className="text-center py-12">
                         <Squares2X2Icon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -780,108 +968,41 @@ const TableManagement = () => {
                 ) : (
                     // Vista responsive: mobile en tarjetas compactas, desktop en grilla
                     <div>
+                        {/* Mobile: misma grilla que desktop pero recortada a la zona usada */}
                         <div className={isEditMode ? 'hidden' : 'md:hidden'}>
-                            <div className="flex flex-wrap gap-2">
-                                {[...filteredTables]
-                                    .sort((a, b) => a.tableNumber - b.tableNumber)
-                                    .map((table) => {
-                                        const isOccupied = table.status === 'occupied';
-                                        const isReserved = table.status === 'reserved';
-                                        const isInactive = table.status === 'inactive';
-                                        const isMerged = Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0;
-                                        const isSelectedForMerge = selectedForMerge.includes(table._id);
-
-                                        return (
+                            {(() => {
+                                const { cols, cells, overflow } = createCompactGrid();
+                                return (
+                                    <>
+                                        {cols > 0 && (
                                             <div
-                                                key={table._id}
-                                                className={`relative w-[56px] h-[72px] rounded-xl border-2 shadow-sm transition-all duration-200 active:scale-[0.98] ${
-                                                    isSelectedForMerge
-                                                        ? 'bg-teal-100 border-teal-600 ring-2 ring-teal-400'
-                                                        : isMerged
-                                                        ? 'bg-indigo-100 border-indigo-600'
-                                                        : isOccupied
-                                                        ? 'bg-orange-100 border-orange-600'
-                                                        : isReserved
-                                                        ? 'bg-blue-100 border-blue-600'
-                                                        : isInactive
-                                                        ? 'bg-gray-300 border-gray-400'
-                                                        : 'bg-green-100 border-green-600'
-                                                }`}
+                                                className="grid gap-1.5"
+                                                style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
                                             >
-                                                <button
-                                                    onClick={() => handleTableClick(table)}
-                                                    className="w-full h-full flex flex-col items-center justify-center px-1"
-                                                >
-                                                    <UserGroupIcon className={`w-3.5 h-3.5 mb-0.5 ${
-                                                        isMerged
-                                                            ? 'text-indigo-700'
-                                                            : isOccupied
-                                                            ? 'text-orange-700'
-                                                            : isReserved
-                                                            ? 'text-blue-700'
-                                                            : isInactive
-                                                            ? 'text-gray-600'
-                                                            : 'text-green-800'
-                                                    }`} />
-                                                    <span className={`font-bold leading-none ${
-                                                        isMerged
-                                                            ? 'text-indigo-700'
-                                                            : isOccupied
-                                                            ? 'text-orange-700'
-                                                            : isReserved
-                                                            ? 'text-blue-700'
-                                                            : isInactive
-                                                            ? 'text-gray-600'
-                                                            : 'text-green-800'
-                                                    }`}>
-                                                        {table.tableNumber}
-                                                    </span>
-                                                    {isOccupied && table.openedAt && (
-                                                            <span className="text-[10px] leading-none mt-1 text-orange-800 whitespace-nowrap">
-                                                            {getCompactTableDuration(table.openedAt)}
-                                                        </span>
-                                                    )}
-                                                </button>
-
-                                                {isMerged && !isEditMode && !mergeMode && (
-                                                    <div
-                                                        className="absolute -bottom-1 -left-1 flex items-center gap-0.5 bg-teal-600 text-white text-[9px] px-1 py-0.5 rounded-full shadow"
-                                                        title={`Unida con: ${table.mergedGroup.map(t => t.tableNumber).join(', ')}`}
-                                                    >
-                                                        <LinkIcon className="w-2 h-2" />
+                                                {cells.map(({ position, table }) => (
+                                                    <div key={`${position.x}-${position.y}`} className="aspect-[4/5]">
+                                                        {table ? renderCompactTable(table) : (
+                                                            <div className="w-full h-full rounded-xl border border-dashed border-gray-200" />
+                                                        )}
                                                     </div>
-                                                )}
-
-                                                {isMerged && !isEditMode && !mergeMode && (
-                                                    <button
-                                                        onClick={(e) => handleUnlinkTable(table, e)}
-                                                        className="absolute -top-1 -left-1 p-0.5 bg-white rounded-full shadow"
-                                                        title="Separar mesa"
-                                                    >
-                                                        <LinkSlashIcon className="w-2.5 h-2.5 text-gray-600" />
-                                                    </button>
-                                                )}
-
-                                                {isEditMode && (
-                                                    <div className="absolute -top-1 -right-1 flex gap-1">
-                                                        <button
-                                                            onClick={(e) => handleEditTable(table, e)}
-                                                            className="p-0.5 bg-white rounded-full shadow"
-                                                        >
-                                                            <PencilIcon className="w-2.5 h-2.5 text-teal-600" />
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => handleDeleteTable(table, e)}
-                                                            className="p-0.5 bg-white rounded-full shadow"
-                                                        >
-                                                            <TrashIcon className="w-2.5 h-2.5 text-red-600" />
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                ))}
                                             </div>
-                                        );
-                                    })}
-                            </div>
+                                        )}
+                                        {overflow.length > 0 && (
+                                            <div className="mt-3">
+                                                <p className="text-xs text-gray-500 mb-1.5">Mesas sin posición asignada</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {overflow.map(table => (
+                                                        <div key={table._id} className="w-[56px] h-[70px]">
+                                                            {renderCompactTable(table)}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </div>
 
                         <div className={isEditMode ? 'block' : 'hidden md:block'}>
