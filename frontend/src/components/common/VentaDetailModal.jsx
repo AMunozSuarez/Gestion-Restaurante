@@ -203,6 +203,10 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
       
       // Preparar los datos para actualizar
       const updateData = {
+        // Editar una venta ya cerrada es deliberado y sólo lo permite el backend
+        // con esta bandera (y siendo owner). Ver el guardia de updateOrderController:
+        // sin ella, una pantalla desincronizada podría reabrir un pedido cobrado.
+        allowClosedEdit: true,
         buyer: {
           name: editingData.name,
           phone: editingData.phone,

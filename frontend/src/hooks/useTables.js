@@ -194,6 +194,10 @@ export const useTable = (tableId) => {
     const [table, setTable] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    // La mesa se cerró desde otro dispositivo mientras esta pantalla seguía abierta.
+    // Sin esto la pantalla queda mostrando una mesa fantasma con su carrito intacto,
+    // y el botón de enviar comanda escribiría sobre un pedido ya cobrado.
+    const [closedElsewhere, setClosedElsewhere] = useState(false);
 
     const fetchTable = useCallback(async () => {
         if (!tableId) return;
@@ -202,6 +206,7 @@ export const useTable = (tableId) => {
             setIsLoading(true);
             const data = await tablesService.getTableById(tableId);
             setTable(data);
+            setClosedElsewhere(false);
             setError(null);
         } catch (err) {
             setError(err.message);
@@ -230,10 +235,30 @@ export const useTable = (tableId) => {
         return unsub;
     }, []);
 
+    // El detalle de mesa sólo escuchaba order:updated, así que un cierre hecho en
+    // otro equipo (POS, app de meseros) no llegaba nunca a esta pantalla.
+    useEffect(() => {
+        if (!tableId) return undefined;
+
+        const unsub = onSocketEvent('table:updated', ({ table: updatedTable }) => {
+            if (!updatedTable) return;
+            const updatedId = updatedTable._id || updatedTable.id;
+            if (String(updatedId) !== String(tableId)) return;
+            // Sólo se actúa sobre el cierre: el resto de cambios ya llegan por
+            // order:updated, y este payload puede venir sin popular currentOrder.
+            if (updatedTable.status === 'available' && !updatedTable.currentOrder) {
+                setClosedElsewhere(true);
+            }
+        });
+
+        return unsub;
+    }, [tableId]);
+
     return {
         table,
         isLoading,
         error,
+        closedElsewhere,
         refetch: fetchTable,
     };
 };

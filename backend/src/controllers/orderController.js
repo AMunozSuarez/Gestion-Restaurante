@@ -503,22 +503,38 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, discount, deletedFoods, newFoods, splitMeta, splitAccounts, kitchenReadyAt } = req.body;
+        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, discount, deletedFoods, newFoods, splitMeta, splitAccounts, kitchenReadyAt, allowClosedEdit } = req.body;
 
         const restaurantId = req.user.restaurant;
         const isPrivilegedUser = isOwnerOrSuperAdmin(req.user?.role);
-        let currentOrderSnapshot = null;
 
-        if (foods !== undefined || deletedFoods !== undefined || discount !== undefined) {
-            currentOrderSnapshot = await orderModel
-                .findOne({ _id: req.params.id, restaurant: restaurantId })
-                .select('foods deletedFoods total discount kitchenReadyAt')
-                .lean();
+        const currentOrderSnapshot = await orderModel
+            .findOne({ _id: req.params.id, restaurant: restaurantId })
+            .select('orderNumber foods deletedFoods total discount kitchenReadyAt status')
+            .lean();
 
-            if (!currentOrderSnapshot) {
-                return res.status(404).json({
+        if (!currentOrderSnapshot) {
+            return res.status(404).json({
+                success: false,
+                message: 'Pedido no encontrado o no pertenece a este restaurante',
+            });
+        }
+
+        // Un pedido ya cerrado no se reabre desde el flujo normal. Una pantalla que
+        // quedó abierta en otro dispositivo (detalle de mesa, KDS) sigue apuntando a
+        // esta orden, y su "Enviar comanda" la devolvería a Preparacion borrándole el
+        // pago y la propina: queda huérfana en cocina y traba el cierre de caja.
+        // Anular sí se permite, y editar una venta cerrada es una acción deliberada
+        // desde Ventas, que lo pide con allowClosedEdit.
+        if (!isOrderActive(currentOrderSnapshot.status)) {
+            const isAnnulment = status === 'Cancelado';
+            const isDeliberateEdit = allowClosedEdit === true && isPrivilegedUser;
+
+            if (!isAnnulment && !isDeliberateEdit) {
+                return res.status(409).json({
                     success: false,
-                    message: 'Pedido no encontrado o no pertenece a este restaurante',
+                    message: `El pedido #${currentOrderSnapshot.orderNumber} ya está ${currentOrderSnapshot.status.toLowerCase()} y no puede modificarse.`,
+                    orderStatus: currentOrderSnapshot.status,
                 });
             }
         }
@@ -554,7 +570,14 @@ const updateOrderController = async (req, res) => {
         }
 
 
-        if ((status === 'Completado' || status === 'Enviado') && kitchenReadyAt === undefined) {
+        // Sólo se controla el paso a cerrado, no la reedición de algo ya cerrado:
+        // una venta antigua que nunca se marcó lista en cocina no debe quedar
+        // inmodificable desde Ventas por este motivo.
+        if (
+            (status === 'Completado' || status === 'Enviado') &&
+            kitchenReadyAt === undefined &&
+            isOrderActive(currentOrderSnapshot.status)
+        ) {
             const restaurant = await Restaurant.findById(restaurantId)
                 .select('settings.kitchenDisplay')
                 .lean();
@@ -562,14 +585,9 @@ const updateOrderController = async (req, res) => {
             const requireKitchenReadyToClose = restaurant?.settings?.kitchenDisplay?.requireReadyToClose === true;
 
             if (kitchenDisplayEnabled && requireKitchenReadyToClose) {
-                const orderForReadyCheck = await orderModel
-                    .findOne({ _id: req.params.id, restaurant: restaurantId })
-                    .select('kitchenReadyAt foods')
-                    .lean();
+                const orderHasProducts = Array.isArray(currentOrderSnapshot.foods) && currentOrderSnapshot.foods.length > 0;
 
-                const orderHasProducts = Array.isArray(orderForReadyCheck?.foods) && orderForReadyCheck.foods.length > 0;
-
-                if (orderForReadyCheck && orderHasProducts && !orderForReadyCheck.kitchenReadyAt) {
+                if (orderHasProducts && !currentOrderSnapshot.kitchenReadyAt) {
                     return res.status(409).json({
                         success: false,
                         message: 'El pedido aún no está listo en cocina',
@@ -858,6 +876,17 @@ const updateOrderItemReadyController = async (req, res) => {
         const order = await orderModel.findOne({ _id: req.params.id, restaurant: restaurantId });
         if (!order) {
             return res.status(404).json({ success: false, message: 'Pedido no encontrado o no pertenece a este restaurante' });
+        }
+
+        // Mismo motivo que en updateOrderController: el KDS puede seguir mostrando un
+        // pedido que ya se cobró y cerró desde el POS, y marcar ahí un producto lo
+        // escribiría de vuelta sobre una venta cerrada.
+        if (!isOrderActive(order.status)) {
+            return res.status(409).json({
+                success: false,
+                message: `El pedido #${order.orderNumber} ya está ${order.status.toLowerCase()} y no puede modificarse.`,
+                orderStatus: order.status,
+            });
         }
 
         const item = order.foods.find((foodItem) => foodItem._id.toString() === foodId);

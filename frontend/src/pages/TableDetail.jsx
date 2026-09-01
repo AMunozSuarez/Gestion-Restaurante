@@ -34,7 +34,7 @@ import { useAuth } from '../hooks/useAuth';
 const TableDetail = () => {
     const { tableId } = useParams();
     const navigate = useNavigate();
-    const { table, isLoading: tableLoading, refetch: refetchTable } = useTable(tableId);
+    const { table, isLoading: tableLoading, refetch: refetchTable, closedElsewhere } = useTable(tableId);
     const { closeTable, assignOrderToTable, assignWaiterToTable, splitTable } = useTables();
     const { user } = useAuth();
     const { isOpen: isCashOpen, isLoading: cashLoading } = useCashRegister();
@@ -63,6 +63,9 @@ const TableDetail = () => {
     const [suggestedTip, setSuggestedTip] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
     const isProcessingRef = useRef(false);
+    // Distingue el cierre que hace esta misma pantalla del que llega por socket
+    // desde otro equipo: el propio ya tiene su mensaje y su navegación.
+    const selfClosingRef = useRef(false);
     const [showWaiterModal, setShowWaiterModal] = useState(false);
     const [selectedWaiter, setSelectedWaiter] = useState(null);
     const [showDiscountFields, setShowDiscountFields] = useState(false);
@@ -231,6 +234,16 @@ const TableDetail = () => {
             setSelectedWaiter(table.waiter._id);
         }
     }, [table]);
+
+    // La mesa se cerró desde otro dispositivo. Seguir aquí significaría operar
+    // sobre un pedido ya cobrado, así que se avisa y se vuelve a la grilla.
+    useEffect(() => {
+        if (!closedElsewhere || selfClosingRef.current) return undefined;
+
+        showNotification('Esta mesa fue cerrada desde otro dispositivo', 'warning', 4000);
+        const timeoutId = setTimeout(() => navigate('/mesas'), 1800);
+        return () => clearTimeout(timeoutId);
+    }, [closedElsewhere, navigate]);
 
     // Focus en textarea de comentarios
     useEffect(() => {
@@ -797,6 +810,7 @@ const TableDetail = () => {
         if (cart.length === 0) {
             try {
                 setIsProcessing(true);
+                selfClosingRef.current = true;
                 await closeTable(tableId);
                 showNotification('Mesa cerrada exitosamente', 'success', 2000);
                 setTimeout(() => {
@@ -986,6 +1000,11 @@ const TableDetail = () => {
             return;
         }
 
+        if (isProcessingRef.current) {
+            return;
+        }
+        isProcessingRef.current = true;
+
         try {
             setIsProcessing(true);
 
@@ -1069,6 +1088,7 @@ const TableDetail = () => {
                 }
 
                 // Cerrar mesa usando el hook
+                selfClosingRef.current = true;
                 await closeTable(tableId);
 
                                 // Abrir caja automáticamente si está configurado
@@ -1099,6 +1119,7 @@ const TableDetail = () => {
             showCloseTableAlert(error.response?.data?.message || error.message || 'Error al cerrar mesa');
         } finally {
             setIsProcessing(false);
+            isProcessingRef.current = false;
         }
     };
 

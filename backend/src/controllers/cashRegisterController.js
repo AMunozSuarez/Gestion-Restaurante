@@ -87,21 +87,8 @@ const closeCashRegister = async (req, res) => {
     try {
         const { officialIncome, comment } = req.body;
         
-        // Verificar si hay pedidos en preparación
         const orderModel = require('../models/orderModel');
-        const pendingOrders = await orderModel.find({
-            restaurant: req.user.restaurant,
-            status: 'Preparacion'
-        });
-        
-        if (pendingOrders.length > 0) {
-            return res.status(400).send({ 
-                success: false, 
-                message: 'Hay pedidos en preparación', 
-                pendingOrdersCount: pendingOrders.length 
-            });
-        }
-        
+
         // Buscar la caja activa
         const activeCashRegister = await cashRegisterModel.findOne({
             restaurant: req.user.restaurant,
@@ -110,6 +97,32 @@ const closeCashRegister = async (req, res) => {
 
         if (!activeCashRegister) {
             return res.status(404).send({ success: false, message: 'No hay una caja activa para cerrar' });
+        }
+
+        // Pedidos en preparación que bloquean el cierre. Acotado a esta caja: un
+        // pedido que quedó colgado en una jornada anterior no tiene por qué impedir
+        // cerrar hoy, y sin este filtro bloqueaba el cierre indefinidamente. Se
+        // devuelven los números para que se sepa cuál revisar.
+        const pendingOrders = await orderModel
+            .find({
+                restaurant: req.user.restaurant,
+                cashRegister: activeCashRegister._id,
+                status: 'Preparacion'
+            })
+            .select('orderNumber section tableNumber')
+            .lean();
+
+        if (pendingOrders.length > 0) {
+            const detalle = pendingOrders
+                .map((o) => `#${o.orderNumber}${o.tableNumber ? ` (mesa ${o.tableNumber})` : ` (${o.section})`}`)
+                .join(', ');
+
+            return res.status(400).send({
+                success: false,
+                message: `Hay ${pendingOrders.length} pedido${pendingOrders.length > 1 ? 's' : ''} en preparación: ${detalle}`,
+                pendingOrdersCount: pendingOrders.length,
+                pendingOrders
+            });
         }
 
         // Calcular el total del sistema basado en las órdenes reales de esta caja
