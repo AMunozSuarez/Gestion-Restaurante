@@ -1288,9 +1288,15 @@ No. Orden: #${orderNumber}
       });
 
       selectedExtras.forEach(extra => {
+        // Se matchea primero por sectionId (estable ante un renombre) y, si el extra
+        // no lo trae (pedido anterior a este campo), se cae al nombre.
+        const sectionId = extra?.sectionId ? String(extra.sectionId) : '';
         const sectionName = typeof extra?.sectionName === 'string' ? extra.sectionName.trim() : '';
-        const sectionRoles = sectionName && Array.isArray(extraSectionPrintDestinations[sectionName])
-          ? extraSectionPrintDestinations[sectionName]
+        const sectionKey = sectionId && Array.isArray(extraSectionPrintDestinations[sectionId])
+          ? sectionId
+          : sectionName;
+        const sectionRoles = sectionKey && Array.isArray(extraSectionPrintDestinations[sectionKey])
+          ? extraSectionPrintDestinations[sectionKey]
           : [];
 
         const rolesForExtra = sectionRoles.length > 0 ? sectionRoles : categoryRoles;

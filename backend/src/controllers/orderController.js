@@ -212,9 +212,14 @@ const createOrderController = async (req, res) => {
                     });
                 }
 
-                // Validar cada extra seleccionado
+                // Validar cada extra seleccionado. Se matchea por sectionId/extraId cuando
+                // el item ya los trae (guardados en una validación anterior); si no, se
+                // busca por nombre contra los datos vigentes y se "backfillea" el id en el
+                // propio objeto para que quede guardado en el pedido de aquí en adelante.
                 for (const selectedExtra of orderItem.selectedExtras) {
-                    const assignment = food.extraSections.find(a => a.section?.sectionName === selectedExtra.sectionName);
+                    const assignment = selectedExtra.sectionId
+                        ? food.extraSections.find(a => a.section?._id && String(a.section._id) === String(selectedExtra.sectionId))
+                        : food.extraSections.find(a => a.section?.sectionName === selectedExtra.sectionName);
                     if (!assignment) {
                         return res.status(400).json({
                             success: false,
@@ -228,7 +233,9 @@ const createOrderController = async (req, res) => {
                         ? sec.extras.filter(e => assignment.visibleExtraIds.map(id => id.toString()).includes(e._id.toString()))
                         : sec.extras;
 
-                    const extra = visibleExtras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
+                    const extra = selectedExtra.extraId
+                        ? visibleExtras.find(e => String(e._id) === String(selectedExtra.extraId) && e.isAvailable)
+                        : visibleExtras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
                     if (!extra) {
                         return res.status(400).json({
                             success: false,
@@ -242,21 +249,28 @@ const createOrderController = async (req, res) => {
                             message: `Precio de extra "${selectedExtra.extraName}" no coincide`
                         });
                     }
+
+                    selectedExtra.sectionId = sec._id;
+                    selectedExtra.extraId = extra._id;
+                    selectedExtra.sectionName = sec.sectionName;
+                    selectedExtra.extraName = extra.name;
                 }
 
-                // Validar límite de selección por sección (respetando override del producto)
+                // Validar límite de selección por sección (respetando override del producto).
+                // A esta altura todo selectedExtra ya tiene sectionId (recién asignado arriba).
                 const extrasBySection = {};
                 orderItem.selectedExtras.forEach(extra => {
-                    extrasBySection[extra.sectionName] = (extrasBySection[extra.sectionName] || 0) + 1;
+                    const key = String(extra.sectionId);
+                    extrasBySection[key] = (extrasBySection[key] || 0) + 1;
                 });
 
-                for (const [sectionName, count] of Object.entries(extrasBySection)) {
-                    const assignment = food.extraSections.find(a => a.section?.sectionName === sectionName);
+                for (const [sectionId, count] of Object.entries(extrasBySection)) {
+                    const assignment = food.extraSections.find(a => a.section?._id && String(a.section._id) === sectionId);
                     const effectiveMax = assignment.maxSelection;
                     if (effectiveMax !== null && effectiveMax !== undefined && count > effectiveMax) {
                         return res.status(400).json({
                             success: false,
-                            message: `Excedido el límite de selección para "${sectionName}". Máximo: ${effectiveMax}`
+                            message: `Excedido el límite de selección para "${assignment.section.sectionName}". Máximo: ${effectiveMax}`
                         });
                     }
                 }
@@ -672,8 +686,25 @@ const updateOrderController = async (req, res) => {
             }
 
             // ── Validar extras seleccionados ──
+            // Los items que ya existían sin cambios en el pedido (mismo food + comment +
+            // selectedExtras) no se revalidan contra las ExtraSection/Extra actuales: ya
+            // fueron válidos cuando se agregaron, y revalidarlos rompería el pedido si
+            // alguien renombró la sección/extra mientras tanto. Solo se valida lo nuevo.
+            const previousFoodSignatureCounts = new Map();
+            for (const item of (currentOrderSnapshot.foods || [])) {
+                const signature = buildOrderFoodItemSignature(item);
+                previousFoodSignatureCounts.set(signature, (previousFoodSignatureCounts.get(signature) || 0) + 1);
+            }
+
             const foodMap = new Map(existingFoods.map(f => [f._id.toString(), f]));
             for (const orderItem of foods) {
+                const signature = buildOrderFoodItemSignature(orderItem);
+                const previousCount = previousFoodSignatureCounts.get(signature) || 0;
+                if (previousCount > 0) {
+                    previousFoodSignatureCounts.set(signature, previousCount - 1);
+                    continue;
+                }
+
                 if (orderItem.selectedExtras && orderItem.selectedExtras.length > 0) {
                     const food = foodMap.get(orderItem.food);
                     if (!food || !food.extraSections || food.extraSections.length === 0) {
@@ -683,8 +714,13 @@ const updateOrderController = async (req, res) => {
                         });
                     }
 
+                    // Se matchea por sectionId/extraId cuando el item ya los trae; si no, se
+                    // busca por nombre contra los datos vigentes y se backfillea el id en el
+                    // propio objeto para que quede guardado en el pedido de aquí en adelante.
                     for (const selectedExtra of orderItem.selectedExtras) {
-                        const assignment = food.extraSections.find(a => a.section?.sectionName === selectedExtra.sectionName);
+                        const assignment = selectedExtra.sectionId
+                            ? food.extraSections.find(a => a.section?._id && String(a.section._id) === String(selectedExtra.sectionId))
+                            : food.extraSections.find(a => a.section?.sectionName === selectedExtra.sectionName);
                         if (!assignment) {
                             return res.status(400).json({
                                 success: false,
@@ -697,7 +733,9 @@ const updateOrderController = async (req, res) => {
                             ? sec.extras.filter(e => assignment.visibleExtraIds.map(id => id.toString()).includes(e._id.toString()))
                             : sec.extras;
 
-                        const extra = visibleExtras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
+                        const extra = selectedExtra.extraId
+                            ? visibleExtras.find(e => String(e._id) === String(selectedExtra.extraId) && e.isAvailable)
+                            : visibleExtras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
                         if (!extra) {
                             return res.status(400).json({
                                 success: false,
@@ -711,20 +749,27 @@ const updateOrderController = async (req, res) => {
                                 message: `Precio de extra "${selectedExtra.extraName}" no coincide`
                             });
                         }
+
+                        selectedExtra.sectionId = sec._id;
+                        selectedExtra.extraId = extra._id;
+                        selectedExtra.sectionName = sec.sectionName;
+                        selectedExtra.extraName = extra.name;
                     }
 
+                    // A esta altura todo selectedExtra ya tiene sectionId (recién asignado arriba).
                     const extrasBySection = {};
                     orderItem.selectedExtras.forEach(extra => {
-                        extrasBySection[extra.sectionName] = (extrasBySection[extra.sectionName] || 0) + 1;
+                        const key = String(extra.sectionId);
+                        extrasBySection[key] = (extrasBySection[key] || 0) + 1;
                     });
 
-                    for (const [sectionName, count] of Object.entries(extrasBySection)) {
-                        const assignment = food.extraSections.find(a => a.section?.sectionName === sectionName);
+                    for (const [sectionId, count] of Object.entries(extrasBySection)) {
+                        const assignment = food.extraSections.find(a => a.section?._id && String(a.section._id) === sectionId);
                         const effectiveMax = assignment.maxSelection;
                         if (effectiveMax !== null && effectiveMax !== undefined && count > effectiveMax) {
                             return res.status(400).json({
                                 success: false,
-                                message: `Excedido el límite de selección para "${sectionName}". Máximo: ${effectiveMax}`
+                                message: `Excedido el límite de selección para "${assignment.section.sectionName}". Máximo: ${effectiveMax}`
                             });
                         }
                     }

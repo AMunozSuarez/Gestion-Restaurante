@@ -83,7 +83,7 @@ const Configuracion = () => {
   const [detectedExtraSections, setDetectedExtraSections] = useState([]);
   const [extraSectionProductMap, setExtraSectionProductMap] = useState({});
   const [loadingExtraSections, setLoadingExtraSections] = useState(false);
-  const [extraSectionPrintMap, setExtraSectionPrintMap] = useState(() => printingService.getExtraSectionPrintDestinations()); // { sectionName: ["cocina", "barra"] }
+  const [extraSectionPrintMap, setExtraSectionPrintMap] = useState(() => printingService.getExtraSectionPrintDestinations()); // { sectionId: ["cocina", "barra"] } (o sectionName en config legada, ver auto-sanación en loadExtraSectionsForPrinting)
   const [savingExtraSectionDestinations, setSavingExtraSectionDestinations] = useState(false);
 
   // Estados para suscripción
@@ -842,37 +842,58 @@ pause
     }
   };
 
-  // Cargar secciones de extras detectadas desde productos
+  // Cargar secciones de extras detectadas desde productos. Se identifican por su _id
+  // (estable aunque se renombren) y no por el nombre, para no perder la configuración
+  // de impresión guardada si alguien renombra la sección más adelante.
   const loadExtraSectionsForPrinting = async () => {
     setLoadingExtraSections(true);
     try {
       const response = await productsService.getProducts();
       if (response.success && Array.isArray(response.foods)) {
-        const names = new Set();
-        const sectionProducts = {};
+        const sectionsById = new Map(); // id -> { id, name }
+        const sectionProducts = {}; // id -> Set(productName)
         response.foods.forEach(food => {
           const productName = (food?.title || food?.name || '').trim();
-          (food.extraSections || []).forEach(section => {
-            const sectionName = typeof section?.sectionName === 'string' ? section.sectionName.trim() : '';
-            if (sectionName) {
-              names.add(sectionName);
+          (food.extraSections || []).forEach(assignment => {
+            const sec = assignment?.section;
+            const sectionId = sec?._id ? String(sec._id) : '';
+            const sectionName = typeof sec?.sectionName === 'string' ? sec.sectionName.trim() : '';
+            if (!sectionId || !sectionName) return;
 
-              if (!sectionProducts[sectionName]) {
-                sectionProducts[sectionName] = new Set();
-              }
+            sectionsById.set(sectionId, { id: sectionId, name: sectionName });
 
-              if (productName) {
-                sectionProducts[sectionName].add(productName);
-              }
+            if (!sectionProducts[sectionId]) {
+              sectionProducts[sectionId] = new Set();
+            }
+            if (productName) {
+              sectionProducts[sectionId].add(productName);
             }
           });
         });
-        setDetectedExtraSections(Array.from(names).sort((a, b) => a.localeCompare(b, 'es')));
+
+        const sectionsList = Array.from(sectionsById.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+        setDetectedExtraSections(sectionsList);
+
         const normalizedSectionProducts = {};
-        Object.entries(sectionProducts).forEach(([sectionName, products]) => {
-          normalizedSectionProducts[sectionName] = Array.from(products).sort((a, b) => a.localeCompare(b, 'es'));
+        Object.entries(sectionProducts).forEach(([sectionId, products]) => {
+          normalizedSectionProducts[sectionId] = Array.from(products).sort((a, b) => a.localeCompare(b, 'es'));
         });
         setExtraSectionProductMap(normalizedSectionProducts);
+
+        // Auto-sanación: si la configuración guardada todavía tiene la entrada bajo el
+        // nombre viejo de una sección (formato pre-id) y aún no existe bajo su _id,
+        // se traslada para no perder lo ya configurado en el primer load tras el deploy.
+        setExtraSectionPrintMap(prev => {
+          let changed = false;
+          const next = { ...prev };
+          sectionsList.forEach(({ id, name }) => {
+            if (!next[id] && next[name]) {
+              next[id] = next[name];
+              changed = true;
+            }
+          });
+          return changed ? next : prev;
+        });
       } else {
         setDetectedExtraSections([]);
         setExtraSectionProductMap({});
@@ -1351,14 +1372,15 @@ pause
     }
   }, [message]);
 
-  const extraSectionNames = Array.from(
-    new Set([
-      ...detectedExtraSections,
-      ...Object.keys(extraSectionPrintMap || {}),
-    ]),
-  )
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b, 'es'));
+  // Filas a mostrar: las secciones detectadas en productos actuales, más cualquier
+  // sección ya configurada que ya no aparezca en ningún producto (p. ej. quedó sin
+  // productos asignados o fue eliminada) — para esas no se conoce el nombre actual.
+  const extraSectionRows = [
+    ...detectedExtraSections,
+    ...Object.keys(extraSectionPrintMap || {})
+      .filter(id => !detectedExtraSections.some(section => section.id === id))
+      .map(id => ({ id, name: '(sección no disponible)' })),
+  ].sort((a, b) => a.name.localeCompare(b.name, 'es'));
 
   return (
     <div className="h-full bg-cream-50 flex flex-col gap-4 md:gap-6 p-3 md:p-6 overflow-hidden">
@@ -2078,7 +2100,7 @@ pause
                     <ArrowPathIcon className="w-8 h-8 text-gray-400 mx-auto mb-2 animate-spin" />
                     <p className="text-sm text-gray-500">Cargando secciones de extras...</p>
                   </div>
-                ) : extraSectionNames.length > 0 ? (
+                ) : extraSectionRows.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="min-w-full">
                       <thead>
@@ -2103,17 +2125,17 @@ pause
                         </tr>
                       </thead>
                       <tbody>
-                        {extraSectionNames.map((sectionName, index) => {
-                          const sectionRoles = extraSectionPrintMap[sectionName] || [];
-                          const sectionProducts = extraSectionProductMap[sectionName] || [];
+                        {extraSectionRows.map((section, index) => {
+                          const sectionRoles = extraSectionPrintMap[section.id] || [];
+                          const sectionProducts = extraSectionProductMap[section.id] || [];
                           const visibleProducts = sectionProducts.slice(0, 2);
                           const hiddenProductsCount = sectionProducts.length - visibleProducts.length;
 
                           return (
-                            <tr key={sectionName} className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                            <tr key={section.id} className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
                               <td className="py-3 px-4">
                                 <div>
-                                  <span className="font-medium text-gray-900">{sectionName}</span>
+                                  <span className="font-medium text-gray-900">{section.name}</span>
                                   {sectionProducts.length > 0 && (
                                     <p className="text-[11px] text-gray-400 mt-0.5">
                                       {visibleProducts.join(', ')}{hiddenProductsCount > 0 ? ` +${hiddenProductsCount}` : ''}
@@ -2130,7 +2152,7 @@ pause
                                       type="checkbox"
                                       checked={isChecked}
                                       disabled={!hasPrinter}
-                                      onChange={() => handleToggleExtraSectionRole(sectionName, role)}
+                                      onChange={() => handleToggleExtraSectionRole(section.id, role)}
                                       className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-30"
                                     />
                                   </td>

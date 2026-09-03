@@ -1,5 +1,15 @@
 const mongoose = require('mongoose');
 
+// sectionId/extraId son opcionales: pedidos creados antes de este campo (o por un
+// cliente que aún no lo envía) siguen guardando solo sectionName/extraName. Todo el
+// código que lee selectedExtras debe matchear por id cuando exista y caer a nombre
+// si no, para no romperse cuando alguien renombra una ExtraSection/Extra ya usada
+// en un pedido en curso.
+const selectedExtraIdFields = {
+    sectionId: { type: mongoose.Schema.Types.ObjectId, default: null },
+    extraId: { type: mongoose.Schema.Types.ObjectId, default: null },
+};
+
 const orderSchema = new mongoose.Schema({
     orderNumber: {
         type: Number,
@@ -16,6 +26,7 @@ const orderSchema = new mongoose.Schema({
             // ya estaban listos, incluso después de marcar el nuevo como "ready" también.
             addedAt: { type: Date, default: Date.now },
             selectedExtras: [{
+                ...selectedExtraIdFields,
                 sectionName: { type: String, required: true },
                 extraName: { type: String, required: true },
                 price: { type: Number, default: 0 }
@@ -71,6 +82,7 @@ const orderSchema = new mongoose.Schema({
                     quantity: { type: Number, default: 0 },
                     unitPrice: { type: Number, default: 0 },
                     selectedExtras: [{
+                        ...selectedExtraIdFields,
                         sectionName: { type: String, default: '' },
                         extraName: { type: String, default: '' },
                         price: { type: Number, default: 0 }
@@ -144,6 +156,7 @@ const orderSchema = new mongoose.Schema({
             comment: { type: String, default: '' },
             name: { type: String, default: '' },
             selectedExtras: [{
+                ...selectedExtraIdFields,
                 sectionName: { type: String },
                 extraName: { type: String },
                 price: { type: Number, default: 0 }

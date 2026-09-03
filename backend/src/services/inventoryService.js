@@ -57,32 +57,38 @@ const deductStockForOrder = async (orderId, restaurantId) => {
         }
     }
 
-    // Recetas de extras seleccionados
-    const allSectionNames = [
-        ...new Set(
-            (order.foods || []).flatMap(f =>
-                (f.selectedExtras || []).map(e => e.sectionName)
-            )
-        ),
-    ];
+    // Recetas de extras seleccionados. Se busca por sectionId/extraId cuando el pedido
+    // los trae (guardados desde que orderController los backfillea al validar); si no,
+    // se cae a buscar por nombre, único dato disponible en pedidos anteriores a ese campo.
+    const allSelectedExtras = (order.foods || []).flatMap(f => f.selectedExtras || []);
+    const sectionIds = [...new Set(allSelectedExtras.map(e => e.sectionId).filter(Boolean).map(String))];
+    const sectionNames = [...new Set(allSelectedExtras.filter(e => !e.sectionId).map(e => e.sectionName).filter(Boolean))];
 
-    if (allSectionNames.length) {
+    if (sectionIds.length || sectionNames.length) {
         const sections = await ExtraSection.find({
             restaurant: restaurantId,
-            sectionName: { $in: allSectionNames },
+            $or: [
+                ...(sectionIds.length ? [{ _id: { $in: sectionIds } }] : []),
+                ...(sectionNames.length ? [{ sectionName: { $in: sectionNames } }] : []),
+            ],
         })
             .select('sectionName extras.name extras.recipe extras.recipeEnabled')
             .lean();
 
-        const sectionMap = new Map(sections.map(s => [s.sectionName, s]));
+        const sectionByIdMap = new Map(sections.map(s => [s._id.toString(), s]));
+        const sectionByNameMap = new Map(sections.map(s => [s.sectionName, s]));
 
         for (const orderItem of order.foods || []) {
             const qty = Number(orderItem.quantity) || 1;
             for (const selectedExtra of orderItem.selectedExtras || []) {
-                const section = sectionMap.get(selectedExtra.sectionName);
+                const section = selectedExtra.sectionId
+                    ? sectionByIdMap.get(String(selectedExtra.sectionId))
+                    : sectionByNameMap.get(selectedExtra.sectionName);
                 if (!section) continue;
 
-                const extra = section.extras.find(e => e.name === selectedExtra.extraName);
+                const extra = selectedExtra.extraId
+                    ? section.extras.find(e => String(e._id) === String(selectedExtra.extraId))
+                    : section.extras.find(e => e.name === selectedExtra.extraName);
                 if (!extra?.recipe?.length || extra.recipeEnabled === false) continue;
 
                 for (const ri of extra.recipe) {
