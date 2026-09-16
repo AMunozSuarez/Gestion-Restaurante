@@ -76,13 +76,23 @@ const loginController = async (req, res) => {
             return res.status(400).json({ message: 'El correo electrónico ingresado no es válido.' });
         }
 
-        const user = await User.findOne({ email: buildEmailRegex(normalizedEmail) });
-        if (!user) {
+        // Puede haber más de un usuario con "el mismo" email en distinta capitalización
+        // (datos históricos previos a normalizar el email a lowercase). Se prueban todos
+        // los candidatos para no depender de cuál devuelva Mongo primero.
+        const candidates = await User.find({ email: buildEmailRegex(normalizedEmail) });
+        if (candidates.length === 0) {
             return res.status(404).json({ message: 'No existe una cuenta asociada a ese correo electrónico.' });
         }
 
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
+        let user = null;
+        for (const candidate of candidates) {
+            if (await bcrypt.compare(password, candidate.password)) {
+                user = candidate;
+                break;
+            }
+        }
+
+        if (!user) {
             return res.status(401).json({ message: 'La contraseña ingresada es incorrecta.' });
         }
 

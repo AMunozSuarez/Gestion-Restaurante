@@ -143,7 +143,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userName, email, role, restaurant, phone, isActive } = req.body;
+        const { userName, email, password, role, restaurant, phone, isActive } = req.body;
         const normalizedEmail = email ? normalizeEmail(email) : null;
 
         const user = await userModel.findById(id);
@@ -176,6 +176,10 @@ const updateUser = async (req, res) => {
         if (restaurant) updateData.restaurant = restaurant;
         if (phone !== undefined) updateData.phone = phone;
         if (isActive !== undefined) updateData.isActive = isActive;
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            updateData.password = await bcrypt.hash(password, salt);
+        }
 
         const updatedUser = await userModel
             .findByIdAndUpdate(id, updateData, { new: true })
