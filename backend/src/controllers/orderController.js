@@ -1282,20 +1282,63 @@ const getAllSalesController = async (req, res) => {
                 {
                     $project: {
                         payments: {
-                            $cond: [
-                                { $gt: [{ $size: '$paymentMethods' }, 0] },
-                                {
-                                    $map: {
-                                        input: '$paymentMethods',
-                                        as: 'pm',
+                            // Si la suma de paymentMethods no coincide con el total de la orden
+                            // (p. ej. porque incluye la propina), se escala proporcionalmente cada
+                            // método de pago para que la suma cuadre con el total, en vez de recortar
+                            // cada pago individual (lo que dejaba pasar la propina en pagos divididos).
+                            $let: {
+                                vars: {
+                                    pmList: {
+                                        $cond: [
+                                            { $gt: [{ $size: '$paymentMethods' }, 0] },
+                                            '$paymentMethods',
+                                            [{ method: '$payment', amount: '$total' }],
+                                        ],
+                                    },
+                                },
+                                in: {
+                                    $let: {
+                                        vars: {
+                                            sumPm: {
+                                                $sum: {
+                                                    $map: {
+                                                        input: '$$pmList',
+                                                        as: 'pm',
+                                                        in: { $ifNull: ['$$pm.amount', 0] },
+                                                    },
+                                                },
+                                            },
+                                        },
                                         in: {
-                                            method: '$$pm.method',
-                                            amount: { $min: [{ $ifNull: ['$$pm.amount', 0] }, '$total'] },
+                                            $map: {
+                                                input: '$$pmList',
+                                                as: 'pm',
+                                                in: {
+                                                    method: '$$pm.method',
+                                                    amount: {
+                                                        $cond: [
+                                                            { $gt: [{ $abs: { $subtract: ['$$sumPm', '$total'] } }, 1] },
+                                                            {
+                                                                $cond: [
+                                                                    { $gt: ['$$sumPm', 0] },
+                                                                    {
+                                                                        $multiply: [
+                                                                            { $ifNull: ['$$pm.amount', 0] },
+                                                                            { $divide: ['$total', '$$sumPm'] },
+                                                                        ],
+                                                                    },
+                                                                    0,
+                                                                ],
+                                                            },
+                                                            { $ifNull: ['$$pm.amount', 0] },
+                                                        ],
+                                                    },
+                                                },
+                                            },
                                         },
                                     },
                                 },
-                                [{ method: '$payment', amount: '$total' }],
-                            ],
+                            },
                         },
                     },
                 },
