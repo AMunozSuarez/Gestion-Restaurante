@@ -382,7 +382,7 @@
     z-index: 40;
     width: 100%;
     background: white;
-    overflow-y: auto;
+    overflow: hidden;
   }
 
   /* On mobile, reduce title size */
