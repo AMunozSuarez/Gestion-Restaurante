@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
+const { isPathAllowedForKiosco } = require('./kioscoAccess');
 
 module.exports = async (req, res, next) => {
     if (process.env.DISABLE_AUTH === 'true') {
@@ -25,6 +26,15 @@ module.exports = async (req, res, next) => {
         const user = await User.findById(decoded.id).select('isActive').lean();
         if (!user || user.isActive === false) {
             return res.status(401).json({ success: false, message: 'User account is disabled' });
+        }
+
+        // El rol kiosco solo puede tocar el módulo de autoservicio. Se valida aquí, en un
+        // único punto, para que ninguna ruta futura quede abierta por omisión.
+        if (decoded.role === 'kiosco' && !isPathAllowedForKiosco(req)) {
+            return res.status(403).json({
+                success: false,
+                message: 'No tienes permiso para acceder a este módulo.',
+            });
         }
 
         req.user = decoded;

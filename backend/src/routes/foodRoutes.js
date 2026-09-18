@@ -10,13 +10,13 @@ const router = express.Router();
 router.post('/create', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, createFoodController);
 
 // GET ALL FOODS
-router.get('/getAll', authMiddleware, filterByRestaurant, getAllFoodsController);
+router.get('/getAll', authMiddleware, denyRoleMiddleware('kiosco'), filterByRestaurant, getAllFoodsController);
 
 // GET A FOOD BY ID
-router.get('/get/:id', authMiddleware, getFoodByIdController);
+router.get('/get/:id', authMiddleware, denyRoleMiddleware('kiosco'), getFoodByIdController);
 
 // GET A FOOD BY RESTAURANT ID
-router.get('/getByRestaurant/:restaurantId', authMiddleware, getFoodByRestaurantIdController);
+router.get('/getByRestaurant/:restaurantId', authMiddleware, denyRoleMiddleware('kiosco'), getFoodByRestaurantIdController);
 
 // UPDATE A FOOD BY ID
 router.put('/update/:id', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), updateFoodController);

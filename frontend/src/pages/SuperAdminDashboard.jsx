@@ -1094,6 +1094,7 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
     address: restaurant?.address || '',
     isActive: restaurant?.isActive !== undefined ? restaurant.isActive : true,
     kitchenDisplayEnabled: Boolean(restaurant?.settings?.kitchenDisplay?.enabled),
+    selfServiceEnabled: Boolean(restaurant?.settings?.selfService?.enabled),
     ownerName: '',
     ownerEmail: '',
     ownerPassword: '',
@@ -1110,6 +1111,7 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
         address: formData.address,
         isActive: formData.isActive,
         kitchenDisplayEnabled: formData.kitchenDisplayEnabled,
+        selfServiceEnabled: formData.selfServiceEnabled,
       });
     } else {
       // Crear restaurante con propietario
@@ -1184,6 +1186,21 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
               />
               <label htmlFor="kitchenDisplayEnabled" className="ml-2 text-sm font-medium text-gray-700">
                 Pantalla de Cocina (KDS) habilitada
+              </label>
+            </div>
+          )}
+
+          {restaurant && (
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="selfServiceEnabled"
+                checked={formData.selfServiceEnabled}
+                onChange={(e) => setFormData({ ...formData, selfServiceEnabled: e.target.checked })}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="selfServiceEnabled" className="ml-2 text-sm font-medium text-gray-700">
+                Autoservicio (Kiosco) habilitado
               </label>
             </div>
           )}

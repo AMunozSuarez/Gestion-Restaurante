@@ -46,6 +46,7 @@ app.use('/api/webhooks', require('./routes/webhookRoutes')); // Use the webhook 
 app.use('/api/tables', require('./routes/tableRoutes')); // Use the tables routes
 app.use('/api/extra-sections', require('./routes/extraSectionRoutes')); // Use the extra sections routes
 app.use('/api/inventory', require('./routes/inventoryRoutes')); // Use the inventory routes
+app.use('/api/self-service', require('./routes/selfServiceRoutes')); // Use the self-service (kiosk) routes
 
 
 

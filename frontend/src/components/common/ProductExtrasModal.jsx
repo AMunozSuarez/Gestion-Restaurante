@@ -1,65 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button } from '../ui';
 import { formatChileanCurrency } from '../../utils/dateUtils';
+import {
+  normalizeInitialExtras,
+  flattenSelectedExtras,
+  getEffectiveSections,
+  getSectionSelectedCount,
+  getExtraQuantity,
+  calculateExtrasTotal,
+  getTotalSelectedExtras,
+  buildSectionLimitMessage,
+  incrementExtra,
+  decrementExtra,
+} from '../../utils/extrasSelection';
 
-const ProductExtrasModal = ({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  product, 
+const ProductExtrasModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  product,
   initialSelectedExtras
 }) => {
   const [selectedExtras, setSelectedExtras] = useState([]);
   const [sectionErrors, setSectionErrors] = useState({});
   const wasOpenRef = useRef(false);
   const initialExtrasRef = useRef(initialSelectedExtras);
-
-  // Clave de agrupación: por extraId cuando el pedido ya lo trae (estable ante un
-  // renombre posterior), o por nombre para pedidos guardados antes de ese campo.
-  const buildExtraKey = (extra) => (extra?.extraId ? `id:${extra.extraId}` : `name:${extra?.sectionName}|${extra?.extraName}`);
-
-  const normalizeInitialExtras = (extras = []) => {
-    const extrasMap = new Map();
-
-    extras.forEach((extra) => {
-      if (!extra?.sectionName || !extra?.extraName) {
-        return;
-      }
-
-      const key = buildExtraKey(extra);
-      const quantity = extra.quantity && extra.quantity > 0 ? extra.quantity : 1;
-
-      if (extrasMap.has(key)) {
-        const existing = extrasMap.get(key);
-        existing.quantity += quantity;
-      } else {
-        extrasMap.set(key, {
-          sectionId: extra.sectionId || null,
-          extraId: extra.extraId || null,
-          sectionName: extra.sectionName,
-          extraName: extra.extraName,
-          price: extra.price || 0,
-          quantity
-        });
-      }
-    });
-
-    return Array.from(extrasMap.values());
-  };
-
-  const flattenSelectedExtras = (extras = []) => {
-    return extras.flatMap((extra) => {
-      const quantity = extra.quantity || 0;
-
-      return Array.from({ length: quantity }, () => ({
-        sectionId: extra.sectionId || null,
-        extraId: extra.extraId || null,
-        sectionName: extra.sectionName,
-        extraName: extra.extraName,
-        price: extra.price || 0
-      }));
-    });
-  };
 
   // Mantener referencia actualizada de initialSelectedExtras
   initialExtrasRef.current = initialSelectedExtras;
@@ -83,59 +48,7 @@ const ProductExtrasModal = ({
     return null;
   }
 
-  /**
-   * Normaliza cada asignación de sección al formato que el modal necesita:
-   * { sectionName, maxSelection, extras[] }
-   * Soporta tanto el formato antiguo (objeto con sectionName directo)
-   * como el nuevo ({ section: {...}, maxSelectionOverride, visibleExtraIds }).
-   */
-  const getEffectiveSections = () => {
-    return product.extraSections.map(assignment => {
-      // Formato nuevo: { section: { sectionName, extras }, maxSelection, visibleExtraIds }
-      if (assignment.section && typeof assignment.section === 'object') {
-        const sec = assignment.section;
-        const effectiveMax = assignment.maxSelection ?? null;
-        const visibleIds = assignment.visibleExtraIds || [];
-        const allExtras = sec.extras || [];
-        const extras = visibleIds.length > 0
-          ? allExtras.filter(e => visibleIds.some(id => id.toString() === (e._id || e).toString()))
-          : allExtras;
-        return { sectionId: sec._id ? String(sec._id) : null, sectionName: sec.sectionName, maxSelection: effectiveMax, extras };
-      }
-      // Formato antiguo (pre-migración): el objeto tiene sectionName y extras directamente.
-      // Si Mongoose ya aplicó el esquema nuevo sobre datos viejos, extras puede ser undefined.
-      return {
-        sectionId: null,
-        sectionName: assignment.sectionName || '',
-        maxSelection: assignment.maxSelection ?? null,
-        extras: assignment.extras || [],
-      };
-    }).filter(s => s.sectionName); // descartar entradas sin nombre (datos aún no migrados)
-  };
-
-  const effectiveSections = getEffectiveSections();
-
-  // Compara una selección guardada contra una sección/extra en vivo: por id cuando
-  // ambos lados lo tienen (estable ante un renombre), por nombre si no.
-  const matchesSection = (selected, section) => (selected.sectionId && section.sectionId
-    ? String(selected.sectionId) === String(section.sectionId)
-    : selected.sectionName === section.sectionName);
-
-  const matchesExtra = (selected, section, extra) => (selected.extraId && extra._id
-    ? String(selected.extraId) === String(extra._id)
-    : matchesSection(selected, section) && selected.extraName === extra.name);
-
-  const getSectionSelectedCount = (section, extrasState = selectedExtras) => {
-    return extrasState
-      .filter(e => matchesSection(e, section))
-      .reduce((sum, extra) => sum + (extra.quantity || 0), 0);
-  };
-
-  const getExtraQuantity = (section, extra) => {
-    const selectedExtra = selectedExtras.find(e => matchesExtra(e, section, extra));
-
-    return selectedExtra?.quantity || 0;
-  };
+  const effectiveSections = getEffectiveSections(product);
 
   const clearSectionError = (sectionName) => {
     setSectionErrors(prev => {
@@ -152,80 +65,30 @@ const ProductExtrasModal = ({
   const setSectionLimitError = (sectionName, maxSelection) => {
     setSectionErrors(prev => ({
       ...prev,
-      [sectionName]: `Máximo ${maxSelection} ${maxSelection === 1 ? 'opción' : 'opciones'} permitida${maxSelection === 1 ? '' : 's'}`
+      [sectionName]: buildSectionLimitMessage(maxSelection)
     }));
   };
 
   const handleIncrementExtra = (section, extra) => {
     const sectionName = section.sectionName;
-    const maxSelection = section.maxSelection;
 
     setSelectedExtras(prev => {
-      const currentCount = getSectionSelectedCount(section, prev);
-      const hasMaxSelection = maxSelection !== null && maxSelection !== undefined;
+      const { extras, error } = incrementExtra(prev, section, extra);
 
-      if (hasMaxSelection && currentCount >= maxSelection) {
-        setSectionLimitError(sectionName, maxSelection);
+      if (error) {
+        setSectionLimitError(error.sectionName, error.maxSelection);
         return prev;
       }
 
-      const existingIndex = prev.findIndex(e => matchesExtra(e, section, extra));
-
-      let updated;
-      if (existingIndex >= 0) {
-        updated = prev.map((selectedExtra, index) =>
-          index === existingIndex
-            ? { ...selectedExtra, quantity: (selectedExtra.quantity || 0) + 1 }
-            : selectedExtra
-        );
-      } else {
-        updated = [
-          ...prev,
-          {
-            sectionId: section.sectionId || null,
-            extraId: extra._id ? String(extra._id) : null,
-            sectionName,
-            extraName: extra.name,
-            price: extra.price || 0,
-            quantity: 1
-          }
-        ];
-      }
-
       clearSectionError(sectionName);
-      return updated;
+      return extras;
     });
   };
 
   const handleDecrementExtra = (section, extra) => {
-    setSelectedExtras(prev => {
-      const existingIndex = prev.findIndex(e => matchesExtra(e, section, extra));
-
-      if (existingIndex < 0) {
-        return prev;
-      }
-
-      const target = prev[existingIndex];
-      if ((target.quantity || 0) <= 1) {
-        return prev.filter((_, index) => index !== existingIndex);
-      }
-
-      return prev.map((selectedExtra, index) =>
-        index === existingIndex
-          ? { ...selectedExtra, quantity: (selectedExtra.quantity || 0) - 1 }
-          : selectedExtra
-      );
-    });
+    setSelectedExtras(prev => decrementExtra(prev, section, extra));
 
     clearSectionError(section.sectionName);
-  };
-
-  const calculateExtrasTotal = () => {
-    return selectedExtras.reduce((sum, extra) => sum + ((extra.price || 0) * (extra.quantity || 0)), 0);
-  };
-
-  const getTotalSelectedExtras = () => {
-    return selectedExtras.reduce((sum, extra) => sum + (extra.quantity || 0), 0);
   };
 
   const handleConfirm = () => {
@@ -233,8 +96,8 @@ const ProductExtrasModal = ({
     onClose();
   };
 
-  const extrasTotal = calculateExtrasTotal();
-  const totalSelectedExtras = getTotalSelectedExtras();
+  const extrasTotal = calculateExtrasTotal(selectedExtras);
+  const totalSelectedExtras = getTotalSelectedExtras(selectedExtras);
   const totalWithExtras = (product.price || 0) + extrasTotal;
 
   return (
@@ -252,7 +115,7 @@ const ProductExtrasModal = ({
             return null; // No mostrar secciones sin extras disponibles
           }
 
-          const selectedCount = getSectionSelectedCount(section);
+          const selectedCount = getSectionSelectedCount(selectedExtras, section);
           const hasMaxSelection = section.maxSelection !== null && section.maxSelection !== undefined;
 
           return (
@@ -284,7 +147,7 @@ const ProductExtrasModal = ({
               {/* Lista de extras */}
               <div className="space-y-2">
                 {availableExtras.map((extra, extraIndex) => {
-                  const quantity = getExtraQuantity(section, extra);
+                  const quantity = getExtraQuantity(selectedExtras, section, extra);
                   const isSelected = quantity > 0;
                   const disableIncrement = hasMaxSelection && selectedCount >= section.maxSelection;
 

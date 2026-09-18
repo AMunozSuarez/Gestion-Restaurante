@@ -11,6 +11,7 @@ import {
 import { Button, Card, Input, Badge } from '../components/ui';
 import ProductFormModal from '../components/common/ProductFormModal';
 import useProductsManagement from '../hooks/useProductsManagement';
+import useRestaurant from '../hooks/useRestaurant';
 import { formatChileanCurrency } from '../utils/dateUtils';
 
 const Productos = () => {
@@ -27,6 +28,9 @@ const Productos = () => {
     toggleProductAvailability,
     refreshProducts
   } = useProductsManagement();
+
+  const { restaurant } = useRestaurant();
+  const selfServiceEnabled = Boolean(restaurant?.settings?.selfService?.enabled);
 
   // Estados locales del componente
   const [showFormModal, setShowFormModal] = useState(false);
@@ -236,6 +240,15 @@ const Productos = () => {
                 <div className="absolute top-1 right-1">
                   <div className={`w-3 h-3 rounded-full ${product.isAvailable ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 </div>
+
+                {/* Publicado en el kiosco de autoservicio */}
+                {selfServiceEnabled && product.showInSelfService && (
+                  <div className="absolute top-1 left-1">
+                    <span className="px-1.5 py-0.5 rounded bg-orange-600 text-white text-[10px] font-semibold uppercase tracking-wide">
+                      Kiosco
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Contenido */}

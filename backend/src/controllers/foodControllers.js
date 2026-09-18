@@ -6,7 +6,7 @@ const ExtraSection = require('../models/extraSectionModel');
 // CREATE A NEW FOOD
 const createFoodController = async (req, res) => {
     try {
-        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, extraSections } = req.body;
+        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, showInSelfService, extraSections } = req.body;
         const parsedPrice = Number(price);
         const restaurantId = req.user.restaurant;
 
@@ -31,9 +31,12 @@ const createFoodController = async (req, res) => {
                     message: 'Una o más secciones de extras no pertenecen a este restaurante'
                 });
             }
+            // El campo del schema es `maxSelection` (ver foodModel). Antes se escribía
+            // `maxSelectionOverride`, que Mongoose descartaba en silencio: todo producto
+            // creado perdía su límite y sus extras quedaban ilimitados.
             sectionAssignments = extraSections.map(a => ({
                 section: a.section || a,
-                maxSelectionOverride: a.maxSelectionOverride ?? null,
+                maxSelection: a.maxSelection ?? null,
                 visibleExtraIds: a.visibleExtraIds || []
             }));
         }
@@ -47,6 +50,7 @@ const createFoodController = async (req, res) => {
             category,
             code,
             isAvailable,
+            showInSelfService,
             extraSections: sectionAssignments,
             restaurant: restaurantId
         });
@@ -173,7 +177,7 @@ const getFoodByRestaurantIdController = async (req, res) => {
 // UPDATE A FOOD BY ID
 const updateFoodController = async (req, res) => {
     try {
-        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, extraSections } = req.body;
+        const { title, description, price, imageUrl, foodTags, category, code, isAvailable, showInSelfService, extraSections } = req.body;
         const restaurantId = req.user.restaurant;
 
         if (price !== undefined) {
@@ -245,7 +249,7 @@ const updateFoodController = async (req, res) => {
         }
 
         // Preparar objeto de actualización
-        const updateData = { title, description, imageUrl, foodTags, category, code, isAvailable };
+        const updateData = { title, description, imageUrl, foodTags, category, code, isAvailable, showInSelfService };
 
         if (price !== undefined) {
             updateData.price = Number(price);

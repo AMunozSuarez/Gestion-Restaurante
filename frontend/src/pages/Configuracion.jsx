@@ -13,7 +13,8 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
-  NoSymbolIcon
+  NoSymbolIcon,
+  DevicePhoneMobileIcon
 } from '@heroicons/react/24/outline';
 import printingService from '../services/printingService';
 import printerConfigService from '../services/printerConfigService';
@@ -25,13 +26,29 @@ import usersService from '../services/usersService';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
+const ROLE_LABELS = {
+  owner: 'Propietario',
+  mesero: 'Mesero',
+  cocina: 'Cocina',
+  kiosco: 'Kiosco',
+  employee: 'Empleado',
+};
+
+const ROLE_BADGE_CLASSES = {
+  owner: 'bg-purple-100 text-purple-800',
+  mesero: 'bg-green-100 text-green-800',
+  cocina: 'bg-amber-100 text-amber-800',
+  kiosco: 'bg-orange-100 text-orange-800',
+  employee: 'bg-blue-100 text-blue-800',
+};
+
 const Configuracion = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
 
   const getValidTab = (tabValue) => {
-    if (tabValue === 'printers' || tabValue === 'subscription' || tabValue === 'users' || tabValue === 'preferencias' || tabValue === 'caja') {
+    if (tabValue === 'printers' || tabValue === 'subscription' || tabValue === 'users' || tabValue === 'preferencias' || tabValue === 'caja' || tabValue === 'autoservicio') {
       return tabValue;
     }
     return null;
@@ -104,6 +121,19 @@ const Configuracion = () => {
   const [kitchenDisplayRequireAllItemsReady, setKitchenDisplayRequireAllItemsReady] = useState(() => printingService.getKitchenDisplayRequireAllItemsReady());
   const [kitchenDisplayOnlyOwnerCanMarkReady, setKitchenDisplayOnlyOwnerCanMarkReady] = useState(() => printingService.getKitchenDisplayOnlyOwnerCanMarkReady());
 
+  // Autoservicio (kiosco): `enabled` es solo lectura — lo habilita el administrador del
+  // sistema desde /admin. Las sub-opciones sí las controla el dueño.
+  const [selfServiceEnabled, setSelfServiceEnabled] = useState(false);
+  const [selfServiceRequireCustomerName, setSelfServiceRequireCustomerName] = useState(true);
+  const [selfServiceAllowOrderComment, setSelfServiceAllowOrderComment] = useState(false);
+  const [selfServicePrintCustomerTicket, setSelfServicePrintCustomerTicket] = useState(true);
+  const [savingSelfService, setSavingSelfService] = useState(false);
+  // Distingue "todavía no sabemos" de "sabemos que está apagado", para no expulsar de la
+  // pestaña Autoservicio a alguien que sí la tiene habilitada mientras el fetch está en curso.
+  const [selfServiceSettingsLoaded, setSelfServiceSettingsLoaded] = useState(false);
+  // Impresora del ticket de autoservicio: local a este equipo, como la de Caja/Cocina/Barra.
+  const [selfServiceTicketPrinter, setSelfServiceTicketPrinter] = useState(() => printerConfigService.getSelfServiceTicketPrinter() || '');
+
   // Estados para usuarios
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -119,7 +149,7 @@ const Configuracion = () => {
 
   // Redirigir empleados si intentan acceder a pestañas restringidas
   useEffect(() => {
-    if (!isOwnerOrAdmin && (activeTab === 'subscription' || activeTab === 'users' || activeTab === 'inventory' || activeTab === 'preferencias' || activeTab === 'caja')) {
+    if (!isOwnerOrAdmin && (activeTab === 'subscription' || activeTab === 'users' || activeTab === 'inventory' || activeTab === 'preferencias' || activeTab === 'caja' || activeTab === 'autoservicio')) {
       setActiveTab('printers');
     }
   }, [activeTab, isOwnerOrAdmin]);
@@ -132,13 +162,23 @@ const Configuracion = () => {
       return;
     }
 
-    if (!isOwnerOrAdmin && (requestedTab === 'subscription' || requestedTab === 'users' || requestedTab === 'preferencias' || requestedTab === 'caja')) {
+    if (!isOwnerOrAdmin && (requestedTab === 'subscription' || requestedTab === 'users' || requestedTab === 'preferencias' || requestedTab === 'caja' || requestedTab === 'autoservicio')) {
       setActiveTab('printers');
       return;
     }
 
     setActiveTab((prev) => (prev === requestedTab ? prev : requestedTab));
   }, [location.search, location.state, isOwnerOrAdmin]);
+
+  // Si alguien llega a la pestaña de autoservicio (por un link viejo, por ejemplo) y el
+  // módulo está desactivado, no dejarla abierta vacía. Se espera a que la carga de
+  // settings termine (selfServiceSettingsLoaded) para no expulsar de la pestaña a alguien
+  // que sí la tiene habilitada mientras el fetch todavía está en camino.
+  useEffect(() => {
+    if (activeTab === 'autoservicio' && selfServiceSettingsLoaded && !selfServiceEnabled) {
+      setActiveTab('printers');
+    }
+  }, [activeTab, selfServiceEnabled, selfServiceSettingsLoaded]);
 
   // Cargar estado inicial
   useEffect(() => {
@@ -157,8 +197,36 @@ const Configuracion = () => {
       loadUsers();
     } else if (activeTab === 'inventory' && isOwnerOrAdmin) {
       loadInventorySettings();
+    } else if (activeTab === 'autoservicio' && isOwnerOrAdmin) {
+      // Solo para poder elegir la impresora del ticket; las sub-opciones ya se cargan
+      // globalmente al entrar a Configuración (ver más abajo).
+      checkServiceAndLoadPrinters();
     }
   }, [activeTab, isOwnerOrAdmin]);
+
+  // El flag de autoservicio se necesita en varias pestañas (Usuarios, Inventario), así que
+  // se carga una vez al entrar a Configuración y no al abrir una pestaña concreta.
+  useEffect(() => {
+    if (!isOwnerOrAdmin) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await api.get('/restaurant/settings/me');
+        if (cancelled) return;
+        setSelfServiceEnabled(Boolean(response.data?.settings?.selfService?.enabled));
+        setSelfServiceRequireCustomerName(response.data?.settings?.selfService?.requireCustomerName !== false);
+        setSelfServiceAllowOrderComment(Boolean(response.data?.settings?.selfService?.allowOrderComment));
+        setSelfServicePrintCustomerTicket(response.data?.settings?.selfService?.printCustomerTicket !== false);
+      } catch (error) {
+        console.error('Error al cargar configuración de autoservicio:', error);
+      } finally {
+        if (!cancelled) setSelfServiceSettingsLoaded(true);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [isOwnerOrAdmin]);
 
   const loadInventorySettings = async () => {
     setLoadingInventory(true);
@@ -166,6 +234,9 @@ const Configuracion = () => {
       const response = await api.get('/restaurant/settings/me');
       setInventoryEnabled(Boolean(response.data?.settings?.inventory?.enabled));
       setKitchenDisplayEnabled(Boolean(response.data?.settings?.kitchenDisplay?.enabled));
+      setSelfServiceEnabled(Boolean(response.data?.settings?.selfService?.enabled));
+      setSelfServiceRequireCustomerName(response.data?.settings?.selfService?.requireCustomerName !== false);
+      setSelfServiceAllowOrderComment(Boolean(response.data?.settings?.selfService?.allowOrderComment));
       await printingService.syncRestaurantSettingsFromBackend();
       setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
       setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
@@ -193,6 +264,59 @@ const Configuracion = () => {
       setMessage({ type: 'error', text: 'Error al guardar configuración de inventario.' });
     } finally {
       setSavingInventory(false);
+    }
+  };
+
+  // Set optimista + rollback, mismo patrón que handleInventoryEnabledChange.
+  const handleSelfServiceSettingChange = async (field, value) => {
+    const setters = {
+      selfServiceRequireCustomerName: setSelfServiceRequireCustomerName,
+      selfServiceAllowOrderComment: setSelfServiceAllowOrderComment,
+      selfServicePrintCustomerTicket: setSelfServicePrintCustomerTicket,
+    };
+    const setter = setters[field];
+
+    setter(value);
+    setSavingSelfService(true);
+    try {
+      await api.put('/restaurant/settings/me', { [field]: value });
+      setMessage({ type: 'success', text: 'Configuración de autoservicio guardada.' });
+    } catch (error) {
+      setter(!value);
+      setMessage({ type: 'error', text: 'Error al guardar configuración de autoservicio.' });
+    } finally {
+      setSavingSelfService(false);
+    }
+  };
+
+  // Impresora del ticket de autoservicio: configuración local a este equipo, igual que
+  // Cocina/Barra/Caja — no pasa por el backend.
+  const handleSelfServiceTicketPrinterChange = (printerName) => {
+    setSelfServiceTicketPrinter(printerName);
+    printerConfigService.setSelfServiceTicketPrinter(printerName);
+    setMessage({
+      type: 'success',
+      text: printerName
+        ? `Impresora "${printerName}" asignada al ticket de autoservicio`
+        : 'Se usará la impresora de Caja o la predeterminada para el ticket de autoservicio',
+    });
+  };
+
+  const handleTestSelfServiceTicketPrint = async () => {
+    if (!selfServiceTicketPrinter) return;
+    setPrinting(true);
+    setMessage({ type: 'info', text: `Enviando prueba a ${selfServiceTicketPrinter}...` });
+    try {
+      const result = await printingService.printTest(selfServiceTicketPrinter);
+      if (result.success) {
+        setMessage({ type: 'success', text: `Prueba enviada a ${selfServiceTicketPrinter}` });
+      } else {
+        setMessage({ type: 'error', text: 'Error: ' + result.error });
+      }
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Error al imprimir prueba' });
+    } finally {
+      setPrinting(false);
     }
   };
 
@@ -1215,7 +1339,9 @@ pause
       email: user.email,
       password: '', // No mostramos la contraseña
       phone: user.phone || '',
-      role: user.role === 'mesero' ? 'mesero' : 'employee'
+      // Preservar el rol real: mapear todo a 'employee' hacía que editar cualquier otro dato
+      // de un usuario cocina/kiosco lo convirtiera en empleado con acceso completo.
+      role: ['mesero', 'cocina', 'kiosco'].includes(user.role) ? user.role : 'employee'
     });
     setShowUserModal(true);
   };
@@ -1481,6 +1607,20 @@ pause
                 <div className="flex items-center">
                   <CogIcon className="w-5 h-5 mr-2" />
                   Inventario
+                </div>
+              </button>
+            )}
+            {isOwnerOrAdmin && selfServiceEnabled && (
+              <button
+                onClick={() => setActiveTab('autoservicio')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex-shrink-0 transition-colors ${activeTab === 'autoservicio'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                <div className="flex items-center">
+                  <DevicePhoneMobileIcon className="w-5 h-5 mr-2" />
+                  Autoservicio
                 </div>
               </button>
             )}
@@ -2944,6 +3084,186 @@ pause
                 </div>
               </div>
             )}
+
+          </div>
+        )}
+
+        {/* Contenido de Autoservicio (Kiosco) — pestaña propia, solo visible si el
+            administrador del sistema habilitó el módulo para este restaurante */}
+        {activeTab === 'autoservicio' && isOwnerOrAdmin && selfServiceEnabled && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center mb-4">
+                <DevicePhoneMobileIcon className="w-6 h-6 text-orange-600 mr-3" />
+                <h2 className="text-xl font-semibold text-brown-900">Autoservicio (Kiosco)</h2>
+              </div>
+              <p className="text-sm text-gray-500 mb-6">
+                Pantalla táctil donde el cliente arma su propio pedido. El pedido entra como pedido
+                de mostrador con pago pendiente, y el cliente paga en caja con su número.
+              </p>
+
+              <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-gray-900">
+                    Módulo de autoservicio
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Esta función la habilita el administrador del sistema para tu restaurante.
+                    Si necesitas desactivarla, contáctalo directamente.
+                  </p>
+                  <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    Activo
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 p-4 border border-blue-200 rounded-lg bg-blue-50">
+                <p className="text-sm font-semibold text-gray-900">Cómo poner el kiosco en marcha</p>
+                <ol className="text-xs text-gray-600 mt-2 space-y-1 list-decimal list-inside">
+                  <li>Crea un usuario con rol <strong>Kiosco</strong> en la pestaña Usuarios.</li>
+                  <li>En <strong>Productos</strong>, marca "Mostrar en autoservicio" en los que quieras publicar.</li>
+                  <li>Inicia sesión con ese usuario en la tablet o pantalla del kiosco.</li>
+                </ol>
+                <p className="text-xs text-gray-600 mt-2">
+                  El kiosco solo toma pedidos con una caja abierta.
+                </p>
+              </div>
+
+              <div className="mt-4 p-4 border border-amber-200 rounded-lg bg-amber-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Pedir el nombre del cliente
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Si está activo, el cliente escribe su nombre antes de confirmar y ese nombre
+                      aparece en el pedido. Útil si llamas a los clientes por su nombre en vez del número.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={savingSelfService}
+                    onClick={() => handleSelfServiceSettingChange('selfServiceRequireCustomerName', !selfServiceRequireCustomerName)}
+                    className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 ${selfServiceRequireCustomerName ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                    aria-pressed={selfServiceRequireCustomerName}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${selfServiceRequireCustomerName ? 'translate-x-5' : 'translate-x-0.5'}`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 p-4 border border-amber-200 rounded-lg bg-amber-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Permitir comentarios del cliente
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Si está activo, el cliente puede escribir una nota libre para la cocina.
+                      Déjalo apagado si prefieres evitar pedidos especiales sin control.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={savingSelfService}
+                    onClick={() => handleSelfServiceSettingChange('selfServiceAllowOrderComment', !selfServiceAllowOrderComment)}
+                    className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 ${selfServiceAllowOrderComment ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                    aria-pressed={selfServiceAllowOrderComment}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${selfServiceAllowOrderComment ? 'translate-x-5' : 'translate-x-0.5'}`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Ticket de autoservicio: el ticket conciso que se entrega en caja al cobrar,
+                distinto del ticket de cliente completo. Solo tiene sentido si el servicio de
+                impresión está disponible en este equipo. */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center mb-4">
+                <PrinterIcon className="w-6 h-6 text-brown-600 mr-3" />
+                <div>
+                  <h2 className="text-xl font-semibold text-brown-900">Ticket de autoservicio</h2>
+                  <p className="text-sm text-gray-500">
+                    Un ticket más simple que el de cliente: solo el número de pedido y el detalle,
+                    pensado para entregarse en caja al cobrar.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 border border-amber-200 rounded-lg bg-amber-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Imprimir automáticamente al recibir un pedido
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Cuando un cliente confirma su pedido en el kiosco, se imprime este ticket en el
+                      equipo de caja, listo para entregar cuando el cliente pague.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={savingSelfService}
+                    onClick={() => handleSelfServiceSettingChange('selfServicePrintCustomerTicket', !selfServicePrintCustomerTicket)}
+                    className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 ${selfServicePrintCustomerTicket ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                    aria-pressed={selfServicePrintCustomerTicket}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${selfServicePrintCustomerTicket ? 'translate-x-5' : 'translate-x-0.5'}`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {serviceStatus === 'online' && printers.length > 0 ? (
+                <div className="mt-4 p-4 border border-gray-200 rounded-lg">
+                  <p className="text-sm font-semibold text-gray-900 mb-1">Impresora para este ticket</p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Se usa solo en este equipo. Si no eliges una, se usa la impresora de Caja y,
+                    si tampoco hay, la impresora predeterminada de este equipo.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selfServiceTicketPrinter}
+                      onChange={(e) => handleSelfServiceTicketPrinterChange(e.target.value)}
+                      className="block w-64 rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 text-sm"
+                    >
+                      <option value="">Usar impresora de Caja / predeterminada</option>
+                      {printers.map((p, index) => {
+                        const pName = typeof p === 'string' ? p : (p.printerName || p.PrinterName);
+                        return <option key={`${pName}-${index}`} value={pName}>{pName}</option>;
+                      })}
+                    </select>
+                    {selfServiceTicketPrinter && (
+                      <button
+                        onClick={handleTestSelfServiceTicketPrint}
+                        disabled={printing}
+                        className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-medium rounded text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+                      >
+                        <PrinterIcon className="w-3 h-3 mr-1" />
+                        Probar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 mt-4">
+                  Conecta el servicio de impresión de este equipo (pestaña Impresoras) para elegir
+                  una impresora específica para este ticket.
+                </p>
+              )}
+
+              <p className="text-xs text-gray-400 mt-3">
+                La impresora es una configuración local a este equipo, igual que las de Cocina/Barra/Caja.
+                El interruptor de arriba sí es una configuración del restaurante y aplica a todos los equipos.
+              </p>
+            </div>
           </div>
         )}
 
@@ -3027,13 +3347,8 @@ pause
                             <div className="text-sm text-gray-900">{user.phone || 'N/A'}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'owner'
-                                ? 'bg-purple-100 text-purple-800'
-                                : user.role === 'mesero'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                              {user.role === 'owner' ? 'Propietario' : user.role === 'mesero' ? 'Mesero' : 'Empleado'}
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${ROLE_BADGE_CLASSES[user.role] || ROLE_BADGE_CLASSES.employee}`}>
+                              {ROLE_LABELS[user.role] || ROLE_LABELS.employee}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -3184,6 +3499,9 @@ pause
                     <option value="employee">Empleado (acceso completo)</option>
                     <option value="mesero">Mesero (solo acceso a Mesas)</option>
                     <option value="cocina">Cocina (solo acceso a Cocina)</option>
+                    {selfServiceEnabled && (
+                      <option value="kiosco">Kiosco (solo acceso a Autoservicio)</option>
+                    )}
                   </select>
                 </div>
 

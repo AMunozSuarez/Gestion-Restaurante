@@ -170,7 +170,7 @@ const createOrderController = async (req, res) => {
         }
 
         if (!currentCashRegister) {
-            return res.status(400).json({ success: false, message: 'No hay una caja abierta. Por favor, abre una caja antes de crear órdenes.' });
+            return res.status(400).json({ success: false, code: 'NO_CASH_REGISTER', message: 'No hay una caja abierta. Por favor, abre una caja antes de crear órdenes.' });
         }
 
         // ── Evitar duplicados si la mesa ya tiene un pedido activo ──
@@ -300,38 +300,62 @@ const createOrderController = async (req, res) => {
             return sum + basePrice + extrasPrice;
         }, 0) + deliveryCost;
 
-        // ── Paso 2: Obtener número de orden (depende de cashRegister) ──
-        const lastOrder = await orderModel.findOne({ 
-            cashRegister: currentCashRegister._id 
-        }).sort({ orderNumber: -1 }).select('orderNumber').lean();
-        
-        const orderNumber = lastOrder ? lastOrder.orderNumber + 1 : 1;
+        // ── Pasos 2 y 3: Obtener número de orden (depende de cashRegister) y guardar ──
+        // El número se calcula leyendo el último y sumando 1, lo que no es atómico: con
+        // varios clientes creando a la vez (POS + kioscos de autoservicio) dos pedidos
+        // pueden calcular el mismo. El índice único parcial {cashRegister, orderNumber}
+        // los rechaza con E11000 y aquí se recalcula y reintenta.
+        let order = null;
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+            const lastOrder = await orderModel.findOne({
+                cashRegister: currentCashRegister._id
+            }).sort({ orderNumber: -1 }).select('orderNumber').lean();
 
-        // ── Paso 3: Crear y guardar orden ──
-        const order = new orderModel({
-            orderNumber,
-            foods,
-            payment: payment || null,
-            paymentMethods: paymentMethods || [],
-            splitMeta: splitMeta || { enabled: false, count: 0 },
-            splitAccounts: Array.isArray(splitAccounts) ? splitAccounts : [],
-            total: total - (discount || 0),
-            deliveryCost,
-            name: !customer ? (buyer?.name || null) : null,
-            buyer: customer ? customer._id : null,
-            selectedAddress: customer ? selectedAddress : null,
-            tableNumber: tableNumber || null,
-            waiter: waiter || null,
-            tip: tip || 0,
-            discount: discount || 0,
-            section,
-            status: status || 'Preparacion',
-            comment: comment || '',
-            cashRegister: currentCashRegister._id,
-            restaurant: restaurantId,
-        });
+            const orderNumber = lastOrder ? lastOrder.orderNumber + 1 : 1;
 
-        await order.save();
+            const candidate = new orderModel({
+                orderNumber,
+                foods,
+                payment: payment || null,
+                paymentMethods: paymentMethods || [],
+                splitMeta: splitMeta || { enabled: false, count: 0 },
+                splitAccounts: Array.isArray(splitAccounts) ? splitAccounts : [],
+                total: total - (discount || 0),
+                deliveryCost,
+                name: !customer ? (buyer?.name || null) : null,
+                buyer: customer ? customer._id : null,
+                selectedAddress: customer ? selectedAddress : null,
+                tableNumber: tableNumber || null,
+                waiter: waiter || null,
+                tip: tip || 0,
+                discount: discount || 0,
+                section,
+                orderSource: req.body.orderSource === 'self_service' ? 'self_service' : 'pos',
+                status: status || 'Preparacion',
+                comment: comment || '',
+                cashRegister: currentCashRegister._id,
+                restaurant: restaurantId,
+            });
+
+            try {
+                await candidate.save();
+                order = candidate;
+                break;
+            } catch (saveError) {
+                // Solo se reintenta la colisión de número. Agotados los intentos se sale del
+                // bucle con order en null para responder 409 (reintentable) en vez de un 500.
+                if (saveError?.code === 11000) continue;
+                throw saveError;
+            }
+        }
+
+        if (!order) {
+            return res.status(409).json({
+                success: false,
+                code: 'ORDER_NUMBER_CONFLICT',
+                message: 'No se pudo asignar un número de pedido. Intenta nuevamente.',
+            });
+        }
 
         // ── Paso 4: Asignar orden a mesa si es sección "mesas" (operación atómica) ──
         let populatedTable = null;

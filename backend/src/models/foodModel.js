@@ -36,6 +36,14 @@ const foodSchema = new mongoose.Schema({
         type: Boolean,
         default: true,
     },
+    // Visibilidad en el módulo de autoservicio (kiosco). Es independiente de isAvailable:
+    // el kiosco exige AMBOS en true. Un producto puede venderse en caja sin exponerse al
+    // cliente final. Default false (opt-in): los productos ya existentes no se publican
+    // solos, el dueño elige cuáles mostrar.
+    showInSelfService: {
+        type: Boolean,
+        default: false,
+    },
     restaurant: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Restaurant',

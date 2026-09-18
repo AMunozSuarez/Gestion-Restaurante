@@ -27,7 +27,9 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['super_admin', 'owner', 'employee', 'mesero', 'cocina'], // Roles posibles
+        // 'kiosco' es el usuario del dispositivo de autoservicio: hereda el aislamiento
+        // multi-restaurante del JWT y solo puede acceder a /api/self-service (ver kioscoAccess).
+        enum: ['super_admin', 'owner', 'employee', 'mesero', 'cocina', 'kiosco'], // Roles posibles
         default: 'employee',
     },
     phone: {

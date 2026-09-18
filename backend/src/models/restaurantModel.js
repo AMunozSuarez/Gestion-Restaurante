@@ -23,6 +23,12 @@ const RESTAURANT_SETTINGS_DEFAULTS = Object.freeze({
         requireAllItemsReady: false,
         onlyOwnerCanMarkReady: false,
     },
+    selfService: {
+        enabled: false,
+        requireCustomerName: true,
+        allowOrderComment: false,
+        printCustomerTicket: true,
+    },
 });
 
 const normalizeRestaurantSettings = (settings = {}) => {
@@ -75,6 +81,15 @@ const normalizeRestaurantSettings = (settings = {}) => {
             requireReadyToClose: Boolean(settings?.kitchenDisplay?.requireReadyToClose),
             requireAllItemsReady: Boolean(settings?.kitchenDisplay?.requireAllItemsReady),
             onlyOwnerCanMarkReady: Boolean(settings?.kitchenDisplay?.onlyOwnerCanMarkReady),
+        },
+        selfService: {
+            enabled: Boolean(settings?.selfService?.enabled),
+            // requireCustomerName y printCustomerTicket son los únicos booleanos con default
+            // true del archivo: Boolean(undefined) los forzaría a false en cada normalización,
+            // así que se comparan contra false explícitamente.
+            requireCustomerName: settings?.selfService?.requireCustomerName !== false,
+            allowOrderComment: Boolean(settings?.selfService?.allowOrderComment),
+            printCustomerTicket: settings?.selfService?.printCustomerTicket !== false,
         },
     };
 };
@@ -197,6 +212,24 @@ const restaurantSchema = new mongoose.Schema({
             onlyOwnerCanMarkReady: {
                 type: Boolean,
                 default: RESTAURANT_SETTINGS_DEFAULTS.kitchenDisplay.onlyOwnerCanMarkReady,
+            },
+        },
+        selfService: {
+            enabled: {
+                type: Boolean,
+                default: RESTAURANT_SETTINGS_DEFAULTS.selfService.enabled,
+            },
+            requireCustomerName: {
+                type: Boolean,
+                default: RESTAURANT_SETTINGS_DEFAULTS.selfService.requireCustomerName,
+            },
+            allowOrderComment: {
+                type: Boolean,
+                default: RESTAURANT_SETTINGS_DEFAULTS.selfService.allowOrderComment,
+            },
+            printCustomerTicket: {
+                type: Boolean,
+                default: RESTAURANT_SETTINGS_DEFAULTS.selfService.printCustomerTicket,
             },
         },
     },

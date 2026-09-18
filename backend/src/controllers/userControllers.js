@@ -197,7 +197,7 @@ const getUsersByRestaurantController = async (req, res) => {
     }
 };
 
-const CREATABLE_EMPLOYEE_ROLES = ['employee', 'mesero', 'cocina'];
+const CREATABLE_EMPLOYEE_ROLES = ['employee', 'mesero', 'cocina', 'kiosco'];
 
 // UPDATE EMPLOYEE
 const updateEmployeeController = async (req, res) => {

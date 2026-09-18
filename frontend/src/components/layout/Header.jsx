@@ -25,6 +25,7 @@ import {
   ArchiveBoxIcon,
   ExclamationTriangleIcon,
   FireIcon,
+  DevicePhoneMobileIcon,
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
@@ -41,6 +42,7 @@ const Header = () => {
   const isMesero = user?.role === 'mesero';
   const inventoryEnabled = Boolean(restaurant?.settings?.inventory?.enabled) && !isMesero;
   const kitchenDisplayEnabled = Boolean(restaurant?.settings?.kitchenDisplay?.enabled);
+  const selfServiceEnabled = Boolean(restaurant?.settings?.selfService?.enabled);
   const { lowStockCount } = useInventoryAlert(inventoryEnabled);
 
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -86,6 +88,9 @@ const Header = () => {
       // Solo visible si el admin habilitó la pantalla de cocina en Configuración.
       // Se abre en una ventana/pestaña nueva para dejarla fija en un monitor de cocina.
       ...(kitchenDisplayEnabled ? [{ name: 'Cocina', href: '/cocina', icon: FireIcon, newTab: true }] : []),
+      // Igual que Cocina: solo si el admin habilitó el módulo, y en pestaña nueva para
+      // dejarlo fijo en la pantalla del kiosco (o para que el dueño lo previsualice).
+      ...(selfServiceEnabled ? [{ name: 'Autoservicio', href: '/autoservicio', icon: DevicePhoneMobileIcon, newTab: true }] : []),
     ];
 
   // User/settings dropdown items (right side)

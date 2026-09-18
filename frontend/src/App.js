@@ -25,6 +25,7 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Reportes from './pages/Reportes';
 import Inventario from './pages/Inventario';
 import KitchenDisplay from './pages/KitchenDisplay';
+import SelfService from './pages/SelfService';
 
 // El rol mesero solo tiene acceso al módulo de Mesas
 const MESERO_ALLOWED_PATH_PREFIXES = ['/mesas'];
@@ -35,6 +36,11 @@ const isPathAllowedForMesero = (pathname) =>
 const COCINA_ALLOWED_PATH_PREFIXES = ['/cocina'];
 const isPathAllowedForCocina = (pathname) =>
   COCINA_ALLOWED_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
+// El rol kiosco solo tiene acceso a la pantalla de autoservicio
+const KIOSCO_ALLOWED_PATH_PREFIXES = ['/autoservicio'];
+const isPathAllowedForKiosco = (pathname) =>
+  KIOSCO_ALLOWED_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
@@ -64,6 +70,10 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/cocina" replace />;
   }
 
+  if (user?.role === 'kiosco' && !isPathAllowedForKiosco(location.pathname)) {
+    return <Navigate to="/autoservicio" replace />;
+  }
+
   return children;
 };
 
@@ -72,6 +82,7 @@ const DefaultRedirect = () => {
   const { user } = useAuth();
   if (user?.role === 'mesero') return <Navigate to="/mesas" replace />;
   if (user?.role === 'cocina') return <Navigate to="/cocina" replace />;
+  if (user?.role === 'kiosco') return <Navigate to="/autoservicio" replace />;
   return <Navigate to="/mostrador" replace />;
 };
 
@@ -142,6 +153,17 @@ function App() {
             element={
               <ProtectedRoute>
                 <KitchenDisplay />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Kiosco de autoservicio: protegido pero sin Layout, pensado para una pantalla
+              táctil de cara al cliente (sin Header ni impresión local) */}
+          <Route
+            path="/autoservicio"
+            element={
+              <ProtectedRoute>
+                <SelfService />
               </ProtectedRoute>
             }
           />

@@ -20,6 +20,15 @@ const ROLE_LABELS = {
 
 const STORAGE_KEY = 'printerRoles';
 
+// Impresora del ticket de autoservicio: una elección dedicada, NO un rol de AVAILABLE_ROLES.
+// Los roles cocina/barra/caja se reutilizan para enrutar categorías y secciones de extras
+// (ver Configuracion.jsx "Impresión por Categoría"/"Impresión de Extras por Sección"), y el
+// backend solo acepta esos tres en Category.printDestinations. Si "autoservicio" se agregara
+// a AVAILABLE_ROLES aparecería como columna en esas tablas sin sentido. Es local a este
+// equipo, igual que cocina/barra/caja: cada computador puede imprimir el ticket en su propia
+// impresora.
+const SELF_SERVICE_TICKET_PRINTER_STORAGE_KEY = 'selfServiceTicketPrinter';
+
 const printerConfigService = {
   /**
    * Get available printer roles
@@ -173,6 +182,22 @@ const printerConfigService = {
     }));
 
     return result;
+  },
+
+  /**
+   * Impresora física para el ticket de autoservicio (el que se entrega en caja).
+   * Configuración local a este equipo, como cocina/barra/caja.
+   */
+  getSelfServiceTicketPrinter() {
+    return localStorage.getItem(SELF_SERVICE_TICKET_PRINTER_STORAGE_KEY) || null;
+  },
+
+  setSelfServiceTicketPrinter(printerName) {
+    if (printerName) {
+      localStorage.setItem(SELF_SERVICE_TICKET_PRINTER_STORAGE_KEY, printerName);
+    } else {
+      localStorage.removeItem(SELF_SERVICE_TICKET_PRINTER_STORAGE_KEY);
+    }
   },
 };
 

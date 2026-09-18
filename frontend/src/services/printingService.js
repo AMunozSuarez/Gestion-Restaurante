@@ -2144,6 +2144,119 @@ RESUMEN
     return this.printWithDefault(content, 1);
   },
 
+  /**
+   * Genera el ticket de autoservicio: una version reducida del ticket de cliente, pensada
+   * para entregarse en caja junto con el cobro. Muestra el numero de pedido de forma
+   * prominente y el detalle de productos, sin los datos de mesa/garzon/direccion que trae
+   * el ticket de cliente completo (un pedido de kiosco nunca los tiene).
+   */
+  generateSelfServiceTicket(order = {}) {
+    const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
+    const date = new Date();
+
+    let customer = '';
+    if (order.buyer && typeof order.buyer === 'object' && order.buyer.name) {
+      customer = normalizeText(order.buyer.name);
+    } else if (order.name) {
+      customer = normalizeText(order.name);
+    }
+
+    const fontSettings = this.getLocalFontSettings();
+    const lineWidth = fontSettings.bold ? 26 : 32;
+    const formatCLP = (amount) => new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0,
+    }).format(amount || 0);
+
+    const items = Array.isArray(order.foods) ? order.foods : [];
+
+    let content = `
+================================
+         AUTOSERVICIO
+================================
+
+         PEDIDO #${orderNumber}
+
+Fecha: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+
+    if (customer) {
+      content += `\nCliente: ${customer}`;
+    }
+
+    content += `
+
+--------------------------------
+`;
+
+    let total = 0;
+    items.forEach((item) => {
+      const productName = normalizeText(item.food?.title || item.food?.name || 'Producto');
+      const quantity = item.quantity || 1;
+      const basePrice = item.food?.price || 0;
+      const extrasTotal = (item.selectedExtras || []).reduce((sum, extra) => sum + (extra.price || 0), 0);
+      const itemTotal = quantity * (basePrice + extrasTotal);
+      total += itemTotal;
+
+      const formattedTotal = formatCLP(itemTotal);
+      const productLine = `${quantity}x ${productName}`;
+      const maxNameLen = lineWidth - formattedTotal.length - 2;
+      const displayLine = productLine.length > maxNameLen ? productLine.substring(0, maxNameLen) : productLine;
+      const padding = ' '.repeat(Math.max(1, lineWidth - displayLine.length - formattedTotal.length));
+
+      content += `${displayLine}${padding}${formattedTotal}\n`;
+
+      (item.selectedExtras || []).forEach((extra) => {
+        const extraName = normalizeText(extra.extraName);
+        content += extra.price > 0
+          ? `   + ${extraName} ${formatCLP(extra.price)}\n`
+          : `   + ${extraName}\n`;
+      });
+
+      if (item.comment && item.comment.trim()) {
+        content += `   Nota: ${normalizeText(item.comment.trim())}\n`;
+      }
+    });
+
+    const formattedTotal = formatCLP(total);
+    const totalLine = 'TOTAL:';
+    const totalPadding = ' '.repeat(Math.max(1, lineWidth - totalLine.length - formattedTotal.length));
+
+    content += `--------------------------------
+
+${totalLine}${totalPadding}${formattedTotal}
+
+--------------------------------
+    Retira y paga en caja
+================================
+
+
+
+`;
+
+    return content.trim();
+  },
+
+  /**
+   * Imprime el ticket de autoservicio en la impresora dedicada a este equipo, si hay una
+   * configurada; si no, cae a la impresora de caja y luego a la predeterminada del equipo.
+   */
+  async printSelfServiceTicket(order) {
+    const content = this.generateSelfServiceTicket(order);
+
+    const dedicatedPrinter = printerConfigService.getSelfServiceTicketPrinter();
+    if (dedicatedPrinter) {
+      return this.print(dedicatedPrinter, content, 1, false);
+    }
+
+    const cajaPrinter = printerConfigService.getPrinterForRole('caja');
+    if (cajaPrinter) {
+      return this.print(cajaPrinter, content, 1, false);
+    }
+
+    return this.printWithDefault(content, 1);
+  },
+
   // Generar reporte de caja cerrada
   generateCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null) {
     

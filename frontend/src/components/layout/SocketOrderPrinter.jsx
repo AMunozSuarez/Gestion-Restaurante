@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { onSocketEvent, getSocketId, isOwnUpdate } from '../../services/socketService';
 import printingService from '../../services/printingService';
 import printerConfigService from '../../services/printerConfigService';
 import { categoriesService } from '../../services/categoriesService';
+import { useRestaurant } from '../../hooks/useRestaurant';
 
 /**
  * Componente global que escucha TODOS los pedidos creados/actualizados vía Socket.io
@@ -39,6 +40,13 @@ const getCachedCategories = async () => {
 };
 
 const SocketOrderPrinter = () => {
+  const { restaurant } = useRestaurant();
+  // Se guarda en un ref porque el efecto de sockets solo corre una vez al montar: el
+  // handler de order:created debe leer siempre el valor mas reciente del setting, no el
+  // que existia cuando se suscribio (que puede ser null, antes de que useRestaurant cargue).
+  const restaurantRef = useRef(null);
+  restaurantRef.current = restaurant;
+
   useEffect(() => {
     const canPrint = () => {
       return printingService.getDefaultPrinter() || printerConfigService.hasMultiPrinterConfig();
@@ -65,6 +73,18 @@ const SocketOrderPrinter = () => {
 
       if (canPrint()) {
         printOrder(order);
+      }
+
+      // Ticket de autoservicio: se entrega en caja junto con el cobro, así que se imprime
+      // aparte de la comanda de cocina. El kiosco nunca imprime (no monta este componente),
+      // así que esto solo corre en el equipo de caja/mostrador que reciba el evento.
+      if (order.orderSource === 'self_service') {
+        const printCustomerTicketEnabled = restaurantRef.current?.settings?.selfService?.printCustomerTicket !== false;
+        if (printCustomerTicketEnabled && canPrint()) {
+          printingService.printSelfServiceTicket(order).catch((err) => {
+            console.error('Error al imprimir ticket de autoservicio:', err);
+          });
+        }
       }
     });
 

@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button, Input, Modal } from '../ui';
 import useExtraSectionsManagement from '../../hooks/useExtraSectionsManagement';
+import useRestaurant from '../../hooks/useRestaurant';
 
 /**
  * assignment: { section: id, maxSelection: null|number, visibleExtraIds: [] }
@@ -25,6 +26,8 @@ const ProductFormModal = ({
 }) => {
     const titleInputRef = useRef(null);
     const { sections: allSections, isLoading: sectionsLoading } = useExtraSectionsManagement();
+    const { restaurant } = useRestaurant();
+    const selfServiceEnabled = Boolean(restaurant?.settings?.selfService?.enabled);
     const [sectionSearch, setSectionSearch] = useState('');
     const [showSectionPicker, setShowSectionPicker] = useState(false);
     const [expandedAssignments, setExpandedAssignments] = useState(new Set());
@@ -36,6 +39,7 @@ const ProductFormModal = ({
         imageUrl: '',
         category: '',
         isAvailable: true,
+        showInSelfService: false,
         extraSections: [] // [{ section: id, maxSelection: null|number, visibleExtraIds: [] }]
     });
 
@@ -66,6 +70,7 @@ const ProductFormModal = ({
                 imageUrl: product.imageUrl || '',
                 category: product.category?._id || product.category || '',
                 isAvailable: product.isAvailable !== undefined ? product.isAvailable : true,
+                showInSelfService: product.showInSelfService === true,
                 extraSections: assignments
             });
         } else {
@@ -76,6 +81,7 @@ const ProductFormModal = ({
                 imageUrl: '',
                 category: '',
                 isAvailable: true,
+                showInSelfService: false,
                 extraSections: []
             });
         }
@@ -282,6 +288,26 @@ const ProductFormModal = ({
                             />
                             <label className="ml-2 block text-sm text-brown-700">Producto disponible</label>
                         </div>
+
+                        {/* Solo se ofrece si el módulo está habilitado, para no mostrar
+                            opciones que no hacen nada en este restaurante. */}
+                        {selfServiceEnabled && (
+                            <div className="flex items-start mt-3">
+                                <input
+                                    type="checkbox"
+                                    name="showInSelfService"
+                                    checked={formData.showInSelfService}
+                                    onChange={handleChange}
+                                    className="h-4 w-4 mt-0.5 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+                                />
+                                <div className="ml-2">
+                                    <label className="block text-sm text-brown-700">Mostrar en autoservicio (kiosco)</label>
+                                    <p className="text-xs text-gray-500">
+                                        El cliente solo verá este producto en el kiosco si además está disponible.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* ── Secciones de Extras ── */}

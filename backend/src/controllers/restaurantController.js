@@ -66,6 +66,7 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
         permissions: { ...currentSettings.permissions },
         inventory: { ...(currentSettings.inventory || {}) },
         kitchenDisplay: { ...(currentSettings.kitchenDisplay || {}) },
+        selfService: { ...(currentSettings.selfService || {}) },
     };
 
     let hasChanges = false;
@@ -168,6 +169,32 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
                 nextSettings.kitchenDisplay.onlyOwnerCanMarkReady = value;
             },
             fieldName: 'kitchenDisplayOnlyOwnerCanMarkReady',
+        },
+        // selfService.enabled NO se expone aquí a propósito: solo el super_admin puede
+        // activarlo/desactivarlo, vía PUT /admin/restaurants/:id (adminController.updateRestaurant).
+        {
+            nested: payload?.selfService?.requireCustomerName,
+            flat: payload?.selfServiceRequireCustomerName,
+            assign: (value) => {
+                nextSettings.selfService.requireCustomerName = value;
+            },
+            fieldName: 'selfServiceRequireCustomerName',
+        },
+        {
+            nested: payload?.selfService?.allowOrderComment,
+            flat: payload?.selfServiceAllowOrderComment,
+            assign: (value) => {
+                nextSettings.selfService.allowOrderComment = value;
+            },
+            fieldName: 'selfServiceAllowOrderComment',
+        },
+        {
+            nested: payload?.selfService?.printCustomerTicket,
+            flat: payload?.selfServicePrintCustomerTicket,
+            assign: (value) => {
+                nextSettings.selfService.printCustomerTicket = value;
+            },
+            fieldName: 'selfServicePrintCustomerTicket',
         },
     ];
 

@@ -12,8 +12,8 @@ const {
 const router = express.Router();
 
 router.post('/create', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), createExtraSectionController);
-router.get('/getAll', authMiddleware, getAllExtraSectionsController);
-router.get('/get/:id', authMiddleware, getExtraSectionByIdController);
+router.get('/getAll', authMiddleware, denyRoleMiddleware('kiosco'), getAllExtraSectionsController);
+router.get('/get/:id', authMiddleware, denyRoleMiddleware('kiosco'), getExtraSectionByIdController);
 router.put('/update/:id', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), updateExtraSectionController);
 router.delete('/delete/:id', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), deleteExtraSectionController);
 

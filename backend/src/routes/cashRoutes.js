@@ -17,7 +17,7 @@ router.use(authMiddleware);
 router.post('/create', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, createCashRegister); // Route to create a new cash register
 
 // get current cash register (estado visible también para mesero)
-router.get('/current', filterByRestaurant, getCurrentCashRegister); // Route to get the current cash register
+router.get('/current', denyRoleMiddleware('kiosco'), filterByRestaurant, getCurrentCashRegister); // Route to get the current cash register
 
 // close cash register
 router.put('/close', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, closeCashRegister); // Route to close the current cash register

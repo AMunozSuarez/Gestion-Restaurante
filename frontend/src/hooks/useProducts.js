@@ -22,6 +22,7 @@ export const useProducts = (filters = {}) => {
           price: food.price,
           category: food.category,
           isAvailable: food.isAvailable,
+          showInSelfService: food.showInSelfService === true,
           imageUrl: food.imageUrl,
           extraSections: food.extraSections || [] // ✅ Agregar extraSections
         }));

@@ -8,7 +8,7 @@ const router = express.Router();
 router.post('/create', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), createCategoryController);
 
 // GET ALL CATEGORIES
-router.get('/getAll', authMiddleware, getAllCategoriesController);
+router.get('/getAll', authMiddleware, denyRoleMiddleware('kiosco'), getAllCategoriesController);
 
 // UPDATE CATEGORY
 router.put('/update/:id', authMiddleware, denyRoleMiddleware('mesero', 'cocina'), updateCategoryController);

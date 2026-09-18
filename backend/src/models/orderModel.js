@@ -129,6 +129,15 @@ const orderSchema = new mongoose.Schema({
         enum: ['delivery', 'mostrador', 'mesas'],
         required: true,
     },
+    // Canal desde el que se originó el pedido. Los pedidos creados antes de este campo no
+    // lo tienen, y las lecturas con .lean() devuelven undefined (el default solo aplica a
+    // documentos hidratados). Por eso NUNCA comparar `orderSource === 'pos'`: usar
+    // `orderSource === 'self_service'` para el caso positivo y tratar todo lo demás como POS.
+    orderSource: {
+        type: String,
+        enum: ['pos', 'self_service'],
+        default: 'pos',
+    },
     status: {
         type: String,
         enum: ['Preparacion', 'En camino', 'Enviado', 'Cancelado', 'Completado'],
@@ -189,5 +198,16 @@ orderSchema.index({ cashRegister: 1, orderNumber: -1 });           // Obtener ú
 orderSchema.index({ restaurant: 1, status: 1, section: 1 });       // Filtros por status/section
 orderSchema.index({ restaurant: 1, createdAt: -1 });               // getAllSales ordenado por fecha
 orderSchema.index({ restaurant: 1, tip: 1, status: 1 });           // getTipsController
+orderSchema.index({ restaurant: 1, orderSource: 1, createdAt: -1 }); // Reportes por canal
+
+// Evita que dos pedidos compartan número dentro de la misma caja cuando varios clientes
+// (POS + kioscos de autoservicio) crean a la vez. El número es lo que el cliente usa para
+// retirar, así que un duplicado es un problema operativo real.
+// partialFilterExpression es imprescindible: cashRegister es opcional "para compatibilidad
+// con órdenes antiguas", y un índice único simple haría colisionar todas las que lo tienen null.
+orderSchema.index(
+    { cashRegister: 1, orderNumber: 1 },
+    { unique: true, partialFilterExpression: { cashRegister: { $type: 'objectId' } } }
+);
 
 module.exports = mongoose.model('Order', orderSchema);
