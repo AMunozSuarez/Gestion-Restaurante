@@ -4,16 +4,18 @@ import { useTables } from '../hooks/useTables';
 import { useCashRegister } from '../store/CashRegisterContext';
 import { useWaiters } from '../hooks/useUsers';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
-import { 
-    PlusIcon, 
-    PencilIcon, 
-    TrashIcon, 
+import {
+    PlusIcon,
+    PencilIcon,
+    TrashIcon,
     UserGroupIcon,
     Squares2X2Icon,
     ClockIcon,
     XMarkIcon,
     CheckIcon,
-    ExclamationTriangleIcon
+    ExclamationTriangleIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { Button } from '../components/ui';
 import {
@@ -124,9 +126,11 @@ const TableManagement = () => {
         localStorage.setItem('tableSections', JSON.stringify(customSections));
     }, [customSections]);
 
-    // Obtener secciones únicas combinando las que tienen mesas y las creadas manualmente
+    // Obtener secciones únicas combinando las que tienen mesas y las creadas manualmente.
+    // Se respeta el orden de customSections (orden de creación o el reordenado manualmente
+    // en modo edición) en vez de ordenar alfabéticamente.
     const tableSections = [...new Set(tables.map(t => t.section || 'Salón'))];
-    const sections = [...new Set([...customSections, ...tableSections])].sort();
+    const sections = [...customSections, ...tableSections.filter(s => !customSections.includes(s))];
     
     // Filtrar mesas por sección actual
     const filteredTables = tables.filter(t => (t.section || 'Salón') === currentSection);
@@ -448,6 +452,18 @@ const TableManagement = () => {
         showNotification('Sección eliminada exitosamente');
     };
 
+    // Mueve una sección un puesto a la izquierda (-1) o derecha (+1) en el orden de las pestañas.
+    // Persiste el orden completo actual en customSections para que quede fijo tras el reordenamiento.
+    const moveSection = (sectionName, direction) => {
+        const currentIndex = sections.indexOf(sectionName);
+        const targetIndex = currentIndex + direction;
+        if (currentIndex === -1 || targetIndex < 0 || targetIndex >= sections.length) return;
+
+        const reordered = [...sections];
+        [reordered[currentIndex], reordered[targetIndex]] = [reordered[targetIndex], reordered[currentIndex]];
+        setCustomSections(reordered);
+    };
+
     // Crear cuadrícula de posiciones
     const createGrid = () => {
         const cols = 7;
@@ -637,19 +653,45 @@ const TableManagement = () => {
                                         )}
                                     </button>
                                     {isEditMode && (
-                                        <div className="absolute top-0 right-0 -mt-2 -mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setEditingSectionName(section);
-                                                    setSectionToEdit(section);
-                                                }}
-                                                className="p-1 bg-white rounded-full shadow-md hover:bg-gray-100"
-                                                title="Editar nombre"
-                                            >
-                                                <PencilIcon className="w-3 h-3 text-teal-600" />
-                                            </button>
-                                        </div>
+                                        <>
+                                            <div className="absolute top-0 left-0 -mt-2 -ml-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        moveSection(section, -1);
+                                                    }}
+                                                    disabled={sections.indexOf(section) === 0}
+                                                    className="p-1 bg-white rounded-full shadow-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    title="Mover a la izquierda"
+                                                >
+                                                    <ChevronLeftIcon className="w-3 h-3 text-teal-600" />
+                                                </button>
+                                            </div>
+                                            <div className="absolute top-0 right-0 -mt-2 -mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingSectionName(section);
+                                                        setSectionToEdit(section);
+                                                    }}
+                                                    className="p-1 bg-white rounded-full shadow-md hover:bg-gray-100"
+                                                    title="Editar nombre"
+                                                >
+                                                    <PencilIcon className="w-3 h-3 text-teal-600" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        moveSection(section, 1);
+                                                    }}
+                                                    disabled={sections.indexOf(section) === sections.length - 1}
+                                                    className="p-1 bg-white rounded-full shadow-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    title="Mover a la derecha"
+                                                >
+                                                    <ChevronRightIcon className="w-3 h-3 text-teal-600" />
+                                                </button>
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             ))}
