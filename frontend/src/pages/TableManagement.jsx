@@ -140,6 +140,9 @@ const TableManagement = () => {
         setTimeout(() => setNotification(null), duration);
     };
 
+    // Extrae el mensaje de error del backend en vez del genérico de axios
+    const getErrorMessage = (error) => error.response?.data?.message || error.message;
+
     // Verificar caja al montar - solo cuando termine de cargar
     useEffect(() => {
         if (!cashLoading && !isCashOpen) {
@@ -184,7 +187,7 @@ const TableManagement = () => {
             setSelectedWaiter(null);
             showNotification('Mesa abierta exitosamente');
         } catch (error) {
-            showNotification('Error al abrir mesa: ' + error.message, 'error');
+            showNotification('Error al abrir mesa: ' + getErrorMessage(error), 'error');
         }
     };
 
@@ -198,12 +201,19 @@ const TableManagement = () => {
     };
 
     // Funciones para crear mesa
+    const getNextTableNumber = () => tables.length > 0
+        ? Math.max(...tables.map(t => t.tableNumber)) + 1
+        : 1;
+
+    const handleOpenAddTableModal = () => {
+        setNewTable({ tableNumber: String(getNextTableNumber()), capacity: 4 });
+        setShowAddTableModal(true);
+    };
+
     const handleAddTable = async () => {
         try {
-            const nextNumber = tables.length > 0 
-                ? Math.max(...tables.map(t => t.tableNumber)) + 1 
-                : 1;
-            
+            const nextNumber = getNextTableNumber();
+
             // Encontrar la primera posición disponible en la sección actual
             let availablePosition = { x: 0, y: 0 };
             const cols = 7;
@@ -233,7 +243,7 @@ const TableManagement = () => {
             setNewTable({ tableNumber: '', capacity: 4 });
             showNotification('Mesa creada exitosamente');
         } catch (error) {
-            showNotification('Error al crear mesa: ' + error.message, 'error');
+            showNotification('Error al crear mesa: ' + getErrorMessage(error), 'error');
         }
     };
 
@@ -258,7 +268,7 @@ const TableManagement = () => {
             setSelectedTable(null);
             showNotification('Mesa actualizada exitosamente');
         } catch (error) {
-            showNotification('Error al actualizar mesa: ' + error.message, 'error');
+            showNotification('Error al actualizar mesa: ' + getErrorMessage(error), 'error');
         }
     };
 
@@ -280,7 +290,7 @@ const TableManagement = () => {
             setTableToDelete(null);
             showNotification('Mesa eliminada exitosamente');
         } catch (error) {
-            showNotification('Error al eliminar mesa: ' + error.message, 'error');
+            showNotification('Error al eliminar mesa: ' + getErrorMessage(error), 'error');
         }
     };
 
@@ -344,7 +354,7 @@ const TableManagement = () => {
                     await updateTablePositions(changes);
                     setPendingPositions({});
                 } catch (error) {
-                    showNotification('Error al guardar posiciones: ' + error.message, 'error');
+                    showNotification('Error al guardar posiciones: ' + getErrorMessage(error), 'error');
                     return; // se mantiene en modo edición para poder reintentar
                 } finally {
                     setIsSavingPositions(false);
@@ -413,7 +423,7 @@ const TableManagement = () => {
             setSectionToEdit('');
             showNotification('Sección renombrada exitosamente');
         } catch (error) {
-            showNotification('Error al renombrar sección: ' + error.message, 'error');
+            showNotification('Error al renombrar sección: ' + getErrorMessage(error), 'error');
         }
     };
 
@@ -548,7 +558,7 @@ const TableManagement = () => {
 
             {/* Notificación toast */}
             {notification && (
-                <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg animate-fade-in ${
+                <div className={`fixed top-4 right-4 z-[70] px-6 py-3 rounded-lg shadow-lg animate-fade-in ${
                     notification.type === 'error' ? 'bg-red-600' : 
                     notification.type === 'warning' ? 'bg-orange-500' : 
                     'bg-teal-600'
@@ -593,7 +603,7 @@ const TableManagement = () => {
                                 {isSavingPositions ? 'Guardando...' : isEditMode ? 'Terminar edición' : 'Editar mesas'}
                             </Button>
                             <Button
-                                onClick={() => setShowAddTableModal(true)}
+                                onClick={handleOpenAddTableModal}
                                 className="bg-teal-600 hover:bg-teal-700"
                             >
                                 <PlusIcon className="w-5 h-5 mr-2" />
@@ -666,7 +676,7 @@ const TableManagement = () => {
                         <h3 className="text-xl font-semibold text-gray-700 mb-2">No hay mesas configuradas</h3>
                         <p className="text-gray-500 mb-4">Comienza agregando tu primera mesa</p>
                         <Button
-                            onClick={() => setShowAddTableModal(true)}
+                            onClick={handleOpenAddTableModal}
                             className="bg-teal-600 hover:bg-teal-700"
                         >
                             <PlusIcon className="w-5 h-5 mr-2" />
@@ -874,7 +884,6 @@ const TableManagement = () => {
                                     type="number"
                                     value={newTable.tableNumber}
                                     onChange={(e) => setNewTable({...newTable, tableNumber: e.target.value})}
-                                    placeholder="Automático"
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 />
                             </div>
