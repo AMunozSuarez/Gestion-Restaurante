@@ -23,6 +23,7 @@ const RESTAURANT_SETTINGS_STORAGE_KEYS = {
   kitchenDisplayRequireReadyToClose: 'kitchenDisplayRequireReadyToClose',
   kitchenDisplayRequireAllItemsReady: 'kitchenDisplayRequireAllItemsReady',
   kitchenDisplayOnlyOwnerCanMarkReady: 'kitchenDisplayOnlyOwnerCanMarkReady',
+  allowTipOnCounterSale: 'allowTipOnCounterSale',
   avoidDuplicateKitchenUpdatePrint: 'avoidDuplicateKitchenUpdatePrint',
   extraSectionPrintDestinations: 'extraSectionPrintDestinations',
   drawerPrinter: 'drawerPrinter',
@@ -43,6 +44,7 @@ const DEFAULT_RESTAURANT_SETTINGS = {
   kitchenDisplayRequireReadyToClose: false,
   kitchenDisplayRequireAllItemsReady: false,
   kitchenDisplayOnlyOwnerCanMarkReady: false,
+  allowTipOnCounterSale: false,
   avoidDuplicateKitchenUpdatePrint: false,
   extraSectionPrintDestinations: {},
   drawerPrinter: '',
@@ -139,6 +141,7 @@ const normalizeRestaurantSettings = (settings = {}) => {
   const printing = settings?.printing || {};
   const permissions = settings?.permissions || {};
   const kitchenDisplay = settings?.kitchenDisplay || {};
+  const sales = settings?.sales || {};
 
   const updatePrintMode = printing.updatePrintMode || settings.updatePrintMode || DEFAULT_RESTAURANT_SETTINGS.updatePrintMode;
   const rawExtraSectionPrintDestinations =
@@ -173,6 +176,10 @@ const normalizeRestaurantSettings = (settings = {}) => {
     kitchenDisplayOnlyOwnerCanMarkReady: parseBooleanValue(
       kitchenDisplay.onlyOwnerCanMarkReady ?? settings.kitchenDisplayOnlyOwnerCanMarkReady,
       DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayOnlyOwnerCanMarkReady,
+    ),
+    allowTipOnCounterSale: parseBooleanValue(
+      sales.allowTipOnCounterSale ?? settings.allowTipOnCounterSale,
+      DEFAULT_RESTAURANT_SETTINGS.allowTipOnCounterSale,
     ),
     avoidDuplicateKitchenUpdatePrint: parseBooleanValue(
       printing.avoidDuplicateKitchenUpdatePrint ?? settings.avoidDuplicateKitchenUpdatePrint,
@@ -234,6 +241,10 @@ const getRestaurantSettingsFromStorage = () => ({
   kitchenDisplayOnlyOwnerCanMarkReady: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayOnlyOwnerCanMarkReady,
     DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayOnlyOwnerCanMarkReady,
+  ),
+  allowTipOnCounterSale: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.allowTipOnCounterSale,
+    DEFAULT_RESTAURANT_SETTINGS.allowTipOnCounterSale,
   ),
   avoidDuplicateKitchenUpdatePrint: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
@@ -309,6 +320,10 @@ const applyRestaurantSettingsLocally = (settings = {}) => {
       String(Boolean(normalized.kitchenDisplayOnlyOwnerCanMarkReady)),
     );
     localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.allowTipOnCounterSale,
+      String(Boolean(normalized.allowTipOnCounterSale)),
+    );
+    localStorage.setItem(
       RESTAURANT_SETTINGS_STORAGE_KEYS.avoidDuplicateKitchenUpdatePrint,
       String(Boolean(normalized.avoidDuplicateKitchenUpdatePrint)),
     );
@@ -366,6 +381,9 @@ const buildRestaurantSettingsPayload = (settings = {}) => {
       requireReadyToClose: normalized.kitchenDisplayRequireReadyToClose,
       requireAllItemsReady: normalized.kitchenDisplayRequireAllItemsReady,
       onlyOwnerCanMarkReady: normalized.kitchenDisplayOnlyOwnerCanMarkReady,
+    },
+    sales: {
+      allowTipOnCounterSale: normalized.allowTipOnCounterSale,
     },
   };
 };
@@ -785,6 +803,19 @@ la fuente esta configurada bien.
     applyRestaurantSettingsLocally({
       ...getRestaurantSettingsSnapshot(),
       kitchenDisplayOnlyOwnerCanMarkReady: Boolean(enabled),
+    });
+  },
+
+  // Obtener si se permite agregar propina en ventas de mostrador
+  getAllowTipOnCounterSale() {
+    return getRestaurantSettingsSnapshot().allowTipOnCounterSale;
+  },
+
+  // Guardar preferencia de permitir propina en ventas de mostrador
+  setAllowTipOnCounterSale(enabled) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      allowTipOnCounterSale: Boolean(enabled),
     });
   },
 

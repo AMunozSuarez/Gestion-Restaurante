@@ -110,6 +110,19 @@ const createOrderController = async (req, res) => {
         const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, tableId, waiter, tip, discount, splitMeta, splitAccounts } = req.body;
 
         const restaurantId = req.user.restaurant;
+
+        if (section === 'mostrador' && Number(tip) > 0) {
+            const restaurantForTip = await Restaurant.findById(restaurantId)
+                .select('settings.sales.allowTipOnCounterSale')
+                .lean();
+            if (restaurantForTip?.settings?.sales?.allowTipOnCounterSale !== true) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'La propina en mostrador no está habilitada para este restaurante.',
+                });
+            }
+        }
+
         const foodIds = foods.map((item) => item.food);
         const uniqueFoodIds = [...new Set(foodIds)];
 
@@ -517,10 +530,10 @@ const updateOrderController = async (req, res) => {
         const isPrivilegedUser = isOwnerOrSuperAdmin(req.user?.role);
         let currentOrderSnapshot = null;
 
-        if (foods !== undefined || deletedFoods !== undefined || discount !== undefined) {
+        if (foods !== undefined || deletedFoods !== undefined || discount !== undefined || tip !== undefined) {
             currentOrderSnapshot = await orderModel
                 .findOne({ _id: req.params.id, restaurant: restaurantId })
-                .select('foods deletedFoods total discount kitchenReadyAt')
+                .select('foods deletedFoods total discount kitchenReadyAt section')
                 .lean();
 
             if (!currentOrderSnapshot) {
@@ -528,6 +541,21 @@ const updateOrderController = async (req, res) => {
                     success: false,
                     message: 'Pedido no encontrado o no pertenece a este restaurante',
                 });
+            }
+        }
+
+        if (tip !== undefined && Number(tip) > 0) {
+            const effectiveSection = section !== undefined ? section : currentOrderSnapshot?.section;
+            if (effectiveSection === 'mostrador') {
+                const restaurantForTip = await Restaurant.findById(restaurantId)
+                    .select('settings.sales.allowTipOnCounterSale')
+                    .lean();
+                if (restaurantForTip?.settings?.sales?.allowTipOnCounterSale !== true) {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'La propina en mostrador no está habilitada para este restaurante.',
+                    });
+                }
             }
         }
 

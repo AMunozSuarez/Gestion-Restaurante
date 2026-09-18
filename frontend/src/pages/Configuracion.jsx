@@ -65,6 +65,7 @@ const Configuracion = () => {
   const [printOnDeletedItemsUpdate, setPrintOnDeletedItemsUpdate] = useState(() => printingService.getPrintOnDeletedItemsUpdate());
   const [onlyOwnerCanCloseTable, setOnlyOwnerCanCloseTable] = useState(() => printingService.getOnlyOwnerCanCloseTable());
   const [onlyOwnerCanDeleteOrderItems, setOnlyOwnerCanDeleteOrderItems] = useState(() => printingService.getOnlyOwnerCanDeleteOrderItems());
+  const [allowTipOnCounterSale, setAllowTipOnCounterSale] = useState(() => printingService.getAllowTipOnCounterSale());
   const [avoidDuplicateKitchenUpdatePrint, setAvoidDuplicateKitchenUpdatePrint] = useState(() => printingService.getAvoidDuplicateKitchenUpdatePrint());
   const [drawerPrinter, setDrawerPrinter] = useState(() => localStorage.getItem('drawerPrinter') || '');
   const [drawerAlwaysOpen, setDrawerAlwaysOpen] = useState(() => printingService.getDrawerAlwaysOpen());
@@ -207,6 +208,7 @@ const Configuracion = () => {
     setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
     setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
     setKitchenDisplayOnlyOwnerCanMarkReady(printingService.getKitchenDisplayOnlyOwnerCanMarkReady());
+    setAllowTipOnCounterSale(printingService.getAllowTipOnCounterSale());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
     setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
     setDrawerOpenOnCloseOrder(printingService.getDrawerOpenOnCloseOrder());
@@ -229,6 +231,7 @@ const Configuracion = () => {
     setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
     setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
     setKitchenDisplayOnlyOwnerCanMarkReady(printingService.getKitchenDisplayOnlyOwnerCanMarkReady());
+    setAllowTipOnCounterSale(printingService.getAllowTipOnCounterSale());
     setAvoidDuplicateKitchenUpdatePrint(printingService.getAvoidDuplicateKitchenUpdatePrint());
     setExtraSectionPrintMap(printingService.getExtraSectionPrintDestinations());
     setDrawerOpenOnCloseOrder(printingService.getDrawerOpenOnCloseOrder());
@@ -658,6 +661,29 @@ pause
       text: enabled
         ? 'Solo el dueño podrá eliminar productos de pedidos en todo el restaurante'
         : 'Los usuarios con acceso podrán eliminar productos de pedidos'
+    });
+  };
+
+  // Activar o desactivar la posibilidad de agregar propina en ventas de mostrador
+  const handleAllowTipOnCounterSaleChange = async (enabled) => {
+    setAllowTipOnCounterSale(enabled);
+    printingService.setAllowTipOnCounterSale(enabled);
+    const result = await printingService.saveRestaurantSettingsToBackend({ allowTipOnCounterSale: enabled });
+
+    if (!result.success) {
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: `No se pudo guardar en el restaurante: ${result.error}. Se restauró el valor compartido.`,
+      });
+      return;
+    }
+
+    setMessage({
+      type: 'success',
+      text: enabled
+        ? 'Ahora se podrá agregar propina en las ventas de mostrador'
+        : 'Ya no se podrá agregar propina en las ventas de mostrador'
     });
   };
 
@@ -2379,6 +2405,34 @@ pause
                       >
                         <span
                           className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${onlyOwnerCanDeleteOrderItems ? 'translate-x-5' : 'translate-x-0.5'}`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isOwner && (
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-3">Ventas de mostrador (solo dueño)</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 border border-amber-200 rounded-lg bg-amber-50">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Permitir propina en mostrador</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Si está activo, se podrá agregar propina a las ventas de mostrador. Por defecto está desactivado.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAllowTipOnCounterSaleChange(!allowTipOnCounterSale)}
+                        className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${allowTipOnCounterSale ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                        aria-pressed={allowTipOnCounterSale}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${allowTipOnCounterSale ? 'translate-x-5' : 'translate-x-0.5'}`}
                         />
                       </button>
                     </div>
