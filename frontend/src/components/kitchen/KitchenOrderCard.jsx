@@ -6,6 +6,7 @@ import {
   getElapsedMinutes,
   getOrderId,
   getOrderLabel,
+  getTableMoveInfo,
   getUrgencyVariant,
   getVisibleKitchenItems,
   orderNeedsReconfirmation,
@@ -62,6 +63,10 @@ const KitchenOrderCard = ({
   // todos los productos nuevos en el checklist.
   const isMixed = checklistMode && orderNeedsReconfirmation(order);
 
+  // La cuenta cambió de mesa: el número de arriba ya es el nuevo, pero la comanda
+  // impresa dice el viejo, así que hay que mostrar el cambio de forma explícita.
+  const tableMove = getTableMoveInfo(order);
+
   // La vista determina cómo se muestra la tarjeta, no solo el estado guardado:
   // un pedido mixto aparece en ambas listas con contenido y estilo distintos.
   const isReady = viewContext === 'ready' ? true : viewContext === 'active' ? false : orderReadyFlag;
@@ -91,7 +96,7 @@ const KitchenOrderCard = ({
       className={`rounded-xl border-2 p-4 flex flex-col gap-3 ${
         isReady
           ? 'bg-green-900 border-green-400 shadow-lg shadow-green-900/50'
-          : isMixed
+          : isMixed || tableMove
             ? 'bg-gray-800 border-amber-400 shadow-lg shadow-amber-900/30'
             : 'bg-gray-800 border-gray-700'
       } ${className}`}
@@ -132,6 +137,18 @@ const KitchenOrderCard = ({
       <div className={`text-sm ${isReady ? 'text-green-200' : 'text-gray-300'}`}>
         <div>{SECTION_LABELS[order.section] || order.section}</div>
         <div className="font-medium text-white">{getOrderLabel(order)}</div>
+        {/* Va en su propia línea y con fondo sólido para que se lea igual en la
+            tarjeta verde de "listo": el pedido puede moverse de mesa cuando ya
+            está preparado, y es justo ahí donde entregarlo en la mesa vieja
+            sería un error. */}
+        {tableMove && (
+          <div
+            className="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-0.5 text-sm font-bold text-gray-900"
+            title="La cuenta se cambió de mesa: la comanda impresa tiene el número antiguo"
+          >
+            ⇄ Mesa {tableMove.from} → Mesa {tableMove.to}
+          </div>
+        )}
       </div>
 
       {checklistMode ? (

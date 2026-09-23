@@ -23,5 +23,6 @@ router.post('/:id/assign-waiter', tableController.assignWaiterToTable);
 router.put('/positions/bulk', tableController.updateTablePositions);
 router.post('/merge', tableController.mergeTables);
 router.post('/:id/split', tableController.splitTable);
+router.post('/:id/move', tableController.moveTable);
 
 module.exports = router;

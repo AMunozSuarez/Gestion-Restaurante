@@ -305,11 +305,15 @@ const KitchenDisplay = () => {
 
       if (isKitchenOrder(guardedOrder)) {
         const previous = ordersRef.current.find((o) => getOrderId(o) === orderId);
-        // Suena cuando el pedido entra a esta pantalla, y cuando uno que estaba
-        // listo vuelve a preparación (le agregaron productos).
+        // Suena cuando el pedido entra a esta pantalla, cuando uno que estaba
+        // listo vuelve a preparación (le agregaron productos), y cuando la cuenta
+        // se cambia de mesa: ahí el pedido no cambia, pero el destino del plato sí.
         const isNewHere = !previous;
         const wentBackToPreparation = Boolean(previous?.kitchenReadyAt) && !guardedOrder.kitchenReadyAt;
-        if ((isNewHere || wentBackToPreparation) && shouldNotifyForOrder(guardedOrder)) {
+        const previousMovedAt = previous?.tableTransfer?.at ?? null;
+        const movedAt = guardedOrder.tableTransfer?.at ?? null;
+        const changedTable = !isNewHere && String(previousMovedAt) !== String(movedAt);
+        if ((isNewHere || wentBackToPreparation || changedTable) && shouldNotifyForOrder(guardedOrder)) {
           playNewOrderSound();
         }
       }

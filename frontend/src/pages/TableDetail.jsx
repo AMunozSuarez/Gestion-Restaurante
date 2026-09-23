@@ -19,7 +19,8 @@ import {
     CurrencyDollarIcon,
     CheckIcon,
     ExclamationTriangleIcon,
-    LinkSlashIcon
+    LinkSlashIcon,
+    ArrowsRightLeftIcon
 } from '@heroicons/react/24/outline';
 import { Button } from '../components/ui';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
@@ -34,8 +35,8 @@ import { useAuth } from '../hooks/useAuth';
 const TableDetail = () => {
     const { tableId } = useParams();
     const navigate = useNavigate();
-    const { table, isLoading: tableLoading, refetch: refetchTable, closedElsewhere } = useTable(tableId);
-    const { closeTable, assignOrderToTable, assignWaiterToTable, splitTable } = useTables();
+    const { table, isLoading: tableLoading, refetch: refetchTable, closedElsewhere, movedElsewhere } = useTable(tableId);
+    const { tables, closeTable, assignOrderToTable, assignWaiterToTable, splitTable, moveTable } = useTables();
     const { user } = useAuth();
     const { isOpen: isCashOpen, isLoading: cashLoading } = useCashRegister();
     const { products } = useProducts({ available: true });
@@ -46,6 +47,7 @@ const TableDetail = () => {
 
     const kitchenDisplayEnabled = Boolean(restaurant?.settings?.kitchenDisplay?.enabled);
     const canMarkItemReady = printingService.canCurrentUserMarkOrderReady();
+    const canMoveTable = printingService.canCurrentUserMoveTable();
 
     // Estados
     const [showCashAlert, setShowCashAlert] = useState(false);
@@ -83,6 +85,12 @@ const TableDetail = () => {
     const [activeSplitAccountIndex, setActiveSplitAccountIndex] = useState(0);
     const [showSeparateTablesModal, setShowSeparateTablesModal] = useState(false);
     const [isSeparatingTables, setIsSeparatingTables] = useState(false);
+    const [showMoveTableModal, setShowMoveTableModal] = useState(false);
+    const [selectedTargetTableId, setSelectedTargetTableId] = useState(null);
+    const [isMovingTable, setIsMovingTable] = useState(false);
+    // Igual que selfClosingRef: el traslado hecho desde esta pantalla ya navega
+    // solo, no debe reaccionar además al evento que él mismo provocó.
+    const selfMovingRef = useRef(false);
 
     const productCommentInputRef = useRef(null);
     const pendingReadyRef = useRef({});
@@ -110,6 +118,73 @@ const TableDetail = () => {
             showNotification('Error al separar mesas: ' + error.message, 'error');
         } finally {
             setIsSeparatingTables(false);
+        }
+    };
+
+    // Destinos posibles de un traslado: mesas libres y sin grupo propio. Se excluye
+    // el grupo de esta misma mesa porque moverse dentro del grupo lo disolvería sin
+    // que el usuario lo esperara; para eso está "Separar mesas".
+    const availableTargetTables = (tables || [])
+        .filter((t) => (
+            t._id !== table?._id &&
+            t.status === 'available' &&
+            !t.mergedInto &&
+            (t.mergedGroup?.length ?? 0) === 0
+        ))
+        .sort((a, b) => a.tableNumber - b.tableNumber);
+
+    const selectedTargetTable = availableTargetTables.find((t) => t._id === selectedTargetTableId) || null;
+
+    const openMoveTableModal = () => {
+        // Al cambiar de mesa se recarga el pedido desde el servidor, así que un
+        // producto que todavía no pasó por "Enviar a Cocina" se perdería.
+        const pendingItems = cart.filter(item => item.isNew && !item.deleted).length;
+        if (pendingItems > 0) {
+            showNotification('Envía primero los productos pendientes a cocina antes de mover la mesa', 'warning', 4000);
+            return;
+        }
+        setSelectedTargetTableId(null);
+        setShowMoveTableModal(true);
+    };
+
+    const confirmMoveTable = async () => {
+        if (!selectedTargetTable) return;
+
+        setIsMovingTable(true);
+        selfMovingRef.current = true;
+        try {
+            const result = await moveTable(table._id, selectedTargetTable._id);
+            setShowMoveTableModal(false);
+
+            // La comanda que cocina tiene en mano lleva el número viejo. Este equipo
+            // imprime el aviso directamente; los demás lo hacen al recibir table:moved.
+            const movedOrder = result?.order;
+            if (movedOrder && Array.isArray(movedOrder.foods) && movedOrder.foods.length > 0) {
+                const orderId = movedOrder._id || movedOrder.id;
+                const movedAt = movedOrder.tableTransfer?.at;
+                if (!printingService.shouldSkipTableMovePrint(orderId, movedAt)) {
+                    try {
+                        const printResult = await printingService.printKitchenTableMoveOrder(movedOrder, {
+                            fromTableNumber: result.fromTableNumber,
+                            toTableNumber: result.toTableNumber,
+                        });
+                        if (printResult?.success) {
+                            printingService.markTableMovePrint(orderId, movedAt);
+                        }
+                    } catch (printError) {
+                        console.error('Error al imprimir aviso de cambio de mesa:', printError);
+                    }
+                }
+            }
+
+            showNotification(`Cuenta movida a la Mesa ${result.toTableNumber}`);
+            navigate(`/mesas/${result.toTableId}`, { replace: true });
+        } catch (error) {
+            selfMovingRef.current = false;
+            const message = error.response?.data?.message || error.message;
+            showNotification('No se pudo mover la mesa: ' + message, 'error', 5000);
+        } finally {
+            setIsMovingTable(false);
         }
     };
 
@@ -238,12 +313,28 @@ const TableDetail = () => {
     // La mesa se cerró desde otro dispositivo. Seguir aquí significaría operar
     // sobre un pedido ya cobrado, así que se avisa y se vuelve a la grilla.
     useEffect(() => {
-        if (!closedElsewhere || selfClosingRef.current) return undefined;
+        if (!closedElsewhere || selfClosingRef.current || movedElsewhere) return undefined;
 
         showNotification('Esta mesa fue cerrada desde otro dispositivo', 'warning', 4000);
         const timeoutId = setTimeout(() => navigate('/mesas'), 1800);
         return () => clearTimeout(timeoutId);
-    }, [closedElsewhere, navigate]);
+    }, [closedElsewhere, movedElsewhere, navigate]);
+
+    // Al mover la cuenta se navega a la mesa nueva por la misma ruta, así que el
+    // componente se reutiliza y las marcas del traslado anterior seguirían activas.
+    useEffect(() => {
+        selfMovingRef.current = false;
+    }, [tableId]);
+
+    // La cuenta se trasladó desde otro dispositivo: la mesa sigue existiendo, pero
+    // el pedido ya vive en otra, así que se sigue al usuario hasta allá.
+    useEffect(() => {
+        if (!movedElsewhere || selfMovingRef.current) return undefined;
+
+        showNotification(`Esta cuenta se movió a la Mesa ${movedElsewhere.toTableNumber}`, 'warning', 4000);
+        const timeoutId = setTimeout(() => navigate(`/mesas/${movedElsewhere.toTableId}`, { replace: true }), 1800);
+        return () => clearTimeout(timeoutId);
+    }, [movedElsewhere, navigate]);
 
     // Focus en textarea de comentarios
     useEffect(() => {
@@ -1345,6 +1436,18 @@ const TableDetail = () => {
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 w-full lg:w-auto lg:flex lg:gap-2">
+                            {table.status === 'occupied' && canMoveTable && (
+                                <Button
+                                    onClick={openMoveTableModal}
+                                    disabled={isProcessing}
+                                    variant="outline"
+                                    className="justify-center"
+                                >
+                                    <ArrowsRightLeftIcon className="w-5 h-5 mr-2" />
+                                    <span className="hidden sm:inline">Mover mesa</span>
+                                    <span className="sm:hidden">Mover</span>
+                                </Button>
+                            )}
                             <Button
                                 onClick={handleSaveOrder}
                                 disabled={cart.length === 0 || isProcessing}
@@ -1387,6 +1490,78 @@ const TableDetail = () => {
                             <LinkSlashIcon className="w-4 h-4" />
                             Separar mesas
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Mover la cuenta a otra mesa */}
+            {showMoveTableModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-xl font-bold text-gray-900 mb-1">Mover Mesa {table.tableNumber}</h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Elige la mesa a la que se traslada esta cuenta.
+                        </p>
+
+                        {availableTargetTables.length === 0 ? (
+                            <p className="text-sm text-gray-500 bg-gray-50 rounded-lg p-4 mb-6">
+                                No hay mesas disponibles para recibir la cuenta.
+                            </p>
+                        ) : (
+                            <div className="grid grid-cols-4 gap-2 mb-4">
+                                {availableTargetTables.map((targetTable) => (
+                                    <button
+                                        key={targetTable._id}
+                                        type="button"
+                                        onClick={() => setSelectedTargetTableId(targetTable._id)}
+                                        className={`py-3 rounded-lg border-2 font-bold transition-colors ${
+                                            selectedTargetTableId === targetTable._id
+                                                ? 'border-teal-600 bg-teal-50 text-teal-800'
+                                                : 'border-gray-200 text-gray-700 hover:border-teal-300'
+                                        }`}
+                                    >
+                                        {targetTable.tableNumber}
+                                        <span className="block text-[10px] font-normal text-gray-500 truncate">
+                                            {targetTable.section}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {selectedTargetTable && (
+                            <div className="mb-4 space-y-2">
+                                <p className="text-sm font-semibold text-gray-900">
+                                    Mesa {table.tableNumber} → Mesa {selectedTargetTable.tableNumber}
+                                </p>
+                                {Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0 && (
+                                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                                        El grupo se separará: las mesas {table.mergedGroup.map(t => t.tableNumber).join(', ')} quedarán disponibles.
+                                    </p>
+                                )}
+                                {kitchenDisplayEnabled && (
+                                    <p className="text-xs text-gray-600">Se avisará a cocina del cambio.</p>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex gap-3">
+                            <Button
+                                onClick={() => setShowMoveTableModal(false)}
+                                variant="outline"
+                                className="flex-1"
+                                disabled={isMovingTable}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={confirmMoveTable}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                                disabled={isMovingTable || !selectedTargetTable}
+                            >
+                                {isMovingTable ? 'Moviendo...' : 'Mover'}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}

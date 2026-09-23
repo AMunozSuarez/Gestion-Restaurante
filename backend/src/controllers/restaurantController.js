@@ -136,6 +136,14 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
             fieldName: 'onlyOwnerCanDeleteOrderItems',
         },
         {
+            nested: payload?.permissions?.onlyOwnerCanMoveTable,
+            flat: payload?.onlyOwnerCanMoveTable,
+            assign: (value) => {
+                nextSettings.permissions.onlyOwnerCanMoveTable = value;
+            },
+            fieldName: 'onlyOwnerCanMoveTable',
+        },
+        {
             nested: payload?.inventory?.enabled,
             flat: payload?.inventoryEnabled,
             assign: (value) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import tablesService from '../services/tablesService';
 import { onSocketEvent } from '../services/socketService';
 
@@ -172,6 +172,18 @@ export const useTables = () => {
         }
     }, []);
 
+    const moveTable = useCallback(async (id, targetTableId) => {
+        try {
+            const result = await tablesService.moveTable(id, targetTableId);
+            const updatedById = new Map(result.tables.map(t => [t._id, t]));
+            setTables(prev => prev.map(table => updatedById.get(table._id) || table));
+            return result;
+        } catch (err) {
+            setError(err.message);
+            throw err;
+        }
+    }, []);
+
     return {
         tables,
         isLoading,
@@ -187,6 +199,7 @@ export const useTables = () => {
         assignWaiterToTable,
         mergeTables,
         splitTable,
+        moveTable,
     };
 };
 
@@ -198,15 +211,22 @@ export const useTable = (tableId) => {
     // Sin esto la pantalla queda mostrando una mesa fantasma con su carrito intacto,
     // y el botón de enviar comanda escribiría sobre un pedido ya cobrado.
     const [closedElsewhere, setClosedElsewhere] = useState(false);
+    // La cuenta se trasladó a otra mesa. Es un caso distinto del cierre aunque el
+    // table:updated de la mesa de origen se vea idéntico (disponible y sin pedido):
+    // aquí hay que llevar al usuario a la mesa nueva, no devolverlo a la lista.
+    const [movedElsewhere, setMovedElsewhere] = useState(null);
+    const movedElsewhereRef = useRef(null);
 
     const fetchTable = useCallback(async () => {
         if (!tableId) return;
-        
+
         try {
             setIsLoading(true);
             const data = await tablesService.getTableById(tableId);
             setTable(data);
             setClosedElsewhere(false);
+            setMovedElsewhere(null);
+            movedElsewhereRef.current = null;
             setError(null);
         } catch (err) {
             setError(err.message);
@@ -235,6 +255,22 @@ export const useTable = (tableId) => {
         return unsub;
     }, []);
 
+    // El traslado se escucha antes que table:updated (el backend lo emite primero)
+    // para que la mesa de origen no se interprete como cerrada.
+    useEffect(() => {
+        if (!tableId) return undefined;
+
+        const unsub = onSocketEvent('table:moved', (payload) => {
+            if (!payload) return;
+            if (String(payload.fromTableId) !== String(tableId)) return;
+            const moved = { toTableId: payload.toTableId, toTableNumber: payload.toTableNumber };
+            movedElsewhereRef.current = moved;
+            setMovedElsewhere(moved);
+        });
+
+        return unsub;
+    }, [tableId]);
+
     // El detalle de mesa sólo escuchaba order:updated, así que un cierre hecho en
     // otro equipo (POS, app de meseros) no llegaba nunca a esta pantalla.
     useEffect(() => {
@@ -247,6 +283,9 @@ export const useTable = (tableId) => {
             // Sólo se actúa sobre el cierre: el resto de cambios ya llegan por
             // order:updated, y este payload puede venir sin popular currentOrder.
             if (updatedTable.status === 'available' && !updatedTable.currentOrder) {
+                // Tras un traslado la mesa también queda libre, pero ese caso lo
+                // resuelve movedElsewhere llevando al usuario a la mesa nueva.
+                if (movedElsewhereRef.current) return;
                 setClosedElsewhere(true);
             }
         });
@@ -259,6 +298,7 @@ export const useTable = (tableId) => {
         isLoading,
         error,
         closedElsewhere,
+        movedElsewhere,
         refetch: fetchTable,
     };
 };

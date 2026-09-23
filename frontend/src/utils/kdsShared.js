@@ -61,6 +61,18 @@ export const getOrderLabel = (order) => {
   return order.buyer?.name || order.name || 'Mostrador';
 };
 
+// La cuenta se trasladó a otra mesa después de mandar la comanda. El aviso vive
+// mientras el pedido siga en pantalla (incluso ya marcado listo): el papel
+// impreso sigue diciendo la mesa vieja y es el que se usa para despachar.
+export const getTableMoveInfo = (order) => {
+  const transfer = order?.tableTransfer;
+  if (!transfer?.at) return null;
+  const from = transfer.fromTableNumber;
+  const to = transfer.toTableNumber;
+  if (from === undefined || from === null || from === to) return null;
+  return { from, to };
+};
+
 export const getItemCategoryId = (item) => {
   const category = item.food?.category;
   return (category && (category._id || category)) || null;

@@ -65,6 +65,7 @@ const Configuracion = () => {
   const [printOnDeletedItemsUpdate, setPrintOnDeletedItemsUpdate] = useState(() => printingService.getPrintOnDeletedItemsUpdate());
   const [onlyOwnerCanCloseTable, setOnlyOwnerCanCloseTable] = useState(() => printingService.getOnlyOwnerCanCloseTable());
   const [onlyOwnerCanDeleteOrderItems, setOnlyOwnerCanDeleteOrderItems] = useState(() => printingService.getOnlyOwnerCanDeleteOrderItems());
+  const [onlyOwnerCanMoveTable, setOnlyOwnerCanMoveTable] = useState(() => printingService.getOnlyOwnerCanMoveTable());
   const [avoidDuplicateKitchenUpdatePrint, setAvoidDuplicateKitchenUpdatePrint] = useState(() => printingService.getAvoidDuplicateKitchenUpdatePrint());
   const [drawerPrinter, setDrawerPrinter] = useState(() => localStorage.getItem('drawerPrinter') || '');
   const [drawerAlwaysOpen, setDrawerAlwaysOpen] = useState(() => printingService.getDrawerAlwaysOpen());
@@ -204,6 +205,7 @@ const Configuracion = () => {
     setPrintOnDeletedItemsUpdate(printingService.getPrintOnDeletedItemsUpdate());
     setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
+    setOnlyOwnerCanMoveTable(printingService.getOnlyOwnerCanMoveTable());
     setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
     setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
     setKitchenDisplayOnlyOwnerCanMarkReady(printingService.getKitchenDisplayOnlyOwnerCanMarkReady());
@@ -226,6 +228,7 @@ const Configuracion = () => {
     setPrintOnDeletedItemsUpdate(printingService.getPrintOnDeletedItemsUpdate());
     setOnlyOwnerCanCloseTable(printingService.getOnlyOwnerCanCloseTable());
     setOnlyOwnerCanDeleteOrderItems(printingService.getOnlyOwnerCanDeleteOrderItems());
+    setOnlyOwnerCanMoveTable(printingService.getOnlyOwnerCanMoveTable());
     setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
     setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
     setKitchenDisplayOnlyOwnerCanMarkReady(printingService.getKitchenDisplayOnlyOwnerCanMarkReady());
@@ -516,6 +519,29 @@ const Configuracion = () => {
       text: enabled
         ? 'Solo el dueño podrá cerrar mesas en todo el restaurante'
         : 'Cualquier usuario con acceso podrá cerrar mesas'
+    });
+  };
+
+  // Activar o desactivar el traslado de cuentas entre mesas solo para owner
+  const handleOnlyOwnerCanMoveTableChange = async (enabled) => {
+    setOnlyOwnerCanMoveTable(enabled);
+    printingService.setOnlyOwnerCanMoveTable(enabled);
+    const result = await printingService.saveRestaurantSettingsToBackend({ onlyOwnerCanMoveTable: enabled });
+
+    if (!result.success) {
+      await rollbackRestaurantSettingsFromBackend();
+      setMessage({
+        type: 'error',
+        text: `No se pudo guardar en el restaurante: ${result.error}. Se restauró el valor compartido.`,
+      });
+      return;
+    }
+
+    setMessage({
+      type: 'success',
+      text: enabled
+        ? 'Solo el dueño podrá mover cuentas de una mesa a otra'
+        : 'Cualquier usuario con acceso podrá mover cuentas entre mesas'
     });
   };
 
@@ -2357,6 +2383,27 @@ pause
                       >
                         <span
                           className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${onlyOwnerCanDeleteOrderItems ? 'translate-x-5' : 'translate-x-0.5'}`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border border-amber-200 rounded-lg bg-amber-50">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Solo dueño puede mover mesa</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Si está activo, empleados no podrán trasladar la cuenta de una mesa a otra.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOnlyOwnerCanMoveTableChange(!onlyOwnerCanMoveTable)}
+                        className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${onlyOwnerCanMoveTable ? 'bg-green-600 border-green-600' : 'bg-gray-300 border-gray-300'}`}
+                        aria-pressed={onlyOwnerCanMoveTable}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${onlyOwnerCanMoveTable ? 'translate-x-5' : 'translate-x-0.5'}`}
                         />
                       </button>
                     </div>

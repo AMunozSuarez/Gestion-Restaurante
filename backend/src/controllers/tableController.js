@@ -648,6 +648,182 @@ const splitTable = async (req, res) => {
     }
 };
 
+// Trasladar la cuenta activa de una mesa a otra mesa disponible
+const moveTable = async (req, res) => {
+    try {
+        const { targetTableId } = req.body;
+
+        if (!targetTableId) {
+            return res.status(400).json({ message: 'Falta la mesa de destino' });
+        }
+
+        let source = await Table.findOne({
+            _id: req.params.id,
+            restaurant: req.restaurantId,
+        });
+
+        if (!source) {
+            return res.status(404).json({ message: 'Mesa no encontrada' });
+        }
+
+        // La cuenta siempre vive en la mesa principal del grupo: si llega el id de
+        // una secundaria, el origen real es su principal.
+        if (source.mergedInto) {
+            source = await Table.findOne({ _id: source.mergedInto, restaurant: req.restaurantId });
+            if (!source) {
+                return res.status(404).json({ message: 'Mesa principal del grupo no encontrada' });
+            }
+        }
+
+        const target = await Table.findOne({
+            _id: targetTableId,
+            restaurant: req.restaurantId,
+        });
+
+        if (!target) {
+            return res.status(404).json({ message: 'Mesa de destino no encontrada' });
+        }
+
+        if (target._id.toString() === source._id.toString()) {
+            return res.status(400).json({ message: 'La mesa de destino es la misma mesa de origen' });
+        }
+
+        const order = source.currentOrder
+            ? await Order.findOne({ _id: source.currentOrder, restaurant: req.restaurantId })
+            : null;
+
+        if (!order || order.status === 'Completado' || order.status === 'Cancelado') {
+            return res.status(400).json({ message: 'La mesa no tiene una cuenta activa para mover' });
+        }
+
+        if (target.status !== 'available') {
+            return res.status(409).json({
+                message: `La Mesa ${target.tableNumber} ya está ocupada. Si los clientes se van a juntar, usa Unir mesas.`,
+            });
+        }
+
+        // Una mesa libre puede seguir formando parte de un grupo unido (unión sin
+        // cuenta abierta): recibir aquí la cuenta rompería ese grupo sin avisar.
+        const sourceGroupIds = (source.mergedGroup || []).map(String);
+        if (target.mergedInto || (target.mergedGroup || []).length > 0) {
+            return res.status(409).json({
+                message: `La Mesa ${target.tableNumber} está unida a otro grupo. Sepárala primero.`,
+            });
+        }
+
+        const restaurant = await Restaurant.findById(req.restaurantId).select('settings');
+        const settings = Restaurant.normalizeSettings(restaurant?.settings || {});
+        const userRole = req.user?.role;
+
+        if (settings?.permissions?.onlyOwnerCanMoveTable && userRole !== 'owner' && userRole !== 'super_admin') {
+            return res.status(403).json({
+                message: 'Solo el dueño puede mover mesas según la configuración del restaurante.',
+            });
+        }
+
+        const fromTableNumber = source.tableNumber;
+        const toTableNumber = target.tableNumber;
+
+        // El destino hereda la cuenta y todo el contexto de servicio del origen:
+        // comensales, hora de apertura y mesero siguen a la misma gente.
+        target.currentOrder = order._id;
+        target.status = 'occupied';
+        target.currentGuests = source.currentGuests;
+        target.openedAt = source.openedAt || new Date();
+        target.waiter = source.waiter || null;
+        await target.save();
+
+        // El origen se libera, y con él todo su grupo: sin cuenta que compartir la
+        // unión ya no significa nada (mismo criterio que closeTable).
+        const releasedIds = [source._id.toString(), ...sourceGroupIds];
+
+        await Table.updateMany(
+            { _id: { $in: releasedIds }, restaurant: req.restaurantId },
+            {
+                $set: {
+                    mergedInto: null,
+                    mergedGroup: [],
+                    currentOrder: null,
+                    status: 'available',
+                    currentGuests: 0,
+                    openedAt: null,
+                    waiter: null,
+                },
+            }
+        );
+
+        // Cocina tiene impresa la comanda con el número original: ese es el que se
+        // conserva aunque la cuenta pase por varias mesas. Si el pedido volvió a su
+        // mesa de origen ya no hay nada que avisar y el aviso se borra.
+        order.tableNumber = toTableNumber;
+        const originalTableNumber = order.tableTransfer?.fromTableNumber ?? fromTableNumber;
+        if (originalTableNumber === toTableNumber) {
+            // set(undefined) es lo que genera el $unset en un path anidado;
+            // una asignación directa dejaría el objeto con sus claves vacías.
+            order.set('tableTransfer', undefined);
+        } else {
+            order.tableTransfer = {
+                fromTableNumber: originalTableNumber,
+                toTableNumber,
+                at: new Date(),
+            };
+        }
+        await order.save();
+
+        const affectedIds = [target._id.toString(), ...releasedIds];
+        const populatedTables = await populateForBroadcast(
+            Table.find({ _id: { $in: affectedIds } })
+        );
+
+        const populatedOrder = await Order.findById(order._id)
+            .populate('foods.food', 'title price category extraSections')
+            .populate('deletedFoods.food', 'title price extraSections')
+            .populate('buyer', 'name phone')
+            .populate('waiter', 'userName name')
+            .lean();
+
+        try {
+            const io = getIO();
+            const senderSocketId = req.headers['x-socket-id'] || null;
+
+            // Va PRIMERO a propósito: la mesa de origen queda disponible y sin
+            // pedido, así que el table:updated siguiente es indistinguible de un
+            // cierre. Quien esté parado en esa mesa necesita saber antes que se
+            // trata de un traslado para irse a la mesa nueva y no a la lista.
+            io.to(`restaurant:${req.restaurantId}`).emit('table:moved', {
+                fromTableId: source._id.toString(),
+                toTableId: target._id.toString(),
+                fromTableNumber,
+                toTableNumber,
+                order: populatedOrder,
+                _fromSocketId: senderSocketId,
+            });
+
+            populatedTables.forEach((t) => emitTableUpdated(req.restaurantId, t));
+
+            // El KDS se alimenta del pedido: sin esto seguiría mostrando la mesa vieja.
+            io.to(`restaurant:${req.restaurantId}`).emit('order:updated', {
+                order: populatedOrder,
+                _fromSocketId: senderSocketId,
+            });
+        } catch (socketErr) {
+            console.error('Error emitiendo sockets de traslado de mesa:', socketErr.message);
+        }
+
+        res.json({
+            tables: populatedTables,
+            order: populatedOrder,
+            fromTableId: source._id,
+            toTableId: target._id,
+            fromTableNumber,
+            toTableNumber,
+        });
+    } catch (error) {
+        console.error('Error al mover la mesa:', error);
+        res.status(500).json({ message: 'Error al mover la mesa', error: error.message });
+    }
+};
+
 module.exports = {
     getTables,
     getTableById,
@@ -661,4 +837,5 @@ module.exports = {
     assignWaiterToTable,
     mergeTables,
     splitTable,
+    moveTable,
 };

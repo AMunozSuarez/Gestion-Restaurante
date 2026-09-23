@@ -20,6 +20,7 @@ const RESTAURANT_SETTINGS_STORAGE_KEYS = {
   printOnDeletedItemsUpdate: 'printOnDeletedItemsUpdate',
   onlyOwnerCanCloseTable: 'onlyOwnerCanCloseTable',
   onlyOwnerCanDeleteOrderItems: 'onlyOwnerCanDeleteOrderItems',
+  onlyOwnerCanMoveTable: 'onlyOwnerCanMoveTable',
   kitchenDisplayRequireReadyToClose: 'kitchenDisplayRequireReadyToClose',
   kitchenDisplayRequireAllItemsReady: 'kitchenDisplayRequireAllItemsReady',
   kitchenDisplayOnlyOwnerCanMarkReady: 'kitchenDisplayOnlyOwnerCanMarkReady',
@@ -40,6 +41,7 @@ const DEFAULT_RESTAURANT_SETTINGS = {
   printOnDeletedItemsUpdate: false,
   onlyOwnerCanCloseTable: false,
   onlyOwnerCanDeleteOrderItems: false,
+  onlyOwnerCanMoveTable: false,
   kitchenDisplayRequireReadyToClose: false,
   kitchenDisplayRequireAllItemsReady: false,
   kitchenDisplayOnlyOwnerCanMarkReady: false,
@@ -162,6 +164,10 @@ const normalizeRestaurantSettings = (settings = {}) => {
       permissions.onlyOwnerCanDeleteOrderItems ?? settings.onlyOwnerCanDeleteOrderItems,
       DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanDeleteOrderItems,
     ),
+    onlyOwnerCanMoveTable: parseBooleanValue(
+      permissions.onlyOwnerCanMoveTable ?? settings.onlyOwnerCanMoveTable,
+      DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanMoveTable,
+    ),
     kitchenDisplayRequireReadyToClose: parseBooleanValue(
       kitchenDisplay.requireReadyToClose ?? settings.kitchenDisplayRequireReadyToClose,
       DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayRequireReadyToClose,
@@ -222,6 +228,10 @@ const getRestaurantSettingsFromStorage = () => ({
   onlyOwnerCanDeleteOrderItems: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanDeleteOrderItems,
     DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanDeleteOrderItems,
+  ),
+  onlyOwnerCanMoveTable: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanMoveTable,
+    DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanMoveTable,
   ),
   kitchenDisplayRequireReadyToClose: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayRequireReadyToClose,
@@ -297,6 +307,10 @@ const applyRestaurantSettingsLocally = (settings = {}) => {
       String(Boolean(normalized.onlyOwnerCanDeleteOrderItems)),
     );
     localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanMoveTable,
+      String(Boolean(normalized.onlyOwnerCanMoveTable)),
+    );
+    localStorage.setItem(
       RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayRequireReadyToClose,
       String(Boolean(normalized.kitchenDisplayRequireReadyToClose)),
     );
@@ -360,6 +374,7 @@ const buildRestaurantSettingsPayload = (settings = {}) => {
     permissions: {
       onlyOwnerCanCloseTable: normalized.onlyOwnerCanCloseTable,
       onlyOwnerCanDeleteOrderItems: normalized.onlyOwnerCanDeleteOrderItems,
+      onlyOwnerCanMoveTable: normalized.onlyOwnerCanMoveTable,
       drawerConfigOwnerOnly: normalized.drawerConfigOwnerOnly,
     },
     kitchenDisplay: {
@@ -749,6 +764,19 @@ la fuente esta configurada bien.
     });
   },
 
+  // Obtener si solo el dueño puede mover la cuenta de una mesa a otra
+  getOnlyOwnerCanMoveTable() {
+    return getRestaurantSettingsSnapshot().onlyOwnerCanMoveTable;
+  },
+
+  // Guardar preferencia para permitir mover mesas solo a owner
+  setOnlyOwnerCanMoveTable(enabled) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      onlyOwnerCanMoveTable: Boolean(enabled),
+    });
+  },
+
   // Obtener si se requiere que el pedido esté marcado como listo en el KDS para poder cerrarlo
   getKitchenDisplayRequireReadyToClose() {
     return getRestaurantSettingsSnapshot().kitchenDisplayRequireReadyToClose;
@@ -805,6 +833,19 @@ la fuente esta configurada bien.
   canCurrentUserMarkOrderReady() {
     const onlyOwnerCanMarkReady = this.getKitchenDisplayOnlyOwnerCanMarkReady();
     if (!onlyOwnerCanMarkReady) return true;
+
+    try {
+      const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+      return localUser?.role === 'owner' || localUser?.role === 'super_admin';
+    } catch {
+      return false;
+    }
+  },
+
+  // Verificar si el usuario actual puede mover la cuenta de una mesa a otra
+  canCurrentUserMoveTable() {
+    const onlyOwnerCanMove = this.getOnlyOwnerCanMoveTable();
+    if (!onlyOwnerCanMove) return true;
 
     try {
       const localUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -1081,6 +1122,117 @@ la fuente esta configurada bien.
     } catch {
       // No-op si localStorage no está disponible
     }
+  },
+
+  // Un traslado se identifica por el instante en que ocurrió: el mismo equipo
+  // puede imprimirlo al confirmarlo y recibir además el eco del socket, y varias
+  // pestañas del mismo navegador comparten esta marca.
+  shouldSkipTableMovePrint(orderId, movedAt) {
+    if (!orderId || !movedAt) return false;
+    try {
+      return localStorage.getItem(`lastTableMovePrint:${orderId}`) === String(movedAt);
+    } catch {
+      return false;
+    }
+  },
+
+  markTableMovePrint(orderId, movedAt) {
+    if (!orderId || !movedAt) return;
+    try {
+      localStorage.setItem(`lastTableMovePrint:${orderId}`, String(movedAt));
+    } catch {
+      // No-op si localStorage no está disponible
+    }
+  },
+
+  // Generar aviso de cambio de mesa. Cocina ya tiene en mano la comanda con el
+  // número viejo, así que el aviso repite los productos para que puedan
+  // emparejarlo con el papel correcto antes de despachar.
+  generateKitchenTableMoveOrder(order, options = {}) {
+    const date = new Date();
+    const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
+    const fromTableNumber = options.fromTableNumber ?? order.tableTransfer?.fromTableNumber ?? '';
+    const toTableNumber = options.toTableNumber ?? order.tableTransfer?.toTableNumber ?? order.tableNumber ?? '';
+
+    let waiterName = '';
+    if (order.waiter && typeof order.waiter === 'object') {
+      waiterName = normalizeText(order.waiter.userName || order.waiter.name || '');
+    } else if (order.waiterName) {
+      waiterName = normalizeText(order.waiterName);
+    }
+
+    let content = `
+================================
+     *** CAMBIO DE MESA ***
+================================
+
+No. Orden: #${orderNumber}
+`;
+
+    content += `[BOLD]DE:  Mesa ${fromTableNumber}
+A:   Mesa ${toTableNumber}
+[/BOLD]
+`;
+
+    if (waiterName) content += `Garzon: ${waiterName}\n`;
+    content += `Hora: ${date.toLocaleTimeString()}\n`;
+
+    const items = Array.isArray(order.foods) ? order.foods : [];
+    if (items.length > 0) {
+      content += `
+================================
+           PRODUCTOS
+================================
+
+`;
+      items.forEach((item) => {
+        const name = normalizeText(item.food?.title || item.food?.name || item.name || 'Producto');
+        content += `- ${item.quantity || 1}x ${name}\n`;
+      });
+    }
+
+    content += `
+================================`;
+
+    return content.trim();
+  },
+
+  // Imprimir aviso de cambio de mesa (misma estrategia de destino que la cancelacion:
+  // el aviso tiene que llegar a todas las estaciones que ya recibieron la comanda)
+  async printKitchenTableMoveOrder(order, options = {}) {
+    const content = this.generateKitchenTableMoveOrder(order, options);
+    const defaultPrinter = this.getDefaultPrinter();
+
+    if (defaultPrinter) {
+      return this.print(defaultPrinter, content, 1, true);
+    }
+
+    if (printerConfigService.hasMultiPrinterConfig()) {
+      const printerRoles = printerConfigService.getPrinterRoles();
+      const uniquePrinters = [...new Set(Object.values(printerRoles).filter(Boolean))];
+
+      if (uniquePrinters.length > 0) {
+        const results = [];
+        for (const printerName of uniquePrinters) {
+          try {
+            const result = await this.print(printerName, content, 1, true);
+            results.push({ printerName, ...result });
+          } catch (err) {
+            results.push({ printerName, success: false, error: err.message });
+          }
+        }
+
+        const allSuccess = results.every(r => r.success);
+        return {
+          success: allSuccess,
+          data: results,
+          error: allSuccess ? null : 'Algunos avisos de cambio de mesa no se pudieron imprimir',
+          details: results,
+        };
+      }
+    }
+
+    return this.printWithDefault(content, 1, true);
   },
 
   // Generar comanda de cancelacion (solo productos eliminados)

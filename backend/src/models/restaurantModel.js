@@ -13,6 +13,7 @@ const RESTAURANT_SETTINGS_DEFAULTS = Object.freeze({
     permissions: {
         onlyOwnerCanCloseTable: false,
         onlyOwnerCanDeleteOrderItems: false,
+        onlyOwnerCanMoveTable: false,
     },
     inventory: {
         enabled: false,
@@ -66,6 +67,7 @@ const normalizeRestaurantSettings = (settings = {}) => {
         permissions: {
             onlyOwnerCanCloseTable: Boolean(settings?.permissions?.onlyOwnerCanCloseTable),
             onlyOwnerCanDeleteOrderItems: Boolean(settings?.permissions?.onlyOwnerCanDeleteOrderItems),
+            onlyOwnerCanMoveTable: Boolean(settings?.permissions?.onlyOwnerCanMoveTable),
         },
         inventory: {
             enabled: Boolean(settings?.inventory?.enabled),
@@ -173,6 +175,10 @@ const restaurantSchema = new mongoose.Schema({
             onlyOwnerCanDeleteOrderItems: {
                 type: Boolean,
                 default: RESTAURANT_SETTINGS_DEFAULTS.permissions.onlyOwnerCanDeleteOrderItems,
+            },
+            onlyOwnerCanMoveTable: {
+                type: Boolean,
+                default: RESTAURANT_SETTINGS_DEFAULTS.permissions.onlyOwnerCanMoveTable,
             },
         },
         inventory: {

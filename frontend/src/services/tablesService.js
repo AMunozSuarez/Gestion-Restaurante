@@ -132,6 +132,17 @@ const tablesService = {
             throw error;
         }
     },
+
+    // Trasladar la cuenta activa de una mesa a otra mesa disponible
+    moveTable: async (id, targetTableId) => {
+        try {
+            const response = await api.post(`/tables/${id}/move`, { targetTableId });
+            return response.data;
+        } catch (error) {
+            console.error('Error al mover la mesa:', error);
+            throw error;
+        }
+    },
 };
 
 export default tablesService;

@@ -105,6 +105,32 @@ const SocketOrderPrinter = () => {
       }
     });
 
+    // Aviso de cambio de mesa. Cubre sobre todo los traslados hechos desde la app
+    // de meseros, que no tiene impresora propia: el papel que cocina ya tiene en
+    // mano lleva el número de mesa viejo.
+    const unsubTableMoved = onSocketEvent('table:moved', async ({ order, fromTableNumber, toTableNumber, _fromSocketId }) => {
+      if (!order) return;
+      if (_fromSocketId && _fromSocketId === getSocketId()) return;
+
+      const hasProducts = Array.isArray(order.foods) && order.foods.length > 0;
+      if (!hasProducts) return;
+      if (order.status === 'Completado' || order.status === 'Cancelado') return;
+      if (!canPrint()) return;
+
+      const orderId = order._id || order.id;
+      const movedAt = order.tableTransfer?.at;
+      if (printingService.shouldSkipTableMovePrint(orderId, movedAt)) return;
+
+      try {
+        const result = await printingService.printKitchenTableMoveOrder(order, { fromTableNumber, toTableNumber });
+        if (result?.success) {
+          printingService.markTableMovePrint(orderId, movedAt);
+        }
+      } catch (err) {
+        console.error('Error al imprimir aviso de cambio de mesa:', err);
+      }
+    });
+
     const unsubTicket = onSocketEvent('ticket:print', ({ order, _fromSocketId }) => {
       if (!order) return;
       if (_fromSocketId && _fromSocketId === getSocketId()) return;
@@ -130,6 +156,7 @@ const SocketOrderPrinter = () => {
     return () => {
       unsubCreated();
       unsubUpdated();
+      unsubTableMoved();
       unsubTicket();
       unsubCashRegisterReport();
     };

@@ -137,6 +137,15 @@ const orderSchema = new mongoose.Schema({
         type: Date,
         default: null,
     },
+    // La cuenta se trasladó a otra mesa. Cocina ya tiene una comanda impresa con
+    // el número viejo, así que `fromTableNumber` conserva SIEMPRE el número
+    // original (no el de un traslado intermedio) y solo se actualiza el destino.
+    // Si el pedido vuelve a su mesa original el campo se limpia por completo.
+    tableTransfer: {
+        fromTableNumber: { type: Number },
+        toTableNumber: { type: Number },
+        at: { type: Date },
+    },
     deletedFoods: [
         {
             food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food' },
