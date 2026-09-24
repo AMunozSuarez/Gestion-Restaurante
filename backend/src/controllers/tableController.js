@@ -10,6 +10,7 @@ const getTables = async (req, res) => {
         const tables = await Table.find({ restaurant: req.restaurantId })
             .populate('currentOrder')
             .populate('waiter', 'userName email')
+            .populate('tag', 'name color')
             .populate('mergedGroup', 'tableNumber')
             .sort({ tableNumber: 1 });
 
@@ -35,6 +36,7 @@ const getTableById = async (req, res) => {
                 ]
             })
             .populate('waiter', 'userName email')
+            .populate('tag', 'name color')
             .populate('mergedGroup', 'tableNumber');
 
         if (!table) {
@@ -82,7 +84,7 @@ const createTable = async (req, res) => {
 // Actualizar mesa
 const updateTable = async (req, res) => {
     try {
-        const { tableNumber, capacity, status, position, currentGuests, section } = req.body;
+        const { tableNumber, capacity, status, position, currentGuests, section, tag } = req.body;
         
         const table = await Table.findOne({ 
             _id: req.params.id, 
@@ -112,9 +114,14 @@ const updateTable = async (req, res) => {
         if (position !== undefined) table.position = position;
         if (currentGuests !== undefined) table.currentGuests = currentGuests;
         if (section !== undefined) table.section = section;
-        
+        if (tag !== undefined) table.tag = tag || null;
+
         await table.save();
-        res.json(table);
+        const populatedTable = await Table.findById(table._id)
+            .populate('waiter', 'userName email')
+            .populate('tag', 'name color')
+            .populate('mergedGroup', 'tableNumber');
+        res.json(populatedTable);
     } catch (error) {
         console.error('Error al actualizar mesa:', error);
         res.status(500).json({ message: 'Error al actualizar mesa', error: error.message });
@@ -149,7 +156,7 @@ const deleteTable = async (req, res) => {
 // Abrir mesa
 const openTable = async (req, res) => {
     try {
-        const { currentGuests, waiter } = req.body;
+        const { currentGuests, waiter, tag } = req.body;
 
         let table = await Table.findOne({
             _id: req.params.id,
@@ -176,11 +183,13 @@ const openTable = async (req, res) => {
         table.currentGuests = currentGuests || 0;
         table.openedAt = new Date();
         if (waiter) table.waiter = waiter;
-        
+        if (tag) table.tag = tag;
+
         await table.save();
-        
+
         const populatedTable = await Table.findById(table._id)
             .populate('waiter', 'userName email')
+            .populate('tag', 'name color')
             .populate('currentOrder')
             .populate('mergedGroup', 'tableNumber');
 
@@ -298,6 +307,7 @@ const closeTable = async (req, res) => {
                     .populate('deletedFoods.food', 'title price extraSections')
                     .populate('buyer', 'name phone')
                     .populate('waiter', 'userName name')
+                    .populate('tag', 'name color')
                     .lean();
                 if (populatedOrder) {
                     io.to(`restaurant:${req.restaurantId}`).emit('order:updated', {
@@ -339,6 +349,7 @@ const updateTablePositions = async (req, res) => {
         const updatedTables = await Table.find({ restaurant: req.restaurantId })
             .populate('currentOrder')
             .populate('waiter', 'userName email')
+            .populate('tag', 'name color')
             .populate('mergedGroup', 'tableNumber')
             .sort({ tableNumber: 1 });
         
@@ -382,6 +393,7 @@ const assignOrderToTable = async (req, res) => {
                     }
                 })
                 .populate('waiter', 'userName email')
+            .populate('tag', 'name color')
                 .populate('mergedGroup', 'tableNumber');
             return res.json(populatedTable);
         }
@@ -422,6 +434,7 @@ const assignOrderToTable = async (req, res) => {
                 }
             })
             .populate('waiter', 'userName email')
+            .populate('tag', 'name color')
             .populate('mergedGroup', 'tableNumber');
 
         try {
@@ -463,8 +476,9 @@ const assignWaiterToTable = async (req, res) => {
                     select: 'title price category extraSections'
                 }
             })
-            .populate('waiter', 'name email');
-        
+            .populate('waiter', 'name email')
+            .populate('tag', 'name color');
+
         res.json(populatedTable);
     } catch (error) {
         console.error('Error al asignar mesero:', error);
@@ -478,6 +492,7 @@ const populateForBroadcast = (query) => query
         populate: { path: 'foods.food', model: 'Food', select: 'title price category extraSections' },
     })
     .populate('waiter', 'userName email')
+    .populate('tag', 'name color')
     .populate('mergedGroup', 'tableNumber');
 
 const emitTableUpdated = (restaurantId, table) => {
@@ -780,6 +795,7 @@ const moveTable = async (req, res) => {
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         try {

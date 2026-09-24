@@ -5,12 +5,14 @@ import {
     ShoppingBagIcon,
     UserGroupIcon,
     MagnifyingGlassIcon,
+    BookmarkIcon,
 } from '@heroicons/react/24/outline';
 import ReporteDashboard from '../components/reports/ReporteDashboard';
 import ReporteVentas from '../components/reports/ReporteVentas';
 import ReporteProductos from '../components/reports/ReporteProductos';
 import ReporteClientes from '../components/reports/ReporteClientes';
 import ReporteProductoDetalle from '../components/reports/ReporteProductoDetalle';
+import ReporteEtiquetas from '../components/reports/ReporteEtiquetas';
 
 const tabs = [
     { id: 'dashboard', label: 'Resumen', icon: PresentationChartBarIcon },
@@ -18,6 +20,7 @@ const tabs = [
     { id: 'productos', label: 'Productos', icon: ShoppingBagIcon },
     { id: 'producto-detalle', label: 'Por Producto', icon: MagnifyingGlassIcon },
     { id: 'clientes', label: 'Clientes', icon: UserGroupIcon },
+    { id: 'etiquetas', label: 'Etiquetas', icon: BookmarkIcon },
 ];
 
 const Reportes = () => {
@@ -30,6 +33,7 @@ const Reportes = () => {
             case 'productos': return <ReporteProductos />;
             case 'producto-detalle': return <ReporteProductoDetalle />;
             case 'clientes': return <ReporteClientes />;
+            case 'etiquetas': return <ReporteEtiquetas />;
             default: return <ReporteDashboard />;
         }
     };

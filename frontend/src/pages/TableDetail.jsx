@@ -5,6 +5,7 @@ import { useOrders } from '../hooks/useOrders';
 import { useProducts, useProductSearch } from '../hooks/useProducts';
 import { useCashRegister } from '../store/CashRegisterContext';
 import { useWaiters } from '../hooks/useUsers';
+import { useTags } from '../hooks/useTags';
 import { useRestaurant } from '../hooks/useRestaurant';
 import { 
     ArrowLeftIcon, 
@@ -36,13 +37,14 @@ const TableDetail = () => {
     const { tableId } = useParams();
     const navigate = useNavigate();
     const { table, isLoading: tableLoading, refetch: refetchTable, closedElsewhere, movedElsewhere } = useTable(tableId);
-    const { tables, closeTable, assignOrderToTable, assignWaiterToTable, splitTable, moveTable } = useTables();
+    const { tables, closeTable, assignOrderToTable, assignWaiterToTable, updateTable, splitTable, moveTable } = useTables();
     const { user } = useAuth();
     const { isOpen: isCashOpen, isLoading: cashLoading } = useCashRegister();
     const { products } = useProducts({ available: true });
     const { searchResults, searchProducts } = useProductSearch();
     const { createOrder, updateOrder } = useOrders({ section: 'mesas' });
     const { waiters } = useWaiters();
+    const { activeTags } = useTags();
     const { restaurant } = useRestaurant();
 
     const kitchenDisplayEnabled = Boolean(restaurant?.settings?.kitchenDisplay?.enabled);
@@ -70,6 +72,8 @@ const TableDetail = () => {
     const selfClosingRef = useRef(false);
     const [showWaiterModal, setShowWaiterModal] = useState(false);
     const [selectedWaiter, setSelectedWaiter] = useState(null);
+    const [showTagModal, setShowTagModal] = useState(false);
+    const [selectedTag, setSelectedTag] = useState(null);
     const [showDiscountFields, setShowDiscountFields] = useState(false);
     const [discountType, setDiscountType] = useState('percentage');
     const [discountValue, setDiscountValue] = useState(0);
@@ -308,6 +312,11 @@ const TableDetail = () => {
         if (table?.waiter) {
             setSelectedWaiter(table.waiter._id);
         }
+    }, [table]);
+
+    // Inicializar etiqueta seleccionada
+    useEffect(() => {
+        setSelectedTag(table?.tag?._id || null);
     }, [table]);
 
     // La mesa se cerró desde otro dispositivo. Seguir aquí significaría operar
@@ -856,6 +865,7 @@ const TableDetail = () => {
                 comment: comments,
                 tableNumber: table.tableNumber,
                 waiter: table.waiter?._id || null,
+                tag: table.tag?._id || null,
                 tip: 0  // Sin propina al enviar a cocina
             };
 
@@ -1146,6 +1156,7 @@ const TableDetail = () => {
                 comment: comments,
                 tableNumber: table.tableNumber,
                 waiter: table.waiter?._id || null,
+                tag: table.tag?._id || null,
                 tip: totalTip || 0,
                 discount: calculateDiscountAmount(),
                 ...buildSplitPayload()
@@ -1318,6 +1329,18 @@ const TableDetail = () => {
         }
     };
 
+    // Asignar etiqueta a la mesa
+    const handleAssignTag = async () => {
+        try {
+            await updateTable(tableId, { tag: selectedTag || null });
+            await refetchTable();
+            setShowTagModal(false);
+            showNotification('Etiqueta actualizada exitosamente', 'success');
+        } catch (error) {
+            showNotification('Error al actualizar la etiqueta: ' + error.message, 'error');
+        }
+    };
+
     // Lógica de productos (debe estar antes de los early returns)
     const displayProducts = searchTerm.trim() ? searchResults : products;
 
@@ -1431,6 +1454,15 @@ const TableDetail = () => {
                                             className="text-teal-600 hover:text-teal-700 font-medium"
                                         >
                                             {table.waiter ? `Mesero: ${table.waiter.userName}` : 'Asignar mesero'}
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={() => setShowTagModal(true)}
+                                            className={table.tag ? 'font-medium hover:opacity-80' : 'text-teal-600 hover:text-teal-700 font-medium'}
+                                            style={table.tag ? { color: table.tag.color || '#0d9488' } : undefined}
+                                        >
+                                            {table.tag ? `Etiqueta: ${table.tag.name}` : 'Asignar etiqueta'}
                                         </button>
                                     </div>                                </div>
                             </div>
@@ -2054,6 +2086,54 @@ const TableDetail = () => {
                             </Button>
                             <Button
                                 onClick={handleAssignWaiter}
+                                className="flex-1 bg-teal-600 hover:bg-teal-700"
+                            >
+                                Asignar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Asignar Etiqueta */}
+            {showTagModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">
+                            Asignar Etiqueta a Mesa {table.tableNumber}
+                        </h3>
+
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Seleccionar Etiqueta
+                            </label>
+                            <select
+                                value={selectedTag || ''}
+                                onChange={(e) => setSelectedTag(e.target.value || null)}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                            >
+                                <option value="">Sin etiqueta</option>
+                                {activeTags.map(tag => (
+                                    <option key={tag._id} value={tag._id}>
+                                        {tag.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Button
+                                onClick={() => {
+                                    setShowTagModal(false);
+                                    setSelectedTag(table?.tag?._id || null);
+                                }}
+                                variant="outline"
+                                className="flex-1"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={handleAssignTag}
                                 className="flex-1 bg-teal-600 hover:bg-teal-700"
                             >
                                 Asignar

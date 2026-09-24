@@ -36,6 +36,11 @@ const tableSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
     },
+    tag: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Tag',
+        default: null,
+    },
     openedAt: {
         type: Date,
         default: null,

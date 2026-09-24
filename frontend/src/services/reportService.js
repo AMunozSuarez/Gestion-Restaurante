@@ -36,6 +36,17 @@ const reportService = {
         return response.data;
     },
 
+    // Reporte de ventas por etiqueta
+    getTagsReport: async ({ startDate, endDate, limit, tagIds } = {}) => {
+        const params = {};
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
+        if (limit) params.limit = limit;
+        if (tagIds) params.tagIds = tagIds;
+        const response = await api.get('/report/tags', { params });
+        return response.data;
+    },
+
     // Detalle de ventas de un producto específico
     getProductDetailReport: async ({ foodId, startDate, endDate } = {}) => {
         const params = {};

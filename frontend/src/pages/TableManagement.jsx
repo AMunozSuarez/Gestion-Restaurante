@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTables } from '../hooks/useTables';
 import { useCashRegister } from '../store/CashRegisterContext';
 import { useWaiters } from '../hooks/useUsers';
+import { useTags } from '../hooks/useTags';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import { 
     PlusIcon, 
@@ -74,6 +75,7 @@ const TableManagement = () => {
     const { tables, isLoading, createTable, updateTable, deleteTable, openTable, updateTablePositions, mergeTables, splitTable } = useTables();
     const { isOpen: isCashOpen, isLoading: cashLoading, openCashRegister } = useCashRegister();
     const { waiters } = useWaiters();
+    const { activeTags } = useTags();
     
     // Estados
     const [showCashAlert, setShowCashAlert] = useState(false);
@@ -90,6 +92,7 @@ const TableManagement = () => {
     const [tableToOpen, setTableToOpen] = useState(null);
     const [guestCount, setGuestCount] = useState(2);
     const [selectedWaiter, setSelectedWaiter] = useState(null);
+    const [selectedTag, setSelectedTag] = useState(null);
     const [draggedTable, setDraggedTable] = useState(null);
     const [dragOverPosition, setDragOverPosition] = useState(null);
     // Posiciones movidas durante el modo edición, aún no guardadas en el servidor: { [tableId]: {x, y} }
@@ -184,12 +187,18 @@ const TableManagement = () => {
             if (selectedWaiter) {
                 openTableData.waiter = selectedWaiter;
             }
-            
+
+            // Agregar etiqueta solo si se seleccionó una
+            if (selectedTag) {
+                openTableData.tag = selectedTag;
+            }
+
             await openTable(tableToOpen._id, openTableData);
             setShowOpenTableModal(false);
             setTableToOpen(null);
             setGuestCount(2);
             setSelectedWaiter(null);
+            setSelectedTag(null);
             showNotification('Mesa abierta exitosamente');
         } catch (error) {
             showNotification('Error al abrir mesa: ' + error.message, 'error');
@@ -1095,6 +1104,17 @@ const TableManagement = () => {
                                                                     <span>{table.mergedGroup.map(t => t.tableNumber).join(', ')}</span>
                                                                 </div>
                                                             )}
+
+                                                            {/* Badge de etiqueta */}
+                                                            {table.status === 'occupied' && table.tag && !isEditMode && (
+                                                                <div
+                                                                    className="flex items-center gap-1 text-[10px] mt-1 font-semibold px-1.5 py-0.5 rounded-full text-white truncate max-w-full"
+                                                                    style={{ backgroundColor: table.tag.color || '#0d9488' }}
+                                                                    title={table.tag.name}
+                                                                >
+                                                                    <span className="truncate">{table.tag.name}</span>
+                                                                </div>
+                                                            )}
                                                         </div>
 
                                                         {/* Conector visual hacia mesas unidas adyacentes en la grilla */}
@@ -1424,7 +1444,25 @@ const TableManagement = () => {
                                     <option value="">Sin mesero asignado</option>
                                     {waiters.map(waiter => (
                                         <option key={waiter._id} value={waiter._id}>
-                                            {waiter.userName} 
+                                            {waiter.userName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Etiqueta (Opcional)
+                                </label>
+                                <select
+                                    value={selectedTag || ''}
+                                    onChange={(e) => setSelectedTag(e.target.value || null)}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                >
+                                    <option value="">Sin etiqueta</option>
+                                    {activeTags.map(tag => (
+                                        <option key={tag._id} value={tag._id}>
+                                            {tag.name}
                                         </option>
                                     ))}
                                 </select>
@@ -1438,6 +1476,7 @@ const TableManagement = () => {
                                     setTableToOpen(null);
                                     setGuestCount(2);
                                     setSelectedWaiter(null);
+                                    setSelectedTag(null);
                                 }}
                                 variant="outline"
                                 className="flex-1"

@@ -13,7 +13,9 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
-  NoSymbolIcon
+  NoSymbolIcon,
+  BookmarkIcon,
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import printingService from '../services/printingService';
 import printerConfigService from '../services/printerConfigService';
@@ -2411,6 +2413,30 @@ pause
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'preferencias' && isOwnerOrAdmin && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-start gap-3">
+                <BookmarkIcon className="w-6 h-6 text-brown-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Etiquetas</p>
+                  <p className="text-xs text-gray-600 mt-1 max-w-md">
+                    Marca mesas y ventas con una categoría propia (empresas, eventos, promociones, etc.) para llevar el control por separado en Reportes. Es una función opcional.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/etiquetas')}
+                className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex-shrink-0"
+              >
+                Gestionar etiquetas
+                <ArrowRightIcon className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 

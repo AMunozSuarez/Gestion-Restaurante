@@ -104,6 +104,11 @@ const orderSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User', // Mesero asignado a la orden
     },
+    tag: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Tag', // Etiqueta asociada a la venta
+        default: null,
+    },
     tip: {
         type: Number,
         default: 0, // Propina

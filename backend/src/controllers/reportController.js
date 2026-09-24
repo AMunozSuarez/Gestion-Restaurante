@@ -716,6 +716,109 @@ const getProductDetailReport = async (req, res) => {
     }
 };
 
+// ─── 6. Reporte de Ventas por Etiqueta ────────────────────────────────────────
+
+const getTagsReport = async (req, res) => {
+    try {
+        const { startDate, endDate, limit = 20, tagIds } = req.query;
+        const restaurantId = new mongoose.Types.ObjectId(req.user.restaurant);
+
+        const matchStage = {
+            restaurant: restaurantId,
+            status: { $in: ['Completado', 'Enviado'] }
+        };
+
+        const dateFilter = buildDateFilter(startDate, endDate);
+        if (dateFilter) matchStage.createdAt = dateFilter;
+
+        // Ventas agrupadas por etiqueta
+        const salesByTag = await orderModel.aggregate([
+            { $match: { ...matchStage, tag: { $exists: true, $ne: null } } },
+            {
+                $group: {
+                    _id: '$tag',
+                    totalSpent: { $sum: '$total' },
+                    orderCount: { $sum: 1 },
+                    avgTicket: { $avg: '$total' },
+                    lastOrder: { $max: '$createdAt' },
+                }
+            },
+            { $sort: { totalSpent: -1 } },
+            { $limit: parseInt(limit) },
+            {
+                $lookup: {
+                    from: 'tags',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'tag'
+                }
+            },
+            { $unwind: { path: '$tag', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 1,
+                    totalSpent: 1,
+                    orderCount: 1,
+                    avgTicket: 1,
+                    lastOrder: 1,
+                    tag: {
+                        name: '$tag.name',
+                        color: '$tag.color',
+                    }
+                }
+            }
+        ]);
+
+        // Ventas con etiqueta vs sin etiqueta
+        const orderDistribution = await orderModel.aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: {
+                        $cond: [{ $ifNull: ['$tag', false] }, 'con_etiqueta', 'sin_etiqueta']
+                    },
+                    count: { $sum: 1 },
+                    total: { $sum: '$total' },
+                }
+            }
+        ]);
+
+        // Total combinado de una o varias etiquetas seleccionadas
+        let selectedTagsTotal = null;
+        if (tagIds) {
+            const ids = String(tagIds)
+                .split(',')
+                .map((id) => id.trim())
+                .filter((id) => mongoose.Types.ObjectId.isValid(id))
+                .map((id) => new mongoose.Types.ObjectId(id));
+
+            if (ids.length > 0) {
+                const combined = await orderModel.aggregate([
+                    { $match: { ...matchStage, tag: { $in: ids } } },
+                    {
+                        $group: {
+                            _id: null,
+                            totalSpent: { $sum: '$total' },
+                            orderCount: { $sum: 1 },
+                        }
+                    }
+                ]);
+                selectedTagsTotal = combined[0] || { totalSpent: 0, orderCount: 0 };
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            salesByTag,
+            orderDistribution,
+            selectedTagsTotal,
+        });
+    } catch (error) {
+        console.error('Error en getTagsReport:', error);
+        res.status(500).json({ success: false, message: 'Error al generar reporte de etiquetas', error: error.message });
+    }
+};
+
 
 module.exports = {
     getSalesReport,
@@ -723,4 +826,5 @@ module.exports = {
     getCustomersReport,
     getDashboardReport,
     getProductDetailReport,
+    getTagsReport,
 };

@@ -107,7 +107,7 @@ const mergeFoodsReadyState = (previousFoods = [], nextFoods = []) => {
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, tableId, waiter, tip, discount, splitMeta, splitAccounts } = req.body;
+        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, tableId, waiter, tag, tip, discount, splitMeta, splitAccounts } = req.body;
 
         const restaurantId = req.user.restaurant;
         const foodIds = foods.map((item) => item.food);
@@ -314,6 +314,7 @@ const createOrderController = async (req, res) => {
             selectedAddress: customer ? selectedAddress : null,
             tableNumber: tableNumber || null,
             waiter: waiter || null,
+            tag: tag || null,
             tip: tip || 0,
             discount: discount || 0,
             section,
@@ -357,7 +358,8 @@ const createOrderController = async (req, res) => {
                         model: 'Food'
                     }
                 })
-                .populate('waiter', 'userName email');
+                .populate('waiter', 'userName email')
+                .populate('tag', 'name color');
         }
 
         // ── Paso 5: Populate en el documento ya guardado (evita un findById extra) ──
@@ -365,6 +367,7 @@ const createOrderController = async (req, res) => {
             { path: 'foods.food', select: 'title price category' },
             { path: 'buyer', select: 'name phone' },
             { path: 'waiter', select: 'userName name' },
+            { path: 'tag', select: 'name color' },
         ]);
 
         // Emit socket events for real-time updates
@@ -428,6 +431,7 @@ const getAllOrdersController = async (req, res) => {
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         if (limit) query = query.limit(Number(limit));
@@ -454,6 +458,7 @@ const getOrderByIdController = async (req, res) => {
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         if (!order) {
@@ -487,6 +492,7 @@ const getOrderByNumberController = async (req, res) => {
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         if (!order) {
@@ -503,7 +509,7 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, discount, deletedFoods, newFoods, splitMeta, splitAccounts, kitchenReadyAt, allowClosedEdit } = req.body;
+        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tag, tip, discount, deletedFoods, newFoods, splitMeta, splitAccounts, kitchenReadyAt, allowClosedEdit } = req.body;
 
         const restaurantId = req.user.restaurant;
         const isPrivilegedUser = isOwnerOrSuperAdmin(req.user?.role);
@@ -623,6 +629,7 @@ const updateOrderController = async (req, res) => {
         if (comment !== undefined) updateData.comment = comment;
         if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
         if (waiter !== undefined) updateData.waiter = waiter;
+        if (tag !== undefined) updateData.tag = tag || null;
         if (tip !== undefined) updateData.tip = tip;
         if (discount !== undefined) updateData.discount = discount;
         if (splitMeta !== undefined) updateData.splitMeta = splitMeta;
@@ -815,6 +822,7 @@ const updateOrderController = async (req, res) => {
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         if (!populatedOrder) {
@@ -903,6 +911,7 @@ const updateOrderItemReadyController = async (req, res) => {
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         try {
@@ -978,7 +987,7 @@ const deleteOrderController = async (req, res) => {
 
 const getFilteredOrders = async (req, res) => {
     try {
-        const { date, status, paymentMethod } = req.query;
+        const { date, status, paymentMethod, tag } = req.query;
         const { cashRegisterId } = req.params; // Obtener el ID de la caja registradora desde los parámetros
 
         const filters = {
@@ -1014,11 +1023,17 @@ const getFilteredOrders = async (req, res) => {
             filters.payment = paymentMethod;
         }
 
+        // Filtrar por etiqueta
+        if (tag) {
+            filters.tag = tag;
+        }
+
         const orders = await orderModel.find(filters)
             .sort({ createdAt: -1 })
             .populate('foods.food', 'title price extraSections')
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .populate('buyer', 'name phone')
             .populate('cashRegister', 'dateOpened dateClosed status')
             .lean();
@@ -1109,6 +1124,7 @@ const getSectionOrders = async (req, res) => {
                 .populate('deletedFoods.food', 'title price extraSections')
                 .populate('buyer', 'name phone addresses')
                 .populate('waiter', 'userName name')
+                .populate('tag', 'name color')
                 .lean(),
             orderModel.find({ ...baseFilter, status: { $in: recentStatusList } })
                 .sort({ updatedAt: -1 })
@@ -1132,7 +1148,7 @@ const getSectionOrders = async (req, res) => {
 // GET ALL SALES (ALL ORDERS) FOR SALES PAGE - WITHOUT CASH REGISTER FILTER
 const getAllSalesController = async (req, res) => {
     try {
-        const { status, section, limit, sortBy = 'createdAt', dateFrom, dateTo, hasDeletedItems, page, paymentMethod } = req.query;
+        const { status, section, limit, sortBy = 'createdAt', dateFrom, dateTo, hasDeletedItems, page, paymentMethod, tag } = req.query;
 
         // Validar sortBy para seguridad
         const allowedSorts = ['createdAt', 'updatedAt', 'orderNumber'];
@@ -1158,6 +1174,9 @@ const getAllSalesController = async (req, res) => {
         }
         if (hasDeletedItems === 'true') {
             filters.hasDeletedItems = true;
+        }
+        if (tag) {
+            filters.tag = tag;
         }
 
         // Filtros de fecha en zona horaria de Chile
@@ -1198,6 +1217,7 @@ const getAllSalesController = async (req, res) => {
                 .populate('deletedFoods.food', 'title price extraSections')
                 .populate('buyer', 'name phone')
                 .populate('waiter', 'userName name')
+                .populate('tag', 'name color')
                 .lean(),
             orderModel.aggregate([
                 { $match: aggregateFilters },
@@ -1417,6 +1437,7 @@ const getTipsController = async (req, res) => {
         const tips = await orderModel.find(filters)
             .select('tip waiter buyer orderNumber total createdAt status section')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .populate('buyer', 'name')
             .sort({ createdAt: -1 })
             .lean();
@@ -1483,6 +1504,7 @@ const printTicketController = async (req, res) => {
             .populate('foods.food', 'title price extraSections')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         if (!order) {
