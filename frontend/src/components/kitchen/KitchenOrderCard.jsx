@@ -17,6 +17,7 @@ const KitchenOrderCard = ({
   order,
   now,
   onMarkReady,
+  onUnmarkReady,
   onToggleItemReady,
   checklistMode,
   canMarkReady,
@@ -258,18 +259,20 @@ const KitchenOrderCard = ({
 
       {interactive && isLastPart && (
         <button
-          onClick={() => onMarkReady(orderId)}
-          disabled={isReady || !canMarkReady || (checklistMode && !allItemsReady)}
-          title={markReadyDisabledReason}
+          onClick={() => (isReady ? onUnmarkReady?.(orderId) : onMarkReady(orderId))}
+          disabled={isReady ? !canMarkReady || !onUnmarkReady : !canMarkReady || (checklistMode && !allItemsReady)}
+          title={isReady && !canMarkReady ? markReadyDisabledReason : isReady ? 'Devolver el pedido a preparación' : markReadyDisabledReason}
           className={`${checklistMode ? '' : 'mt-2 '}py-4 rounded-lg text-lg font-bold transition-colors touch-manipulation ${
             isReady
-              ? 'bg-green-950 text-green-300 cursor-default'
+              ? canMarkReady && onUnmarkReady
+                ? 'bg-green-950 text-green-300 hover:bg-amber-600 hover:text-white'
+                : 'bg-green-950 text-green-300 cursor-default'
               : canMarkReady && (!checklistMode || allItemsReady)
                 ? 'bg-green-600 hover:bg-green-500 text-white'
                 : 'bg-gray-700 text-gray-400 cursor-not-allowed'
           }`}
         >
-          {isReady ? 'Listo' : checklistMode ? 'Confirmar Listo' : 'Marcar Listo'}
+          {isReady ? '↩ Volver a preparación' : checklistMode ? 'Confirmar Listo' : 'Marcar Listo'}
         </button>
       )}
     </div>

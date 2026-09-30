@@ -393,17 +393,19 @@ const KitchenDisplay = () => {
   // se mide después de renderizar (ver el efecto de abajo). La clave incluye la
   // cantidad de productos, así que si al pedido le agregan uno, ese pedido
   // vuelve a medirse solo, sin perturbar a los demás.
+  const tvViewContext = showReady ? 'ready' : 'active';
+  const tvOrders = showReady ? readyOrders : activeOrders;
   const [partSplits, setPartSplits] = useState({});
   const boardWrapRef = useRef(null);
 
   const getSplitKey = useCallback(
-    (order) => `${getOrderId(order)}:${order.foods?.length || 0}`,
-    []
+    (order) => `${tvViewContext}:${getOrderId(order)}:${order.foods?.length || 0}`,
+    [tvViewContext]
   );
 
   // Cambió algo que altera la altura de las tarjetas: las medidas anteriores ya
   // no valen y hay que volver a medir desde una parte.
-  const layoutSignature = `${screenConfig.columnWidth}:${screenConfig.scale}:${screenConfig.interactive}:${checklistMode}:${isTvMode}`;
+  const layoutSignature = `${screenConfig.columnWidth}:${screenConfig.scale}:${screenConfig.interactive}:${checklistMode}:${isTvMode}:${tvViewContext}`;
   useEffect(() => {
     setPartSplits({});
   }, [layoutSignature]);
@@ -414,12 +416,12 @@ const KitchenDisplay = () => {
   const boardCards = useMemo(() => {
     if (!isTvMode) return [];
 
-    return activeOrders.flatMap((order) => {
+    return tvOrders.flatMap((order) => {
       const items = getVisibleKitchenItems({
         order,
         items: normalizeKitchenItems(order),
         categoryIds: selectedCategoryIds,
-        viewContext: 'active',
+        viewContext: tvViewContext,
         checklistMode,
       });
       const splitKey = getSplitKey(order);
@@ -433,7 +435,7 @@ const KitchenDisplay = () => {
         part: parts.length > 1 ? { index: index + 1, total: parts.length } : null,
       }));
     });
-  }, [isTvMode, activeOrders, selectedCategoryIds, checklistMode, partSplits, getSplitKey]);
+  }, [isTvMode, tvOrders, tvViewContext, selectedCategoryIds, checklistMode, partSplits, getSplitKey]);
 
   // Mide lo que realmente pasó: si el navegador cortó una tarjeta entre columnas,
   // ese pedido se reparte en una parte más y se vuelve a medir. Converge porque
@@ -481,6 +483,28 @@ const KitchenDisplay = () => {
         prev.map((o) => (getOrderId(o) === orderId ? { ...o, kitchenReadyAt: null } : o))
       );
       setError(err.message || 'Error al marcar el pedido como listo');
+    }
+  };
+
+  // Devuelve un pedido listo a preparación (se marcó por error o hay que rehacerlo).
+  const handleUnmarkReady = async (orderId) => {
+    markOwnUpdate(orderId);
+    markTouched(orderId);
+    const previous = ordersRef.current.find((o) => getOrderId(o) === orderId);
+    const previousReadyAt = previous?.kitchenReadyAt || null;
+    pendingOrderReadyRef.current[orderId] = { value: false, at: Date.now() };
+    setOrders((prev) =>
+      prev.map((o) => (getOrderId(o) === orderId ? { ...o, kitchenReadyAt: null } : o))
+    );
+
+    try {
+      await ordersService.updateOrderWithoutPrint(orderId, { kitchenReadyAt: null });
+    } catch (err) {
+      delete pendingOrderReadyRef.current[orderId];
+      setOrders((prev) =>
+        prev.map((o) => (getOrderId(o) === orderId ? { ...o, kitchenReadyAt: previousReadyAt } : o))
+      );
+      setError(err.message || 'Error al devolver el pedido a preparación');
     }
   };
 
@@ -560,6 +584,7 @@ const KitchenDisplay = () => {
         order={order}
         now={now}
         onMarkReady={handleMarkReady}
+        onUnmarkReady={handleUnmarkReady}
         onToggleItemReady={handleToggleItemReady}
         checklistMode={checklistMode}
         canMarkReady={canMarkReady}
@@ -608,6 +633,15 @@ const KitchenDisplay = () => {
             <span className="px-3 py-1 rounded-full text-lg font-bold bg-amber-500 text-gray-900">
               {isLoading ? 'Cargando…' : `${activeOrders.length} en preparación`}
             </span>
+            <button
+              onClick={() => setShowReady((prev) => !prev)}
+              disabled={!showReady && readyOrders.length === 0}
+              className={`px-3 py-1 rounded-full text-lg font-bold transition-colors touch-manipulation ${
+                showReady ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              } disabled:opacity-50 disabled:cursor-default`}
+            >
+              {showReady ? '← Volver a preparación' : `✓ Listos (${readyOrders.length})`}
+            </button>
             {settingsButton}
             {/* En un TV colgado nadie va a cerrar sesión, pero si alguien usa
                 este layout en una tablet sí necesita poder salir. */}
@@ -746,8 +780,10 @@ const KitchenDisplay = () => {
 
       {isTvMode ? (
         <div ref={boardWrapRef} className="flex-1 min-h-0 px-6 pb-6">
-          {activeOrders.length === 0 ? (
-            <p className="text-gray-400 text-2xl text-center mt-12">{emptyMessage}</p>
+          {tvOrders.length === 0 ? (
+            <p className="text-gray-400 text-2xl text-center mt-12">
+              {showReady ? 'No hay pedidos listos' : emptyMessage}
+            </p>
           ) : (
             <KdsBoard
               columnWidth={screenConfig.columnWidth}
@@ -767,11 +803,12 @@ const KitchenDisplay = () => {
                     order={card.order}
                     now={now}
                     onMarkReady={handleMarkReady}
+                    onUnmarkReady={handleUnmarkReady}
                     onToggleItemReady={handleToggleItemReady}
                     checklistMode={checklistMode}
                     canMarkReady={canMarkReady}
                     selectedCategoryIds={selectedCategoryIds}
-                    viewContext="active"
+                    viewContext={tvViewContext}
                     interactive={screenConfig.interactive}
                     itemsOverride={card.items}
                     part={card.part}
