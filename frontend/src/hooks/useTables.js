@@ -271,6 +271,28 @@ export const useTable = (tableId) => {
         return unsub;
     }, [tableId]);
 
+    // Otro equipo unió las mesas: la cuenta ahora vive en la principal con todos los
+    // productos. Si esta pantalla es la principal se recarga; si es una secundaria
+    // se lleva al usuario a la principal (mismo camino que un traslado).
+    useEffect(() => {
+        if (!tableId) return undefined;
+
+        const unsub = onSocketEvent('table:merged', (payload) => {
+            if (!payload || !Array.isArray(payload.tableIds)) return;
+            if (!payload.tableIds.map(String).includes(String(tableId))) return;
+
+            if (String(payload.primaryTableId) === String(tableId)) {
+                fetchTable();
+                return;
+            }
+            const moved = { toTableId: payload.primaryTableId, toTableNumber: payload.intoTableNumber, merged: true };
+            movedElsewhereRef.current = moved;
+            setMovedElsewhere(moved);
+        });
+
+        return unsub;
+    }, [tableId, fetchTable]);
+
     // El detalle de mesa sólo escuchaba order:updated, así que un cierre hecho en
     // otro equipo (POS, app de meseros) no llegaba nunca a esta pantalla.
     useEffect(() => {

@@ -151,6 +151,14 @@ const orderSchema = new mongoose.Schema({
         toTableNumber: { type: Number },
         at: { type: Date },
     },
+    // Varias cuentas se unieron en una sola. Cocina ya tiene comandas impresas con
+    // los números de mesa originales (`tableNumbers`); `intoTableNumber` es la
+    // mesa principal donde quedó la cuenta única.
+    tableMerge: {
+        tableNumbers: [{ type: Number }],
+        intoTableNumber: { type: Number },
+        at: { type: Date },
+    },
     deletedFoods: [
         {
             food: { type: mongoose.Schema.Types.ObjectId, ref: 'Food' },

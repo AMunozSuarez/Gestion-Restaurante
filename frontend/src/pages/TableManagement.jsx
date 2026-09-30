@@ -5,6 +5,7 @@ import { useCashRegister } from '../store/CashRegisterContext';
 import { useWaiters } from '../hooks/useUsers';
 import { useTags } from '../hooks/useTags';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
+import printingService from '../services/printingService';
 import { 
     PlusIcon, 
     PencilIcon, 
@@ -244,7 +245,26 @@ const TableManagement = () => {
     const confirmMergeTables = async () => {
         setIsMergeSubmitting(true);
         try {
-            await mergeTables(selectedForMerge);
+            const result = await mergeTables(selectedForMerge);
+
+            // Este equipo imprime el aviso directamente; los demás lo hacen al
+            // recibir table:merged.
+            const mergedOrder = result?.order;
+            const mergedAt = mergedOrder?.tableMerge?.at;
+            if (mergedAt && Array.isArray(mergedOrder.foods) && mergedOrder.foods.length > 0) {
+                const orderId = mergedOrder._id || mergedOrder.id;
+                if (!printingService.shouldSkipTableMergePrint(orderId, mergedAt)) {
+                    try {
+                        const printResult = await printingService.printKitchenTableMergeOrder(mergedOrder);
+                        if (printResult?.success) {
+                            printingService.markTableMergePrint(orderId, mergedAt);
+                        }
+                    } catch (printError) {
+                        console.error('Error al imprimir aviso de unión de mesas:', printError);
+                    }
+                }
+            }
+
             showNotification('Mesas unidas exitosamente');
             setShowMergeConfirmModal(false);
             setMergeMode(false);

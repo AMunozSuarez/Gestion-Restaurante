@@ -73,6 +73,17 @@ export const getTableMoveInfo = (order) => {
   return { from, to };
 };
 
+// Varias cuentas se unieron en una sola después de mandar las comandas: cocina
+// tiene papeles con los números de mesa originales y ahora hay un único pedido.
+export const getTableMergeInfo = (order) => {
+  const merge = order?.tableMerge;
+  if (!merge?.at) return null;
+  const tableNumbers = Array.isArray(merge.tableNumbers) ? merge.tableNumbers : [];
+  const into = merge.intoTableNumber;
+  if (tableNumbers.length === 0 || into === undefined || into === null) return null;
+  return { tableNumbers, into };
+};
+
 export const getItemCategoryId = (item) => {
   const category = item.food?.category;
   return (category && (category._id || category)) || null;

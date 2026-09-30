@@ -313,7 +313,10 @@ const KitchenDisplay = () => {
         const previousMovedAt = previous?.tableTransfer?.at ?? null;
         const movedAt = guardedOrder.tableTransfer?.at ?? null;
         const changedTable = !isNewHere && String(previousMovedAt) !== String(movedAt);
-        if ((isNewHere || wentBackToPreparation || changedTable) && shouldNotifyForOrder(guardedOrder)) {
+        const previousMergedAt = previous?.tableMerge?.at ?? null;
+        const mergedAt = guardedOrder.tableMerge?.at ?? null;
+        const mergedTables = !isNewHere && String(previousMergedAt) !== String(mergedAt);
+        if ((isNewHere || wentBackToPreparation || changedTable || mergedTables) && shouldNotifyForOrder(guardedOrder)) {
           playNewOrderSound();
         }
       }

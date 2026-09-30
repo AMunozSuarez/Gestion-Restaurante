@@ -531,29 +531,77 @@ const mergeTables = async (req, res) => {
         const primary = tables.reduce((min, t) => (t.tableNumber < min.tableNumber ? t : min), tables[0]);
         const secondaries = tables.filter((t) => t._id.toString() !== primary._id.toString());
 
-        // Resolver cuál orden activa (si alguna) queda como la compartida
+        // Recoger las órdenes activas de todas las mesas. La de la mesa principal
+        // (si tiene) es la que queda como cuenta compartida; las demás se absorben.
         const activeOrderStatuses = ['Completado', 'Cancelado'];
         const getActiveOrder = async (table) => {
             if (!table.currentOrder) return null;
-            const order = await Order.findById(table.currentOrder).select('status').lean();
+            const order = await Order.findOne({ _id: table.currentOrder, restaurant: req.restaurantId });
             if (order && !activeOrderStatuses.includes(order.status)) return order;
             return null;
         };
 
-        let sharedOrder = await getActiveOrder(primary);
-        if (!sharedOrder) {
-            const secondaryActiveOrders = [];
-            for (const secondary of secondaries) {
-                const activeOrder = await getActiveOrder(secondary);
-                if (activeOrder) secondaryActiveOrders.push({ secondary, activeOrder });
+        const activeOrders = [];
+        for (const table of [primary, ...secondaries]) {
+            const order = await getActiveOrder(table);
+            if (order) activeOrders.push({ table, order });
+        }
+
+        const sharedOrder = activeOrders.length > 0 ? activeOrders[0].order : null;
+        const absorbedOrders = activeOrders.slice(1).map((entry) => entry.order);
+
+        // Números de mesa con los que cocina ya recibió comandas (antes de tocar nada)
+        const originalTableNumbers = [...new Set(
+            activeOrders.map(({ table, order }) => order.tableNumber ?? table.tableNumber)
+        )];
+
+        if (sharedOrder) {
+            // Combinar todos los productos en la cuenta compartida. Se conservan el
+            // estado "ready" y addedAt de cada producto: cocina ya los recibió.
+            for (const absorbed of absorbedOrders) {
+                sharedOrder.foods.push(...absorbed.foods.map((item) => item.toObject()));
+                if (absorbed.deletedFoods?.length) {
+                    sharedOrder.deletedFoods.push(...absorbed.deletedFoods.map((item) => item.toObject()));
+                    sharedOrder.hasDeletedItems = true;
+                }
+                sharedOrder.total += absorbed.total || 0;
+                sharedOrder.discount += absorbed.discount || 0;
+                sharedOrder.tip += absorbed.tip || 0;
+                if (absorbed.comment) {
+                    sharedOrder.comment = [sharedOrder.comment, absorbed.comment].filter(Boolean).join(' | ');
+                }
+                if (!sharedOrder.waiter && absorbed.waiter) sharedOrder.waiter = absorbed.waiter;
+                if (!sharedOrder.tag && absorbed.tag) sharedOrder.tag = absorbed.tag;
             }
-            if (secondaryActiveOrders.length > 1) {
-                return res.status(409).json({
-                    message: 'Varias mesas seleccionadas tienen pedidos activos distintos. Cierra o unifica los pedidos antes de unir las mesas.',
-                });
+
+            // Con los productos de otra cuenta, las divisiones de cuenta previas ya no son válidas
+            if (absorbedOrders.length > 0) {
+                sharedOrder.splitMeta = { enabled: false, count: 0 };
+                sharedOrder.splitAccounts = [];
             }
-            if (secondaryActiveOrders.length === 1) {
-                sharedOrder = secondaryActiveOrders[0].activeOrder;
+
+            // Solo queda "lista" si TODAS las cuentas lo estaban
+            const allReady = activeOrders.every(({ order }) => Boolean(order.kitchenReadyAt));
+            if (!allReady) sharedOrder.kitchenReadyAt = null;
+
+            sharedOrder.tableNumber = primary.tableNumber;
+
+            const needsKitchenNotice = originalTableNumbers.length > 1
+                || originalTableNumbers[0] !== primary.tableNumber;
+            if (needsKitchenNotice) {
+                sharedOrder.tableMerge = {
+                    tableNumbers: originalTableNumbers,
+                    intoTableNumber: primary.tableNumber,
+                    at: new Date(),
+                };
+                // Un traslado previo ya no describe dónde está la cuenta
+                sharedOrder.set('tableTransfer', undefined);
+            }
+
+            await sharedOrder.save();
+
+            for (const absorbed of absorbedOrders) {
+                await Order.deleteOne({ _id: absorbed._id, restaurant: req.restaurantId });
             }
         }
 
@@ -583,7 +631,51 @@ const mergeTables = async (req, res) => {
 
         populatedTables.forEach((t) => emitTableUpdated(req.restaurantId, t));
 
-        res.json({ primaryTableId: primary._id, tables: populatedTables });
+        let populatedOrder = null;
+        if (sharedOrder) {
+            populatedOrder = await Order.findById(sharedOrder._id)
+                .populate('foods.food', 'title price category extraSections')
+                .populate('deletedFoods.food', 'title price extraSections')
+                .populate('buyer', 'name phone')
+                .populate('waiter', 'userName name')
+                .populate('tag', 'name color')
+                .lean();
+
+            try {
+                const io = getIO();
+                const room = `restaurant:${req.restaurantId}`;
+                const senderSocketId = req.headers['x-socket-id'] || null;
+
+                // Las cuentas absorbidas desaparecen: sin esto cocina seguiría
+                // mostrándolas como pedidos aparte.
+                absorbedOrders.forEach((absorbed) => {
+                    io.to(room).emit('order:deleted', {
+                        orderId: String(absorbed._id),
+                        _fromSocketId: senderSocketId,
+                    });
+                });
+
+                // La cuenta única, con todos los productos, reemplaza a las anteriores
+                io.to(room).emit('order:updated', { order: populatedOrder, _fromSocketId: senderSocketId });
+
+                if (populatedOrder.tableMerge?.at) {
+                    io.to(room).emit('table:merged', {
+                        order: populatedOrder,
+                        tableNumbers: populatedOrder.tableMerge.tableNumbers,
+                        intoTableNumber: populatedOrder.tableMerge.intoTableNumber,
+                        // Pantallas abiertas en cualquiera de estas mesas tienen el
+                        // carrito desactualizado y deben recargar la cuenta combinada.
+                        primaryTableId: String(primary._id),
+                        tableIds: groupIds.map(String),
+                        _fromSocketId: senderSocketId,
+                    });
+                }
+            } catch (socketErr) {
+                console.error('Error emitiendo sockets de unión de mesas:', socketErr.message);
+            }
+        }
+
+        res.json({ primaryTableId: primary._id, tables: populatedTables, order: populatedOrder });
     } catch (error) {
         console.error('Error al unir mesas:', error);
         res.status(500).json({ message: 'Error al unir mesas', error: error.message });

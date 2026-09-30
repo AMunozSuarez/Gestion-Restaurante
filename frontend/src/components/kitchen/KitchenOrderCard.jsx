@@ -6,6 +6,7 @@ import {
   getElapsedMinutes,
   getOrderId,
   getOrderLabel,
+  getTableMergeInfo,
   getTableMoveInfo,
   getUrgencyVariant,
   getVisibleKitchenItems,
@@ -66,6 +67,8 @@ const KitchenOrderCard = ({
   // La cuenta cambió de mesa: el número de arriba ya es el nuevo, pero la comanda
   // impresa dice el viejo, así que hay que mostrar el cambio de forma explícita.
   const tableMove = getTableMoveInfo(order);
+  // Igual con la unión de mesas: las comandas impresas llevan los números originales.
+  const tableMerge = getTableMergeInfo(order);
 
   // La vista determina cómo se muestra la tarjeta, no solo el estado guardado:
   // un pedido mixto aparece en ambas listas con contenido y estilo distintos.
@@ -96,7 +99,7 @@ const KitchenOrderCard = ({
       className={`rounded-xl border-2 p-4 flex flex-col gap-3 ${
         isReady
           ? 'bg-green-900 border-green-400 shadow-lg shadow-green-900/50'
-          : isMixed || tableMove
+          : isMixed || tableMove || tableMerge
             ? 'bg-gray-800 border-amber-400 shadow-lg shadow-amber-900/30'
             : 'bg-gray-800 border-gray-700'
       } ${className}`}
@@ -147,6 +150,14 @@ const KitchenOrderCard = ({
             title="La cuenta se cambió de mesa: la comanda impresa tiene el número antiguo"
           >
             ⇄ Mesa {tableMove.from} → Mesa {tableMove.to}
+          </div>
+        )}
+        {tableMerge && (
+          <div
+            className="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-0.5 text-sm font-bold text-gray-900"
+            title="Las cuentas se unieron: las comandas impresas tienen los números de mesa originales"
+          >
+            ⊕ Mesas {tableMerge.tableNumbers.join(' + ')} unidas → Mesa {tableMerge.into}
           </div>
         )}
       </div>

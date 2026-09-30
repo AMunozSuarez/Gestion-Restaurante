@@ -1201,6 +1201,12 @@ A:   Mesa ${toTableNumber}
   // el aviso tiene que llegar a todas las estaciones que ya recibieron la comanda)
   async printKitchenTableMoveOrder(order, options = {}) {
     const content = this.generateKitchenTableMoveOrder(order, options);
+    return this.printNoticeToAllStations(content, 'Algunos avisos de cambio de mesa no se pudieron imprimir');
+  },
+
+  // Un aviso (cambio o unión de mesas) debe llegar a todas las estaciones que ya
+  // recibieron la comanda original, no solo a la que corresponde a una categoría.
+  async printNoticeToAllStations(content, errorMessage) {
     const defaultPrinter = this.getDefaultPrinter();
 
     if (defaultPrinter) {
@@ -1226,13 +1232,88 @@ A:   Mesa ${toTableNumber}
         return {
           success: allSuccess,
           data: results,
-          error: allSuccess ? null : 'Algunos avisos de cambio de mesa no se pudieron imprimir',
+          error: allSuccess ? null : errorMessage,
           details: results,
         };
       }
     }
 
     return this.printWithDefault(content, 1, true);
+  },
+
+  // Igual que el traslado: la unión se identifica por el instante en que ocurrió.
+  shouldSkipTableMergePrint(orderId, mergedAt) {
+    if (!orderId || !mergedAt) return false;
+    try {
+      return localStorage.getItem(`lastTableMergePrint:${orderId}`) === String(mergedAt);
+    } catch {
+      return false;
+    }
+  },
+
+  markTableMergePrint(orderId, mergedAt) {
+    if (!orderId || !mergedAt) return;
+    try {
+      localStorage.setItem(`lastTableMergePrint:${orderId}`, String(mergedAt));
+    } catch {
+      // No-op si localStorage no está disponible
+    }
+  },
+
+  // Aviso de unión de mesas: cocina tiene comandas separadas con los números
+  // originales y ahora es una sola cuenta; se repiten todos los productos.
+  generateKitchenTableMergeOrder(order, options = {}) {
+    const date = new Date();
+    const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
+    const tableNumbers = options.tableNumbers ?? order.tableMerge?.tableNumbers ?? [];
+    const intoTableNumber = options.intoTableNumber ?? order.tableMerge?.intoTableNumber ?? order.tableNumber ?? '';
+
+    let waiterName = '';
+    if (order.waiter && typeof order.waiter === 'object') {
+      waiterName = normalizeText(order.waiter.userName || order.waiter.name || '');
+    } else if (order.waiterName) {
+      waiterName = normalizeText(order.waiterName);
+    }
+
+    let content = `
+================================
+     *** UNION DE MESAS ***
+================================
+
+No. Orden: #${orderNumber}
+`;
+
+    content += `[BOLD]UNEN: Mesa ${tableNumbers.join(' + Mesa ')}
+CUENTA UNICA: Mesa ${intoTableNumber}
+[/BOLD]
+`;
+
+    if (waiterName) content += `Garzon: ${waiterName}\n`;
+    content += `Hora: ${date.toLocaleTimeString()}\n`;
+
+    const items = Array.isArray(order.foods) ? order.foods : [];
+    if (items.length > 0) {
+      content += `
+================================
+           PRODUCTOS
+================================
+
+`;
+      items.forEach((item) => {
+        const name = normalizeText(item.food?.title || item.food?.name || item.name || 'Producto');
+        content += `- ${item.quantity || 1}x ${name}\n`;
+      });
+    }
+
+    content += `
+================================`;
+
+    return content.trim();
+  },
+
+  async printKitchenTableMergeOrder(order, options = {}) {
+    const content = this.generateKitchenTableMergeOrder(order, options);
+    return this.printNoticeToAllStations(content, 'Algunos avisos de unión de mesas no se pudieron imprimir');
   },
 
   // Generar comanda de cancelacion (solo productos eliminados)

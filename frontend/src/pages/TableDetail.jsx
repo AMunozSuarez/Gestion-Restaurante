@@ -340,7 +340,13 @@ const TableDetail = () => {
     useEffect(() => {
         if (!movedElsewhere || selfMovingRef.current) return undefined;
 
-        showNotification(`Esta cuenta se movió a la Mesa ${movedElsewhere.toTableNumber}`, 'warning', 4000);
+        showNotification(
+            movedElsewhere.merged
+                ? `Las mesas se unieron: la cuenta combinada está en la Mesa ${movedElsewhere.toTableNumber}`
+                : `Esta cuenta se movió a la Mesa ${movedElsewhere.toTableNumber}`,
+            'warning',
+            4000
+        );
         const timeoutId = setTimeout(() => navigate(`/mesas/${movedElsewhere.toTableId}`, { replace: true }), 1800);
         return () => clearTimeout(timeoutId);
     }, [movedElsewhere, navigate]);
