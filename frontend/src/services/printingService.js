@@ -2218,6 +2218,13 @@ Fecha: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
       }
     });
 
+    // Pedido pagado con tarjeta en el POS del kiosco: no hay que pasar por caja.
+    const isPaid = Boolean(order.remotePayment) && order.payment && order.payment !== 'Pendiente';
+    const paidFooter = isPaid
+      ? `  PAGADO CON ${order.payment === 'Credito' ? 'CREDITO' : 'DEBITO'}
+  Retira tu pedido con tu numero`
+      : '    Retira y paga en caja';
+
     const formattedTotal = formatCLP(total);
     const totalLine = 'TOTAL:';
     const totalPadding = ' '.repeat(Math.max(1, lineWidth - totalLine.length - formattedTotal.length));
@@ -2227,7 +2234,7 @@ Fecha: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
 ${totalLine}${totalPadding}${formattedTotal}
 
 --------------------------------
-    Retira y paga en caja
+${paidFooter}
 ================================
 
 

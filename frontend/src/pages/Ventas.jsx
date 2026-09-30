@@ -131,6 +131,7 @@ const Ventas = () => {
       ventasCanceladas: salesStatistics?.ventasCanceladas || 0,
       montoEfectivo: salesStatistics?.montoEfectivo || 0,
       montoTarjeta: salesStatistics?.montoTarjeta || 0,
+      montoCredito: salesStatistics?.montoCredito || 0,
       montoTransferencia: salesStatistics?.montoTransferencia || 0,
       montoDelivery: salesStatistics?.montoDelivery || 0
     };
@@ -168,11 +169,11 @@ const Ventas = () => {
           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
             pm.method === 'Efectivo'
               ? 'bg-green-100 text-green-800 border border-green-200'
-              : pm.method === 'Debito'
+              : ['Debito', 'Credito'].includes(pm.method)
               ? 'bg-blue-100 text-blue-800 border border-blue-200'
               : 'bg-amber-100 text-amber-800 border border-amber-200'
           }`}>
-            {pm.method === 'Debito' ? 'Débito' : pm.method}
+            {pm.method === 'Debito' ? 'Débito' : pm.method === 'Credito' ? 'Crédito' : pm.method}
           </span>
         );
       } else {
@@ -183,11 +184,11 @@ const Ventas = () => {
               <span key={pm._id || index} className={`inline-flex px-1 py-0.5 text-xs font-semibold rounded ${
                 pm.method === 'Efectivo'
                   ? 'bg-green-100 text-green-800'
-                  : pm.method === 'Debito'
+                  : ['Debito', 'Credito'].includes(pm.method)
                   ? 'bg-blue-100 text-blue-800'
                   : 'bg-amber-100 text-amber-800'
               }`}>
-                {pm.method === 'Debito' ? 'Déb' : pm.method.slice(0, 3)}
+                {pm.method === 'Debito' ? 'Déb' : pm.method === 'Credito' ? 'Cré' : pm.method.slice(0, 3)}
               </span>
             ))}
           </div>
@@ -199,11 +200,11 @@ const Ventas = () => {
         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
           venta.payment === 'Efectivo'
             ? 'bg-green-100 text-green-800 border border-green-200'
-            : venta.payment === 'Debito'
+            : ['Debito', 'Credito'].includes(venta.payment)
             ? 'bg-blue-100 text-blue-800 border border-blue-200'
             : 'bg-amber-100 text-amber-800 border border-amber-200'
         }`}>
-          {venta.payment === 'Debito' ? 'Débito' : venta.payment}
+          {venta.payment === 'Debito' ? 'Débito' : venta.payment === 'Credito' ? 'Crédito' : venta.payment}
         </span>
       );
     } else {
@@ -346,6 +347,7 @@ const Ventas = () => {
                   <option value="all">Todos</option>
                   <option value="Efectivo">Efectivo</option>
                   <option value="Debito">Débito</option>
+                  <option value="Credito">Crédito</option>
                   <option value="Transferencia">Transferencia</option>
                 </select>
               </div>
@@ -417,7 +419,7 @@ const Ventas = () => {
 
           {!summaryCollapsed && (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-2">
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-2 rounded-lg border border-gray-200 text-center">
                   <p className="text-xs text-gray-700 font-medium">Total</p>
                   <p className="text-sm font-bold text-gray-800">{stats.totalVentas}</p>
@@ -433,6 +435,10 @@ const Ventas = () => {
                 <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded-lg border border-purple-200 text-center">
                   <p className="text-xs text-purple-700 font-medium">Débito</p>
                   <p className="text-sm font-bold text-purple-800">{formatCurrency(stats.montoTarjeta)}</p>
+                </div>
+                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-2 rounded-lg border border-indigo-200 text-center">
+                  <p className="text-xs text-indigo-700 font-medium">Crédito</p>
+                  <p className="text-sm font-bold text-indigo-800">{formatCurrency(stats.montoCredito)}</p>
                 </div>
                 <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-2 rounded-lg border border-amber-200 text-center">
                   <p className="text-xs text-amber-700 font-medium">Transfer.</p>

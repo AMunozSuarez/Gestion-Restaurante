@@ -1,6 +1,7 @@
 const foodModel = require('../models/foodModel');
 const cashRegisterModel = require('../models/cashRegisterModel');
 const Restaurant = require('../models/restaurantModel');
+const userModel = require('../models/userModel');
 
 /**
  * Módulo de autoservicio (kiosco).
@@ -20,6 +21,58 @@ const getRestaurantSelfServiceSettings = async (restaurantId) => {
     const restaurant = await Restaurant.findById(restaurantId).select('settings name').lean();
     const settings = Restaurant.normalizeSettings(restaurant?.settings || {});
     return { restaurantName: restaurant?.name || '', selfService: settings.selfService };
+};
+
+/**
+ * Lo que el kiosco necesita saber del pago remoto, sin secretos. `ready` indica que se puede
+ * cobrar con tarjeta: módulo activo, API Key cargada y POS asignado a ESTE kiosco.
+ */
+const getKioskRemotePaymentInfo = async (restaurantId, userId, selfService) => {
+    const remote = selfService.remotePayment || {};
+    if (!remote.enabled) {
+        return { enabled: false, ready: false, allowPayAtCounter: true };
+    }
+
+    const [restaurant, user] = await Promise.all([
+        Restaurant.findById(restaurantId).select('paymentIntegrations.haulmer.apiKeyLast4').lean(),
+        userModel.findById(userId).select('kioskDevice').lean(),
+    ]);
+
+    const apiKeyConfigured = Boolean(restaurant?.paymentIntegrations?.haulmer?.apiKeyLast4);
+    const deviceConfigured = Boolean(user?.kioskDevice?.serial);
+
+    return {
+        enabled: true,
+        ready: apiKeyConfigured && deviceConfigured,
+        apiKeyConfigured,
+        deviceConfigured,
+        allowPayAtCounter: Boolean(remote.allowPayAtCounter),
+    };
+};
+
+/**
+ * Nombre y comentario del cliente, normalizados según la configuración del canal. Se usa al
+ * crear el pedido (pago en caja) y al abrir la sesión de pago remoto, para que un pedido
+ * pagado nunca se rechace después por un nombre faltante.
+ */
+const sanitizeCustomerInput = (settings, body = {}) => {
+    const customerName = String(body.customerName || '').trim().slice(0, MAX_CUSTOMER_NAME_LENGTH);
+
+    if (settings.requireCustomerName && !customerName) {
+        return {
+            error: {
+                success: false,
+                code: 'CUSTOMER_NAME_REQUIRED',
+                message: 'Necesitamos un nombre para identificar tu pedido.',
+            },
+        };
+    }
+
+    const comment = settings.allowOrderComment
+        ? String(body.comment || '').trim().slice(0, MAX_COMMENT_LENGTH)
+        : '';
+
+    return { customerName, comment };
 };
 
 const isCashRegisterOpen = async (restaurantId) => {
@@ -93,10 +146,13 @@ const getSelfServiceMenuController = async (req, res) => {
                 .lean(),
         ]);
 
+        const remotePayment = await getKioskRemotePaymentInfo(restaurantId, req.user.id, selfService);
+
         if (!selfService.enabled) {
             return res.status(200).json({
                 success: true,
                 selfServiceEnabled: false,
+                remotePayment,
                 cashRegisterOpen,
                 restaurantName,
                 settings: { requireCustomerName: selfService.requireCustomerName, allowOrderComment: selfService.allowOrderComment },
@@ -132,6 +188,7 @@ const getSelfServiceMenuController = async (req, res) => {
             selfServiceEnabled: true,
             cashRegisterOpen,
             restaurantName,
+            remotePayment,
             settings: { requireCustomerName: selfService.requireCustomerName, allowOrderComment: selfService.allowOrderComment },
             menuVersion: buildMenuVersion(visibleFoods),
             categories: Array.from(categoriesMap.values()),
@@ -157,10 +214,13 @@ const getSelfServiceStatusController = async (req, res) => {
                 .lean(),
         ]);
 
+        const remotePayment = await getKioskRemotePaymentInfo(restaurantId, req.user.id, selfService);
+
         res.status(200).json({
             success: true,
             selfServiceEnabled: selfService.enabled,
             cashRegisterOpen,
+            remotePayment,
             menuVersion: selfService.enabled ? buildMenuVersion(foods) : 'disabled',
         });
     } catch (error) {
@@ -202,6 +262,10 @@ const assertSelfServiceEnabled = async (req, res, next) => {
  * mira isAvailable. Sin esto, el kiosco no podría decirle al cliente qué producto quitar.
  */
 const validateSelfServiceItems = async (req, res, next) => {
+    // Pedido ya cobrado: los productos se validaron al abrir la sesión de pago. Rechazarlos
+    // ahora (p. ej. se agotó uno mientras el cliente pagaba) dejaría un pago sin pedido.
+    if (req.paidSelfServiceSession) return next();
+
     try {
         const items = Array.isArray(req.body.foods) ? req.body.foods : [];
 
@@ -283,20 +347,25 @@ const validateSelfServiceItems = async (req, res, next) => {
  * divididas. El precio nunca viaja: createOrderController lo toma de la BD.
  */
 const enforceSelfServiceOrderPayload = (req, res, next) => {
-    const settings = req.selfServiceSettings;
-    const customerName = String(req.body.customerName || '').trim().slice(0, MAX_CUSTOMER_NAME_LENGTH);
+    // El body del pedido pagado ya lo armó resolvePaidSessionPayload desde la sesión.
+    if (req.paidSelfServiceSession) return next();
 
-    if (settings.requireCustomerName && !customerName) {
-        return res.status(400).json({
+    const settings = req.selfServiceSettings;
+
+    // Con pago remoto activo y sin "pagar en caja" permitido, no hay pedido sin pago.
+    const remote = settings.remotePayment || {};
+    if (remote.enabled && !remote.allowPayAtCounter) {
+        return res.status(402).json({
             success: false,
-            code: 'CUSTOMER_NAME_REQUIRED',
-            message: 'Necesitamos un nombre para identificar tu pedido.',
+            code: 'PAYMENT_REQUIRED',
+            message: 'Este kiosco requiere pagar con tarjeta para crear el pedido.',
         });
     }
 
-    const comment = settings.allowOrderComment
-        ? String(req.body.comment || '').trim().slice(0, MAX_COMMENT_LENGTH)
-        : '';
+    const { error, customerName, comment } = sanitizeCustomerInput(settings, req.body);
+    if (error) {
+        return res.status(400).json(error);
+    }
 
     req.body = {
         foods: req.body.foods, // los extras los valida createOrderController contra la BD
@@ -323,4 +392,8 @@ module.exports = {
     validateSelfServiceItems,
     enforceSelfServiceOrderPayload,
     buildSelfServiceSections,
+    sanitizeCustomerInput,
+    isCashRegisterOpen,
+    getRestaurantSelfServiceSettings,
+    MAX_CART_LINES,
 };

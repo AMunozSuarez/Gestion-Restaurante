@@ -35,14 +35,14 @@ const orderSchema = new mongoose.Schema({
     ],
     payment: {
         type: String,
-        enum: ['Efectivo', 'Debito', 'Transferencia', 'Múltiple', 'Pendiente', ''],
+        enum: ['Efectivo', 'Debito', 'Credito', 'Transferencia', 'Múltiple', 'Pendiente', ''],
         default: 'Pendiente',
         required: false,
     },
     paymentMethods: [{
         method: {
             type: String,
-            enum: ['Efectivo', 'Debito', 'Transferencia'],
+            enum: ['Efectivo', 'Debito', 'Credito', 'Transferencia'],
             required: false
         },
         amount: {
@@ -65,7 +65,7 @@ const orderSchema = new mongoose.Schema({
             paymentMethods: [{
                 method: {
                     type: String,
-                    enum: ['Efectivo', 'Debito', 'Transferencia'],
+                    enum: ['Efectivo', 'Debito', 'Credito', 'Transferencia'],
                     required: false
                 },
                 amount: {
@@ -137,6 +137,22 @@ const orderSchema = new mongoose.Schema({
         type: String,
         enum: ['pos', 'self_service'],
         default: 'pos',
+    },
+    // Pago con tarjeta en POS remoto (autoservicio). Solo existe en pedidos pagados antes
+    // de crearse; `raw` guarda la respuesta del proveedor para conciliación.
+    remotePayment: {
+        type: {
+            provider: { type: String, enum: ['haulmer'] },
+            sessionId: { type: mongoose.Schema.Types.ObjectId, ref: 'KioskPaymentSession' },
+            idempotencyKey: { type: String },
+            device: { type: String },
+            cardType: { type: String },
+            authCode: { type: String },
+            last4: { type: String },
+            paidAt: { type: Date },
+            raw: { type: mongoose.Schema.Types.Mixed },
+        },
+        default: undefined,
     },
     status: {
         type: String,

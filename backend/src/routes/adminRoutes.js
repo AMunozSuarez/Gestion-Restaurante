@@ -11,6 +11,7 @@ const {
     getSystemStats,
     assignSubscription
 } = require('../controllers/adminController');
+const { testRemotePayment, getTestRemotePayment } = require('../controllers/adminPaymentController');
 
 const { checkExpiredSubscriptions, sendExpirationReminders } = require('../scripts/checkExpiredSubscriptions');
 
@@ -47,6 +48,10 @@ router.put('/restaurants/:id', updateRestaurant);
 
 // Eliminar restaurante
 router.delete('/restaurants/:id', deleteRestaurant);
+
+// Pago remoto (Haulmer/TUU): cobro de prueba de $100 para validar API Key + POS
+router.post('/restaurants/:id/remote-payment/test', testRemotePayment);
+router.get('/restaurants/:id/remote-payment/test/:key', getTestRemotePayment);
 
 // =================== RUTAS DE ESTADÍSTICAS ===================
 // Obtener estadísticas del sistema

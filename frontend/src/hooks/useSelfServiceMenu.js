@@ -54,7 +54,12 @@ const useSelfServiceMenu = () => {
 
       // El estado del módulo y de la caja se reflejan de inmediato, sin recargar el menú.
       setMenu((prev) => (prev
-        ? { ...prev, selfServiceEnabled: status.selfServiceEnabled, cashRegisterOpen: status.cashRegisterOpen }
+        ? {
+          ...prev,
+          selfServiceEnabled: status.selfServiceEnabled,
+          cashRegisterOpen: status.cashRegisterOpen,
+          remotePayment: status.remotePayment || prev.remotePayment,
+        }
         : prev));
 
       if (status.menuVersion && status.menuVersion !== menuVersionRef.current) {
@@ -73,6 +78,9 @@ const useSelfServiceMenu = () => {
     restaurantName: menu?.restaurantName || '',
     selfServiceEnabled: menu?.selfServiceEnabled ?? null,
     cashRegisterOpen: menu?.cashRegisterOpen ?? null,
+    // Pago con tarjeta en POS: { enabled, ready, allowPayAtCounter }. Sin pago remoto, el
+    // cliente siempre paga en caja.
+    remotePayment: menu?.remotePayment || { enabled: false, ready: false, allowPayAtCounter: true },
     menuVersion: menu?.menuVersion || null,
     isLoading,
     error,

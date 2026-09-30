@@ -8,6 +8,12 @@ const {
     validateSelfServiceItems,
     enforceSelfServiceOrderPayload,
 } = require('../controllers/selfServiceController');
+const {
+    createPaymentSession,
+    getPaymentSession,
+    listPendingSessions,
+    resolvePaidSessionPayload,
+} = require('../controllers/selfServicePaymentController');
 const { createOrderController } = require('../controllers/orderController');
 
 const router = express.Router();
@@ -22,6 +28,13 @@ router.get('/menu', getSelfServiceMenuController);
 // ESTADO LIGERO PARA EL POLLING DEL KIOSCO
 router.get('/status', getSelfServiceStatusController);
 
+// PAGO REMOTO CON POS (Haulmer/TUU)
+// Se valida el carrito con las mismas reglas del pedido ANTES de cobrar, para que el cliente
+// nunca pague algo que después no se pueda crear. '/payment/pending' va antes de '/:id'.
+router.post('/payment', assertSelfServiceEnabled, validateSelfServiceItems, createPaymentSession);
+router.get('/payment/pending', listPendingSessions);
+router.get('/payment/:id', getPaymentSession);
+
 // CREAR PEDIDO DESDE EL KIOSCO
 // Las reglas del canal viven en los middlewares; la creación en sí reutiliza el MISMO
 // createOrderController que usa el POS, para no duplicar la validación de extras, el
@@ -29,6 +42,7 @@ router.get('/status', getSelfServiceStatusController);
 router.post(
     '/order',
     assertSelfServiceEnabled,
+    resolvePaidSessionPayload, // con paymentSessionId: arma el pedido desde el pago aprobado
     validateSelfServiceItems,
     enforceSelfServiceOrderPayload,
     createOrderController

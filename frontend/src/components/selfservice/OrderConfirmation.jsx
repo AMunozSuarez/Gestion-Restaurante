@@ -6,12 +6,13 @@ import { CONFIRM_AUTORESET_MS } from '../../constants/selfService';
 
 /**
  * Confirmación del pedido. El número va en grande porque es lo único que el cliente tiene
- * que recordar para pagar y retirar.
+ * que recordar para pagar y retirar. Con `paid` (pago con tarjeta en el kiosco) ya no se le
+ * pide pasar por caja.
  *
  * Tiene su propio temporizador de vuelta a la atracción (no el de inactividad general):
  * aquí sí queremos que la pantalla se limpie sola aunque nadie la toque.
  */
-const OrderConfirmation = ({ order, customerName, onDone }) => {
+const OrderConfirmation = ({ order, customerName, paid = false, onDone }) => {
   const [secondsLeft, setSecondsLeft] = useState(Math.ceil(CONFIRM_AUTORESET_MS / 1000));
 
   useEffect(() => {
@@ -44,11 +45,11 @@ const OrderConfirmation = ({ order, customerName, onDone }) => {
       </div>
 
       <p className="text-3xl font-semibold text-gray-900 mb-2">
-        Paga en caja con este número
+        {paid ? 'Pago aprobado. Retira tu pedido con este número' : 'Paga en caja con este número'}
       </p>
       {typeof order?.total === 'number' && (
         <p className="text-2xl text-gray-600 mb-10">
-          Total: {formatChileanCurrency(order.total)}
+          {paid ? 'Pagado' : 'Total'}: {formatChileanCurrency(order.total)}
         </p>
       )}
 

@@ -2051,6 +2051,7 @@ const TableDetail = () => {
                                                     <option value="">Método de pago</option>
                                                     <option value="Efectivo">Efectivo</option>
                                                     <option value="Debito">Débito</option>
+                                                    <option value="Credito">Crédito</option>
                                                     <option value="Transferencia">Transferencia</option>
                                                 </select>
                                             </div>
@@ -2145,6 +2146,7 @@ const TableDetail = () => {
                                                 <option value="">Método</option>
                                                 <option value="Efectivo">Efectivo</option>
                                                 <option value="Debito">Débito</option>
+                                                <option value="Credito">Crédito</option>
                                                 <option value="Transferencia">Transferencia</option>
                                             </select>
                                             <input

@@ -33,6 +33,7 @@ const sectionColors = {
 const paymentLabels = {
     Efectivo: 'Efectivo',
     Debito: 'Débito',
+    Credito: 'Crédito',
     Transferencia: 'Transferencia',
     Múltiple: 'Múltiple',
     Pendiente: 'Pendiente',
@@ -177,6 +178,7 @@ const ReporteVentas = () => {
                                 const colors = {
                                     Efectivo: 'bg-green-500',
                                     Debito: 'bg-blue-500',
+                                    Credito: 'bg-indigo-500',
                                     Transferencia: 'bg-purple-500',
                                     Múltiple: 'bg-amber-500',
                                     Pendiente: 'bg-gray-400',

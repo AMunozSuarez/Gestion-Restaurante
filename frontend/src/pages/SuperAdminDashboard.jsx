@@ -13,6 +13,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import adminService from '../services/adminService';
+import RemotePaymentSettings from '../components/admin/RemotePaymentSettings';
 import { getAllSubscriptions, getSubscriptionStats } from '../services/subscriptionService';
 
 const SuperAdminDashboard = () => {
@@ -965,12 +966,18 @@ const UserModal = ({ user, restaurants, onClose, onSave }) => {
     role: user?.role || 'employee',
     restaurant: user?.restaurant?._id || '',
     phone: user?.phone || '',
+    kioskDeviceSerial: user?.kioskDevice?.serial || '',
+    kioskDeviceLabel: user?.kioskDevice?.label || '',
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const dataToSend = { ...formData };
+    const { kioskDeviceSerial, kioskDeviceLabel, ...dataToSend } = formData;
     if (!dataToSend.password) delete dataToSend.password;
+    // POS Haulmer/TUU que cobra en este kiosco (pago remoto del autoservicio).
+    if (dataToSend.role === 'kiosco') {
+      dataToSend.kioskDevice = { serial: kioskDeviceSerial.trim(), label: kioskDeviceLabel.trim() };
+    }
     
     if (user) {
       onSave(user._id, dataToSend);
@@ -1035,10 +1042,41 @@ const UserModal = ({ user, restaurants, onClose, onSave }) => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="employee">Empleado</option>
+              <option value="mesero">Mesero</option>
+              <option value="cocina">Cocina</option>
+              <option value="kiosco">Kiosco (autoservicio)</option>
               <option value="owner">Propietario</option>
               <option value="super_admin">Super Admin</option>
             </select>
           </div>
+
+          {formData.role === 'kiosco' && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-3">
+              <p className="text-xs text-blue-800">
+                Terminal POS (Haulmer/TUU) que cobra en este kiosco. Déjalo vacío si el kiosco no cobra con tarjeta.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">N° de serie del POS</label>
+                <input
+                  type="text"
+                  value={formData.kioskDeviceSerial}
+                  onChange={(e) => setFormData({ ...formData, kioskDeviceSerial: e.target.value })}
+                  placeholder="Ej: TJ44245N20440"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Etiqueta (opcional)</label>
+                <input
+                  type="text"
+                  value={formData.kioskDeviceLabel}
+                  onChange={(e) => setFormData({ ...formData, kioskDeviceLabel: e.target.value })}
+                  placeholder="Ej: Kiosco entrada"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Restaurante</label>
@@ -1095,6 +1133,11 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
     isActive: restaurant?.isActive !== undefined ? restaurant.isActive : true,
     kitchenDisplayEnabled: Boolean(restaurant?.settings?.kitchenDisplay?.enabled),
     selfServiceEnabled: Boolean(restaurant?.settings?.selfService?.enabled),
+    remotePaymentEnabled: Boolean(restaurant?.settings?.selfService?.remotePayment?.enabled),
+    remotePaymentAllowPayAtCounter: Boolean(restaurant?.settings?.selfService?.remotePayment?.allowPayAtCounter),
+    remotePaymentDteType: restaurant?.settings?.selfService?.remotePayment?.dteType ?? 48,
+    // Write-only: vacío = no cambiar la clave guardada; null = borrarla.
+    haulmerApiKey: '',
     ownerName: '',
     ownerEmail: '',
     ownerPassword: '',
@@ -1112,6 +1155,12 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
         isActive: formData.isActive,
         kitchenDisplayEnabled: formData.kitchenDisplayEnabled,
         selfServiceEnabled: formData.selfServiceEnabled,
+        remotePaymentEnabled: formData.remotePaymentEnabled,
+        remotePaymentAllowPayAtCounter: formData.remotePaymentAllowPayAtCounter,
+        remotePaymentDteType: Number(formData.remotePaymentDteType),
+        ...(formData.haulmerApiKey === null || formData.haulmerApiKey.trim()
+          ? { haulmerApiKey: formData.haulmerApiKey === null ? null : formData.haulmerApiKey.trim() }
+          : {}),
       });
     } else {
       // Crear restaurante con propietario
@@ -1129,7 +1178,7 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white">
           <h2 className="text-xl font-bold text-gray-900">
             {restaurant ? 'Editar Restaurante' : 'Nuevo Restaurante'}
@@ -1203,6 +1252,14 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
                 Autoservicio (Kiosco) habilitado
               </label>
             </div>
+          )}
+
+          {restaurant && formData.selfServiceEnabled && (
+            <RemotePaymentSettings
+              restaurant={restaurant}
+              value={formData}
+              onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
+            />
           )}
 
           {!restaurant && (

@@ -11,6 +11,7 @@
 const KIOSCO_ALLOWED = [
     { method: 'GET', test: (path) => path.startsWith('/api/self-service/') },
     { method: 'POST', test: (path) => path === '/api/self-service/order' },
+    { method: 'POST', test: (path) => path === '/api/self-service/payment' },
     // El kiosco lee el restaurante para conocer settings.selfService (misma ruta que usa
     // useRestaurant en el frontend).
     { method: 'GET', test: (path) => path.startsWith('/api/restaurant/get/') },

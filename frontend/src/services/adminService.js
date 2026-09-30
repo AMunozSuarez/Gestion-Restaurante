@@ -73,6 +73,28 @@ const adminService = {
     }
   },
 
+  // Pago remoto (Haulmer/TUU): cobro de prueba de $100 al POS indicado
+  testRemotePayment: async (restaurantId, { device, paymentMethod }) => {
+    try {
+      const response = await api.post(`/admin/restaurants/${restaurantId}/remote-payment/test`, { device, paymentMethod });
+      return response.data;
+    } catch (error) {
+      const data = error.response?.data || {};
+      const message = [data.message || 'Error al enviar el cobro de prueba', data.code && `(${data.code})`].filter(Boolean).join(' ');
+      throw new Error(message);
+    }
+  },
+
+  getTestRemotePayment: async (restaurantId, idempotencyKey) => {
+    try {
+      const response = await api.get(`/admin/restaurants/${restaurantId}/remote-payment/test/${encodeURIComponent(idempotencyKey)}`);
+      return response.data;
+    } catch (error) {
+      const data = error.response?.data || {};
+      throw new Error([data.message || 'Error al consultar el cobro de prueba', data.code && `(${data.code})`].filter(Boolean).join(' '));
+    }
+  },
+
   // Eliminar restaurante
   deleteRestaurant: async (restaurantId) => {
     try {

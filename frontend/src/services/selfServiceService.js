@@ -17,6 +17,7 @@ const extractError = (error) => {
     code: data.code || (error.response ? 'UNKNOWN' : 'NETWORK'),
     message: data.message || 'No pudimos completar la operación.',
     unavailableItems: data.unavailableItems || [],
+    retryAfterSeconds: data.retryAfterSeconds || null,
     status: error.response?.status || null,
   };
 };
@@ -49,6 +50,50 @@ const selfServiceService = {
   createOrder: async ({ foods, customerName, comment }) => {
     try {
       const response = await api.post('/self-service/order', { foods, customerName, comment });
+      return { ok: true, data: response.data };
+    } catch (error) {
+      return extractError(error);
+    }
+  },
+
+  /**
+   * Crea el pedido de un pago con tarjeta ya aprobado. Solo viaja el id de la sesión: el
+   * backend arma el pedido con el carrito que se cobró. Reintentarlo es seguro: si el pedido
+   * ya existe, devuelve el mismo.
+   */
+  createPaidOrder: async (paymentSessionId) => {
+    try {
+      const response = await api.post('/self-service/order', { paymentSessionId });
+      return { ok: true, data: response.data };
+    } catch (error) {
+      return extractError(error);
+    }
+  },
+
+  /** Envía el cobro al POS asociado a este kiosco. paymentMethod: 'credito' | 'debito'. */
+  createPayment: async ({ foods, customerName, comment, paymentMethod }) => {
+    try {
+      const response = await api.post('/self-service/payment', { foods, customerName, comment, paymentMethod });
+      return { ok: true, data: response.data };
+    } catch (error) {
+      return extractError(error);
+    }
+  },
+
+  /** Estado del cobro (el backend consulta al proveedor). */
+  getPayment: async (sessionId) => {
+    try {
+      const response = await api.get(`/self-service/payment/${sessionId}`);
+      return { ok: true, data: response.data };
+    } catch (error) {
+      return extractError(error);
+    }
+  },
+
+  /** Cobros aprobados sin pedido o abiertos recientes de este kiosco (recuperación). */
+  getPendingPayments: async () => {
+    try {
+      const response = await api.get('/self-service/payment/pending');
       return { ok: true, data: response.data };
     } catch (error) {
       return extractError(error);

@@ -28,6 +28,7 @@ const CartReview = ({
   onRemoveLine,
   onConfirm,
   isSubmitting,
+  confirmLabel = 'Confirmar pedido',
 }) => {
   const hasUnavailable = lines.some((line) => line.unavailable);
 
@@ -170,7 +171,7 @@ const CartReview = ({
           onClick={onConfirm}
           disabled={isSubmitting || hasUnavailable}
         >
-          {isSubmitting ? 'Enviando…' : 'Confirmar pedido'}
+          {isSubmitting ? 'Enviando…' : confirmLabel}
         </KioskButton>
       </div>
     </div>

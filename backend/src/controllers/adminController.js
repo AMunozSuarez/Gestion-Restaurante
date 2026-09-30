@@ -3,10 +3,18 @@ const restaurantModel = require('../models/restaurantModel');
 const Subscription = require('../models/subscriptionModel');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
+const { encryptSecret } = require('../utils/secretCrypto');
+const { VALID_DTE_TYPES } = require('../models/restaurantModel');
 
 const normalizeEmail = (email = '') => email.trim().toLowerCase();
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const buildEmailRegex = (email) => new RegExp(`^${escapeRegex(normalizeEmail(email))}$`, 'i');
+
+// POS Haulmer/TUU asignado a un usuario kiosco. Solo se guarda para ese rol.
+const normalizeKioskDevice = (kioskDevice) => ({
+    serial: String(kioskDevice?.serial || '').trim().slice(0, 40),
+    label: String(kioskDevice?.label || '').trim().slice(0, 40),
+});
 
 // =================== GESTIÓN DE USUARIOS ===================
 
@@ -64,7 +72,7 @@ const getAllUsers = async (req, res) => {
 // Crear un nuevo usuario
 const createUser = async (req, res) => {
     try {
-        const { userName, email, password, role, restaurant, phone } = req.body;
+        const { userName, email, password, role, restaurant, phone, kioskDevice } = req.body;
         const normalizedEmail = normalizeEmail(email || '');
 
         // Validaciones
@@ -113,7 +121,8 @@ const createUser = async (req, res) => {
             password: hashedPassword,
             role,
             restaurant,
-            phone: phone || ''
+            phone: phone || '',
+            ...(role === 'kiosco' && kioskDevice ? { kioskDevice: normalizeKioskDevice(kioskDevice) } : {}),
         });
 
         await newUser.save();
@@ -143,7 +152,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const { userName, email, password, role, restaurant, phone, isActive } = req.body;
+        const { userName, email, password, role, restaurant, phone, isActive, kioskDevice } = req.body;
         const normalizedEmail = email ? normalizeEmail(email) : null;
 
         const user = await userModel.findById(id);
@@ -176,6 +185,9 @@ const updateUser = async (req, res) => {
         if (restaurant) updateData.restaurant = restaurant;
         if (phone !== undefined) updateData.phone = phone;
         if (isActive !== undefined) updateData.isActive = isActive;
+        if (kioskDevice !== undefined && (role || user.role) === 'kiosco') {
+            updateData.kioskDevice = normalizeKioskDevice(kioskDevice);
+        }
         if (password) {
             const salt = await bcrypt.genSalt(10);
             updateData.password = await bcrypt.hash(password, salt);
@@ -384,7 +396,17 @@ const createRestaurant = async (req, res) => {
 const updateRestaurant = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, address, isActive, kitchenDisplayEnabled, selfServiceEnabled } = req.body;
+        const {
+            name,
+            address,
+            isActive,
+            kitchenDisplayEnabled,
+            selfServiceEnabled,
+            remotePaymentEnabled,
+            remotePaymentAllowPayAtCounter,
+            remotePaymentDteType,
+            haulmerApiKey,
+        } = req.body;
 
         const restaurant = await restaurantModel.findById(id);
         if (!restaurant) {
@@ -403,6 +425,35 @@ const updateRestaurant = async (req, res) => {
         }
         if (selfServiceEnabled !== undefined) {
             updateData['settings.selfService.enabled'] = Boolean(selfServiceEnabled);
+        }
+        if (remotePaymentEnabled !== undefined) {
+            updateData['settings.selfService.remotePayment.enabled'] = Boolean(remotePaymentEnabled);
+        }
+        if (remotePaymentAllowPayAtCounter !== undefined) {
+            updateData['settings.selfService.remotePayment.allowPayAtCounter'] = Boolean(remotePaymentAllowPayAtCounter);
+        }
+        if (remotePaymentDteType !== undefined) {
+            const dteType = Number(remotePaymentDteType);
+            if (!VALID_DTE_TYPES.includes(dteType)) {
+                return res.status(400).json({ success: false, message: `Tipo de DTE inválido. Valores permitidos: ${VALID_DTE_TYPES.join(', ')}` });
+            }
+            updateData['settings.selfService.remotePayment.dteType'] = dteType;
+        }
+        // API Key de Haulmer: "" o ausente = no cambiar, null = borrar, texto = reemplazar.
+        // Se guarda cifrada y nunca se devuelve: el panel solo ve los últimos 4 caracteres.
+        if (haulmerApiKey === null) {
+            updateData['paymentIntegrations.haulmer.apiKeyEncrypted'] = null;
+            updateData['paymentIntegrations.haulmer.apiKeyLast4'] = '';
+            updateData['paymentIntegrations.haulmer.updatedAt'] = new Date();
+        } else if (typeof haulmerApiKey === 'string' && haulmerApiKey.trim()) {
+            const apiKey = haulmerApiKey.trim();
+            try {
+                updateData['paymentIntegrations.haulmer.apiKeyEncrypted'] = encryptSecret(apiKey);
+            } catch (cryptoError) {
+                return res.status(500).json({ success: false, code: cryptoError.code, message: cryptoError.message });
+            }
+            updateData['paymentIntegrations.haulmer.apiKeyLast4'] = apiKey.slice(-4);
+            updateData['paymentIntegrations.haulmer.updatedAt'] = new Date();
         }
 
         const updatedRestaurant = await restaurantModel

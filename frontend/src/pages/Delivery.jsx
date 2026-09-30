@@ -2319,6 +2319,7 @@ const Delivery = () => {
                               <option value="">Método</option>
                               <option value="Efectivo">Efectivo</option>
                               <option value="Debito">Débito</option>
+                              <option value="Credito">Crédito</option>
                               <option value="Transferencia">Transferencia</option>
                             </select>
                             <input
@@ -3081,6 +3082,7 @@ const Delivery = () => {
                               <option value="">Método</option>
                               <option value="Efectivo">Efectivo</option>
                               <option value="Debito">Débito</option>
+                              <option value="Credito">Crédito</option>
                               <option value="Transferencia">Transferencia</option>
                             </select>
                             <input

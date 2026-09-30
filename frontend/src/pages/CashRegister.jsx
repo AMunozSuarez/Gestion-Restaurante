@@ -28,6 +28,7 @@ const CashRegister = () => {
   const [officialIncome, setOfficialIncome] = React.useState({
     Efectivo: '',
     Debito: '',
+    Credito: '',
     Transferencia: ''
   });
   const [comment, setComment] = React.useState('');
@@ -283,7 +284,7 @@ const CashRegister = () => {
       });
       
       if (result.success) {
-        setOfficialIncome({ Efectivo: '', Debito: '', Transferencia: '' });
+        setOfficialIncome({ Efectivo: '', Debito: '', Credito: '', Transferencia: '' });
         setComment('');
         setSelectedCashRegister(null); // Cerrar el panel lateral
         refetch();
@@ -807,7 +808,7 @@ const CashRegister = () => {
             <h4 className="text-professional-subtitle mb-3">Totales del Sistema por Método de Pago</h4>
             <div className="space-y-2">
               {(() => {
-                const STANDARD_METHODS = ['Efectivo', 'Debito', 'Transferencia'];
+                const STANDARD_METHODS = ['Efectivo', 'Debito', 'Credito', 'Transferencia'];
                 const totals = calculateSystemTotalsByPaymentMethod(selectedCashSales || []);
                 const extraMethods = Object.keys(totals).filter(m => !STANDARD_METHODS.includes(m));
                 return [...STANDARD_METHODS, ...extraMethods].map((method) => (
@@ -909,7 +910,7 @@ const CashRegister = () => {
             <div className="mb-6">
               <h4 className="text-professional-subtitle mb-3">Ingresos Oficiales Declarados</h4>
               <div className="space-y-2">
-                {['Efectivo', 'Debito', 'Transferencia'].map((method) => {
+                {['Efectivo', 'Debito', 'Credito', 'Transferencia'].map((method) => {
                   const amount = selectedCashRegister.officialIncome[method] ?? 0;
                   const systemTotals = calculateSystemTotalsByPaymentMethod(selectedCashSales || []);
                   const systemAmount = systemTotals[method] || 0;

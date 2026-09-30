@@ -23,6 +23,7 @@ const CustomerNameStep = ({
   onBack,
   onConfirm,
   isSubmitting,
+  confirmLabel = 'Confirmar pedido',
 }) => {
   const [name, setName] = useState('');
   const [comment, setComment] = useState('');
@@ -135,7 +136,7 @@ const CustomerNameStep = ({
             disabled={!canContinue || isSubmitting}
             onClick={() => onConfirm({ customerName: name.trim(), comment: comment.trim() })}
           >
-            {isSubmitting ? 'Enviando…' : 'Confirmar pedido'}
+            {isSubmitting ? 'Enviando…' : confirmLabel}
           </KioskButton>
         </div>
       </div>

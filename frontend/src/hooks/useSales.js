@@ -12,6 +12,7 @@ export const useSales = (filters = {}) => {
     ventasCanceladas: 0,
     montoEfectivo: 0,
     montoTarjeta: 0,
+    montoCredito: 0,
     montoTransferencia: 0,
     montoDelivery: 0
   });

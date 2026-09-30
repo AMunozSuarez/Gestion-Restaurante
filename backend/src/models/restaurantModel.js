@@ -28,8 +28,17 @@ const RESTAURANT_SETTINGS_DEFAULTS = Object.freeze({
         requireCustomerName: true,
         allowOrderComment: false,
         printCustomerTicket: true,
+        // Pago remoto con POS Haulmer/TUU. Lo activa solo el super_admin. La API Key NO vive
+        // aquí (settings se expone en rutas públicas): está cifrada en paymentIntegrations.
+        remotePayment: {
+            enabled: false,
+            allowPayAtCounter: false,
+            dteType: 48,
+        },
     },
 });
+
+const VALID_DTE_TYPES = [0, 33, 48, 99];
 
 const normalizeRestaurantSettings = (settings = {}) => {
     const rawExtraSectionDestinations = settings?.printing?.extraSectionPrintDestinations;
@@ -90,6 +99,13 @@ const normalizeRestaurantSettings = (settings = {}) => {
             requireCustomerName: settings?.selfService?.requireCustomerName !== false,
             allowOrderComment: Boolean(settings?.selfService?.allowOrderComment),
             printCustomerTicket: settings?.selfService?.printCustomerTicket !== false,
+            remotePayment: {
+                enabled: Boolean(settings?.selfService?.remotePayment?.enabled),
+                allowPayAtCounter: Boolean(settings?.selfService?.remotePayment?.allowPayAtCounter),
+                dteType: VALID_DTE_TYPES.includes(Number(settings?.selfService?.remotePayment?.dteType))
+                    ? Number(settings.selfService.remotePayment.dteType)
+                    : RESTAURANT_SETTINGS_DEFAULTS.selfService.remotePayment.dteType,
+            },
         },
     };
 };
@@ -231,6 +247,31 @@ const restaurantSchema = new mongoose.Schema({
                 type: Boolean,
                 default: RESTAURANT_SETTINGS_DEFAULTS.selfService.printCustomerTicket,
             },
+            remotePayment: {
+                enabled: {
+                    type: Boolean,
+                    default: RESTAURANT_SETTINGS_DEFAULTS.selfService.remotePayment.enabled,
+                },
+                allowPayAtCounter: {
+                    type: Boolean,
+                    default: RESTAURANT_SETTINGS_DEFAULTS.selfService.remotePayment.allowPayAtCounter,
+                },
+                dteType: {
+                    type: Number,
+                    enum: VALID_DTE_TYPES,
+                    default: RESTAURANT_SETTINGS_DEFAULTS.selfService.remotePayment.dteType,
+                },
+            },
+        },
+    },
+    // Credenciales de integraciones de pago. apiKeyEncrypted tiene select:false para que
+    // nunca salga en GET /api/restaurant/get/:id (pública) ni en GET /admin/restaurants:
+    // quien la necesite debe pedirla explícitamente con .select('+paymentIntegrations...').
+    paymentIntegrations: {
+        haulmer: {
+            apiKeyEncrypted: { type: String, select: false },
+            apiKeyLast4: { type: String, default: '' },
+            updatedAt: { type: Date },
         },
     },
 }, { timestamps: true });
@@ -248,3 +289,4 @@ const Restaurant = mongoose.model('Restaurant', restaurantSchema);
 module.exports = Restaurant;
 module.exports.RESTAURANT_SETTINGS_DEFAULTS = RESTAURANT_SETTINGS_DEFAULTS;
 module.exports.normalizeRestaurantSettings = normalizeRestaurantSettings;
+module.exports.VALID_DTE_TYPES = VALID_DTE_TYPES;

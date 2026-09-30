@@ -21,3 +21,25 @@ export const MAX_CUSTOMER_NAME_LENGTH = 40;
 
 /** Máximo de caracteres del comentario; debe coincidir con el backend. */
 export const MAX_COMMENT_LENGTH = 200;
+
+/** Cada cuánto el kiosco consulta el estado del cobro con tarjeta mientras el cliente paga. */
+export const PAYMENT_POLL_MS = 3 * 1000;
+
+/**
+ * Tras este tiempo sin resolverse el cobro, solo se avisa en pantalla. El kiosco NO vuelve
+ * solo al inicio ni el cliente puede cancelar desde ahí: Haulmer no expone una API para
+ * cancelar remotamente, así que la única salida real es cancelar el cobro en el propio POS.
+ * La pantalla espera indefinidamente hasta que el POS resuelva (aprobado, rechazado o
+ * cancelado ahí).
+ */
+export const PAYMENT_TIMEOUT_MS = 3 * 60 * 1000;
+
+/**
+ * Mientras el kiosco está en la pantalla de inicio, cada cuánto revisa en segundo plano si
+ * algún cobro con tarjeta quedó aprobado sin pedido (p. ej. la tablet se reinició a mitad de
+ * un pago), para crear su pedido sin que nadie tenga que volver a tocar la pantalla.
+ */
+export const PAYMENT_RECOVERY_POLL_MS = 20 * 1000;
+
+/** Clave de localStorage con el cobro en curso, para retomarlo si la tablet se reinicia. */
+export const PAYMENT_SESSION_STORAGE_KEY = 'selfService:paymentSessionId';

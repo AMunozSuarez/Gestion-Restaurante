@@ -313,6 +313,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
     const methodConfig = {
       Efectivo: { variant: 'success', text: 'Efectivo' },
       Debito: { variant: 'info', text: 'Débito' },
+      Credito: { variant: 'info', text: 'Crédito' },
       Transferencia: { variant: 'warning', text: 'Transferencia' }
     };
 
@@ -343,6 +344,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
     const methodConfig = {
       Efectivo: { variant: 'success', text: 'Efectivo' },
       Debito: { variant: 'info', text: 'Débito' },
+      Credito: { variant: 'info', text: 'Crédito' },
       Transferencia: { variant: 'warning', text: 'Transferencia' }
     };
 
@@ -514,6 +516,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                         >
                           <option value="Efectivo">Efectivo</option>
                           <option value="Debito">Débito</option>
+                          <option value="Credito">Crédito</option>
                           <option value="Transferencia">Transferencia</option>
                         </select>
                         <input

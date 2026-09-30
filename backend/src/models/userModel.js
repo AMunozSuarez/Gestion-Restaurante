@@ -44,6 +44,12 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: true,
     },
+    // Solo para role 'kiosco': terminal POS Haulmer/TUU que cobra en este kiosco. Cada
+    // kiosco tiene su propio POS porque Haulmer limita a 1 solicitud por minuto por terminal.
+    kioskDevice: {
+        serial: { type: String, trim: true, default: '' },
+        label: { type: String, trim: true, default: '' },
+    },
 }, {
     timestamps: true,
 });

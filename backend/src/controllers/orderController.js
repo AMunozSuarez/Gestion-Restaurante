@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const { getChileDate, formatChileDate, getChileDayRange } = require('../utils/dateUtils');
 const { getIO } = require('../socket');
 const { deductStockForOrder } = require('../services/inventoryService');
+const { validateSelectedExtras, computeFoodsTotal } = require('../utils/orderItems');
 
 const isOwnerOrSuperAdmin = (role) => role === 'owner' || role === 'super_admin';
 const isOrderActive = (status) => !['Completado', 'Cancelado'].includes(status);
@@ -201,80 +202,13 @@ const createOrderController = async (req, res) => {
         }
 
         // ── Validar extras seleccionados ──
+        // Pedido de autoservicio ya cobrado en el POS (resolvePaidSessionPayload): se valida en
+        // modo tolerante y el total es el monto cobrado, para no rechazar algo ya pagado.
+        const paidSession = req.paidSelfServiceSession || null;
         const foodMap = new Map(existingFoods.map(f => [f._id.toString(), f]));
-        for (const orderItem of foods) {
-            if (orderItem.selectedExtras && orderItem.selectedExtras.length > 0) {
-                const food = foodMap.get(orderItem.food);
-                if (!food || !food.extraSections || food.extraSections.length === 0) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Uno de los productos seleccionados no tiene extras configurados'
-                    });
-                }
-
-                // Validar cada extra seleccionado. Se matchea por sectionId/extraId cuando
-                // el item ya los trae (guardados en una validación anterior); si no, se
-                // busca por nombre contra los datos vigentes y se "backfillea" el id en el
-                // propio objeto para que quede guardado en el pedido de aquí en adelante.
-                for (const selectedExtra of orderItem.selectedExtras) {
-                    const assignment = selectedExtra.sectionId
-                        ? food.extraSections.find(a => a.section?._id && String(a.section._id) === String(selectedExtra.sectionId))
-                        : food.extraSections.find(a => a.section?.sectionName === selectedExtra.sectionName);
-                    if (!assignment) {
-                        return res.status(400).json({
-                            success: false,
-                            message: `Sección de extras "${selectedExtra.sectionName}" no válida`
-                        });
-                    }
-
-                    const sec = assignment.section;
-                    // Filtrar extras visibles para este producto
-                    const visibleExtras = assignment.visibleExtraIds && assignment.visibleExtraIds.length > 0
-                        ? sec.extras.filter(e => assignment.visibleExtraIds.map(id => id.toString()).includes(e._id.toString()))
-                        : sec.extras;
-
-                    const extra = selectedExtra.extraId
-                        ? visibleExtras.find(e => String(e._id) === String(selectedExtra.extraId) && e.isAvailable)
-                        : visibleExtras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
-                    if (!extra) {
-                        return res.status(400).json({
-                            success: false,
-                            message: `Extra "${selectedExtra.extraName}" no disponible en sección "${selectedExtra.sectionName}"`
-                        });
-                    }
-
-                    if (selectedExtra.price !== extra.price) {
-                        return res.status(400).json({
-                            success: false,
-                            message: `Precio de extra "${selectedExtra.extraName}" no coincide`
-                        });
-                    }
-
-                    selectedExtra.sectionId = sec._id;
-                    selectedExtra.extraId = extra._id;
-                    selectedExtra.sectionName = sec.sectionName;
-                    selectedExtra.extraName = extra.name;
-                }
-
-                // Validar límite de selección por sección (respetando override del producto).
-                // A esta altura todo selectedExtra ya tiene sectionId (recién asignado arriba).
-                const extrasBySection = {};
-                orderItem.selectedExtras.forEach(extra => {
-                    const key = String(extra.sectionId);
-                    extrasBySection[key] = (extrasBySection[key] || 0) + 1;
-                });
-
-                for (const [sectionId, count] of Object.entries(extrasBySection)) {
-                    const assignment = food.extraSections.find(a => a.section?._id && String(a.section._id) === sectionId);
-                    const effectiveMax = assignment.maxSelection;
-                    if (effectiveMax !== null && effectiveMax !== undefined && count > effectiveMax) {
-                        return res.status(400).json({
-                            success: false,
-                            message: `Excedido el límite de selección para "${assignment.section.sectionName}". Máximo: ${effectiveMax}`
-                        });
-                    }
-                }
-            }
+        const extrasError = validateSelectedExtras(foods, foodMap, { lenient: Boolean(paidSession) });
+        if (extrasError) {
+            return res.status(400).json({ success: false, message: extrasError });
         }
 
         // ── Calcular delivery cost ──
@@ -287,18 +221,7 @@ const createOrderController = async (req, res) => {
         }
 
         // ── Calcular total con Map para O(n) en vez de O(n²) ──
-        const foodPriceMap = new Map(existingFoods.map(f => [f._id.toString(), f.price]));
-        const total = foods.reduce((sum, item) => {
-            // Calcular precio base del producto
-            const basePrice = foodPriceMap.get(item.food) * item.quantity;
-            
-            // Calcular precio de extras seleccionados
-            const extrasPrice = (item.selectedExtras || []).reduce((extSum, extra) => {
-                return extSum + ((extra.price || 0) * item.quantity);
-            }, 0);
-            
-            return sum + basePrice + extrasPrice;
-        }, 0) + deliveryCost;
+        const total = computeFoodsTotal(foods, foodMap) + deliveryCost;
 
         // ── Pasos 2 y 3: Obtener número de orden (depende de cashRegister) y guardar ──
         // El número se calcula leyendo el último y sumando 1, lo que no es atómico: con
@@ -320,7 +243,7 @@ const createOrderController = async (req, res) => {
                 paymentMethods: paymentMethods || [],
                 splitMeta: splitMeta || { enabled: false, count: 0 },
                 splitAccounts: Array.isArray(splitAccounts) ? splitAccounts : [],
-                total: total - (discount || 0),
+                total: paidSession ? paidSession.amount : total - (discount || 0),
                 deliveryCost,
                 name: !customer ? (buyer?.name || null) : null,
                 buyer: customer ? customer._id : null,
@@ -333,6 +256,7 @@ const createOrderController = async (req, res) => {
                 orderSource: req.body.orderSource === 'self_service' ? 'self_service' : 'pos',
                 status: status || 'Preparacion',
                 comment: comment || '',
+                remotePayment: paidSession ? paidSession.remotePayment : undefined,
                 cashRegister: currentCashRegister._id,
                 restaurant: restaurantId,
             });
@@ -1310,6 +1234,7 @@ const getAllSalesController = async (req, res) => {
         const amountByMethod = {
             Efectivo: 0,
             Debito: 0,
+            Credito: 0,
             Transferencia: 0,
         };
 
@@ -1326,6 +1251,7 @@ const getAllSalesController = async (req, res) => {
             ventasCanceladas: summary.ventasCanceladas || 0,
             montoEfectivo: amountByMethod.Efectivo,
             montoTarjeta: amountByMethod.Debito,
+            montoCredito: amountByMethod.Credito,
             montoTransferencia: amountByMethod.Transferencia,
             montoDelivery: summary.montoDelivery || 0,
         };
