@@ -299,7 +299,7 @@ const Ventas = () => {
           </div>
 
           {!filtersCollapsed && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8 gap-2 lg:gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(7,minmax(0,1fr))_auto] gap-2 lg:gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Desde
@@ -383,7 +383,7 @@ const Ventas = () => {
                   onChange={(e) => setTagFilter(e.target.value)}
                   className="w-full px-2 py-1.5 lg:px-3 lg:py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent text-sm"
                 >
-                  <option value="all">Todas</option>
+                  <option value="all">Sin filtro</option>
                   {tags.map(tag => (
                     <option key={tag._id} value={tag._id}>{tag.name}</option>
                   ))}
@@ -406,7 +406,7 @@ const Ventas = () => {
                 </div>
               </div>
 
-              <div className="flex items-end justify-between gap-2">
+              <div className="flex items-end justify-between gap-3">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -418,7 +418,7 @@ const Ventas = () => {
                 </label>
                 <button
                   onClick={applyFilters}
-                  className="px-3 py-1.5 text-xs font-semibold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors whitespace-nowrap"
+                  className="px-5 py-2 text-xs font-semibold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors whitespace-nowrap"
                 >
                   Aplicar
                 </button>

@@ -1205,6 +1205,10 @@ const getAllSalesController = async (req, res) => {
         if (aggregateFilters.restaurant && mongoose.Types.ObjectId.isValid(String(aggregateFilters.restaurant))) {
             aggregateFilters.restaurant = new mongoose.Types.ObjectId(String(aggregateFilters.restaurant));
         }
+        // aggregate no castea strings a ObjectId como find, hay que hacerlo a mano
+        if (aggregateFilters.tag && mongoose.Types.ObjectId.isValid(String(aggregateFilters.tag))) {
+            aggregateFilters.tag = new mongoose.Types.ObjectId(String(aggregateFilters.tag));
+        }
 
         const [totalCount, orders, summaryAgg, paymentAgg] = await Promise.all([
             orderModel.countDocuments(filters),
