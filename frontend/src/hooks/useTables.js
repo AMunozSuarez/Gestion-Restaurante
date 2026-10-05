@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import tablesService from '../services/tablesService';
 import { onSocketEvent } from '../services/socketService';
+import { useSocketResync } from './useSocketResync';
 
 export const useTables = () => {
     const [tables, setTables] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const fetchTables = useCallback(async () => {
+    const fetchTables = useCallback(async ({ silent = false } = {}) => {
         try {
-            setIsLoading(true);
+            if (!silent) setIsLoading(true);
             const data = await tablesService.getTables();
             setTables(data);
             setError(null);
@@ -24,6 +25,9 @@ export const useTables = () => {
     useEffect(() => {
         fetchTables();
     }, [fetchTables]);
+
+    // Reconexión o cambio de etiquetas (renombrar cambia el nombre que muestra cada mesa)
+    useSocketResync(() => fetchTables({ silent: true }), { events: ['tag:changed'] });
 
     // Listen for real-time table updates via Socket.io
     useEffect(() => {

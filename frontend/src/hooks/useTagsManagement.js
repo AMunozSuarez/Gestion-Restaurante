@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import tagsService from '../services/tagsService';
+import { useSocketResync } from './useSocketResync';
 
 export const useTagsManagement = () => {
   const [tags, setTags] = useState([]);
@@ -119,6 +120,8 @@ export const useTagsManagement = () => {
   useEffect(() => {
     fetchTags();
   }, []);
+
+  useSocketResync(fetchTags, { events: ['tag:changed'] });
 
   return {
     tags,

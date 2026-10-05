@@ -1,5 +1,15 @@
 const tagModel = require('../models/tagModel');
 const orderModel = require('../models/orderModel');
+const { getIO } = require('../socket');
+
+// Avisa a los demás equipos (POS, app de meseros) para que recarguen el catálogo.
+const emitTagChanged = (req, action, tagId) => {
+    try {
+        getIO().to(`restaurant:${req.user.restaurant}`).emit('tag:changed', { action, tagId });
+    } catch (socketErr) {
+        console.error('Error emitiendo socket tag:changed:', socketErr.message);
+    }
+};
 
 // CREATE TAG
 const createTagController = async (req, res) => {
@@ -23,6 +33,7 @@ const createTagController = async (req, res) => {
 
         const newTag = new tagModel(tagData);
         await newTag.save();
+        emitTagChanged(req, 'created', newTag._id);
 
         res.status(201).json({
             success: true,
@@ -91,6 +102,7 @@ const updateTagController = async (req, res) => {
         if (isActive !== undefined) tag.isActive = isActive;
 
         await tag.save();
+        emitTagChanged(req, 'updated', tag._id);
 
         res.status(200).json({
             success: true,
@@ -147,6 +159,8 @@ const deleteTagController = async (req, res) => {
             _id: req.params.id,
             restaurant: req.user.restaurant
         });
+
+        emitTagChanged(req, 'deleted', req.params.id);
 
         res.status(200).json({
             success: true,

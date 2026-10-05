@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import tagsService from '../services/tagsService';
+import { useSocketResync } from './useSocketResync';
 
 // Catálogo de etiquetas para elegir al abrir/editar una mesa.
 export const useTags = () => {
@@ -21,6 +22,8 @@ export const useTags = () => {
   useEffect(() => {
     fetchTags();
   }, [fetchTags]);
+
+  useSocketResync(fetchTags, { events: ['tag:changed'] });
 
   const activeTags = tags.filter(tag => tag.isActive);
 

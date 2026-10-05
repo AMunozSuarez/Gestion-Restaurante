@@ -1616,6 +1616,16 @@ No. Orden: #${orderNumber}
     const headerDetailLines = [`No. Orden: #${orderNumber}`];
     if (isMesas) {
       if (tableNumber) headerDetailLines.push(`Mesa: ${tableNumber}`);
+      // Cocina ya tiene comandas con el número de mesa anterior: se deja a la vista
+      // para que no confunda esta comanda con una cuenta distinta.
+      const movedFrom = order.tableTransfer?.fromTableNumber;
+      if (movedFrom !== undefined && movedFrom !== null && movedFrom !== '' && Number(movedFrom) !== Number(tableNumber)) {
+        headerDetailLines.push(`*** TRASLADADA DE MESA ${movedFrom} ***`);
+      }
+      const mergedTables = order.tableMerge?.tableNumbers;
+      if (Array.isArray(mergedTables) && mergedTables.length > 1) {
+        headerDetailLines.push(`*** UNION: MESA ${mergedTables.join(' + MESA ')} ***`);
+      }
       if (waiterName) headerDetailLines.push(`Garzon: ${waiterName}`);
     } else {
       headerDetailLines.push(`Cliente: ${customer}`);

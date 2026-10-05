@@ -183,7 +183,7 @@ const openTable = async (req, res) => {
         table.currentGuests = currentGuests || 0;
         table.openedAt = new Date();
         if (waiter) table.waiter = waiter;
-        if (tag) table.tag = tag;
+        table.tag = tag || null;
 
         await table.save();
 
@@ -265,6 +265,7 @@ const closeTable = async (req, res) => {
         table.currentOrder = null;
         table.openedAt = null;
         table.waiter = null;
+        table.tag = null;
 
         // Si esta mesa era la principal de un grupo unido, el grupo pierde su
         // razón de ser al cerrarse la cuenta: se liberan también las secundarias.
@@ -283,6 +284,7 @@ const closeTable = async (req, res) => {
                         currentGuests: 0,
                         openedAt: null,
                         waiter: null,
+                        tag: null,
                     },
                 }
             );
@@ -729,6 +731,7 @@ const splitTable = async (req, res) => {
                     currentGuests: 0,
                     openedAt: null,
                     waiter: null,
+                    tag: null,
                 },
             }
         );
@@ -838,6 +841,7 @@ const moveTable = async (req, res) => {
         target.currentGuests = source.currentGuests;
         target.openedAt = source.openedAt || new Date();
         target.waiter = source.waiter || null;
+        target.tag = source.tag || null;
         await target.save();
 
         // El origen se libera, y con él todo su grupo: sin cuenta que compartir la
@@ -855,6 +859,7 @@ const moveTable = async (req, res) => {
                     currentGuests: 0,
                     openedAt: null,
                     waiter: null,
+                    tag: null,
                 },
             }
         );
