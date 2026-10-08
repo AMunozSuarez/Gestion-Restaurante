@@ -731,8 +731,145 @@ const splitTable = async (req, res) => {
         }
 
         const allSecondaryIds = primary.mergedGroup.map((id) => id.toString());
-        const idsToRelease = Array.isArray(tableIds) && tableIds.length > 0
-            ? tableIds.map(String).filter((id) => allSecondaryIds.includes(id))
+        const primaryIdStr = primary._id.toString();
+        const explicitIds = Array.isArray(tableIds) ? tableIds.map(String) : [];
+
+        // Separar la mesa principal por sí sola: el resto del grupo sigue unido y la
+        // cuenta se queda con ellos (pasa a su mesa de menor número). Sin esto la
+        // principal solo se podía separar deshaciendo todo el grupo.
+        if (explicitIds.includes(primaryIdStr)) {
+            const releasedSecondaries = explicitIds.filter((id) => allSecondaryIds.includes(id));
+            const remainingIds = allSecondaryIds.filter((id) => !releasedSecondaries.includes(id));
+
+            if (remainingIds.length > 0) {
+                const remainingTables = await Table.find({
+                    _id: { $in: remainingIds },
+                    restaurant: req.restaurantId,
+                });
+                const newPrimary = remainingTables.reduce(
+                    (min, t) => (t.tableNumber < min.tableNumber ? t : min),
+                    remainingTables[0]
+                );
+                const fromTableNumber = primary.tableNumber;
+                const toTableNumber = newPrimary.tableNumber;
+
+                const order = primary.currentOrder
+                    ? await Order.findOne({ _id: primary.currentOrder, restaurant: req.restaurantId })
+                    : null;
+                const hasActiveOrder = Boolean(order)
+                    && order.status !== 'Completado' && order.status !== 'Cancelado';
+
+                // Contexto de servicio de la cuenta, antes de liberar la principal
+                const carried = {
+                    currentGuests: primary.currentGuests,
+                    openedAt: primary.openedAt,
+                    waiter: primary.waiter,
+                    tag: primary.tag,
+                };
+
+                const releasedIds = [primaryIdStr, ...releasedSecondaries];
+                await Table.updateMany(
+                    { _id: { $in: releasedIds }, restaurant: req.restaurantId },
+                    {
+                        $set: {
+                            mergedInto: null,
+                            mergedGroup: [],
+                            currentOrder: null,
+                            status: 'available',
+                            currentGuests: 0,
+                            openedAt: null,
+                            waiter: null,
+                            tag: null,
+                        },
+                    }
+                );
+
+                const otherRemaining = remainingTables.filter(
+                    (t) => t._id.toString() !== newPrimary._id.toString()
+                );
+                newPrimary.mergedInto = null;
+                newPrimary.mergedGroup = otherRemaining.map((t) => t._id);
+                if (hasActiveOrder) {
+                    newPrimary.currentOrder = order._id;
+                    newPrimary.status = 'occupied';
+                    newPrimary.currentGuests = carried.currentGuests;
+                    newPrimary.openedAt = carried.openedAt || new Date();
+                    newPrimary.waiter = carried.waiter || null;
+                    newPrimary.tag = carried.tag || null;
+                }
+                await newPrimary.save();
+
+                for (const t of otherRemaining) {
+                    t.mergedInto = newPrimary._id;
+                    t.mergedGroup = [newPrimary._id, ...otherRemaining
+                        .filter((o) => o._id.toString() !== t._id.toString())
+                        .map((o) => o._id)];
+                    await t.save();
+                }
+
+                if (hasActiveOrder) {
+                    // Cocina tiene la comanda con el número de la mesa que se fue
+                    order.tableNumber = toTableNumber;
+                    const originalTableNumber = order.tableTransfer?.fromTableNumber ?? fromTableNumber;
+                    if (originalTableNumber === toTableNumber) {
+                        order.set('tableTransfer', undefined);
+                    } else {
+                        order.tableTransfer = {
+                            fromTableNumber: originalTableNumber,
+                            toTableNumber,
+                            at: new Date(),
+                        };
+                    }
+                    await order.save();
+                }
+
+                const affectedIds = [
+                    ...releasedIds,
+                    newPrimary._id.toString(),
+                    ...otherRemaining.map((t) => t._id.toString()),
+                ];
+                const populatedTables = await populateForBroadcast(Table.find({ _id: { $in: affectedIds } }));
+                const populatedOrder = hasActiveOrder
+                    ? await Order.findById(order._id)
+                        .populate('foods.food', 'title price category extraSections')
+                        .populate('deletedFoods.food', 'title price extraSections')
+                        .populate('buyer', 'name phone')
+                        .populate('waiter', 'userName name')
+                        .populate('tag', 'name color')
+                        .lean()
+                    : null;
+
+                try {
+                    const io = getIO();
+                    const room = `restaurant:${req.restaurantId}`;
+                    const senderSocketId = req.headers['x-socket-id'] || null;
+                    if (populatedOrder) {
+                        // Antes que table:updated, igual que en un traslado: la principal
+                        // queda libre y sin pedido, y no debe leerse como un cierre.
+                        io.to(room).emit('table:moved', {
+                            fromTableId: primaryIdStr,
+                            toTableId: newPrimary._id.toString(),
+                            fromTableNumber,
+                            toTableNumber,
+                            order: populatedOrder,
+                            _fromSocketId: senderSocketId,
+                        });
+                    }
+                    populatedTables.forEach((t) => emitTableUpdated(req.restaurantId, t));
+                    if (populatedOrder) {
+                        io.to(room).emit('order:updated', { order: populatedOrder, _fromSocketId: senderSocketId });
+                    }
+                } catch (socketErr) {
+                    console.error('Error emitiendo sockets de separación de mesas:', socketErr.message);
+                }
+
+                return res.json({ tables: populatedTables, order: populatedOrder });
+            }
+            // No queda nadie en el grupo: se cae al caso de separar todo.
+        }
+
+        const idsToRelease = explicitIds.length > 0 && !explicitIds.includes(primaryIdStr)
+            ? explicitIds.filter((id) => allSecondaryIds.includes(id))
             : allSecondaryIds;
 
         if (idsToRelease.length === 0) {

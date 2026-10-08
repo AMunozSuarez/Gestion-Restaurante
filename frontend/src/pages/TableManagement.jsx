@@ -281,10 +281,10 @@ const TableManagement = () => {
 
     const confirmSplitTable = async () => {
         try {
-            // Si es una mesa secundaria, se separa solo ella; si es la principal, se separa todo el grupo
-            const isSecondary = Boolean(tableToSplit.mergedInto);
-            await splitTable(tableToSplit._id, isSecondary ? [tableToSplit._id] : undefined);
-            showNotification(isSecondary ? 'Mesa separada exitosamente' : 'Grupo de mesas separado exitosamente');
+            // Siempre se separa solo la mesa elegida (también la principal: la cuenta
+            // se queda con el resto del grupo)
+            await splitTable(tableToSplit._id, [tableToSplit._id]);
+            showNotification('Mesa separada exitosamente');
             setShowSplitConfirmModal(false);
             setTableToSplit(null);
         } catch (error) {
@@ -1260,7 +1260,7 @@ const TableManagement = () => {
                         <p className="text-gray-600 mb-6">
                             {tableToSplit?.mergedInto
                                 ? `¿Separar la Mesa ${tableToSplit?.tableNumber} del grupo? Volverá a estar disponible de forma independiente.`
-                                : `¿Separar todo el grupo de la Mesa ${tableToSplit?.tableNumber}? Las mesas unidas volverán a estar disponibles de forma independiente y la Mesa ${tableToSplit?.tableNumber} conservará el pedido activo.`}
+                                : `¿Separar la Mesa ${tableToSplit?.tableNumber} del grupo? Volverá a estar disponible y la cuenta seguirá con las demás mesas unidas.`}
                         </p>
                         <div className="flex gap-3">
                             <Button
