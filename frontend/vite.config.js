@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Puerto 3000 y carpeta build/ se mantienen igual que con Create React App
-// (CORS del backend, FRONTEND_URL y despliegue dependen de ellos).
+// El puerto 3000 se mantiene igual que con Create React App
+// (CORS del backend y FRONTEND_URL dependen de él). Vercel espera dist/.
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -10,6 +10,6 @@ export default defineConfig({
     host: true, // accesible desde la red local (tablets/TV del KDS)
   },
   build: {
-    outDir: 'build',
+    outDir: 'dist',
   },
 });

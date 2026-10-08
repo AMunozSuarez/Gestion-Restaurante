@@ -3,7 +3,7 @@
 ## Comandos
 
 - `npm start` (o `npm run dev`): servidor de desarrollo en http://localhost:3000, accesible desde la red local.
-- `npm run build`: genera el build de producción en `build/`.
+- `npm run build`: genera el build de producción en `dist/`.
 - `npm run preview`: sirve el build de producción localmente.
 
 ## Variables de entorno
