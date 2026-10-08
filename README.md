@@ -88,7 +88,7 @@ El sistema está dividido en tres módulos principales:
 
 2. Crear un archivo `.env` en la carpeta `frontend` con las siguientes variables:
    ```
-   REACT_APP_API_URL=http://localhost:3001/api
+   VITE_API_URL=http://localhost:3001/api
    ```
 
 3. Iniciar la aplicación:
