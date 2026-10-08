@@ -110,6 +110,39 @@ const tablesService = {
             throw error;
         }
     },
+
+    // Unir mesas en un solo grupo con cuenta compartida
+    mergeTables: async (tableIds) => {
+        try {
+            const response = await api.post('/tables/merge', { tableIds });
+            return response.data;
+        } catch (error) {
+            console.error('Error al unir mesas:', error);
+            throw error;
+        }
+    },
+
+    // Separar mesas de su grupo unido
+    splitTable: async (id, tableIds) => {
+        try {
+            const response = await api.post(`/tables/${id}/split`, tableIds ? { tableIds } : {});
+            return response.data;
+        } catch (error) {
+            console.error('Error al separar mesas:', error);
+            throw error;
+        }
+    },
+
+    // Trasladar la cuenta activa de una mesa a otra mesa disponible
+    moveTable: async (id, targetTableId) => {
+        try {
+            const response = await api.post(`/tables/${id}/move`, { targetTableId });
+            return response.data;
+        } catch (error) {
+            console.error('Error al mover la mesa:', error);
+            throw error;
+        }
+    },
 };
 
 export default tablesService;

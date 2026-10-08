@@ -77,6 +77,42 @@ export const cashRegisterService = {
     }
   },
 
+  // Registrar un movimiento de caja (ingreso o egreso manual)
+  addCashMovement: async (data) => {
+    try {
+      const response = await api.post('/cash/movement', data);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al registrar el movimiento de caja');
+    }
+  },
+
+  // Obtener los movimientos de caja (ingresos y egresos)
+  getCashMovements: async (filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      Object.keys(filters).forEach(key => {
+        if (filters[key]) params.append(key, filters[key]);
+      });
+
+      const url = `/cash/movement${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al obtener los movimientos de caja');
+    }
+  },
+
+  // Eliminar un movimiento de caja
+  deleteCashMovement: async (movementId) => {
+    try {
+      const response = await api.delete(`/cash/movement/${movementId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Error al eliminar el movimiento de caja');
+    }
+  },
+
   // Obtener ventas de una caja registradora específica
   getCashRegisterSales: async (cashRegisterId, filters = {}) => {
     try {

@@ -107,7 +107,7 @@ const mergeFoodsReadyState = (previousFoods = [], nextFoods = []) => {
 
 const createOrderController = async (req, res) => {
     try {
-        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, tableId, waiter, tip, discount, splitMeta, splitAccounts } = req.body;
+        const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, tableId, waiter, tag, tip, discount, splitMeta, splitAccounts } = req.body;
 
         const restaurantId = req.user.restaurant;
 
@@ -163,7 +163,7 @@ const createOrderController = async (req, res) => {
             return null;
         })();
 
-        const [customer, existingFoods, currentCashRegister, table] = await Promise.all([
+        const [customer, existingFoods, currentCashRegister, resolvedTable] = await Promise.all([
             customerPromise,
             foodModel.find({ _id: { $in: uniqueFoodIds }, restaurant: restaurantId })
                 .select('_id price extraSections')
@@ -172,6 +172,12 @@ const createOrderController = async (req, res) => {
             cashRegisterModel.findOne({ restaurant: restaurantId, status: 'Abierta' }).select('_id').lean(),
             tablePromise,
         ]);
+
+        // Si la mesa buscada es secundaria de un grupo unido, el pedido se
+        // asigna a la mesa principal para que la cuenta quede compartida.
+        const table = (resolvedTable && resolvedTable.mergedInto)
+            ? await Table.findOne({ _id: resolvedTable.mergedInto, restaurant: restaurantId })
+            : resolvedTable;
 
         // ── Validaciones rápidas (sin queries) ──
         if (buyer && typeof buyer === 'string' && !customer) {
@@ -335,6 +341,7 @@ const createOrderController = async (req, res) => {
             selectedAddress: customer ? selectedAddress : null,
             tableNumber: tableNumber || null,
             waiter: waiter || null,
+            tag: tag || null,
             tip: tip || 0,
             discount: discount || 0,
             section,
@@ -378,7 +385,8 @@ const createOrderController = async (req, res) => {
                         model: 'Food'
                     }
                 })
-                .populate('waiter', 'userName email');
+                .populate('waiter', 'userName email')
+                .populate('tag', 'name color');
         }
 
         // ── Paso 5: Populate en el documento ya guardado (evita un findById extra) ──
@@ -386,6 +394,7 @@ const createOrderController = async (req, res) => {
             { path: 'foods.food', select: 'title price category' },
             { path: 'buyer', select: 'name phone' },
             { path: 'waiter', select: 'userName name' },
+            { path: 'tag', select: 'name color' },
         ]);
 
         // Emit socket events for real-time updates
@@ -449,6 +458,7 @@ const getAllOrdersController = async (req, res) => {
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         if (limit) query = query.limit(Number(limit));
@@ -475,6 +485,7 @@ const getOrderByIdController = async (req, res) => {
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         if (!order) {
@@ -508,6 +519,7 @@ const getOrderByNumberController = async (req, res) => {
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone addresses')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         if (!order) {
@@ -524,22 +536,38 @@ const getOrderByNumberController = async (req, res) => {
 // UPDATE AN ORDER
 const updateOrderController = async (req, res) => {
     try {
-        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tip, discount, deletedFoods, newFoods, splitMeta, splitAccounts, kitchenReadyAt } = req.body;
+        const { buyer, foods, payment, paymentMethods, section, status, selectedAddress, comment, tableNumber, waiter, tag, tip, discount, deletedFoods, newFoods, splitMeta, splitAccounts, kitchenReadyAt, allowClosedEdit } = req.body;
 
         const restaurantId = req.user.restaurant;
         const isPrivilegedUser = isOwnerOrSuperAdmin(req.user?.role);
-        let currentOrderSnapshot = null;
 
-        if (foods !== undefined || deletedFoods !== undefined || discount !== undefined || tip !== undefined) {
-            currentOrderSnapshot = await orderModel
-                .findOne({ _id: req.params.id, restaurant: restaurantId })
-                .select('foods deletedFoods total discount kitchenReadyAt section')
-                .lean();
+        const currentOrderSnapshot = await orderModel
+            .findOne({ _id: req.params.id, restaurant: restaurantId })
+            .select('orderNumber foods deletedFoods total discount kitchenReadyAt status section')
+            .lean();
 
-            if (!currentOrderSnapshot) {
-                return res.status(404).json({
+        if (!currentOrderSnapshot) {
+            return res.status(404).json({
+                success: false,
+                message: 'Pedido no encontrado o no pertenece a este restaurante',
+            });
+        }
+
+        // Un pedido ya cerrado no se reabre desde el flujo normal. Una pantalla que
+        // quedó abierta en otro dispositivo (detalle de mesa, KDS) sigue apuntando a
+        // esta orden, y su "Enviar comanda" la devolvería a Preparacion borrándole el
+        // pago y la propina: queda huérfana en cocina y traba el cierre de caja.
+        // Anular sí se permite, y editar una venta cerrada es una acción deliberada
+        // desde Ventas, que lo pide con allowClosedEdit.
+        if (!isOrderActive(currentOrderSnapshot.status)) {
+            const isAnnulment = status === 'Cancelado';
+            const isDeliberateEdit = allowClosedEdit === true && isPrivilegedUser;
+
+            if (!isAnnulment && !isDeliberateEdit) {
+                return res.status(409).json({
                     success: false,
-                    message: 'Pedido no encontrado o no pertenece a este restaurante',
+                    message: `El pedido #${currentOrderSnapshot.orderNumber} ya está ${currentOrderSnapshot.status.toLowerCase()} y no puede modificarse.`,
+                    orderStatus: currentOrderSnapshot.status,
                 });
             }
         }
@@ -590,7 +618,14 @@ const updateOrderController = async (req, res) => {
         }
 
 
-        if ((status === 'Completado' || status === 'Enviado') && kitchenReadyAt === undefined) {
+        // Sólo se controla el paso a cerrado, no la reedición de algo ya cerrado:
+        // una venta antigua que nunca se marcó lista en cocina no debe quedar
+        // inmodificable desde Ventas por este motivo.
+        if (
+            (status === 'Completado' || status === 'Enviado') &&
+            kitchenReadyAt === undefined &&
+            isOrderActive(currentOrderSnapshot.status)
+        ) {
             const restaurant = await Restaurant.findById(restaurantId)
                 .select('settings.kitchenDisplay')
                 .lean();
@@ -598,14 +633,9 @@ const updateOrderController = async (req, res) => {
             const requireKitchenReadyToClose = restaurant?.settings?.kitchenDisplay?.requireReadyToClose === true;
 
             if (kitchenDisplayEnabled && requireKitchenReadyToClose) {
-                const orderForReadyCheck = await orderModel
-                    .findOne({ _id: req.params.id, restaurant: restaurantId })
-                    .select('kitchenReadyAt foods')
-                    .lean();
+                const orderHasProducts = Array.isArray(currentOrderSnapshot.foods) && currentOrderSnapshot.foods.length > 0;
 
-                const orderHasProducts = Array.isArray(orderForReadyCheck?.foods) && orderForReadyCheck.foods.length > 0;
-
-                if (orderForReadyCheck && orderHasProducts && !orderForReadyCheck.kitchenReadyAt) {
+                if (orderHasProducts && !currentOrderSnapshot.kitchenReadyAt) {
                     return res.status(409).json({
                         success: false,
                         message: 'El pedido aún no está listo en cocina',
@@ -641,6 +671,7 @@ const updateOrderController = async (req, res) => {
         if (comment !== undefined) updateData.comment = comment;
         if (tableNumber !== undefined) updateData.tableNumber = tableNumber;
         if (waiter !== undefined) updateData.waiter = waiter;
+        if (tag !== undefined) updateData.tag = tag || null;
         if (tip !== undefined) updateData.tip = tip;
         if (discount !== undefined) updateData.discount = discount;
         if (splitMeta !== undefined) updateData.splitMeta = splitMeta;
@@ -864,6 +895,7 @@ const updateOrderController = async (req, res) => {
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         if (!populatedOrder) {
@@ -927,6 +959,17 @@ const updateOrderItemReadyController = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Pedido no encontrado o no pertenece a este restaurante' });
         }
 
+        // Mismo motivo que en updateOrderController: el KDS puede seguir mostrando un
+        // pedido que ya se cobró y cerró desde el POS, y marcar ahí un producto lo
+        // escribiría de vuelta sobre una venta cerrada.
+        if (!isOrderActive(order.status)) {
+            return res.status(409).json({
+                success: false,
+                message: `El pedido #${order.orderNumber} ya está ${order.status.toLowerCase()} y no puede modificarse.`,
+                orderStatus: order.status,
+            });
+        }
+
         const item = order.foods.find((foodItem) => foodItem._id.toString() === foodId);
         if (!item) {
             return res.status(404).json({ success: false, message: 'Producto no encontrado en el pedido' });
@@ -941,11 +984,26 @@ const updateOrderItemReadyController = async (req, res) => {
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         try {
             const senderSocketId = req.headers['x-socket-id'] || null;
             getIO().to(`restaurant:${restaurantId}`).emit('order:updated', { order: populatedOrder, _fromSocketId: senderSocketId });
+
+            // Notificacion ligera al mesero cuando un producto queda listo (para sonido en el celular)
+            if (ready) {
+                const populatedItem = populatedOrder.foods.find((foodItem) => foodItem._id.toString() === foodId);
+                getIO().to(`restaurant:${restaurantId}`).emit('order:item-ready', {
+                    orderId: populatedOrder._id,
+                    foodId,
+                    productId: populatedItem?.food?._id || null,
+                    comment: populatedItem?.comment || '',
+                    foodName: populatedItem?.food?.title || populatedItem?.name || '',
+                    tableNumber: populatedOrder.tableNumber,
+                    waiterId: populatedOrder.waiter?._id || null,
+                });
+            }
         } catch (socketErr) {
             console.error('Error emitiendo socket order:updated:', socketErr.message);
         }
@@ -1002,7 +1060,7 @@ const deleteOrderController = async (req, res) => {
 
 const getFilteredOrders = async (req, res) => {
     try {
-        const { date, status, paymentMethod } = req.query;
+        const { date, status, paymentMethod, tag } = req.query;
         const { cashRegisterId } = req.params; // Obtener el ID de la caja registradora desde los parámetros
 
         const filters = {
@@ -1038,11 +1096,17 @@ const getFilteredOrders = async (req, res) => {
             filters.payment = paymentMethod;
         }
 
+        // Filtrar por etiqueta
+        if (tag) {
+            filters.tag = tag;
+        }
+
         const orders = await orderModel.find(filters)
             .sort({ createdAt: -1 })
             .populate('foods.food', 'title price extraSections')
             .populate('deletedFoods.food', 'title price extraSections')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .populate('buyer', 'name phone')
             .populate('cashRegister', 'dateOpened dateClosed status')
             .lean();
@@ -1133,6 +1197,7 @@ const getSectionOrders = async (req, res) => {
                 .populate('deletedFoods.food', 'title price extraSections')
                 .populate('buyer', 'name phone addresses')
                 .populate('waiter', 'userName name')
+                .populate('tag', 'name color')
                 .lean(),
             orderModel.find({ ...baseFilter, status: { $in: recentStatusList } })
                 .sort({ updatedAt: -1 })
@@ -1156,7 +1221,7 @@ const getSectionOrders = async (req, res) => {
 // GET ALL SALES (ALL ORDERS) FOR SALES PAGE - WITHOUT CASH REGISTER FILTER
 const getAllSalesController = async (req, res) => {
     try {
-        const { status, section, limit, sortBy = 'createdAt', dateFrom, dateTo, hasDeletedItems, page, paymentMethod } = req.query;
+        const { status, section, limit, sortBy = 'createdAt', dateFrom, dateTo, hasDeletedItems, page, paymentMethod, tag } = req.query;
 
         // Validar sortBy para seguridad
         const allowedSorts = ['createdAt', 'updatedAt', 'orderNumber'];
@@ -1182,6 +1247,9 @@ const getAllSalesController = async (req, res) => {
         }
         if (hasDeletedItems === 'true') {
             filters.hasDeletedItems = true;
+        }
+        if (tag) {
+            filters.tag = tag;
         }
 
         // Filtros de fecha en zona horaria de Chile
@@ -1210,6 +1278,10 @@ const getAllSalesController = async (req, res) => {
         if (aggregateFilters.restaurant && mongoose.Types.ObjectId.isValid(String(aggregateFilters.restaurant))) {
             aggregateFilters.restaurant = new mongoose.Types.ObjectId(String(aggregateFilters.restaurant));
         }
+        // aggregate no castea strings a ObjectId como find, hay que hacerlo a mano
+        if (aggregateFilters.tag && mongoose.Types.ObjectId.isValid(String(aggregateFilters.tag))) {
+            aggregateFilters.tag = new mongoose.Types.ObjectId(String(aggregateFilters.tag));
+        }
 
         const [totalCount, orders, summaryAgg, paymentAgg] = await Promise.all([
             orderModel.countDocuments(filters),
@@ -1222,6 +1294,7 @@ const getAllSalesController = async (req, res) => {
                 .populate('deletedFoods.food', 'title price extraSections')
                 .populate('buyer', 'name phone')
                 .populate('waiter', 'userName name')
+                .populate('tag', 'name color')
                 .lean(),
             orderModel.aggregate([
                 { $match: aggregateFilters },
@@ -1484,6 +1557,7 @@ const getTipsController = async (req, res) => {
         const tips = await orderModel.find(filters)
             .select('tip waiter buyer orderNumber total createdAt status section')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .populate('buyer', 'name')
             .sort({ createdAt: -1 })
             .lean();
@@ -1550,6 +1624,7 @@ const printTicketController = async (req, res) => {
             .populate('foods.food', 'title price extraSections')
             .populate('buyer', 'name phone')
             .populate('waiter', 'userName name')
+            .populate('tag', 'name color')
             .lean();
 
         if (!order) {

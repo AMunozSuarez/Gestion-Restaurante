@@ -1,5 +1,8 @@
 const cashRegisterModel = require('../models/cashRegisterModel');
+const cashMovementModel = require('../models/cashMovementModel');
+const { CASH_MOVEMENT_TYPES } = require('../models/cashMovementModel');
 const subscriptionModel = require('../models/subscriptionModel');
+const userModel = require('../models/userModel');
 const { getChileDayRange } = require('../utils/dateUtils');
 const { getIO } = require('../socket');
 
@@ -84,21 +87,8 @@ const closeCashRegister = async (req, res) => {
     try {
         const { officialIncome, comment } = req.body;
         
-        // Verificar si hay pedidos en preparación
         const orderModel = require('../models/orderModel');
-        const pendingOrders = await orderModel.find({
-            restaurant: req.user.restaurant,
-            status: 'Preparacion'
-        });
-        
-        if (pendingOrders.length > 0) {
-            return res.status(400).send({ 
-                success: false, 
-                message: 'Hay pedidos en preparación', 
-                pendingOrdersCount: pendingOrders.length 
-            });
-        }
-        
+
         // Buscar la caja activa
         const activeCashRegister = await cashRegisterModel.findOne({
             restaurant: req.user.restaurant,
@@ -107,6 +97,32 @@ const closeCashRegister = async (req, res) => {
 
         if (!activeCashRegister) {
             return res.status(404).send({ success: false, message: 'No hay una caja activa para cerrar' });
+        }
+
+        // Pedidos en preparación que bloquean el cierre. Acotado a esta caja: un
+        // pedido que quedó colgado en una jornada anterior no tiene por qué impedir
+        // cerrar hoy, y sin este filtro bloqueaba el cierre indefinidamente. Se
+        // devuelven los números para que se sepa cuál revisar.
+        const pendingOrders = await orderModel
+            .find({
+                restaurant: req.user.restaurant,
+                cashRegister: activeCashRegister._id,
+                status: 'Preparacion'
+            })
+            .select('orderNumber section tableNumber')
+            .lean();
+
+        if (pendingOrders.length > 0) {
+            const detalle = pendingOrders
+                .map((o) => `#${o.orderNumber}${o.tableNumber ? ` (mesa ${o.tableNumber})` : ` (${o.section})`}`)
+                .join(', ');
+
+            return res.status(400).send({
+                success: false,
+                message: `Hay ${pendingOrders.length} pedido${pendingOrders.length > 1 ? 's' : ''} en preparación: ${detalle}`,
+                pendingOrdersCount: pendingOrders.length,
+                pendingOrders
+            });
         }
 
         // Calcular el total del sistema basado en las órdenes reales de esta caja
@@ -178,29 +194,120 @@ const getCashRegisterById = async (req, res) => {
 
 
 
-// Add a new cash movement
+// Registrar un movimiento manual de caja (ingreso o egreso que no proviene de una venta)
 const addCashMovement = async (req, res) => {
     try {
-        const { type, amount, description } = req.body;
-        const newMovement = new cashRegisterModel({
+        const { type, amount, description, cashRegisterId } = req.body;
+
+        if (!CASH_MOVEMENT_TYPES.includes(type)) {
+            return res.status(400).send({
+                success: false,
+                message: 'Tipo de movimiento inválido. Usa Ingreso o Egreso',
+            });
+        }
+
+        const parsedAmount = parseFloat(amount);
+        if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+            return res.status(400).send({ success: false, message: 'El monto debe ser un número mayor a 0' });
+        }
+
+        // El movimiento siempre pertenece a una caja: si no se indica una, se usa la caja abierta.
+        let cashRegister;
+        if (cashRegisterId) {
+            cashRegister = await cashRegisterModel.findOne({
+                _id: cashRegisterId,
+                restaurant: req.user.restaurant,
+            });
+        } else {
+            cashRegister = await cashRegisterModel.findOne({
+                restaurant: req.user.restaurant,
+                status: 'Abierta',
+            });
+        }
+
+        if (!cashRegister) {
+            return res.status(404).send({
+                success: false,
+                message: cashRegisterId ? 'Caja no encontrada' : 'No hay una caja abierta para registrar el movimiento',
+            });
+        }
+
+        if (cashRegister.status === 'Cerrada') {
+            return res.status(400).send({
+                success: false,
+                message: 'No se pueden registrar movimientos en una caja cerrada',
+            });
+        }
+
+        const user = await userModel.findById(req.user.id).select('userName name').lean();
+
+        const newMovement = await cashMovementModel.create({
             restaurant: req.user.restaurant,
+            cashRegister: cashRegister._id,
             type,
-            amount,
-            description,
+            amount: parsedAmount,
+            description: (description || '').trim(),
+            createdBy: req.user.id || null,
+            createdByName: user?.userName || user?.name || '',
         });
-        await newMovement.save();
-        res.status(201).send({ success: true, message: 'Movimiento registrado', newMovement });
+
+        // Avisar a los demás dispositivos para que refresquen el detalle de caja
+        try {
+            getIO().to('restaurant:' + req.user.restaurant).emit('cashmovement:created', {
+                movement: newMovement,
+                cashRegisterId: cashRegister._id.toString(),
+                _fromSocketId: req.headers['x-socket-id'] || null,
+            });
+        } catch (socketError) {
+            console.error('Error al emitir cashmovement:created:', socketError.message);
+        }
+
+        res.status(201).send({ success: true, message: 'Movimiento registrado', movement: newMovement });
     } catch (error) {
-        res.status(500).send({ success: false, message: 'Error al registrar movimiento', error });
+        console.error('Error al registrar movimiento:', error);
+        res.status(500).send({ success: false, message: 'Error al registrar movimiento', error: error.message });
     }
 };
 
+// Totales de un conjunto de movimientos (usado por el detalle de caja y el reporte impreso)
+const buildMovementStatistics = (movements) => {
+    const statistics = {
+        totalIncome: 0,
+        totalExpense: 0,
+        netTotal: 0,
+        incomeCount: 0,
+        expenseCount: 0,
+    };
 
+    movements.forEach((movement) => {
+        const amount = movement.amount || 0;
+        if (movement.type === 'Ingreso') {
+            statistics.totalIncome += amount;
+            statistics.incomeCount += 1;
+        } else if (movement.type === 'Egreso') {
+            statistics.totalExpense += amount;
+            statistics.expenseCount += 1;
+        }
+    });
 
-// Get all cash movements for a restaurant
+    statistics.netTotal = statistics.totalIncome - statistics.totalExpense;
+    return statistics;
+};
+
+// Obtener los movimientos de caja (por caja específica, por caja abierta o por rango de fechas)
 const getCashMovements = async (req, res) => {
     try {
-        const { startDate, endDate } = req.query;
+        const { startDate, endDate, cashRegisterId, type } = req.query;
+        const filters = { restaurant: req.user.restaurant };
+
+        if (cashRegisterId) {
+            filters.cashRegister = cashRegisterId;
+        }
+
+        if (type && CASH_MOVEMENT_TYPES.includes(type)) {
+            filters.type = type;
+        }
+
         const dateFilter = {};
 
         if (startDate) {
@@ -225,13 +332,62 @@ const getCashMovements = async (req, res) => {
             dateFilter.$lte = toRange.end;
         }
 
-        const movements = await cashRegisterModel.find({
-            restaurant: req.user.restaurant,
-            ...(Object.keys(dateFilter).length ? { date: dateFilter } : {}),
+        if (Object.keys(dateFilter).length) {
+            filters.createdAt = dateFilter;
+        }
+
+        const movements = await cashMovementModel.find(filters)
+            .sort({ createdAt: -1 })
+            .populate('createdBy', 'userName name')
+            .lean();
+
+        res.status(200).send({
+            success: true,
+            movements,
+            statistics: buildMovementStatistics(movements),
         });
-        res.status(200).send({ success: true, movements });
     } catch (error) {
-        res.status(500).send({ success: false, message: 'Error al obtener movimientos', error });
+        console.error('Error al obtener movimientos:', error);
+        res.status(500).send({ success: false, message: 'Error al obtener movimientos', error: error.message });
+    }
+};
+
+// Eliminar un movimiento de caja (solo mientras la caja siga abierta)
+const deleteCashMovement = async (req, res) => {
+    try {
+        const movement = await cashMovementModel.findOne({
+            _id: req.params.id,
+            restaurant: req.user.restaurant,
+        });
+
+        if (!movement) {
+            return res.status(404).send({ success: false, message: 'Movimiento no encontrado' });
+        }
+
+        const cashRegister = await cashRegisterModel.findById(movement.cashRegister);
+        if (cashRegister && cashRegister.status === 'Cerrada') {
+            return res.status(400).send({
+                success: false,
+                message: 'No se pueden eliminar movimientos de una caja cerrada',
+            });
+        }
+
+        await movement.deleteOne();
+
+        try {
+            getIO().to('restaurant:' + req.user.restaurant).emit('cashmovement:deleted', {
+                movementId: movement._id.toString(),
+                cashRegisterId: movement.cashRegister.toString(),
+                _fromSocketId: req.headers['x-socket-id'] || null,
+            });
+        } catch (socketError) {
+            console.error('Error al emitir cashmovement:deleted:', socketError.message);
+        }
+
+        res.status(200).send({ success: true, message: 'Movimiento eliminado' });
+    } catch (error) {
+        console.error('Error al eliminar movimiento:', error);
+        res.status(500).send({ success: false, message: 'Error al eliminar movimiento', error: error.message });
     }
 };
 
@@ -322,6 +478,16 @@ const getCashRegisterSales = async (req, res) => {
         const canceledTotal = canceledOrders.reduce((sum, order) => sum + (order.total || 0), 0);
         const canceledOrdersCount = canceledOrders.length;
 
+        // Movimientos manuales de caja (ingresos/egresos que no son ventas)
+        const movements = await cashMovementModel.find({
+            restaurant: req.user.restaurant,
+            cashRegister: cashRegisterId,
+        })
+            .sort({ createdAt: -1 })
+            .populate('createdBy', 'userName name')
+            .lean();
+        const movementStatistics = buildMovementStatistics(movements);
+
         // Calcular estadísticas
         const totalSales = orders.reduce((sum, order) => sum + (order.total || 0), 0);
         const totalOrders = orders.length;
@@ -331,12 +497,18 @@ const getCashRegisterSales = async (req, res) => {
             message: 'Ventas de la caja obtenidas correctamente',
             cashRegister,
             orders,
+            movements,
             statistics: {
                 totalSales,
                 totalOrders,
                 averageTicket: totalOrders > 0 ? totalSales / totalOrders : 0,
                 canceledTotal,
                 canceledOrders: canceledOrdersCount,
+                totalIncome: movementStatistics.totalIncome,
+                totalExpense: movementStatistics.totalExpense,
+                netMovements: movementStatistics.netTotal,
+                incomeCount: movementStatistics.incomeCount,
+                expenseCount: movementStatistics.expenseCount,
             }
         });
     } catch (error) {
@@ -372,7 +544,7 @@ const getCurrentCashRegisterSales = async (req, res) => {
 // RETRANSMITIR REPORTE DE CAJA YA ARMADO POR EL CLIENTE A LOS DEMÁS DISPOSITIVOS
 const broadcastCashRegisterReport = async (req, res) => {
     try {
-        const { cashRegister, systemTotalsByPayment, tipsStatistics } = req.body || {};
+        const { cashRegister, systemTotalsByPayment, tipsStatistics, movements } = req.body || {};
         if (!cashRegister) {
             return res.status(400).send({ success: false, message: 'cashRegister es requerido' });
         }
@@ -382,6 +554,7 @@ const broadcastCashRegisterReport = async (req, res) => {
             cashRegister,
             systemTotalsByPayment: systemTotalsByPayment || {},
             tipsStatistics: tipsStatistics || null,
+            movements: Array.isArray(movements) ? movements : [],
             _fromSocketId: senderSocketId,
         });
 
@@ -400,6 +573,7 @@ module.exports = {
     getCashRegisterById,
     addCashMovement,
     getCashMovements,
+    deleteCashMovement,
     getCashRegisterSales,
     getCurrentCashRegisterSales,
     broadcastCashRegisterReport,

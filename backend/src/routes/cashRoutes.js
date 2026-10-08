@@ -3,7 +3,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const denyRoleMiddleware = require('../middlewares/denyRoleMiddleware');
 
 const filterByRestaurant = require('../middlewares/filterByRestaurant');
-const { addCashMovement, getCashMovements, createCashRegister, getCurrentCashRegister, getAllCashRegisters, closeCashRegister, getCashRegisterById, getCashRegisterSales, getCurrentCashRegisterSales, broadcastCashRegisterReport } = require('../controllers/cashRegisterController');
+const { addCashMovement, getCashMovements, deleteCashMovement, createCashRegister, getCurrentCashRegister, getAllCashRegisters, closeCashRegister, getCashRegisterById, getCashRegisterSales, getCurrentCashRegisterSales, broadcastCashRegisterReport } = require('../controllers/cashRegisterController');
 const router = express.Router();
 
 router.use(authMiddleware);
@@ -33,6 +33,9 @@ router.post('/movement', denyRoleMiddleware('mesero', 'cocina'), filterByRestaur
 
 // get cash movements
 router.get('/movement', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, getCashMovements); // Route to get all cash movements for a restaurant
+
+// delete cash movement
+router.delete('/movement/:id', denyRoleMiddleware('mesero', 'cocina'), filterByRestaurant, deleteCashMovement); // Route to delete a cash movement
 
 
 // get sales from specific cash register

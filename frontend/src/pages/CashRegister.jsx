@@ -3,11 +3,13 @@ import { useCashRegister } from '../store/CashRegisterContext';
 import { useCashRegisters } from '../hooks/useCashRegisters';
 import { useCashRegisterSales } from '../hooks/useCashRegisterSales';
 import { useTips } from '../hooks/useTips';
-import { PlusIcon, XMarkIcon, PrinterIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, XMarkIcon, PrinterIcon, ExclamationTriangleIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, TrashIcon } from '@heroicons/react/24/outline';
 import VentaDetailModal from '../components/common/VentaDetailModal';
 import printingService from '../services/printingService';
+import cashRegisterService from '../services/cashRegisterService';
 import api from '../services/api';
 import { useProducts } from '../hooks/useProducts';
+import { onSocketEvent, getSocketId } from '../services/socketService';
 
 const CashRegister = () => {
   // Estados principales
@@ -36,6 +38,13 @@ const CashRegister = () => {
   // Estados para colapsar paneles
   const [currentCashCollapsed, setCurrentCashCollapsed] = React.useState(false);
 
+  // Estados para registrar ingresos/egresos de caja
+  const [showMovementModal, setShowMovementModal] = React.useState(false);
+  const [movementType, setMovementType] = React.useState('Ingreso');
+  const [movementAmount, setMovementAmount] = React.useState('');
+  const [movementDescription, setMovementDescription] = React.useState('');
+  const [isSavingMovement, setIsSavingMovement] = React.useState(false);
+
   // Hooks
   const { 
     cashRegister: currentCashRegister, 
@@ -55,6 +64,7 @@ const CashRegister = () => {
   // Hook para obtener ventas de la caja activa
   const {
     sales: currentCashSales,
+    movements: currentCashMovements,
     statistics: currentCashStatistics,
     isLoading: salesLoading,
     error: salesError,
@@ -64,6 +74,7 @@ const CashRegister = () => {
   // Hook para obtener ventas de caja seleccionada
   const {
     sales: selectedCashSales,
+    movements: selectedCashMovements,
     statistics: selectedCashStatistics,
     isLoading: selectedSalesLoading,
     refetch: refetchSelectedSales
@@ -100,6 +111,23 @@ const CashRegister = () => {
   }, []); // Se ejecuta solo al montar el componente
 
 
+
+  // Mantener el detalle sincronizado cuando otro dispositivo registra o elimina un movimiento
+  React.useEffect(() => {
+    const handleMovementChange = ({ cashRegisterId, _fromSocketId }) => {
+      if (_fromSocketId && _fromSocketId === getSocketId()) return;
+      if (isOpen && cashRegisterId === currentCashRegister?._id) refetchSales();
+      if (cashRegisterId === selectedCashRegister?._id) refetchSelectedSales();
+    };
+
+    const unsubCreated = onSocketEvent('cashmovement:created', handleMovementChange);
+    const unsubDeleted = onSocketEvent('cashmovement:deleted', handleMovementChange);
+
+    return () => {
+      unsubCreated();
+      unsubDeleted();
+    };
+  }, [isOpen, currentCashRegister?._id, selectedCashRegister?._id]);
 
   // Funciones de utilidad
   const formatCurrency = (amount) => {
@@ -224,6 +252,17 @@ const CashRegister = () => {
     }, 0);
   };
 
+  const calculateMovementTotals = (movements) => {
+    const list = Array.isArray(movements) ? movements : [];
+    const totalIncome = list
+      .filter(m => m.type === 'Ingreso')
+      .reduce((sum, m) => sum + (m.amount || 0), 0);
+    const totalExpense = list
+      .filter(m => m.type === 'Egreso')
+      .reduce((sum, m) => sum + (m.amount || 0), 0);
+    return { totalIncome, totalExpense, netTotal: totalIncome - totalExpense };
+  };
+
   const getCanceledOrdersStats = (statistics) => {
     return {
       count: statistics?.canceledOrders || 0,
@@ -236,6 +275,7 @@ const CashRegister = () => {
   };
 
   const currentCanceledStats = getCanceledOrdersStats(currentCashStatistics);
+  const currentMovementTotals = calculateMovementTotals(currentCashMovements);
   const currentCardsLoading = salesLoading || currentTipsLoading;
 
   // Manejadores de eventos
@@ -301,6 +341,81 @@ const CashRegister = () => {
     }
   };
 
+  const showNotification = (message) => {
+    setNotification(message);
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  // Refresca el detalle abierto y las tarjetas de la caja activa tras un movimiento
+  const refreshAfterMovement = (cashRegisterId) => {
+    if (isOpen) refetchSales();
+    if (selectedCashRegister?._id === cashRegisterId) refetchSelectedSales();
+  };
+
+  const handleOpenMovementModal = (type) => {
+    setMovementType(type);
+    setMovementAmount('');
+    setMovementDescription('');
+    setShowMovementModal(true);
+  };
+
+  const handleSaveMovement = async () => {
+    const amount = parseFloat(movementAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showNotification('Ingrese un monto mayor a 0');
+      return;
+    }
+
+    const targetCashRegister = selectedCashRegister?.status === 'Abierta'
+      ? selectedCashRegister
+      : currentCashRegister;
+
+    if (!targetCashRegister) {
+      showNotification('No hay una caja abierta para registrar el movimiento');
+      return;
+    }
+
+    try {
+      setIsSavingMovement(true);
+      const response = await cashRegisterService.addCashMovement({
+        type: movementType,
+        amount,
+        description: movementDescription,
+        cashRegisterId: targetCashRegister._id,
+      });
+
+      if (response.success) {
+        setShowMovementModal(false);
+        setMovementAmount('');
+        setMovementDescription('');
+        refreshAfterMovement(targetCashRegister._id);
+        showNotification(`${movementType} registrado exitosamente`);
+      } else {
+        showNotification(response.message || 'Error al registrar el movimiento');
+      }
+    } catch (error) {
+      showNotification(error.message || 'Error al registrar el movimiento');
+    } finally {
+      setIsSavingMovement(false);
+    }
+  };
+
+  const handleDeleteMovement = async (movement) => {
+    if (!window.confirm('¿Eliminar este movimiento de caja?')) return;
+
+    try {
+      const response = await cashRegisterService.deleteCashMovement(movement._id);
+      if (response.success) {
+        refreshAfterMovement(movement.cashRegister);
+        showNotification('Movimiento eliminado');
+      } else {
+        showNotification(response.message || 'Error al eliminar el movimiento');
+      }
+    } catch (error) {
+      showNotification(error.message || 'Error al eliminar el movimiento');
+    }
+  };
+
   const handleViewDetail = (cashRegister) => {
     setSelectedCashRegister(selectedCashRegister?._id === cashRegister._id ? null : cashRegister);
   };
@@ -334,11 +449,13 @@ const CashRegister = () => {
     try {
       // Calcular totales por método de pago desde las ventas reales de la caja seleccionada
       const systemTotalsByPayment = calculateSystemTotalsByPaymentMethod(selectedCashSales || []);
+      const movements = selectedCashMovements || [];
       // Retransmitir siempre a los demás dispositivos, sin depender de si este equipo tiene impresora propia
       api.post('/cash/broadcast-report', {
         cashRegister,
         systemTotalsByPayment,
         tipsStatistics: selectedTipsStatistics,
+        movements,
       }).catch((err) => {
         console.error('Error al retransmitir reporte de caja a otros dispositivos:', err);
       });
@@ -350,7 +467,7 @@ const CashRegister = () => {
         return;
       }
 
-      const result = await printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment, selectedTipsStatistics);
+      const result = await printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment, selectedTipsStatistics, movements);
       if (result.success) {
         setNotification('Reporte de caja impreso exitosamente');
         setTimeout(() => setNotification(null), 3000);
@@ -399,12 +516,30 @@ const CashRegister = () => {
                 </button>
               )}
               {isOpen && (
-                <button
-                  onClick={() => setSelectedCashRegister(currentCashRegister)}
-                  className="btn-professional-primary flex items-center gap-2 text-sm px-3 py-2"
-                >
-                  Cerrar Caja
-                </button>
+                <>
+                  <button
+                    onClick={() => handleOpenMovementModal('Ingreso')}
+                    className="btn-professional-secondary flex items-center gap-2 text-sm px-3 py-2"
+                    title="Registrar un ingreso de dinero a la caja"
+                  >
+                    <ArrowDownTrayIcon className="w-4 h-4 lg:w-5 lg:h-5" />
+                    Ingreso
+                  </button>
+                  <button
+                    onClick={() => handleOpenMovementModal('Egreso')}
+                    className="btn-professional-secondary flex items-center gap-2 text-sm px-3 py-2"
+                    title="Registrar una salida de dinero de la caja"
+                  >
+                    <ArrowUpTrayIcon className="w-4 h-4 lg:w-5 lg:h-5" />
+                    Egreso
+                  </button>
+                  <button
+                    onClick={() => setSelectedCashRegister(currentCashRegister)}
+                    className="btn-professional-primary flex items-center gap-2 text-sm px-3 py-2"
+                  >
+                    Cerrar Caja
+                  </button>
+                </>
               )}
               {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                 <button
@@ -475,6 +610,27 @@ const CashRegister = () => {
                   )}
                 </div>
                 
+                <div className="bg-gradient-to-br from-lime-50 to-lime-100 p-2 rounded border border-lime-200 min-h-[68px] flex flex-col justify-between">
+                  <p className="text-xs text-lime-700 font-medium">Ingresos</p>
+                  {currentCardsLoading ? (
+                    <p className="text-xs lg:text-sm font-bold text-lime-800">Cargando...</p>
+                  ) : (
+                    <p className="text-xs lg:text-sm font-bold text-lime-800">
+                      {formatCurrency(currentMovementTotals.totalIncome)}
+                    </p>
+                  )}
+                </div>
+                <div className="bg-gradient-to-br from-rose-50 to-rose-100 p-2 rounded border border-rose-200 min-h-[68px] flex flex-col justify-between">
+                  <p className="text-xs text-rose-700 font-medium">Egresos</p>
+                  {currentCardsLoading ? (
+                    <p className="text-xs lg:text-sm font-bold text-rose-800">Cargando...</p>
+                  ) : (
+                    <p className="text-xs lg:text-sm font-bold text-rose-800">
+                      {formatCurrency(currentMovementTotals.totalExpense)}
+                    </p>
+                  )}
+                </div>
+
                 {/* Propinas integradas */}
                 <div className="bg-gradient-to-br from-teal-50 to-teal-100 p-2 rounded border border-teal-200 min-h-[68px] flex flex-col justify-between">
                   <p className="text-xs text-teal-700 font-medium">Propinas</p>
@@ -904,6 +1060,125 @@ const CashRegister = () => {
             </div>
           )}
 
+          {/* Ingresos y Egresos de Caja */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-professional-subtitle">Ingresos y Egresos</h4>
+              {selectedCashRegister.status === 'Abierta' && (
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleOpenMovementModal('Ingreso')}
+                    className="text-xs px-2 py-1 rounded border border-green-300 text-green-700 hover:bg-green-50 transition-colors"
+                  >
+                    + Ingreso
+                  </button>
+                  <button
+                    onClick={() => handleOpenMovementModal('Egreso')}
+                    className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50 transition-colors"
+                  >
+                    + Egreso
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {(() => {
+              const movements = selectedCashMovements || [];
+              const { totalIncome, totalExpense, netTotal } = calculateMovementTotals(movements);
+              const systemTotals = calculateSystemTotalsByPaymentMethod(selectedCashSales || []);
+              const expectedCash = (selectedCashRegister.initialBalance || 0) + (systemTotals.Efectivo || 0) + netTotal;
+
+              return (
+                <>
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="bg-green-50 p-2 rounded-lg border border-green-200">
+                      <p className="text-xs text-green-700 font-medium">Total Ingresos</p>
+                      <p className="text-sm font-bold text-green-800">{formatCurrency(totalIncome)}</p>
+                    </div>
+                    <div className="bg-red-50 p-2 rounded-lg border border-red-200">
+                      <p className="text-xs text-red-700 font-medium">Total Egresos</p>
+                      <p className="text-sm font-bold text-red-800">{formatCurrency(totalExpense)}</p>
+                    </div>
+                  </div>
+
+                  {movements.length === 0 ? (
+                    <div className="text-center py-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <p className="text-professional-body text-sm">No hay ingresos ni egresos registrados</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 mb-3">
+                      {movements.map((movement) => (
+                        <div
+                          key={movement._id}
+                          className={`p-2 rounded-lg border ${
+                            movement.type === 'Ingreso'
+                              ? 'bg-green-50 border-green-200'
+                              : 'bg-red-50 border-red-200'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="min-w-0">
+                              <p className={`text-sm font-bold ${
+                                movement.type === 'Ingreso' ? 'text-green-800' : 'text-red-800'
+                              }`}>
+                                {movement.type === 'Ingreso' ? '+' : '-'}{formatCurrency(movement.amount)}
+                              </p>
+                              {movement.description && (
+                                <p className="text-xs text-gray-700 break-words">{movement.description}</p>
+                              )}
+                              <p className="text-[11px] text-gray-500">
+                                {formatDate(movement.createdAt)}
+                                {(movement.createdBy?.userName || movement.createdByName)
+                                  ? ` · ${movement.createdBy?.userName || movement.createdByName}`
+                                  : ''}
+                              </p>
+                            </div>
+                            {selectedCashRegister.status === 'Abierta' && (
+                              <button
+                                onClick={() => handleDeleteMovement(movement)}
+                                className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-white transition-colors flex-shrink-0"
+                                title="Eliminar movimiento"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Arqueo: efectivo que deberia haber fisicamente en la caja */}
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-3 rounded-lg border border-amber-200">
+                    <p className="text-xs text-amber-800 font-medium mb-2">Efectivo Esperado en Caja</p>
+                    <div className="space-y-1 text-xs text-gray-700">
+                      <div className="flex justify-between">
+                        <span>Monto inicial</span>
+                        <span className="font-medium">{formatCurrency(selectedCashRegister.initialBalance)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Ventas en efectivo</span>
+                        <span className="font-medium">{formatCurrency(systemTotals.Efectivo || 0)}</span>
+                      </div>
+                      <div className="flex justify-between text-green-700">
+                        <span>(+) Ingresos</span>
+                        <span className="font-medium">{formatCurrency(totalIncome)}</span>
+                      </div>
+                      <div className="flex justify-between text-red-700">
+                        <span>(-) Egresos</span>
+                        <span className="font-medium">{formatCurrency(totalExpense)}</span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t border-amber-200 text-sm font-bold text-amber-900">
+                        <span>Efectivo esperado</span>
+                        <span>{formatCurrency(expectedCash)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
           {/* Ingresos Oficiales */}
           {selectedCashRegister.status === 'Cerrada' && selectedCashRegister.officialIncome && (
             <div className="mb-6">
@@ -1140,6 +1415,94 @@ const CashRegister = () => {
                 className="btn-professional-secondary"
               >
                 {isCreating ? 'Abriendo...' : 'Abrir Caja'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Registrar Ingreso / Egreso */}
+      {showMovementModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="card-professional p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-professional-subtitle">
+                Registrar {movementType}
+              </h3>
+              <button
+                onClick={() => setShowMovementModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button
+                onClick={() => setMovementType('Ingreso')}
+                className={`py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  movementType === 'Ingreso'
+                    ? 'bg-green-100 border-green-400 text-green-800'
+                    : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                Ingreso
+              </button>
+              <button
+                onClick={() => setMovementType('Egreso')}
+                className={`py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  movementType === 'Egreso'
+                    ? 'bg-red-100 border-red-400 text-red-800'
+                    : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                Egreso
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-professional-body mb-2">
+                Monto
+              </label>
+              <input
+                type="number"
+                value={movementAmount}
+                onChange={(e) => setMovementAmount(e.target.value)}
+                className="w-full px-4 py-3 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                placeholder="0"
+                min="0"
+                step="100"
+                autoFocus
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-professional-body mb-2">
+                Comentario <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <textarea
+                value={movementDescription}
+                onChange={(e) => setMovementDescription(e.target.value)}
+                rows={2}
+                className="w-full px-4 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent resize-none"
+                placeholder={movementType === 'Ingreso' ? 'Ej: aporte de socio' : 'Ej: pago proveedor verduras'}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowMovementModal(false)}
+                className="btn-professional-outline"
+                disabled={isSavingMovement}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveMovement}
+                disabled={isSavingMovement}
+                className="btn-professional-secondary"
+              >
+                {isSavingMovement ? 'Guardando...' : `Registrar ${movementType}`}
               </button>
             </div>
           </div>

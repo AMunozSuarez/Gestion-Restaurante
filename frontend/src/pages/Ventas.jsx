@@ -7,6 +7,7 @@ import {
 import { useSales } from '../hooks/useSales';
 import { useTips } from '../hooks/useTips';
 import { useProducts } from '../hooks/useProducts';
+import { useTags } from '../hooks/useTags';
 import VentaDetailModal from '../components/common/VentaDetailModal';
 import { getChileToday, formatChileDateTime, formatChileanCurrency } from '../utils/dateUtils';
 
@@ -22,6 +23,7 @@ const Ventas = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('all');
   const [sectionFilter, setSectionFilter] = useState('all');
+  const [tagFilter, setTagFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [hasDeletedItemsFilter, setHasDeletedItemsFilter] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,6 +36,7 @@ const Ventas = () => {
     dateTo: today,
     paymentMethod: undefined,
     hasDeletedItems: undefined,
+    tag: undefined,
   });
 
   const applyFilters = () => {
@@ -44,6 +47,7 @@ const Ventas = () => {
       dateTo: dateTo || undefined,
       paymentMethod: paymentMethodFilter === 'all' ? undefined : paymentMethodFilter,
       hasDeletedItems: hasDeletedItemsFilter || undefined,
+      tag: tagFilter === 'all' ? undefined : tagFilter,
     });
     setCurrentPage(1);
   };
@@ -65,6 +69,9 @@ const Ventas = () => {
 
   // Hook para obtener productos
   const { products, isLoading: productsLoading } = useProducts();
+
+  // Hook para obtener el catálogo de etiquetas
+  const { tags } = useTags();
 
   // Hook para obtener propinas con los mismos filtros de fecha
   const {
@@ -229,12 +236,13 @@ const Ventas = () => {
     setStatusFilter('all');
     setPaymentMethodFilter('all');
     setSectionFilter('all');
+    setTagFilter('all');
     setSearchTerm('');
     setHasDeletedItemsFilter(false);
     setFiltersCollapsed(false);
     setSummaryCollapsed(false);
     setCurrentPage(1);
-    setAppliedFilters({ status: undefined, section: undefined, dateFrom: todayDate, dateTo: todayDate, paymentMethod: undefined, hasDeletedItems: undefined });
+    setAppliedFilters({ status: undefined, section: undefined, dateFrom: todayDate, dateTo: todayDate, paymentMethod: undefined, hasDeletedItems: undefined, tag: undefined });
   };
 
   // Exportar datos (simulado)
@@ -291,7 +299,7 @@ const Ventas = () => {
           </div>
 
           {!filtersCollapsed && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-2 lg:gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(7,minmax(0,1fr))_auto] gap-2 lg:gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Desde
@@ -368,6 +376,22 @@ const Ventas = () => {
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Etiqueta
+                </label>
+                <select
+                  value={tagFilter}
+                  onChange={(e) => setTagFilter(e.target.value)}
+                  className="w-full px-2 py-1.5 lg:px-3 lg:py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent text-sm"
+                >
+                  <option value="all">Sin filtro</option>
+                  {tags.map(tag => (
+                    <option key={tag._id} value={tag._id}>{tag.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Buscar
                 </label>
                 <div className="relative">
@@ -382,7 +406,7 @@ const Ventas = () => {
                 </div>
               </div>
 
-              <div className="flex items-end justify-between gap-2">
+              <div className="flex items-end justify-between gap-3">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -394,7 +418,7 @@ const Ventas = () => {
                 </label>
                 <button
                   onClick={applyFilters}
-                  className="px-3 py-1.5 text-xs font-semibold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors whitespace-nowrap"
+                  className="px-5 py-2 text-xs font-semibold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors whitespace-nowrap"
                 >
                   Aplicar
                 </button>
@@ -543,6 +567,14 @@ const Ventas = () => {
                         >
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                             {venta.name || venta.buyer?.name || 'Cliente anónimo'}
+                            {venta.tag && (
+                              <span
+                                className="ml-2 inline-flex px-2 py-0.5 text-xs font-semibold rounded-full text-white"
+                                style={{ backgroundColor: venta.tag.color || '#0d9488' }}
+                              >
+                                {venta.tag.name}
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                             {formatDate(venta.createdAt)}
@@ -607,6 +639,14 @@ const Ventas = () => {
                           <h4 className="font-medium text-gray-900 text-sm">
                             {venta.name || venta.buyer?.name || 'Cliente anónimo'}
                           </h4>
+                          {venta.tag && (
+                            <span
+                              className="inline-flex mt-1 px-2 py-0.5 text-xs font-semibold rounded-full text-white"
+                              style={{ backgroundColor: venta.tag.color || '#0d9488' }}
+                            >
+                              {venta.tag.name}
+                            </span>
+                          )}
                           <p className="text-xs text-gray-500">
                             {formatDate(venta.createdAt)}
                           </p>

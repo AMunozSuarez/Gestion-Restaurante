@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import ordersService from '../services/ordersService';
 import { onSocketEvent } from '../services/socketService';
+import { useSocketResync } from './useSocketResync';
 
 // Hook para obtener pedidos
 export const useOrders = (filters = {}, callbacks = {}) => {
@@ -243,9 +244,9 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
 
   const { recentLimit = 10, recentStatuses = 'Completado,Cancelado' } = recentConfig;
 
-  const fetchAll = async () => {
+  const fetchAll = async ({ silent = false } = {}) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       setError(null);
       const response = await ordersService.getSectionOrders({
         section,
@@ -272,6 +273,8 @@ export const useSectionOrders = (section, recentConfig = {}, callbacks = {}) => 
   useEffect(() => {
     fetchAll();
   }, [section, recentLimit, recentStatuses]);
+
+  useSocketResync(() => fetchAll({ silent: true }));
 
   // Listen for real-time order events via Socket.io
   useEffect(() => {

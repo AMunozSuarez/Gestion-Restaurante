@@ -52,18 +52,96 @@ select {
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 1;
   }
-  
+
   .line-clamp-2 {
     overflow: hidden;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
-  
+
   .line-clamp-3 {
     overflow: hidden;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
   }
+}
+
+/* Red de seguridad del tablero paginado: los pedidos largos ya se reparten en
+   tarjetas numeradas, pero si aun así alguna no cabe en la columna y el navegador
+   la corta, `clone` repite borde y relleno en cada trozo. Así el pedazo que cae
+   en la columna siguiente se sigue leyendo como una tarjeta y no como texto
+   suelto colgando bajo otro pedido. */
+.kds-card-part {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* Sliders de la configuración de la pantalla de cocina.
+   El control nativo queda como una línea fina que se pierde sobre el panel
+   oscuro, y el tirador es demasiado chico para acertarle con el dedo en una
+   tablet de cocina. Se rehace: barra gruesa, relleno ámbar hasta el valor
+   actual (--kds-range-fill lo calcula el componente) y tirador grande.
+   El relleno va sobre el propio input porque los pseudo-elementos de track
+   no se pueden compartir entre WebKit y Firefox. */
+.kds-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 12px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    #f59e0b 0 var(--kds-range-fill, 0%),
+    #374151 var(--kds-range-fill, 0%) 100%
+  );
+  outline: none;
+  cursor: pointer;
+  /* El navegador no debe interpretar el arrastre como scroll de la página. */
+  touch-action: none;
+}
+
+.kds-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 4px solid #f59e0b;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.55);
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.kds-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 4px solid #f59e0b;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.55);
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+/* Firefox pinta su propio track encima del degradado del input. */
+.kds-range::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+
+.kds-range:active::-webkit-slider-thumb,
+.kds-range:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+
+.kds-range:active::-moz-range-thumb,
+.kds-range:focus-visible::-moz-range-thumb {
+  transform: scale(1.12);
+}
+
+.kds-range:focus-visible {
+  box-shadow: 0 0 0 3px rgb(245 158 11 / 0.35);
 }

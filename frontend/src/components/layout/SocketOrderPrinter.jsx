@@ -105,7 +105,57 @@ const SocketOrderPrinter = () => {
       }
     });
 
-    const unsubTicket = onSocketEvent('ticket:print', ({ order, _fromSocketId }) => {
+    // Aviso de cambio de mesa. Cubre sobre todo los traslados hechos desde la app
+    // de meseros, que no tiene impresora propia: el papel que cocina ya tiene en
+    // mano lleva el número de mesa viejo.
+    const unsubTableMoved = onSocketEvent('table:moved', async ({ order, fromTableNumber, toTableNumber, _fromSocketId }) => {
+      if (!order) return;
+      if (_fromSocketId && _fromSocketId === getSocketId()) return;
+
+      const hasProducts = Array.isArray(order.foods) && order.foods.length > 0;
+      if (!hasProducts) return;
+      if (order.status === 'Completado' || order.status === 'Cancelado') return;
+      if (!canPrint()) return;
+
+      const orderId = order._id || order.id;
+      const movedAt = order.tableTransfer?.at;
+      if (printingService.shouldSkipTableMovePrint(orderId, movedAt)) return;
+
+      try {
+        const result = await printingService.printKitchenTableMoveOrder(order, { fromTableNumber, toTableNumber });
+        if (result?.success) {
+          printingService.markTableMovePrint(orderId, movedAt);
+        }
+      } catch (err) {
+        console.error('Error al imprimir aviso de cambio de mesa:', err);
+      }
+    });
+
+    // Aviso de unión de mesas hecha desde otro equipo (app de meseros u otro POS).
+    const unsubTableMerged = onSocketEvent('table:merged', async ({ order, tableNumbers, intoTableNumber, _fromSocketId }) => {
+      if (!order) return;
+      if (_fromSocketId && _fromSocketId === getSocketId()) return;
+
+      const hasProducts = Array.isArray(order.foods) && order.foods.length > 0;
+      if (!hasProducts) return;
+      if (order.status === 'Completado' || order.status === 'Cancelado') return;
+      if (!canPrint()) return;
+
+      const orderId = order._id || order.id;
+      const mergedAt = order.tableMerge?.at;
+      if (printingService.shouldSkipTableMergePrint(orderId, mergedAt)) return;
+
+      try {
+        const result = await printingService.printKitchenTableMergeOrder(order, { tableNumbers, intoTableNumber });
+        if (result?.success) {
+          printingService.markTableMergePrint(orderId, mergedAt);
+        }
+      } catch (err) {
+        console.error('Error al imprimir aviso de unión de mesas:', err);
+      }
+    });
+
+    const unsubTicket =onSocketEvent('ticket:print', ({ order, _fromSocketId }) => {
       if (!order) return;
       if (_fromSocketId && _fromSocketId === getSocketId()) return;
       if (!printingService.getRemotePrintEnabled()) return;
@@ -116,12 +166,12 @@ const SocketOrderPrinter = () => {
       }
     });
 
-    const unsubCashRegisterReport = onSocketEvent('cashregister:print', ({ cashRegister, systemTotalsByPayment, tipsStatistics, _fromSocketId }) => {
+    const unsubCashRegisterReport = onSocketEvent('cashregister:print', ({ cashRegister, systemTotalsByPayment, tipsStatistics, movements, _fromSocketId }) => {
       if (!cashRegister) return;
       if (_fromSocketId && _fromSocketId === getSocketId()) return;
       if (!printingService.getRemotePrintEnabled()) return;
       if (canPrint()) {
-        printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment || {}, tipsStatistics || null).catch((err) => {
+        printingService.printCashRegisterReport(cashRegister, systemTotalsByPayment || {}, tipsStatistics || null, movements || []).catch((err) => {
           console.error('Error al imprimir reporte de caja solicitado:', err);
         });
       }
@@ -130,6 +180,8 @@ const SocketOrderPrinter = () => {
     return () => {
       unsubCreated();
       unsubUpdated();
+      unsubTableMoved();
+      unsubTableMerged();
       unsubTicket();
       unsubCashRegisterReport();
     };

@@ -8,6 +8,7 @@ const {
     getCustomersReport,
     getDashboardReport,
     getProductDetailReport,
+    getTagsReport,
 } = require('../controllers/reportController');
 
 const router = express.Router();
@@ -29,5 +30,8 @@ router.get('/customers', filterByRestaurant, getCustomersReport);
 
 // Detalle de ventas de un producto específico
 router.get('/product-detail', filterByRestaurant, getProductDetailReport);
+
+// Reporte de ventas por etiqueta
+router.get('/tags', filterByRestaurant, getTagsReport);
 
 module.exports = router;

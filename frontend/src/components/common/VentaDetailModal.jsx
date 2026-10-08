@@ -203,6 +203,10 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
       
       // Preparar los datos para actualizar
       const updateData = {
+        // Editar una venta ya cerrada es deliberado y sólo lo permite el backend
+        // con esta bandera (y siendo owner). Ver el guardia de updateOrderController:
+        // sin ella, una pantalla desincronizada podría reabrir un pedido cobrado.
+        allowClosedEdit: true,
         buyer: {
           name: editingData.name,
           phone: editingData.phone,
@@ -938,6 +942,19 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                   {venta.tableNumber && (
                     <div className="mt-1 text-sm text-gray-600">
                       <span className="font-medium">Mesa:</span> #{venta.tableNumber}
+                    </div>
+                  )}
+
+                  {/* Mostrar etiqueta si existe */}
+                  {venta.tag && (
+                    <div className="mt-1 text-sm text-gray-600 flex items-center gap-2">
+                      <span className="font-medium">Etiqueta:</span>
+                      <span
+                        className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full text-white"
+                        style={{ backgroundColor: venta.tag.color || '#0d9488' }}
+                      >
+                        {venta.tag.name}
+                      </span>
                     </div>
                   )}
                 </div>

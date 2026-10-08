@@ -116,6 +116,11 @@ const orderSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User', // Mesero asignado a la orden
     },
+    tag: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Tag', // Etiqueta asociada a la venta
+        default: null,
+    },
     tip: {
         type: Number,
         default: 0, // Propina
@@ -148,6 +153,23 @@ const orderSchema = new mongoose.Schema({
     kitchenActivityAt: {
         type: Date,
         default: null,
+    },
+    // La cuenta se trasladó a otra mesa. Cocina ya tiene una comanda impresa con
+    // el número viejo, así que `fromTableNumber` conserva SIEMPRE el número
+    // original (no el de un traslado intermedio) y solo se actualiza el destino.
+    // Si el pedido vuelve a su mesa original el campo se limpia por completo.
+    tableTransfer: {
+        fromTableNumber: { type: Number },
+        toTableNumber: { type: Number },
+        at: { type: Date },
+    },
+    // Varias cuentas se unieron en una sola. Cocina ya tiene comandas impresas con
+    // los números de mesa originales (`tableNumbers`); `intoTableNumber` es la
+    // mesa principal donde quedó la cuenta única.
+    tableMerge: {
+        tableNumbers: [{ type: Number }],
+        intoTableNumber: { type: Number },
+        at: { type: Date },
     },
     deletedFoods: [
         {

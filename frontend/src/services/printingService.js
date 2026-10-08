@@ -20,6 +20,7 @@ const RESTAURANT_SETTINGS_STORAGE_KEYS = {
   printOnDeletedItemsUpdate: 'printOnDeletedItemsUpdate',
   onlyOwnerCanCloseTable: 'onlyOwnerCanCloseTable',
   onlyOwnerCanDeleteOrderItems: 'onlyOwnerCanDeleteOrderItems',
+  onlyOwnerCanMoveTable: 'onlyOwnerCanMoveTable',
   kitchenDisplayRequireReadyToClose: 'kitchenDisplayRequireReadyToClose',
   kitchenDisplayRequireAllItemsReady: 'kitchenDisplayRequireAllItemsReady',
   kitchenDisplayOnlyOwnerCanMarkReady: 'kitchenDisplayOnlyOwnerCanMarkReady',
@@ -41,6 +42,7 @@ const DEFAULT_RESTAURANT_SETTINGS = {
   printOnDeletedItemsUpdate: false,
   onlyOwnerCanCloseTable: false,
   onlyOwnerCanDeleteOrderItems: false,
+  onlyOwnerCanMoveTable: false,
   kitchenDisplayRequireReadyToClose: false,
   kitchenDisplayRequireAllItemsReady: false,
   kitchenDisplayOnlyOwnerCanMarkReady: false,
@@ -165,6 +167,10 @@ const normalizeRestaurantSettings = (settings = {}) => {
       permissions.onlyOwnerCanDeleteOrderItems ?? settings.onlyOwnerCanDeleteOrderItems,
       DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanDeleteOrderItems,
     ),
+    onlyOwnerCanMoveTable: parseBooleanValue(
+      permissions.onlyOwnerCanMoveTable ?? settings.onlyOwnerCanMoveTable,
+      DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanMoveTable,
+    ),
     kitchenDisplayRequireReadyToClose: parseBooleanValue(
       kitchenDisplay.requireReadyToClose ?? settings.kitchenDisplayRequireReadyToClose,
       DEFAULT_RESTAURANT_SETTINGS.kitchenDisplayRequireReadyToClose,
@@ -229,6 +235,10 @@ const getRestaurantSettingsFromStorage = () => ({
   onlyOwnerCanDeleteOrderItems: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanDeleteOrderItems,
     DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanDeleteOrderItems,
+  ),
+  onlyOwnerCanMoveTable: readBooleanFromStorage(
+    RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanMoveTable,
+    DEFAULT_RESTAURANT_SETTINGS.onlyOwnerCanMoveTable,
   ),
   kitchenDisplayRequireReadyToClose: readBooleanFromStorage(
     RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayRequireReadyToClose,
@@ -308,6 +318,10 @@ const applyRestaurantSettingsLocally = (settings = {}) => {
       String(Boolean(normalized.onlyOwnerCanDeleteOrderItems)),
     );
     localStorage.setItem(
+      RESTAURANT_SETTINGS_STORAGE_KEYS.onlyOwnerCanMoveTable,
+      String(Boolean(normalized.onlyOwnerCanMoveTable)),
+    );
+    localStorage.setItem(
       RESTAURANT_SETTINGS_STORAGE_KEYS.kitchenDisplayRequireReadyToClose,
       String(Boolean(normalized.kitchenDisplayRequireReadyToClose)),
     );
@@ -375,6 +389,7 @@ const buildRestaurantSettingsPayload = (settings = {}) => {
     permissions: {
       onlyOwnerCanCloseTable: normalized.onlyOwnerCanCloseTable,
       onlyOwnerCanDeleteOrderItems: normalized.onlyOwnerCanDeleteOrderItems,
+      onlyOwnerCanMoveTable: normalized.onlyOwnerCanMoveTable,
       drawerConfigOwnerOnly: normalized.drawerConfigOwnerOnly,
     },
     kitchenDisplay: {
@@ -767,6 +782,19 @@ la fuente esta configurada bien.
     });
   },
 
+  // Obtener si solo el dueño puede mover la cuenta de una mesa a otra
+  getOnlyOwnerCanMoveTable() {
+    return getRestaurantSettingsSnapshot().onlyOwnerCanMoveTable;
+  },
+
+  // Guardar preferencia para permitir mover mesas solo a owner
+  setOnlyOwnerCanMoveTable(enabled) {
+    applyRestaurantSettingsLocally({
+      ...getRestaurantSettingsSnapshot(),
+      onlyOwnerCanMoveTable: Boolean(enabled),
+    });
+  },
+
   // Obtener si se requiere que el pedido esté marcado como listo en el KDS para poder cerrarlo
   getKitchenDisplayRequireReadyToClose() {
     return getRestaurantSettingsSnapshot().kitchenDisplayRequireReadyToClose;
@@ -836,6 +864,19 @@ la fuente esta configurada bien.
   canCurrentUserMarkOrderReady() {
     const onlyOwnerCanMarkReady = this.getKitchenDisplayOnlyOwnerCanMarkReady();
     if (!onlyOwnerCanMarkReady) return true;
+
+    try {
+      const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+      return localUser?.role === 'owner' || localUser?.role === 'super_admin';
+    } catch {
+      return false;
+    }
+  },
+
+  // Verificar si el usuario actual puede mover la cuenta de una mesa a otra
+  canCurrentUserMoveTable() {
+    const onlyOwnerCanMove = this.getOnlyOwnerCanMoveTable();
+    if (!onlyOwnerCanMove) return true;
 
     try {
       const localUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -1112,6 +1153,198 @@ la fuente esta configurada bien.
     } catch {
       // No-op si localStorage no está disponible
     }
+  },
+
+  // Un traslado se identifica por el instante en que ocurrió: el mismo equipo
+  // puede imprimirlo al confirmarlo y recibir además el eco del socket, y varias
+  // pestañas del mismo navegador comparten esta marca.
+  shouldSkipTableMovePrint(orderId, movedAt) {
+    if (!orderId || !movedAt) return false;
+    try {
+      return localStorage.getItem(`lastTableMovePrint:${orderId}`) === String(movedAt);
+    } catch {
+      return false;
+    }
+  },
+
+  markTableMovePrint(orderId, movedAt) {
+    if (!orderId || !movedAt) return;
+    try {
+      localStorage.setItem(`lastTableMovePrint:${orderId}`, String(movedAt));
+    } catch {
+      // No-op si localStorage no está disponible
+    }
+  },
+
+  // Generar aviso de cambio de mesa. Cocina ya tiene en mano la comanda con el
+  // número viejo, así que el aviso repite los productos para que puedan
+  // emparejarlo con el papel correcto antes de despachar.
+  generateKitchenTableMoveOrder(order, options = {}) {
+    const date = new Date();
+    const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
+    const fromTableNumber = options.fromTableNumber ?? order.tableTransfer?.fromTableNumber ?? '';
+    const toTableNumber = options.toTableNumber ?? order.tableTransfer?.toTableNumber ?? order.tableNumber ?? '';
+
+    let waiterName = '';
+    if (order.waiter && typeof order.waiter === 'object') {
+      waiterName = normalizeText(order.waiter.userName || order.waiter.name || '');
+    } else if (order.waiterName) {
+      waiterName = normalizeText(order.waiterName);
+    }
+
+    let content = `
+================================
+     *** CAMBIO DE MESA ***
+================================
+
+No. Orden: #${orderNumber}
+`;
+
+    content += `[BOLD]DE:  Mesa ${fromTableNumber}
+A:   Mesa ${toTableNumber}
+[/BOLD]
+`;
+
+    if (waiterName) content += `Garzon: ${waiterName}\n`;
+    content += `Hora: ${date.toLocaleTimeString()}\n`;
+
+    const items = Array.isArray(order.foods) ? order.foods : [];
+    if (items.length > 0) {
+      content += `
+================================
+           PRODUCTOS
+================================
+
+`;
+      items.forEach((item) => {
+        const name = normalizeText(item.food?.title || item.food?.name || item.name || 'Producto');
+        content += `- ${item.quantity || 1}x ${name}\n`;
+      });
+    }
+
+    content += `
+================================`;
+
+    return content.trim();
+  },
+
+  // Imprimir aviso de cambio de mesa (misma estrategia de destino que la cancelacion:
+  // el aviso tiene que llegar a todas las estaciones que ya recibieron la comanda)
+  async printKitchenTableMoveOrder(order, options = {}) {
+    const content = this.generateKitchenTableMoveOrder(order, options);
+    return this.printNoticeToAllStations(content, 'Algunos avisos de cambio de mesa no se pudieron imprimir');
+  },
+
+  // Un aviso (cambio o unión de mesas) debe llegar a todas las estaciones que ya
+  // recibieron la comanda original, no solo a la que corresponde a una categoría.
+  async printNoticeToAllStations(content, errorMessage) {
+    const defaultPrinter = this.getDefaultPrinter();
+
+    if (defaultPrinter) {
+      return this.print(defaultPrinter, content, 1, true);
+    }
+
+    if (printerConfigService.hasMultiPrinterConfig()) {
+      const printerRoles = printerConfigService.getPrinterRoles();
+      const uniquePrinters = [...new Set(Object.values(printerRoles).filter(Boolean))];
+
+      if (uniquePrinters.length > 0) {
+        const results = [];
+        for (const printerName of uniquePrinters) {
+          try {
+            const result = await this.print(printerName, content, 1, true);
+            results.push({ printerName, ...result });
+          } catch (err) {
+            results.push({ printerName, success: false, error: err.message });
+          }
+        }
+
+        const allSuccess = results.every(r => r.success);
+        return {
+          success: allSuccess,
+          data: results,
+          error: allSuccess ? null : errorMessage,
+          details: results,
+        };
+      }
+    }
+
+    return this.printWithDefault(content, 1, true);
+  },
+
+  // Igual que el traslado: la unión se identifica por el instante en que ocurrió.
+  shouldSkipTableMergePrint(orderId, mergedAt) {
+    if (!orderId || !mergedAt) return false;
+    try {
+      return localStorage.getItem(`lastTableMergePrint:${orderId}`) === String(mergedAt);
+    } catch {
+      return false;
+    }
+  },
+
+  markTableMergePrint(orderId, mergedAt) {
+    if (!orderId || !mergedAt) return;
+    try {
+      localStorage.setItem(`lastTableMergePrint:${orderId}`, String(mergedAt));
+    } catch {
+      // No-op si localStorage no está disponible
+    }
+  },
+
+  // Aviso de unión de mesas: cocina tiene comandas separadas con los números
+  // originales y ahora es una sola cuenta; se repiten todos los productos.
+  generateKitchenTableMergeOrder(order, options = {}) {
+    const date = new Date();
+    const orderNumber = order.orderNumber || order.id || order._id || 'N/A';
+    const tableNumbers = options.tableNumbers ?? order.tableMerge?.tableNumbers ?? [];
+    const intoTableNumber = options.intoTableNumber ?? order.tableMerge?.intoTableNumber ?? order.tableNumber ?? '';
+
+    let waiterName = '';
+    if (order.waiter && typeof order.waiter === 'object') {
+      waiterName = normalizeText(order.waiter.userName || order.waiter.name || '');
+    } else if (order.waiterName) {
+      waiterName = normalizeText(order.waiterName);
+    }
+
+    let content = `
+================================
+     *** UNION DE MESAS ***
+================================
+
+No. Orden: #${orderNumber}
+`;
+
+    content += `[BOLD]UNEN: Mesa ${tableNumbers.join(' + Mesa ')}
+CUENTA UNICA: Mesa ${intoTableNumber}
+[/BOLD]
+`;
+
+    if (waiterName) content += `Garzon: ${waiterName}\n`;
+    content += `Hora: ${date.toLocaleTimeString()}\n`;
+
+    const items = Array.isArray(order.foods) ? order.foods : [];
+    if (items.length > 0) {
+      content += `
+================================
+           PRODUCTOS
+================================
+
+`;
+      items.forEach((item) => {
+        const name = normalizeText(item.food?.title || item.food?.name || item.name || 'Producto');
+        content += `- ${item.quantity || 1}x ${name}\n`;
+      });
+    }
+
+    content += `
+================================`;
+
+    return content.trim();
+  },
+
+  async printKitchenTableMergeOrder(order, options = {}) {
+    const content = this.generateKitchenTableMergeOrder(order, options);
+    return this.printNoticeToAllStations(content, 'Algunos avisos de unión de mesas no se pudieron imprimir');
   },
 
   // Generar comanda de cancelacion (solo productos eliminados)
@@ -1420,6 +1653,16 @@ No. Orden: #${orderNumber}
     const headerDetailLines = [`No. Orden: #${orderNumber}`];
     if (isMesas) {
       if (tableNumber) headerDetailLines.push(`Mesa: ${tableNumber}`);
+      // Cocina ya tiene comandas con el número de mesa anterior: se deja a la vista
+      // para que no confunda esta comanda con una cuenta distinta.
+      const movedFrom = order.tableTransfer?.fromTableNumber;
+      if (movedFrom !== undefined && movedFrom !== null && movedFrom !== '' && Number(movedFrom) !== Number(tableNumber)) {
+        headerDetailLines.push(`*** TRASLADADA DE MESA ${movedFrom} ***`);
+      }
+      const mergedTables = order.tableMerge?.tableNumbers;
+      if (Array.isArray(mergedTables) && mergedTables.length > 1) {
+        headerDetailLines.push(`*** UNION: MESA ${mergedTables.join(' + MESA ')} ***`);
+      }
       if (waiterName) headerDetailLines.push(`Garzon: ${waiterName}`);
     } else {
       headerDetailLines.push(`Cliente: ${customer}`);
@@ -2176,7 +2419,7 @@ RESUMEN
   },
 
   // Generar reporte de caja cerrada
-  generateCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null) {
+  generateCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null, movements = []) {
     
     const date = new Date();
     
@@ -2307,6 +2550,90 @@ Diferencia: ${difference >= 0 ? '+' : ''}${formatCurrency(difference)}
       content += '\n';
     }
 
+    // Agregar ingresos y egresos manuales de caja si existen
+    const cashMovements = Array.isArray(movements) ? movements : [];
+    if (cashMovements.length > 0) {
+      const movementFontSettings = this.getLocalFontSettings();
+      const movementLineWidth = movementFontSettings.bold ? 26 : 32;
+
+      // Alinea la etiqueta a la izquierda y el monto a la derecha del ancho del ticket
+      const lineWithAmount = (label, value) => {
+        const padding = ' '.repeat(Math.max(1, movementLineWidth - label.length - value.length));
+        return `${label}${padding}${value}\n`;
+      };
+
+      const formatShortDate = (dateString) => {
+        if (!dateString) return '';
+        const d = new Date(dateString);
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      };
+
+      const incomes = cashMovements.filter(m => m.type === 'Ingreso');
+      const expenses = cashMovements.filter(m => m.type === 'Egreso');
+      const totalIncome = incomes.reduce((sum, m) => sum + (m.amount || 0), 0);
+      const totalExpense = expenses.reduce((sum, m) => sum + (m.amount || 0), 0);
+      const netMovements = totalIncome - totalExpense;
+
+      // En el ticket los movimientos van del mas antiguo al mas reciente
+      const renderMovements = (list) => {
+        let block = '';
+        [...list]
+          .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+          .forEach((movement) => {
+            block += lineWithAmount(formatShortDate(movement.createdAt), formatCurrency(movement.amount));
+            const comment = normalizeText((movement.description || '').trim());
+            if (comment) {
+              block += `  ${comment.slice(0, movementLineWidth - 2)}\n`;
+            }
+          });
+        return block;
+      };
+
+      content += `
+================================
+   INGRESOS Y EGRESOS DE CAJA
+================================
+
+`;
+
+      if (incomes.length > 0) {
+        content += 'INGRESOS\n';
+        content += renderMovements(incomes);
+        content += lineWithAmount('Total ingresos:', formatCurrency(totalIncome));
+        content += '\n';
+      }
+
+      if (expenses.length > 0) {
+        content += 'EGRESOS\n';
+        content += renderMovements(expenses);
+        content += lineWithAmount('Total egresos:', formatCurrency(totalExpense));
+        content += '\n';
+      }
+
+      content += lineWithAmount(
+        'Neto movimientos:',
+        `${netMovements >= 0 ? '+' : '-'}${formatCurrency(Math.abs(netMovements))}`
+      );
+
+      // Arqueo de efectivo: lo que deberia haber fisicamente en la caja
+      const cashSales = systemTotalsByPayment?.Efectivo || 0;
+      const expectedCash = (cashRegister.initialBalance || 0) + cashSales + netMovements;
+
+      content += `
+================================
+       EFECTIVO ESPERADO
+================================
+
+`;
+      content += lineWithAmount('Monto inicial:', formatCurrency(cashRegister.initialBalance));
+      content += lineWithAmount('Ventas en efectivo:', formatCurrency(cashSales));
+      content += lineWithAmount('(+) Ingresos:', formatCurrency(totalIncome));
+      content += lineWithAmount('(-) Egresos:', formatCurrency(totalExpense));
+      content += lineWithAmount('Efectivo esperado:', formatCurrency(expectedCash));
+      content += '\n';
+    }
+
     // Agregar comentarios si existen
     if (cashRegister.comment && cashRegister.comment.trim()) {
       content += `
@@ -2334,8 +2661,8 @@ ${cashRegister.comment.trim()}
   },
 
   // Imprimir reporte de caja automaticamente
-  async printCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null) {
-    const content = this.generateCashRegisterReport(cashRegister, systemTotalsByPayment, tipsStatistics);
+  async printCashRegisterReport(cashRegister, systemTotalsByPayment = {}, tipsStatistics = null, movements = []) {
+    const content = this.generateCashRegisterReport(cashRegister, systemTotalsByPayment, tipsStatistics, movements);
     // Use caja printer if configured, otherwise default
     const cajaPrinter = printerConfigService.getPrinterForRole('caja');
     if (cajaPrinter) {

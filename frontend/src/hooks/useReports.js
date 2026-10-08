@@ -101,6 +101,31 @@ export const useReportCustomers = () => {
     return { data, isLoading, error, fetch };
 };
 
+// ─── Etiquetas ─────────────────────────────────────────────────────────────────
+
+export const useReportTags = () => {
+    const [data, setData] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const fetch = useCallback(async (filters = {}) => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const result = await reportService.getTagsReport(filters);
+            if (result.success) {
+                setData(result);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Error al cargar reporte de etiquetas');
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    return { data, isLoading, error, fetch };
+};
+
 // ─── Detalle de producto específico ───────────────────────────────────────────
 
 export const useReportProductDetail = () => {
