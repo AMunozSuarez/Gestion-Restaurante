@@ -233,10 +233,7 @@ const TableManagement = () => {
     };
 
     const toggleTableForMerge = (table) => {
-        if (Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0) {
-            showNotification(`La mesa ${table.tableNumber} ya está unida a otro grupo`, 'warning');
-            return;
-        }
+        // Una mesa ya unida se puede elegir: el backend suma todo su grupo.
         setSelectedForMerge(prev =>
             prev.includes(table._id) ? prev.filter(id => id !== table._id) : [...prev, table._id]
         );
@@ -1444,11 +1441,11 @@ const TableManagement = () => {
                                     value={guestCount}
                                     onChange={(e) => setGuestCount(parseInt(e.target.value) || 0)}
                                     min="1"
-                                    max={tableToOpen?.capacity || 10}
+                                    max="99"
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 />
                                 <p className="text-sm text-gray-500 mt-1">
-                                    Capacidad máxima: {tableToOpen?.capacity} personas
+                                    Capacidad de la mesa: {tableToOpen?.capacity} personas (puedes superarla)
                                 </p>
                             </div>
 

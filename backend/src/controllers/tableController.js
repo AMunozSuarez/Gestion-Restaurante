@@ -514,20 +514,37 @@ const mergeTables = async (req, res) => {
             return res.status(400).json({ message: 'Se requieren al menos 2 mesas para unir' });
         }
 
-        const tables = await Table.find({
+        const selectedTables = await Table.find({
             _id: { $in: tableIds },
             restaurant: req.restaurantId,
         });
 
-        if (tables.length !== tableIds.length) {
+        if (selectedTables.length !== new Set(tableIds.map(String)).size) {
             return res.status(404).json({ message: 'Una o más mesas no fueron encontradas' });
         }
 
-        const alreadyGrouped = tables.find((t) => Array.isArray(t.mergedGroup) && t.mergedGroup.length > 0);
-        if (alreadyGrouped) {
-            return res.status(400).json({
-                message: `La mesa ${alreadyGrouped.tableNumber} ya está unida a otro grupo. Sepárala primero.`,
-            });
+        // Una mesa que ya forma parte de un grupo arrastra a todo su grupo: unir
+        // "la mesa 1+2" con la 3 deja un solo grupo 1+2+3 con una cuenta.
+        const groupOf = (t) => new Set([
+            String(t._id),
+            ...(t.mergedInto ? [String(t.mergedInto)] : []),
+            ...(Array.isArray(t.mergedGroup) ? t.mergedGroup.map(String) : []),
+        ]);
+        const allIds = new Set();
+        selectedTables.forEach((t) => groupOf(t).forEach((id) => allIds.add(id)));
+
+        // Si todas las seleccionadas ya son el mismo grupo no hay nada que unir.
+        if (allIds.size === groupOf(selectedTables[0]).size) {
+            return res.status(400).json({ message: 'Esas mesas ya están unidas entre sí' });
+        }
+
+        const tables = await Table.find({
+            _id: { $in: [...allIds] },
+            restaurant: req.restaurantId,
+        });
+
+        if (tables.length !== allIds.size) {
+            return res.status(404).json({ message: 'Una o más mesas del grupo no fueron encontradas' });
         }
 
         const primary = tables.reduce((min, t) => (t.tableNumber < min.tableNumber ? t : min), tables[0]);
@@ -553,9 +570,11 @@ const mergeTables = async (req, res) => {
         const absorbedOrders = activeOrders.slice(1).map((entry) => entry.order);
 
         // Números de mesa con los que cocina ya recibió comandas (antes de tocar nada)
-        const originalTableNumbers = [...new Set(
-            activeOrders.map(({ table, order }) => order.tableNumber ?? table.tableNumber)
-        )];
+        const originalTableNumbers = [...new Set([
+            // Si la cuenta ya venía de una unión previa, cocina conoce esos números
+            ...activeOrders.flatMap(({ order }) => order.tableMerge?.tableNumbers || []),
+            ...activeOrders.map(({ table, order }) => order.tableNumber ?? table.tableNumber),
+        ])];
 
         if (sharedOrder) {
             // Combinar todos los productos en la cuenta compartida. Se conservan el
