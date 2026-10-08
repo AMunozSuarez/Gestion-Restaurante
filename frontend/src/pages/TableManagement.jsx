@@ -1444,9 +1444,6 @@ const TableManagement = () => {
                                     max="99"
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 />
-                                <p className="text-sm text-gray-500 mt-1">
-                                    Capacidad de la mesa: {tableToOpen?.capacity} personas (puedes superarla)
-                                </p>
                             </div>
 
                             <div>
