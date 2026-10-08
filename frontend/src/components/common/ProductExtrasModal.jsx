@@ -14,6 +14,10 @@ const ProductExtrasModal = ({
   const wasOpenRef = useRef(false);
   const initialExtrasRef = useRef(initialSelectedExtras);
 
+  // Clave de agrupación: por extraId cuando el pedido ya lo trae (estable ante un
+  // renombre posterior), o por nombre para pedidos guardados antes de ese campo.
+  const buildExtraKey = (extra) => (extra?.extraId ? `id:${extra.extraId}` : `name:${extra?.sectionName}|${extra?.extraName}`);
+
   const normalizeInitialExtras = (extras = []) => {
     const extrasMap = new Map();
 
@@ -22,7 +26,7 @@ const ProductExtrasModal = ({
         return;
       }
 
-      const key = `${extra.sectionName}|${extra.extraName}`;
+      const key = buildExtraKey(extra);
       const quantity = extra.quantity && extra.quantity > 0 ? extra.quantity : 1;
 
       if (extrasMap.has(key)) {
@@ -30,6 +34,8 @@ const ProductExtrasModal = ({
         existing.quantity += quantity;
       } else {
         extrasMap.set(key, {
+          sectionId: extra.sectionId || null,
+          extraId: extra.extraId || null,
           sectionName: extra.sectionName,
           extraName: extra.extraName,
           price: extra.price || 0,
@@ -46,6 +52,8 @@ const ProductExtrasModal = ({
       const quantity = extra.quantity || 0;
 
       return Array.from({ length: quantity }, () => ({
+        sectionId: extra.sectionId || null,
+        extraId: extra.extraId || null,
         sectionName: extra.sectionName,
         extraName: extra.extraName,
         price: extra.price || 0
@@ -92,11 +100,12 @@ const ProductExtrasModal = ({
         const extras = visibleIds.length > 0
           ? allExtras.filter(e => visibleIds.some(id => id.toString() === (e._id || e).toString()))
           : allExtras;
-        return { sectionName: sec.sectionName, maxSelection: effectiveMax, extras };
+        return { sectionId: sec._id ? String(sec._id) : null, sectionName: sec.sectionName, maxSelection: effectiveMax, extras };
       }
       // Formato antiguo (pre-migración): el objeto tiene sectionName y extras directamente.
       // Si Mongoose ya aplicó el esquema nuevo sobre datos viejos, extras puede ser undefined.
       return {
+        sectionId: null,
         sectionName: assignment.sectionName || '',
         maxSelection: assignment.maxSelection ?? null,
         extras: assignment.extras || [],
@@ -106,16 +115,24 @@ const ProductExtrasModal = ({
 
   const effectiveSections = getEffectiveSections();
 
-  const getSectionSelectedCount = (sectionName, extrasState = selectedExtras) => {
+  // Compara una selección guardada contra una sección/extra en vivo: por id cuando
+  // ambos lados lo tienen (estable ante un renombre), por nombre si no.
+  const matchesSection = (selected, section) => (selected.sectionId && section.sectionId
+    ? String(selected.sectionId) === String(section.sectionId)
+    : selected.sectionName === section.sectionName);
+
+  const matchesExtra = (selected, section, extra) => (selected.extraId && extra._id
+    ? String(selected.extraId) === String(extra._id)
+    : matchesSection(selected, section) && selected.extraName === extra.name);
+
+  const getSectionSelectedCount = (section, extrasState = selectedExtras) => {
     return extrasState
-      .filter(e => e.sectionName === sectionName)
+      .filter(e => matchesSection(e, section))
       .reduce((sum, extra) => sum + (extra.quantity || 0), 0);
   };
 
-  const getExtraQuantity = (sectionName, extraName) => {
-    const selectedExtra = selectedExtras.find(e => 
-      e.sectionName === sectionName && e.extraName === extraName
-    );
+  const getExtraQuantity = (section, extra) => {
+    const selectedExtra = selectedExtras.find(e => matchesExtra(e, section, extra));
 
     return selectedExtra?.quantity || 0;
   };
@@ -144,7 +161,7 @@ const ProductExtrasModal = ({
     const maxSelection = section.maxSelection;
 
     setSelectedExtras(prev => {
-      const currentCount = getSectionSelectedCount(sectionName, prev);
+      const currentCount = getSectionSelectedCount(section, prev);
       const hasMaxSelection = maxSelection !== null && maxSelection !== undefined;
 
       if (hasMaxSelection && currentCount >= maxSelection) {
@@ -152,9 +169,7 @@ const ProductExtrasModal = ({
         return prev;
       }
 
-      const existingIndex = prev.findIndex(e =>
-        e.sectionName === sectionName && e.extraName === extra.name
-      );
+      const existingIndex = prev.findIndex(e => matchesExtra(e, section, extra));
 
       let updated;
       if (existingIndex >= 0) {
@@ -167,6 +182,8 @@ const ProductExtrasModal = ({
         updated = [
           ...prev,
           {
+            sectionId: section.sectionId || null,
+            extraId: extra._id ? String(extra._id) : null,
             sectionName,
             extraName: extra.name,
             price: extra.price || 0,
@@ -180,11 +197,9 @@ const ProductExtrasModal = ({
     });
   };
 
-  const handleDecrementExtra = (sectionName, extraName) => {
+  const handleDecrementExtra = (section, extra) => {
     setSelectedExtras(prev => {
-      const existingIndex = prev.findIndex(e =>
-        e.sectionName === sectionName && e.extraName === extraName
-      );
+      const existingIndex = prev.findIndex(e => matchesExtra(e, section, extra));
 
       if (existingIndex < 0) {
         return prev;
@@ -202,7 +217,7 @@ const ProductExtrasModal = ({
       );
     });
 
-    clearSectionError(sectionName);
+    clearSectionError(section.sectionName);
   };
 
   const calculateExtrasTotal = () => {
@@ -237,7 +252,7 @@ const ProductExtrasModal = ({
             return null; // No mostrar secciones sin extras disponibles
           }
 
-          const selectedCount = getSectionSelectedCount(section.sectionName);
+          const selectedCount = getSectionSelectedCount(section);
           const hasMaxSelection = section.maxSelection !== null && section.maxSelection !== undefined;
 
           return (
@@ -269,7 +284,7 @@ const ProductExtrasModal = ({
               {/* Lista de extras */}
               <div className="space-y-2">
                 {availableExtras.map((extra, extraIndex) => {
-                  const quantity = getExtraQuantity(section.sectionName, extra.name);
+                  const quantity = getExtraQuantity(section, extra);
                   const isSelected = quantity > 0;
                   const disableIncrement = hasMaxSelection && selectedCount >= section.maxSelection;
 
@@ -316,7 +331,7 @@ const ProductExtrasModal = ({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDecrementExtra(section.sectionName, extra.name);
+                              handleDecrementExtra(section, extra);
                             }}
                             className="h-7 w-7 rounded-full border border-orange-300 text-orange-600 hover:bg-orange-100"
                             aria-label={`Quitar una unidad de ${extra.name}`}

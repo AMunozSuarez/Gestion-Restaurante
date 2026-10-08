@@ -913,8 +913,9 @@ const TableDetail = () => {
             return;
         }
 
-        // Si la mesa está vacía, cerrar directamente sin pago
-        if (cart.length === 0) {
+        // Si la mesa está vacía (sin productos activos), cerrar directamente sin pago
+        const hasActiveItems = cart.some(item => !item.deleted);
+        if (!hasActiveItems) {
             try {
                 setIsProcessing(true);
                 selfClosingRef.current = true;

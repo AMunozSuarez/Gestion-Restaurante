@@ -24,6 +24,9 @@ const RESTAURANT_SETTINGS_DEFAULTS = Object.freeze({
         requireAllItemsReady: false,
         onlyOwnerCanMarkReady: false,
     },
+    sales: {
+        allowTipOnCounterSale: false,
+    },
 });
 
 const normalizeRestaurantSettings = (settings = {}) => {
@@ -77,6 +80,9 @@ const normalizeRestaurantSettings = (settings = {}) => {
             requireReadyToClose: Boolean(settings?.kitchenDisplay?.requireReadyToClose),
             requireAllItemsReady: Boolean(settings?.kitchenDisplay?.requireAllItemsReady),
             onlyOwnerCanMarkReady: Boolean(settings?.kitchenDisplay?.onlyOwnerCanMarkReady),
+        },
+        sales: {
+            allowTipOnCounterSale: Boolean(settings?.sales?.allowTipOnCounterSale),
         },
     };
 };
@@ -203,6 +209,12 @@ const restaurantSchema = new mongoose.Schema({
             onlyOwnerCanMarkReady: {
                 type: Boolean,
                 default: RESTAURANT_SETTINGS_DEFAULTS.kitchenDisplay.onlyOwnerCanMarkReady,
+            },
+        },
+        sales: {
+            allowTipOnCounterSale: {
+                type: Boolean,
+                default: RESTAURANT_SETTINGS_DEFAULTS.sales.allowTipOnCounterSale,
             },
         },
     },

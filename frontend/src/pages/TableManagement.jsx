@@ -17,7 +17,9 @@ import {
     CheckIcon,
     ExclamationTriangleIcon,
     LinkIcon,
-    LinkSlashIcon
+    LinkSlashIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { Button } from '../components/ui';
 import {
@@ -136,9 +138,11 @@ const TableManagement = () => {
         localStorage.setItem('tableSections', JSON.stringify(customSections));
     }, [customSections]);
 
-    // Obtener secciones únicas combinando las que tienen mesas y las creadas manualmente
+    // Obtener secciones únicas combinando las que tienen mesas y las creadas manualmente.
+    // Se respeta el orden de customSections (orden de creación o el reordenado manualmente
+    // en modo edición) en vez de ordenar alfabéticamente.
     const tableSections = [...new Set(tables.map(t => t.section || 'Salón'))];
-    const sections = [...new Set([...customSections, ...tableSections])].sort();
+    const sections = [...customSections, ...tableSections.filter(s => !customSections.includes(s))];
     
     // Filtrar mesas por sección actual
     const filteredTables = tables.filter(t => (t.section || 'Salón') === currentSection);
@@ -151,6 +155,9 @@ const TableManagement = () => {
         setNotification({ message, type });
         setTimeout(() => setNotification(null), duration);
     };
+
+    // Extrae el mensaje de error del backend en vez del genérico de axios
+    const getErrorMessage = (error) => error.response?.data?.message || error.message;
 
     // Verificar caja al montar - solo cuando termine de cargar
     useEffect(() => {
@@ -202,7 +209,7 @@ const TableManagement = () => {
             setSelectedTag(null);
             showNotification('Mesa abierta exitosamente');
         } catch (error) {
-            showNotification('Error al abrir mesa: ' + error.message, 'error');
+            showNotification('Error al abrir mesa: ' + getErrorMessage(error), 'error');
         }
     };
 
@@ -293,12 +300,19 @@ const TableManagement = () => {
     };
 
     // Funciones para crear mesa
+    const getNextTableNumber = () => tables.length > 0
+        ? Math.max(...tables.map(t => t.tableNumber)) + 1
+        : 1;
+
+    const handleOpenAddTableModal = () => {
+        setNewTable({ tableNumber: String(getNextTableNumber()), capacity: 4 });
+        setShowAddTableModal(true);
+    };
+
     const handleAddTable = async () => {
         try {
-            const nextNumber = tables.length > 0 
-                ? Math.max(...tables.map(t => t.tableNumber)) + 1 
-                : 1;
-            
+            const nextNumber = getNextTableNumber();
+
             // Encontrar la primera posición disponible en la sección actual
             let availablePosition = { x: 0, y: 0 };
             const cols = 7;
@@ -328,7 +342,7 @@ const TableManagement = () => {
             setNewTable({ tableNumber: '', capacity: 4 });
             showNotification('Mesa creada exitosamente');
         } catch (error) {
-            showNotification('Error al crear mesa: ' + error.message, 'error');
+            showNotification('Error al crear mesa: ' + getErrorMessage(error), 'error');
         }
     };
 
@@ -353,7 +367,7 @@ const TableManagement = () => {
             setSelectedTable(null);
             showNotification('Mesa actualizada exitosamente');
         } catch (error) {
-            showNotification('Error al actualizar mesa: ' + error.message, 'error');
+            showNotification('Error al actualizar mesa: ' + getErrorMessage(error), 'error');
         }
     };
 
@@ -375,7 +389,7 @@ const TableManagement = () => {
             setTableToDelete(null);
             showNotification('Mesa eliminada exitosamente');
         } catch (error) {
-            showNotification('Error al eliminar mesa: ' + error.message, 'error');
+            showNotification('Error al eliminar mesa: ' + getErrorMessage(error), 'error');
         }
     };
 
@@ -438,7 +452,7 @@ const TableManagement = () => {
                 try {
                     await updateTablePositions(changes);
                 } catch (error) {
-                    showNotification('Error al guardar posiciones: ' + error.message, 'error');
+                    showNotification('Error al guardar posiciones: ' + getErrorMessage(error), 'error');
                     return; // se mantiene en modo edición para poder reintentar
                 } finally {
                     setIsSavingPositions(false);
@@ -525,7 +539,7 @@ const TableManagement = () => {
             setSectionToEdit('');
             showNotification('Sección renombrada exitosamente');
         } catch (error) {
-            showNotification('Error al renombrar sección: ' + error.message, 'error');
+            showNotification('Error al renombrar sección: ' + getErrorMessage(error), 'error');
         }
     };
 
@@ -548,6 +562,18 @@ const TableManagement = () => {
         }
         
         showNotification('Sección eliminada exitosamente');
+    };
+
+    // Mueve una sección un puesto a la izquierda (-1) o derecha (+1) en el orden de las pestañas.
+    // Persiste el orden completo actual en customSections para que quede fijo tras el reordenamiento.
+    const moveSection = (sectionName, direction) => {
+        const currentIndex = sections.indexOf(sectionName);
+        const targetIndex = currentIndex + direction;
+        if (currentIndex === -1 || targetIndex < 0 || targetIndex >= sections.length) return;
+
+        const reordered = [...sections];
+        [reordered[currentIndex], reordered[targetIndex]] = [reordered[targetIndex], reordered[currentIndex]];
+        setCustomSections(reordered);
     };
 
     // Crear cuadrícula de posiciones
@@ -851,7 +877,7 @@ const TableManagement = () => {
 
             {/* Notificación toast */}
             {notification && (
-                <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg animate-fade-in ${
+                <div className={`fixed top-4 right-4 z-[70] px-6 py-3 rounded-lg shadow-lg animate-fade-in ${
                     notification.type === 'error' ? 'bg-red-600' : 
                     notification.type === 'warning' ? 'bg-orange-500' : 
                     'bg-teal-600'
@@ -910,7 +936,7 @@ const TableManagement = () => {
                                 <span className="hidden md:inline">{isSavingPositions ? 'Guardando...' : isEditMode ? 'Terminar edición' : 'Editar mesas'}</span>
                             </Button>
                             <Button
-                                onClick={() => setShowAddTableModal(true)}
+                                onClick={() => handleOpenAddTableModal()}
                                 className="bg-teal-600 hover:bg-teal-700 whitespace-nowrap px-2 md:px-5"
                             >
                                 <PlusIcon className="w-4 h-4 mr-1.5 md:w-5 md:h-5 md:mr-2 shrink-0" />
@@ -945,19 +971,45 @@ const TableManagement = () => {
                                         )}
                                     </button>
                                     {isEditMode && (
-                                        <div className="absolute top-0 right-0 -mt-2 -mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setEditingSectionName(section);
-                                                    setSectionToEdit(section);
-                                                }}
-                                                className="p-1 bg-white rounded-full shadow-md hover:bg-gray-100"
-                                                title="Editar nombre"
-                                            >
-                                                <PencilIcon className="w-3 h-3 text-teal-600" />
-                                            </button>
-                                        </div>
+                                        <>
+                                            <div className="absolute top-0 left-0 -mt-2 -ml-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        moveSection(section, -1);
+                                                    }}
+                                                    disabled={sections.indexOf(section) === 0}
+                                                    className="p-1 bg-white rounded-full shadow-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    title="Mover a la izquierda"
+                                                >
+                                                    <ChevronLeftIcon className="w-3 h-3 text-teal-600" />
+                                                </button>
+                                            </div>
+                                            <div className="absolute top-0 right-0 -mt-2 -mr-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingSectionName(section);
+                                                        setSectionToEdit(section);
+                                                    }}
+                                                    className="p-1 bg-white rounded-full shadow-md hover:bg-gray-100"
+                                                    title="Editar nombre"
+                                                >
+                                                    <PencilIcon className="w-3 h-3 text-teal-600" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        moveSection(section, 1);
+                                                    }}
+                                                    disabled={sections.indexOf(section) === sections.length - 1}
+                                                    className="p-1 bg-white rounded-full shadow-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    title="Mover a la derecha"
+                                                >
+                                                    <ChevronRightIcon className="w-3 h-3 text-teal-600" />
+                                                </button>
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             ))}
@@ -984,7 +1036,7 @@ const TableManagement = () => {
                         <h3 className="text-xl font-semibold text-gray-700 mb-2">No hay mesas configuradas</h3>
                         <p className="text-gray-500 mb-4">Comienza agregando tu primera mesa</p>
                         <Button
-                            onClick={() => setShowAddTableModal(true)}
+                            onClick={handleOpenAddTableModal}
                             className="bg-teal-600 hover:bg-teal-700"
                         >
                             <PlusIcon className="w-5 h-5 mr-2" />
@@ -1296,7 +1348,6 @@ const TableManagement = () => {
                                     type="number"
                                     value={newTable.tableNumber}
                                     onChange={(e) => setNewTable({...newTable, tableNumber: e.target.value})}
-                                    placeholder="Automático"
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                                 />
                             </div>

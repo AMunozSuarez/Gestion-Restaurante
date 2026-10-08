@@ -110,6 +110,19 @@ const createOrderController = async (req, res) => {
         const { foods, payment, paymentMethods, buyer, section, status, selectedAddress, comment, tableNumber, tableId, waiter, tag, tip, discount, splitMeta, splitAccounts } = req.body;
 
         const restaurantId = req.user.restaurant;
+
+        if (section === 'mostrador' && Number(tip) > 0) {
+            const restaurantForTip = await Restaurant.findById(restaurantId)
+                .select('settings.sales.allowTipOnCounterSale')
+                .lean();
+            if (restaurantForTip?.settings?.sales?.allowTipOnCounterSale !== true) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'La propina en mostrador no está habilitada para este restaurante.',
+                });
+            }
+        }
+
         const foodIds = foods.map((item) => item.food);
         const uniqueFoodIds = [...new Set(foodIds)];
 
@@ -218,9 +231,14 @@ const createOrderController = async (req, res) => {
                     });
                 }
 
-                // Validar cada extra seleccionado
+                // Validar cada extra seleccionado. Se matchea por sectionId/extraId cuando
+                // el item ya los trae (guardados en una validación anterior); si no, se
+                // busca por nombre contra los datos vigentes y se "backfillea" el id en el
+                // propio objeto para que quede guardado en el pedido de aquí en adelante.
                 for (const selectedExtra of orderItem.selectedExtras) {
-                    const assignment = food.extraSections.find(a => a.section?.sectionName === selectedExtra.sectionName);
+                    const assignment = selectedExtra.sectionId
+                        ? food.extraSections.find(a => a.section?._id && String(a.section._id) === String(selectedExtra.sectionId))
+                        : food.extraSections.find(a => a.section?.sectionName === selectedExtra.sectionName);
                     if (!assignment) {
                         return res.status(400).json({
                             success: false,
@@ -234,7 +252,9 @@ const createOrderController = async (req, res) => {
                         ? sec.extras.filter(e => assignment.visibleExtraIds.map(id => id.toString()).includes(e._id.toString()))
                         : sec.extras;
 
-                    const extra = visibleExtras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
+                    const extra = selectedExtra.extraId
+                        ? visibleExtras.find(e => String(e._id) === String(selectedExtra.extraId) && e.isAvailable)
+                        : visibleExtras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
                     if (!extra) {
                         return res.status(400).json({
                             success: false,
@@ -248,21 +268,28 @@ const createOrderController = async (req, res) => {
                             message: `Precio de extra "${selectedExtra.extraName}" no coincide`
                         });
                     }
+
+                    selectedExtra.sectionId = sec._id;
+                    selectedExtra.extraId = extra._id;
+                    selectedExtra.sectionName = sec.sectionName;
+                    selectedExtra.extraName = extra.name;
                 }
 
-                // Validar límite de selección por sección (respetando override del producto)
+                // Validar límite de selección por sección (respetando override del producto).
+                // A esta altura todo selectedExtra ya tiene sectionId (recién asignado arriba).
                 const extrasBySection = {};
                 orderItem.selectedExtras.forEach(extra => {
-                    extrasBySection[extra.sectionName] = (extrasBySection[extra.sectionName] || 0) + 1;
+                    const key = String(extra.sectionId);
+                    extrasBySection[key] = (extrasBySection[key] || 0) + 1;
                 });
 
-                for (const [sectionName, count] of Object.entries(extrasBySection)) {
-                    const assignment = food.extraSections.find(a => a.section?.sectionName === sectionName);
+                for (const [sectionId, count] of Object.entries(extrasBySection)) {
+                    const assignment = food.extraSections.find(a => a.section?._id && String(a.section._id) === sectionId);
                     const effectiveMax = assignment.maxSelection;
                     if (effectiveMax !== null && effectiveMax !== undefined && count > effectiveMax) {
                         return res.status(400).json({
                             success: false,
-                            message: `Excedido el límite de selección para "${sectionName}". Máximo: ${effectiveMax}`
+                            message: `Excedido el límite de selección para "${assignment.section.sectionName}". Máximo: ${effectiveMax}`
                         });
                     }
                 }
@@ -516,7 +543,7 @@ const updateOrderController = async (req, res) => {
 
         const currentOrderSnapshot = await orderModel
             .findOne({ _id: req.params.id, restaurant: restaurantId })
-            .select('orderNumber foods deletedFoods total discount kitchenReadyAt status')
+            .select('orderNumber foods deletedFoods total discount kitchenReadyAt status section')
             .lean();
 
         if (!currentOrderSnapshot) {
@@ -542,6 +569,21 @@ const updateOrderController = async (req, res) => {
                     message: `El pedido #${currentOrderSnapshot.orderNumber} ya está ${currentOrderSnapshot.status.toLowerCase()} y no puede modificarse.`,
                     orderStatus: currentOrderSnapshot.status,
                 });
+            }
+        }
+
+        if (tip !== undefined && Number(tip) > 0) {
+            const effectiveSection = section !== undefined ? section : currentOrderSnapshot?.section;
+            if (effectiveSection === 'mostrador') {
+                const restaurantForTip = await Restaurant.findById(restaurantId)
+                    .select('settings.sales.allowTipOnCounterSale')
+                    .lean();
+                if (restaurantForTip?.settings?.sales?.allowTipOnCounterSale !== true) {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'La propina en mostrador no está habilitada para este restaurante.',
+                    });
+                }
             }
         }
 
@@ -703,8 +745,25 @@ const updateOrderController = async (req, res) => {
             }
 
             // ── Validar extras seleccionados ──
+            // Los items que ya existían sin cambios en el pedido (mismo food + comment +
+            // selectedExtras) no se revalidan contra las ExtraSection/Extra actuales: ya
+            // fueron válidos cuando se agregaron, y revalidarlos rompería el pedido si
+            // alguien renombró la sección/extra mientras tanto. Solo se valida lo nuevo.
+            const previousFoodSignatureCounts = new Map();
+            for (const item of (currentOrderSnapshot.foods || [])) {
+                const signature = buildOrderFoodItemSignature(item);
+                previousFoodSignatureCounts.set(signature, (previousFoodSignatureCounts.get(signature) || 0) + 1);
+            }
+
             const foodMap = new Map(existingFoods.map(f => [f._id.toString(), f]));
             for (const orderItem of foods) {
+                const signature = buildOrderFoodItemSignature(orderItem);
+                const previousCount = previousFoodSignatureCounts.get(signature) || 0;
+                if (previousCount > 0) {
+                    previousFoodSignatureCounts.set(signature, previousCount - 1);
+                    continue;
+                }
+
                 if (orderItem.selectedExtras && orderItem.selectedExtras.length > 0) {
                     const food = foodMap.get(orderItem.food);
                     if (!food || !food.extraSections || food.extraSections.length === 0) {
@@ -714,8 +773,13 @@ const updateOrderController = async (req, res) => {
                         });
                     }
 
+                    // Se matchea por sectionId/extraId cuando el item ya los trae; si no, se
+                    // busca por nombre contra los datos vigentes y se backfillea el id en el
+                    // propio objeto para que quede guardado en el pedido de aquí en adelante.
                     for (const selectedExtra of orderItem.selectedExtras) {
-                        const assignment = food.extraSections.find(a => a.section?.sectionName === selectedExtra.sectionName);
+                        const assignment = selectedExtra.sectionId
+                            ? food.extraSections.find(a => a.section?._id && String(a.section._id) === String(selectedExtra.sectionId))
+                            : food.extraSections.find(a => a.section?.sectionName === selectedExtra.sectionName);
                         if (!assignment) {
                             return res.status(400).json({
                                 success: false,
@@ -728,7 +792,9 @@ const updateOrderController = async (req, res) => {
                             ? sec.extras.filter(e => assignment.visibleExtraIds.map(id => id.toString()).includes(e._id.toString()))
                             : sec.extras;
 
-                        const extra = visibleExtras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
+                        const extra = selectedExtra.extraId
+                            ? visibleExtras.find(e => String(e._id) === String(selectedExtra.extraId) && e.isAvailable)
+                            : visibleExtras.find(e => e.name === selectedExtra.extraName && e.isAvailable);
                         if (!extra) {
                             return res.status(400).json({
                                 success: false,
@@ -742,20 +808,27 @@ const updateOrderController = async (req, res) => {
                                 message: `Precio de extra "${selectedExtra.extraName}" no coincide`
                             });
                         }
+
+                        selectedExtra.sectionId = sec._id;
+                        selectedExtra.extraId = extra._id;
+                        selectedExtra.sectionName = sec.sectionName;
+                        selectedExtra.extraName = extra.name;
                     }
 
+                    // A esta altura todo selectedExtra ya tiene sectionId (recién asignado arriba).
                     const extrasBySection = {};
                     orderItem.selectedExtras.forEach(extra => {
-                        extrasBySection[extra.sectionName] = (extrasBySection[extra.sectionName] || 0) + 1;
+                        const key = String(extra.sectionId);
+                        extrasBySection[key] = (extrasBySection[key] || 0) + 1;
                     });
 
-                    for (const [sectionName, count] of Object.entries(extrasBySection)) {
-                        const assignment = food.extraSections.find(a => a.section?.sectionName === sectionName);
+                    for (const [sectionId, count] of Object.entries(extrasBySection)) {
+                        const assignment = food.extraSections.find(a => a.section?._id && String(a.section._id) === sectionId);
                         const effectiveMax = assignment.maxSelection;
                         if (effectiveMax !== null && effectiveMax !== undefined && count > effectiveMax) {
                             return res.status(400).json({
                                 success: false,
-                                message: `Excedido el límite de selección para "${sectionName}". Máximo: ${effectiveMax}`
+                                message: `Excedido el límite de selección para "${assignment.section.sectionName}". Máximo: ${effectiveMax}`
                             });
                         }
                     }
@@ -1282,20 +1355,63 @@ const getAllSalesController = async (req, res) => {
                 {
                     $project: {
                         payments: {
-                            $cond: [
-                                { $gt: [{ $size: '$paymentMethods' }, 0] },
-                                {
-                                    $map: {
-                                        input: '$paymentMethods',
-                                        as: 'pm',
+                            // Si la suma de paymentMethods no coincide con el total de la orden
+                            // (p. ej. porque incluye la propina), se escala proporcionalmente cada
+                            // método de pago para que la suma cuadre con el total, en vez de recortar
+                            // cada pago individual (lo que dejaba pasar la propina en pagos divididos).
+                            $let: {
+                                vars: {
+                                    pmList: {
+                                        $cond: [
+                                            { $gt: [{ $size: '$paymentMethods' }, 0] },
+                                            '$paymentMethods',
+                                            [{ method: '$payment', amount: '$total' }],
+                                        ],
+                                    },
+                                },
+                                in: {
+                                    $let: {
+                                        vars: {
+                                            sumPm: {
+                                                $sum: {
+                                                    $map: {
+                                                        input: '$$pmList',
+                                                        as: 'pm',
+                                                        in: { $ifNull: ['$$pm.amount', 0] },
+                                                    },
+                                                },
+                                            },
+                                        },
                                         in: {
-                                            method: '$$pm.method',
-                                            amount: { $min: [{ $ifNull: ['$$pm.amount', 0] }, '$total'] },
+                                            $map: {
+                                                input: '$$pmList',
+                                                as: 'pm',
+                                                in: {
+                                                    method: '$$pm.method',
+                                                    amount: {
+                                                        $cond: [
+                                                            { $gt: [{ $abs: { $subtract: ['$$sumPm', '$total'] } }, 1] },
+                                                            {
+                                                                $cond: [
+                                                                    { $gt: ['$$sumPm', 0] },
+                                                                    {
+                                                                        $multiply: [
+                                                                            { $ifNull: ['$$pm.amount', 0] },
+                                                                            { $divide: ['$total', '$$sumPm'] },
+                                                                        ],
+                                                                    },
+                                                                    0,
+                                                                ],
+                                                            },
+                                                            { $ifNull: ['$$pm.amount', 0] },
+                                                        ],
+                                                    },
+                                                },
+                                            },
                                         },
                                     },
                                 },
-                                [{ method: '$payment', amount: '$total' }],
-                            ],
+                            },
                         },
                     },
                 },

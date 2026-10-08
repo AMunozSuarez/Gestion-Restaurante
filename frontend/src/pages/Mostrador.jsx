@@ -39,6 +39,8 @@ const Mostrador = () => {
   const [customerName, setCustomerName] = React.useState('');
   const [comments, setComments] = React.useState('');
   const [paymentMethods, setPaymentMethods] = React.useState([{ method: '', amount: 0 }]);
+  const [tip, setTip] = React.useState(0);
+  const [showTipSection, setShowTipSection] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [cart, setCart] = React.useState([]);
   const [addedProductNotification, setAddedProductNotification] = React.useState(null);
@@ -58,6 +60,8 @@ const Mostrador = () => {
   const [editCustomerName, setEditCustomerName] = React.useState('');
   const [editComments, setEditComments] = React.useState('');
   const [editPaymentMethods, setEditPaymentMethods] = React.useState([{ method: '', amount: 0 }]);
+  const [editTip, setEditTip] = React.useState(0);
+  const [showEditTipSection, setShowEditTipSection] = React.useState(false);
   const [editSearchTerm, setEditSearchTerm] = React.useState('');
   const [editCart, setEditCart] = React.useState([]);
   const [editCommentingProduct, setEditCommentingProduct] = React.useState(null);
@@ -188,6 +192,7 @@ const Mostrador = () => {
       customerName,
       comments,
       paymentMethods,
+      tip,
       cart
     };
     localStorage.setItem(MOSTRADOR_CREATE_DRAFT_KEY, JSON.stringify(draft));
@@ -212,6 +217,7 @@ const Mostrador = () => {
       editCustomerName,
       editComments,
       editPaymentMethods,
+      editTip,
       editCart
     };
     localStorage.setItem(MOSTRADOR_EDIT_DRAFT_KEY, JSON.stringify(draft));
@@ -252,6 +258,8 @@ const Mostrador = () => {
         ? draft.paymentMethods
         : [{ method: '', amount: 0 }]
     );
+    setTip(draft.tip || 0);
+    setShowTipSection(Number(draft.tip) > 0);
     setCart(Array.isArray(draft.cart) ? draft.cart : []);
     setSearchTerm('');
     setCommentingProduct(null);
@@ -289,6 +297,8 @@ const Mostrador = () => {
         ? draft.editPaymentMethods
         : [{ method: '', amount: 0 }]
     );
+    setEditTip(draft.editTip || 0);
+    setShowEditTipSection(Number(draft.editTip) > 0);
     setEditCart(Array.isArray(draft.editCart) ? draft.editCart : []);
     setEditSearchTerm('');
     setEditCommentingProduct(null);
@@ -597,9 +607,53 @@ const Mostrador = () => {
     }, 0);
   };
 
+  // Propina en mostrador: solo se suma al monto a cobrar si la preferencia está activa
+  const getEffectiveTip = (value) => (printingService.getAllowTipOnCounterSale() ? (Number(value) || 0) : 0);
+  const calculateTotalWithTip = () => calculateTotal() + getEffectiveTip(tip);
+  const calculateEditTotalWithTip = () => calculateEditTotal() + getEffectiveTip(editTip);
+
+  // Al cambiar la propina, se actualiza el monto del método de pago único en el mismo
+  // ciclo de render (en vez de dejarlo al useEffect de sincronización) para que "Total
+  // pagado"/"Falta pagar" no muestren un valor desactualizado por una fracción de segundo.
+  const applyTipValue = (newTipValue) => {
+    setTip(newTipValue);
+    if (paymentMethods.length === 1) {
+      const newTotal = calculateTotal() + getEffectiveTip(newTipValue);
+      setPaymentMethods([{ ...paymentMethods[0], amount: newTotal }]);
+    }
+  };
+
+  const applyEditTipValue = (newTipValue) => {
+    setEditTip(newTipValue);
+    if (editPaymentMethods.length === 1) {
+      const newTotal = calculateEditTotal() + getEffectiveTip(newTipValue);
+      setEditPaymentMethods([{ ...editPaymentMethods[0], amount: newTotal }]);
+    }
+  };
+
+  const openTipSection = () => {
+    applyTipValue(Math.round(calculateTotal() * 0.1));
+    setShowTipSection(true);
+  };
+
+  const removeTipSection = () => {
+    applyTipValue(0);
+    setShowTipSection(false);
+  };
+
+  const openEditTipSection = () => {
+    applyEditTipValue(Math.round(calculateEditTotal() * 0.1));
+    setShowEditTipSection(true);
+  };
+
+  const removeEditTipSection = () => {
+    applyEditTipValue(0);
+    setShowEditTipSection(false);
+  };
+
   // Funciones para manejo de métodos de pago múltiples
   const addPaymentMethod = () => {
-    const total = calculateTotal();
+    const total = calculateTotalWithTip();
     const newPayment = { method: '', amount: paymentMethods.length === 0 ? total : 0 };
     setPaymentMethods(prev => [...prev, newPayment]);
   };
@@ -619,7 +673,7 @@ const Mostrador = () => {
   };
 
   const addEditPaymentMethod = () => {
-    const total = calculateEditTotal();
+    const total = calculateEditTotalWithTip();
     const newPayment = { method: '', amount: editPaymentMethods.length === 0 ? total : 0 };
     setEditPaymentMethods(prev => [...prev, newPayment]);
   };
@@ -672,28 +726,28 @@ const Mostrador = () => {
     }
   };
 
-  // Actualizar el monto del primer método de pago cuando cambia el total del carrito
+  // Actualizar el monto del primer método de pago cuando cambia el total del carrito (o la propina)
   React.useEffect(() => {
     if (paymentMethods.length === 1 && cart.length > 0) {
-      const total = calculateTotal();
+      const total = calculateTotalWithTip();
       if (paymentMethods[0].amount === 0 || paymentMethods[0].amount !== total) {
         setPaymentMethods([{ ...paymentMethods[0], amount: total }]);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart, paymentMethods.length]);
+  }, [cart, tip, paymentMethods.length]);
 
-  // Actualizar el monto del primer método de pago cuando cambia el total del carrito en edición
+  // Actualizar el monto del primer método de pago cuando cambia el total del carrito en edición (o la propina)
   React.useEffect(() => {
     const activeEditItems = editCart.filter(item => !item.deleted);
     if (editPaymentMethods.length === 1 && activeEditItems.length > 0) {
-      const total = calculateEditTotal();
+      const total = calculateEditTotalWithTip();
       if (editPaymentMethods[0].amount === 0 || editPaymentMethods[0].amount !== total) {
         setEditPaymentMethods([{ ...editPaymentMethods[0], amount: total }]);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editCart, editPaymentMethods.length]);
+  }, [editCart, editTip, editPaymentMethods.length]);
 
   // Funciones para búsqueda de productos
   const handleSearchChange = (e) => {
@@ -716,6 +770,8 @@ const Mostrador = () => {
     setCustomerName('');
     setComments('');
     setPaymentMethods([{ method: '', amount: 0 }]);
+    setTip(0);
+    setShowTipSection(false);
     setSearchTerm('');
     setCart([]);
     setCommentingProduct(null);
@@ -728,6 +784,8 @@ const Mostrador = () => {
     setEditCustomerName('');
     setEditComments('');
     setEditPaymentMethods([{ method: '', amount: 0 }]);
+    setEditTip(0);
+    setShowEditTipSection(false);
     setEditSearchTerm('');
     setEditCart([]);
     setEditCommentingProduct(null);
@@ -800,6 +858,9 @@ const Mostrador = () => {
     } else {
       setEditPaymentMethods([{ method: '', amount: 0 }]);
     }
+
+    setEditTip(order.tip || 0);
+    setShowEditTipSection(Number(order.tip) > 0);
 
     // Cargar productos del pedido en el carrito de edición
     const orderProducts = order.foods?.map((food, index) => {
@@ -877,10 +938,12 @@ const Mostrador = () => {
       // Validar métodos de pago (opcional)
       const validPayments = paymentMethods.filter(p => p.method && p.method.trim() !== '' && p.method !== 'Método' && p.method !== 'Pendiente');
 
+      const effectiveTip = getEffectiveTip(tip);
+
       // Solo validar montos si hay métodos de pago especificados
       if (validPayments.length > 0) {
         const totalPaymentAmount = getTotalPaymentAmount(validPayments);
-        const orderTotal = calculateTotal();
+        const orderTotal = calculateTotal() + effectiveTip;
 
         if (totalPaymentAmount < orderTotal - 0.01) {
           alert(`⚠️ El monto pagado (${formatChileanCurrency(totalPaymentAmount)}) es menor al total del pedido (${formatChileanCurrency(orderTotal)})`);
@@ -904,7 +967,8 @@ const Mostrador = () => {
         },
         section: 'mostrador',
         status: 'Preparacion',
-        comment: comments
+        comment: comments,
+        tip: effectiveTip
       };
 
 
@@ -1036,7 +1100,8 @@ const Mostrador = () => {
         },
         section: 'mostrador',
         status: selectedOrder.status,
-        comment: editComments
+        comment: editComments,
+        tip: getEffectiveTip(editTip)
       };
 
 
@@ -1118,7 +1183,8 @@ const Mostrador = () => {
       }
 
       const totalEditPaymentAmount = getTotalPaymentAmount(validEditPayments);
-      const editOrderTotal = calculateEditTotal();
+      const effectiveEditTip = getEffectiveTip(editTip);
+      const editOrderTotal = calculateEditTotal() + effectiveEditTip;
 
       if (totalEditPaymentAmount < editOrderTotal - 0.01) {
         showEditPanelAlert(`Falta pagar ${formatChileanCurrency(editOrderTotal - totalEditPaymentAmount)}`);
@@ -1149,7 +1215,8 @@ const Mostrador = () => {
         },
         section: 'mostrador',
         status: 'Completado', // Cambiar directamente a completado
-        comment: editComments
+        comment: editComments,
+        tip: effectiveEditTip
       };
 
       // Actualizar el pedido con estado completado usando la función wrapper
@@ -1659,7 +1726,7 @@ const Mostrador = () => {
                             </div>
                             {(() => {
                               const totalPaid = getTotalPaymentAmount(paymentMethods);
-                              const orderTotal = calculateTotal();
+                              const orderTotal = calculateTotalWithTip();
                               const difference = getPaymentDifference(totalPaid, orderTotal);
                               const differenceText = getPaymentDifferenceText(difference);
 
@@ -1675,10 +1742,64 @@ const Mostrador = () => {
                       </div>
                     </div>
 
+                    {printingService.getAllowTipOnCounterSale() && (
+                      showTipSection ? (
+                        <div>
+                          <div className="flex items-center justify-between text-sm font-medium text-professional-body mb-1">
+                            <span>Propina</span>
+                            <button
+                              type="button"
+                              onClick={removeTipSection}
+                              className="text-xs text-gray-400 hover:text-red-600 flex-shrink-0"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => applyTipValue(Math.round(calculateTotal() * 0.1))}
+                              className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
+                            >
+                              10%
+                            </button>
+                            <input
+                              type="text"
+                              className="input-professional flex-1 text-right"
+                              value={formatPaymentInput(tip)}
+                              onChange={(e) => applyTipValue(parsePaymentInput(e.target.value))}
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={openTipSection}
+                          className="w-full flex items-center justify-center gap-1 py-2 text-sm border border-dashed border-gray-300 rounded text-gray-600 hover:bg-gray-50"
+                        >
+                          <PlusIcon className="w-4 h-4" />
+                          Agregar propina
+                        </button>
+                      )
+                    )}
+
                     <div className="total-highlight">
+                      {getEffectiveTip(tip) > 0 && (
+                        <>
+                          <div className="flex justify-between text-sm text-gray-700">
+                            <span>Subtotal:</span>
+                            <span>{formatChileanCurrency(calculateTotal())}</span>
+                          </div>
+                          <div className="flex justify-between text-sm text-gray-700">
+                            <span>Propina:</span>
+                            <span>{formatChileanCurrency(getEffectiveTip(tip))}</span>
+                          </div>
+                        </>
+                      )}
                       <div className="flex justify-between text-lg">
                         <span>Total:</span>
-                        <span>{formatChileanCurrency(calculateTotal())}</span>
+                        <span>{formatChileanCurrency(calculateTotalWithTip())}</span>
                       </div>
                     </div>
 
@@ -2264,7 +2385,7 @@ const Mostrador = () => {
                             </div>
                             {(() => {
                               const totalPaid = getTotalPaymentAmount(editPaymentMethods);
-                              const orderTotal = calculateEditTotal();
+                              const orderTotal = calculateEditTotalWithTip();
                               const difference = getPaymentDifference(totalPaid, orderTotal);
                               const differenceText = getPaymentDifferenceText(difference);
 
@@ -2280,10 +2401,64 @@ const Mostrador = () => {
                       </div>
                     </div>
 
+                    {printingService.getAllowTipOnCounterSale() && (
+                      showEditTipSection ? (
+                        <div>
+                          <div className="flex items-center justify-between text-sm font-medium text-professional-body mb-1">
+                            <span>Propina</span>
+                            <button
+                              type="button"
+                              onClick={removeEditTipSection}
+                              className="text-xs text-gray-400 hover:text-red-600 flex-shrink-0"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => applyEditTipValue(Math.round(calculateEditTotal() * 0.1))}
+                              className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:bg-gray-100"
+                            >
+                              10%
+                            </button>
+                            <input
+                              type="text"
+                              className="input-professional flex-1 text-right"
+                              value={formatPaymentInput(editTip)}
+                              onChange={(e) => applyEditTipValue(parsePaymentInput(e.target.value))}
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={openEditTipSection}
+                          className="w-full flex items-center justify-center gap-1 py-2 text-sm border border-dashed border-gray-300 rounded text-gray-600 hover:bg-gray-50"
+                        >
+                          <PlusIcon className="w-4 h-4" />
+                          Agregar propina
+                        </button>
+                      )
+                    )}
+
                     <div className="total-highlight">
+                      {getEffectiveTip(editTip) > 0 && (
+                        <>
+                          <div className="flex justify-between text-sm text-gray-700">
+                            <span>Subtotal:</span>
+                            <span>{formatChileanCurrency(calculateEditTotal())}</span>
+                          </div>
+                          <div className="flex justify-between text-sm text-gray-700">
+                            <span>Propina:</span>
+                            <span>{formatChileanCurrency(getEffectiveTip(editTip))}</span>
+                          </div>
+                        </>
+                      )}
                       <div className="flex justify-between text-lg">
                         <span>Total:</span>
-                        <span>{formatChileanCurrency(calculateEditTotal())}</span>
+                        <span>{formatChileanCurrency(calculateEditTotalWithTip())}</span>
                       </div>
                     </div>
 
@@ -2547,9 +2722,15 @@ const Mostrador = () => {
                     </div>
 
                     <div className="bg-gray-200 border border-gray-400 rounded p-3">
+                      {selectedCompletedOrder.tip > 0 && (
+                        <div className="flex justify-between text-sm text-gray-700 mb-1">
+                          <span>Propina:</span>
+                          <span>{formatChileanCurrency(selectedCompletedOrder.tip)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-lg font-semibold text-gray-800">
                         <span>Total:</span>
-                        <span>{formatChileanCurrency(selectedCompletedOrder.total || 0)}</span>
+                        <span>{formatChileanCurrency((selectedCompletedOrder.total || 0) + (selectedCompletedOrder.tip || 0))}</span>
                       </div>
                     </div>
 

@@ -66,6 +66,7 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
         permissions: { ...currentSettings.permissions },
         inventory: { ...(currentSettings.inventory || {}) },
         kitchenDisplay: { ...(currentSettings.kitchenDisplay || {}) },
+        sales: { ...(currentSettings.sales || {}) },
     };
 
     let hasChanges = false;
@@ -176,6 +177,14 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
                 nextSettings.kitchenDisplay.onlyOwnerCanMarkReady = value;
             },
             fieldName: 'kitchenDisplayOnlyOwnerCanMarkReady',
+        },
+        {
+            nested: payload?.sales?.allowTipOnCounterSale,
+            flat: payload?.allowTipOnCounterSale,
+            assign: (value) => {
+                nextSettings.sales.allowTipOnCounterSale = value;
+            },
+            fieldName: 'allowTipOnCounterSale',
         },
     ];
 
