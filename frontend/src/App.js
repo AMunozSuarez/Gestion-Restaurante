@@ -3,6 +3,7 @@ import printingService from './services/printingService';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { CashRegisterProvider } from './store/CashRegisterContext';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Mostrador from './pages/Mostrador';
@@ -361,6 +362,7 @@ function App() {
         </Routes>
       </Router>
       </CashRegisterProvider>
+      <SpeedInsights />
     </AuthProvider>
   );
 }
