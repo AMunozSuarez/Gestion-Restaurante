@@ -11,6 +11,9 @@ import { formatChileanCurrency } from '../utils/dateUtils';
 import printingService from '../services/printingService';
 import api from '../services/api';
 import ButtonAlertBubble from '../components/common/ButtonAlertBubble';
+import { useRestaurant } from '../hooks/useRestaurant';
+import { emitSocketEvent, onSocketEvent } from '../services/socketService';
+import { buildCustomerDisplayState, readCustomerDisplayConfig } from '../services/customerDisplayConfig';
 
 const MOSTRADOR_CREATE_DRAFT_KEY = 'mostrador.createDraft';
 const MOSTRADOR_EDIT_DRAFT_KEY = 'mostrador.editDraft';
@@ -587,6 +590,47 @@ const Mostrador = () => {
     );
   };
 
+  // ─── Pantalla de cliente ──────────────────────────────────────────────────
+  // Solo emite si el superadmin habilitó la función y este equipo tiene una
+  // pantalla vinculada (Configuración → Pantalla de cliente). Se envía siempre el
+  // carrito completo, con un pequeño debounce para no inundar el socket al tipear.
+  const { restaurant } = useRestaurant();
+  const [customerDisplayTargetId] = React.useState(() => readCustomerDisplayConfig().targetUserId);
+  const isCustomerDisplayActive = Boolean(restaurant?.settings?.customerDisplay?.enabled) && Boolean(customerDisplayTargetId);
+  const lastCustomerDisplayStateRef = React.useRef(null);
+
+  const sendCustomerDisplayState = React.useCallback((state) => {
+    lastCustomerDisplayStateRef.current = state;
+    emitSocketEvent('customer-display:update', { targetUserId: customerDisplayTargetId, state });
+  }, [customerDisplayTargetId]);
+
+  React.useEffect(() => {
+    if (!isCustomerDisplayActive) return undefined;
+    const status = isCreatingOrder && cart.length > 0 ? 'cart' : 'idle';
+    const timer = setTimeout(() => {
+      sendCustomerDisplayState(buildCustomerDisplayState({ status, cart, tip, customerName }));
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [isCustomerDisplayActive, isCreatingOrder, cart, tip, customerName, sendCustomerDisplayState]);
+
+  React.useEffect(() => {
+    if (!isCustomerDisplayActive) return undefined;
+
+    // Al reconectar (o si el servidor se reinició y perdió el último estado) se
+    // reenvía el carrito actual. Un "¡Gracias!" ya mostrado no se repite.
+    const unsubscribe = onSocketEvent('connect', () => {
+      const last = lastCustomerDisplayStateRef.current;
+      if (!last) return;
+      sendCustomerDisplayState(last.status === 'confirmed' ? buildCustomerDisplayState({ status: 'idle' }) : last);
+    });
+
+    return () => {
+      unsubscribe();
+      // Salir del mostrador deja la pantalla en espera en vez de congelada en el último carrito.
+      sendCustomerDisplayState(buildCustomerDisplayState({ status: 'idle' }));
+    };
+  }, [isCustomerDisplayActive, sendCustomerDisplayState]);
+
   const calculateTotal = () => {
     return cart.reduce((total, item) => {
       const basePrice = item.price * item.quantity;
@@ -978,6 +1022,16 @@ const Mostrador = () => {
         // Mostrar notificación de éxito
         setAddedProductNotification(`Pedido #${response.order?.orderNumber || 'N/A'} creado exitosamente`);
         setTimeout(() => setAddedProductNotification(null), 3000);
+
+        if (isCustomerDisplayActive) {
+          sendCustomerDisplayState(buildCustomerDisplayState({
+            status: 'confirmed',
+            cart,
+            tip,
+            customerName,
+            orderNumber: response.order?.orderNumber ?? null,
+          }));
+        }
 
         // Limpiar formulario y cerrar
         if (isCreateDraftLoaded) {

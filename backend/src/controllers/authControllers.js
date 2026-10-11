@@ -97,7 +97,7 @@ const loginController = async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user._id, restaurant: user.restaurant, role: user.role },
+            { id: user._id, restaurant: user.restaurant, role: user.role, tv: user.tokenVersion || 0 },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -138,13 +138,13 @@ const refreshController = async (req, res) => {
         }
 
         const user = await User.findById(stored.user);
-        if (!user) {
+        if (!user || user.isActive === false) {
             await RefreshToken.deleteOne({ tokenHash });
             return res.status(401).json({ message: 'Usuario no encontrado.' });
         }
 
         const newToken = jwt.sign(
-            { id: user._id, restaurant: user.restaurant, role: user.role },
+            { id: user._id, restaurant: user.restaurant, role: user.role, tv: user.tokenVersion || 0 },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );

@@ -26,6 +26,7 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Reportes from './pages/Reportes';
 import Inventario from './pages/Inventario';
 import KitchenDisplay from './pages/KitchenDisplay';
+import CustomerDisplay from './pages/CustomerDisplay';
 
 // El rol mesero solo tiene acceso al módulo de Mesas
 const MESERO_ALLOWED_PATH_PREFIXES = ['/mesas'];
@@ -36,6 +37,11 @@ const isPathAllowedForMesero = (pathname) =>
 const COCINA_ALLOWED_PATH_PREFIXES = ['/cocina'];
 const isPathAllowedForCocina = (pathname) =>
   COCINA_ALLOWED_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
+// El rol carrito solo tiene acceso a la pantalla de cliente del mostrador
+const CARRITO_ALLOWED_PATH_PREFIXES = ['/pantalla-cliente'];
+const isPathAllowedForCarrito = (pathname) =>
+  CARRITO_ALLOWED_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }) => {
@@ -65,6 +71,10 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/cocina" replace />;
   }
 
+  if (user?.role === 'carrito' && !isPathAllowedForCarrito(location.pathname)) {
+    return <Navigate to="/pantalla-cliente" replace />;
+  }
+
   return children;
 };
 
@@ -73,6 +83,7 @@ const DefaultRedirect = () => {
   const { user } = useAuth();
   if (user?.role === 'mesero') return <Navigate to="/mesas" replace />;
   if (user?.role === 'cocina') return <Navigate to="/cocina" replace />;
+  if (user?.role === 'carrito') return <Navigate to="/pantalla-cliente" replace />;
   return <Navigate to="/mostrador" replace />;
 };
 
@@ -143,6 +154,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <KitchenDisplay />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Pantalla de cliente del mostrador: sin Layout, para un 2º monitor o una tablet */}
+          <Route
+            path="/pantalla-cliente"
+            element={
+              <ProtectedRoute>
+                <CustomerDisplay />
               </ProtectedRoute>
             }
           />

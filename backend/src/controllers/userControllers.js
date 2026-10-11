@@ -1,5 +1,6 @@
 const userModel = require("../models/userModel");
-const RefreshToken = require('../models/refreshTokenModel');
+const restaurantModel = require('../models/restaurantModel');
+const { revokeUserSessions } = require('../services/sessionService');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -197,7 +198,15 @@ const getUsersByRestaurantController = async (req, res) => {
     }
 };
 
-const CREATABLE_EMPLOYEE_ROLES = ['employee', 'mesero', 'cocina'];
+const CREATABLE_EMPLOYEE_ROLES = ['employee', 'mesero', 'cocina', 'carrito'];
+
+// El rol carrito solo existe si el superadmin habilitó la pantalla de cliente para el restaurante.
+const isCustomerDisplayEnabled = async (restaurantId) => {
+    const restaurant = await restaurantModel.findById(restaurantId).select('settings.customerDisplay').lean();
+    return Boolean(restaurant?.settings?.customerDisplay?.enabled);
+};
+
+const CUSTOMER_DISPLAY_DISABLED_MESSAGE = 'La pantalla de cliente no está habilitada para este restaurante.';
 
 // UPDATE EMPLOYEE
 const updateEmployeeController = async (req, res) => {
@@ -218,7 +227,14 @@ const updateEmployeeController = async (req, res) => {
         }
 
         // Solo se permite reasignar entre roles de empleado (no owner/super_admin)
+        const previousRole = user.role;
         if (role && CREATABLE_EMPLOYEE_ROLES.includes(role) && user.role !== 'owner') {
+            if (role === 'carrito' && previousRole !== 'carrito' && !(await isCustomerDisplayEnabled(restaurantId))) {
+                return res.status(400).send({
+                    success: false,
+                    message: CUSTOMER_DISPLAY_DISABLED_MESSAGE
+                });
+            }
             user.role = role;
         }
 
@@ -248,6 +264,12 @@ const updateEmployeeController = async (req, res) => {
         }
 
         await user.save();
+
+        // El rol viaja dentro del JWT: si cambió, se cierran sus sesiones para que no
+        // siga operando con los permisos anteriores hasta que el token expire.
+        if (user.role !== previousRole) {
+            await revokeUserSessions(user._id);
+        }
 
         res.status(200).send({
             success: true,
@@ -282,6 +304,13 @@ const createEmployeeController = async (req, res) => {
             return res.status(400).send({
                 success: false,
                 message: 'Todos los campos son obligatorios.',
+            });
+        }
+
+        if (normalizedRole === 'carrito' && !(await isCustomerDisplayEnabled(restaurantId))) {
+            return res.status(400).send({
+                success: false,
+                message: CUSTOMER_DISPLAY_DISABLED_MESSAGE,
             });
         }
 
@@ -334,7 +363,10 @@ const createEmployeeController = async (req, res) => {
 // TOGGLE USER ACTIVE/INACTIVE
 const toggleUserActiveController = async (req, res) => {
     try {
-        const user = await userModel.findById(req.params.id).select('isActive role');
+        // Filtrar por restaurante: un owner solo puede gestionar a su propio personal
+        const user = await userModel
+            .findOne({ _id: req.params.id, restaurant: req.user.restaurant })
+            .select('isActive role');
         if (!user) {
             return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
         }
@@ -345,9 +377,9 @@ const toggleUserActiveController = async (req, res) => {
         user.isActive = !user.isActive;
         await user.save();
 
-        // Si se desactiva, revocar todos sus refresh tokens para forzar cierre de sesión
+        // Si se desactiva, cerrar todas sus sesiones abiertas en el acto
         if (!user.isActive) {
-            await RefreshToken.deleteMany({ user: user._id });
+            await revokeUserSessions(user._id);
         }
 
         res.status(200).json({
@@ -361,7 +393,31 @@ const toggleUserActiveController = async (req, res) => {
     }
 };
 
+// FORCE LOGOUT: el owner cierra remotamente todas las sesiones de un usuario de su restaurante
+// (ej. una pantalla de cliente, que no tiene botón de salir)
+const forceLogoutController = async (req, res) => {
+    try {
+        const user = await userModel
+            .findOne({ _id: req.params.id, restaurant: req.user.restaurant })
+            .select('role');
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
+        }
+        if (user.role === 'owner') {
+            return res.status(403).json({ success: false, message: 'No se puede cerrar la sesión del propietario.' });
+        }
+
+        await revokeUserSessions(user._id);
+
+        res.status(200).json({ success: true, message: 'Sesión cerrada en todos los dispositivos.' });
+    } catch (error) {
+        console.error('Error in forceLogoutController:', error);
+        res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+    }
+};
+
 module.exports = {
+    forceLogoutController,
     getUserController,
     updateUserController,
     updatePasswordController,

@@ -15,7 +15,10 @@ import {
   TrashIcon,
   NoSymbolIcon,
   BookmarkIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  ComputerDesktopIcon,
+  ArrowRightStartOnRectangleIcon,
+  ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 import printingService from '../services/printingService';
 import printerConfigService from '../services/printerConfigService';
@@ -24,8 +27,38 @@ import { categoriesService } from '../services/categoriesService';
 import productsService from '../services/productsService';
 import * as subscriptionService from '../services/subscriptionService';
 import usersService from '../services/usersService';
+import {
+  buildCustomerDisplayShortcutBat,
+  buildCustomerDisplayUrl,
+  readCustomerDisplayConfig,
+  saveCustomerDisplayConfig,
+} from '../services/customerDisplayConfig';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+
+const ROLE_BADGES = {
+  owner: { label: 'Propietario', className: 'bg-purple-100 text-purple-800' },
+  mesero: { label: 'Mesero', className: 'bg-green-100 text-green-800' },
+  cocina: { label: 'Cocina', className: 'bg-orange-100 text-orange-800' },
+  carrito: { label: 'Carrito', className: 'bg-amber-100 text-amber-800' },
+  employee: { label: 'Empleado', className: 'bg-blue-100 text-blue-800' },
+};
+
+// Roles que el owner puede asignar (mismo listado que CREATABLE_EMPLOYEE_ROLES en el backend)
+const EDITABLE_EMPLOYEE_ROLES = ['employee', 'mesero', 'cocina', 'carrito'];
+
+// Descarga un instalador .bat generado en el navegador
+const downloadBatFile = (content, fileName) => {
+  const blob = new Blob([content], { type: 'application/bat' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
 
 const Configuracion = () => {
   const navigate = useNavigate();
@@ -108,6 +141,11 @@ const Configuracion = () => {
   const [kitchenDisplayRequireAllItemsReady, setKitchenDisplayRequireAllItemsReady] = useState(() => printingService.getKitchenDisplayRequireAllItemsReady());
   const [kitchenDisplayOnlyOwnerCanMarkReady, setKitchenDisplayOnlyOwnerCanMarkReady] = useState(() => printingService.getKitchenDisplayOnlyOwnerCanMarkReady());
 
+  // Pantalla de cliente: la habilita el administrador del sistema desde /admin. La
+  // pantalla vinculada es por equipo (localStorage), no del restaurante.
+  const [customerDisplayEnabled, setCustomerDisplayEnabled] = useState(false);
+  const [customerDisplayTargetId, setCustomerDisplayTargetId] = useState(() => readCustomerDisplayConfig().targetUserId);
+
   // Estados para usuarios
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -170,6 +208,10 @@ const Configuracion = () => {
       const response = await api.get('/restaurant/settings/me');
       setInventoryEnabled(Boolean(response.data?.settings?.inventory?.enabled));
       setKitchenDisplayEnabled(Boolean(response.data?.settings?.kitchenDisplay?.enabled));
+      const isCustomerDisplayEnabled = Boolean(response.data?.settings?.customerDisplay?.enabled);
+      setCustomerDisplayEnabled(isCustomerDisplayEnabled);
+      // La tarjeta de pantalla de cliente lista los usuarios con rol carrito
+      if (isCustomerDisplayEnabled) loadUsers();
       await printingService.syncRestaurantSettingsFromBackend();
       setKitchenDisplayRequireReadyToClose(printingService.getKitchenDisplayRequireReadyToClose());
       setKitchenDisplayRequireAllItemsReady(printingService.getKitchenDisplayRequireAllItemsReady());
@@ -658,15 +700,27 @@ if exist "%SHORTCUT%" (
 
 pause
 `;
-    const blob = new Blob([batContent], { type: 'application/bat' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'instalar-acceso-cocina.bat';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadBatFile(batContent, 'instalar-acceso-cocina.bat');
+  };
+
+  const customerDisplayUrl = buildCustomerDisplayUrl();
+  const carritoUsers = users.filter((user) => user.role === 'carrito' && user.isActive !== false);
+  const isCustomerDisplayTargetAvailable = carritoUsers.some((user) => user._id === customerDisplayTargetId);
+
+  const handleCustomerDisplayTargetChange = (targetUserId) => {
+    const target = carritoUsers.find((user) => user._id === targetUserId);
+    const saved = saveCustomerDisplayConfig({ targetUserId, targetName: target?.userName || '' });
+    setCustomerDisplayTargetId(saved.targetUserId);
+    setMessage({
+      type: 'success',
+      text: saved.targetUserId
+        ? `Este equipo mostrará su carrito en la pantalla "${target?.userName}".`
+        : 'Este equipo ya no envía su carrito a ninguna pantalla.',
+    });
+  };
+
+  const handleDownloadCustomerDisplayShortcut = () => {
+    downloadBatFile(buildCustomerDisplayShortcutBat(customerDisplayUrl), 'instalar-pantalla-cliente.bat');
   };
 
   // Activar o desactivar eliminación de productos de orden solo para owner
@@ -1227,6 +1281,10 @@ pause
   // Cargar usuarios del restaurante
   const loadUsers = async () => {
     setLoadingUsers(true);
+    // El rol carrito solo se ofrece si la pantalla de cliente está habilitada
+    api.get('/restaurant/settings/me')
+      .then((response) => setCustomerDisplayEnabled(Boolean(response.data?.settings?.customerDisplay?.enabled)))
+      .catch(() => {});
     try {
       const response = await usersService.getUsersByRestaurant();
       if (response.success) {
@@ -1269,7 +1327,8 @@ pause
       email: user.email,
       password: '', // No mostramos la contraseña
       phone: user.phone || '',
-      role: user.role === 'mesero' ? 'mesero' : 'employee'
+      // Conservar el rol real: antes se cargaba 'cocina' como 'employee' y al guardar se degradaba
+      role: EDITABLE_EMPLOYEE_ROLES.includes(user.role) ? user.role : 'employee'
     });
     setShowUserModal(true);
   };
@@ -1371,6 +1430,21 @@ pause
     } catch (error) {
       console.error('Error al cambiar estado del usuario:', error);
       setMessage({ type: 'error', text: 'Error al cambiar estado del usuario' });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Cierra la sesión del usuario en todos sus dispositivos (ej. una pantalla de
+  // cliente, que no tiene botón para salir)
+  const handleForceLogout = async (userId, userName) => {
+    if (!window.confirm(`¿Cerrar la sesión de "${userName}" en todos sus dispositivos?`)) {
+      return;
+    }
+    setLoadingUsers(true);
+    try {
+      const response = await usersService.forceLogout(userId);
+      setMessage({ type: response.success ? 'success' : 'error', text: response.message });
     } finally {
       setLoadingUsers(false);
     }
@@ -3071,6 +3145,102 @@ pause
                 </div>
               </div>
             )}
+
+            {!loadingInventory && customerDisplayEnabled && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center mb-4">
+                  <ComputerDesktopIcon className="w-6 h-6 text-green-600 mr-3" />
+                  <h2 className="text-xl font-semibold text-brown-900">Pantalla de Cliente</h2>
+                </div>
+                <p className="text-sm text-gray-500 mb-6">
+                  Muestra al cliente, en un segundo monitor o una tablet, el pedido que se arma en el
+                  Punto de Venta en tiempo real. Cada pantalla es un usuario con rol <strong>Carrito</strong>:
+                  créalo en la pestaña Usuarios e inicia sesión con él en la pantalla.
+                </p>
+
+                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <label htmlFor="customer-display-target" className="block text-sm font-semibold text-gray-900">
+                    Pantalla vinculada a este equipo
+                  </label>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Solo afecta a este computador: el carrito que se arme aquí en el Punto de Venta se
+                    mostrará en la pantalla elegida. Cada caja puede tener su propia pantalla.
+                  </p>
+
+                  {carritoUsers.length === 0 ? (
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <p className="text-xs text-amber-700">Aún no hay usuarios Carrito activos.</p>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('users')}
+                        className="flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 bg-white hover:bg-gray-100 transition-colors"
+                      >
+                        Ir a Usuarios
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-3 flex flex-col sm:flex-row gap-3">
+                      <select
+                        id="customer-display-target"
+                        value={isCustomerDisplayTargetAvailable ? customerDisplayTargetId : ''}
+                        onChange={(e) => handleCustomerDisplayTargetChange(e.target.value)}
+                        className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        <option value="">Ninguna</option>
+                        {carritoUsers.map((user) => (
+                          <option key={user._id} value={user._id}>
+                            {user.userName} ({user.email})
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => window.open('/pantalla-cliente', '_blank')}
+                        disabled={!isCustomerDisplayTargetAvailable}
+                        className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 bg-white hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-2" />
+                        Abrir en pestaña nueva
+                      </button>
+                    </div>
+                  )}
+
+                  {customerDisplayTargetId && !isCustomerDisplayTargetAvailable && carritoUsers.length > 0 && (
+                    <p className="text-xs text-amber-700 mt-2">
+                      La pantalla vinculada antes ya no existe o está inactiva. Elige otra.
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-4 p-4 border border-blue-200 rounded-lg bg-blue-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900">
+                        Acceso directo para segundo monitor
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Descarga este instalador y ejecútalo (doble click) en el computador del Punto de Venta
+                        con el segundo monitor conectado. Crea un acceso directo "Pantalla Cliente" que abre
+                        Chrome a pantalla completa en el segundo monitor y que se inicia solo al encender el
+                        equipo. La primera vez, inicia sesión con el usuario Carrito. Requiere Google Chrome.
+                      </p>
+                      <p className="text-xs text-gray-600 mt-2">
+                        En una tablet basta con abrir{' '}
+                        <span className="font-mono break-all">{customerDisplayUrl}</span>{' '}
+                        e iniciar sesión con el usuario Carrito.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadCustomerDisplayShortcut}
+                      className="flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                    >
+                      Descargar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3154,13 +3324,8 @@ pause
                             <div className="text-sm text-gray-900">{user.phone || 'N/A'}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'owner'
-                                ? 'bg-purple-100 text-purple-800'
-                                : user.role === 'mesero'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                              {user.role === 'owner' ? 'Propietario' : user.role === 'mesero' ? 'Mesero' : 'Empleado'}
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${(ROLE_BADGES[user.role] || ROLE_BADGES.employee).className}`}>
+                              {(ROLE_BADGES[user.role] || ROLE_BADGES.employee).label}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -3184,6 +3349,15 @@ pause
                             </button>
                             {user.role !== 'owner' && (
                               <>
+                                {user.isActive !== false && (
+                                  <button
+                                    onClick={() => handleForceLogout(user._id, user.userName)}
+                                    className="mr-4 text-gray-500 hover:text-gray-800"
+                                    title="Cerrar sesión en todos sus dispositivos"
+                                  >
+                                    <ArrowRightStartOnRectangleIcon className="w-5 h-5" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => handleToggleUserActive(user._id, user.userName, user.isActive !== false)}
                                   className={`mr-4 ${user.isActive === false ? 'text-green-600 hover:text-green-900' : 'text-orange-500 hover:text-orange-700'}`}
@@ -3311,6 +3485,9 @@ pause
                     <option value="employee">Empleado (acceso completo)</option>
                     <option value="mesero">Mesero (solo acceso a Mesas)</option>
                     <option value="cocina">Cocina (solo acceso a Cocina)</option>
+                    {(customerDisplayEnabled || userFormData.role === 'carrito') && (
+                      <option value="carrito">Carrito (pantalla de cliente del mostrador)</option>
+                    )}
                   </select>
                 </div>
 

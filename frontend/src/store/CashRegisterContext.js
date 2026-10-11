@@ -6,7 +6,9 @@ import { useAuth } from '../hooks/useAuth';
 const CashRegisterContext = createContext(null);
 
 export const CashRegisterProvider = ({ children }) => {
-  const { isAuthenticated, isLoading: authIsLoading } = useAuth();
+  const { isAuthenticated: isUserAuthenticated, isLoading: authIsLoading, user } = useAuth();
+  // La pantalla de cliente (rol carrito) no opera la caja y el backend le niega /cash.
+  const isAuthenticated = isUserAuthenticated && user?.role !== 'carrito';
   const [cashRegister, setCashRegister] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

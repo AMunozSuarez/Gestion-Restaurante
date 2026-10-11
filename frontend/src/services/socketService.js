@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { clearSessionAndRedirect, isRefreshRejected, refreshAccessToken } from './authSession';
 
 const SOCKET_URL = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace(/\/api$/, '');
 
@@ -6,6 +7,28 @@ let socket = null;
 // Keep all listeners so they can be re-attached after a forced reconnect.
 const listenersRegistry = [];
 let retryTimeout = null;
+let isRefreshingSocketToken = false;
+
+// El JWT venció mientras la pantalla seguía abierta (típico en KDS / pantalla de
+// cliente que pasan días sin recargar): se renueva con el refresh token y se
+// reconecta. Si el servidor rechaza el refresh, la sesión terminó de verdad.
+const refreshTokenAndReconnect = async () => {
+  if (isRefreshingSocketToken) return;
+  isRefreshingSocketToken = true;
+  try {
+    await refreshAccessToken();
+    connectSocket({ forceNew: true });
+  } catch (error) {
+    if (isRefreshRejected(error)) {
+      disconnectSocket();
+      clearSessionAndRedirect();
+    } else {
+      scheduleReconnect(5000, { forceNew: true });
+    }
+  } finally {
+    isRefreshingSocketToken = false;
+  }
+};
 
 const addListenerToRegistry = (event, callback) => {
   const exists = listenersRegistry.some(
@@ -76,6 +99,12 @@ export const connectSocket = ({ forceNew = false } = {}) => {
   // Registrar listeners del módulo y de componentes.
   reattachListeners();
 
+  // El owner cerró remotamente la sesión de este usuario (o lo desactivó).
+  socket.on('session:revoked', () => {
+    disconnectSocket();
+    clearSessionAndRedirect();
+  });
+
   socket.on('connect', () => {
     console.log('Socket.io conectado');
     if (retryTimeout) {
@@ -86,6 +115,17 @@ export const connectSocket = ({ forceNew = false } = {}) => {
 
   socket.on('connect_error', (err) => {
     console.error('Socket.io error de conexión:', err.message);
+
+    // Los rechazos del middleware de auth no se reintentan solos en socket.io.
+    if (err.message === 'Sesión revocada') {
+      disconnectSocket();
+      clearSessionAndRedirect();
+      return;
+    }
+    if (err.message === 'Token inválido') {
+      refreshTokenAndReconnect();
+      return;
+    }
 
     // Mantener token actualizado para próximos intentos automáticos.
     const latestToken = localStorage.getItem('token');
@@ -157,6 +197,14 @@ export const onSocketEvent = (event, callback) => {
     removeListenerFromRegistry(event, callback);
     socket?.off(event, callback);
   };
+};
+
+// volatile: si el socket no está conectado el evento se descarta en vez de quedar
+// encolado (y llegar viejo al reconectar). Quien emite estado debe re-emitirlo en
+// 'connect', como hacen el mostrador y la pantalla de cliente.
+export const emitSocketEvent = (event, payload) => {
+  connectSocket();
+  socket?.volatile.emit(event, payload);
 };
 
 export const getSocketId = () => socket?.id || null;

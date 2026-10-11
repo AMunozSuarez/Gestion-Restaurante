@@ -24,6 +24,9 @@ const RESTAURANT_SETTINGS_DEFAULTS = Object.freeze({
         requireAllItemsReady: false,
         onlyOwnerCanMarkReady: false,
     },
+    customerDisplay: {
+        enabled: false,
+    },
     sales: {
         allowTipOnCounterSale: false,
     },
@@ -80,6 +83,9 @@ const normalizeRestaurantSettings = (settings = {}) => {
             requireReadyToClose: Boolean(settings?.kitchenDisplay?.requireReadyToClose),
             requireAllItemsReady: Boolean(settings?.kitchenDisplay?.requireAllItemsReady),
             onlyOwnerCanMarkReady: Boolean(settings?.kitchenDisplay?.onlyOwnerCanMarkReady),
+        },
+        customerDisplay: {
+            enabled: Boolean(settings?.customerDisplay?.enabled),
         },
         sales: {
             allowTipOnCounterSale: Boolean(settings?.sales?.allowTipOnCounterSale),
@@ -209,6 +215,13 @@ const restaurantSchema = new mongoose.Schema({
             onlyOwnerCanMarkReady: {
                 type: Boolean,
                 default: RESTAURANT_SETTINGS_DEFAULTS.kitchenDisplay.onlyOwnerCanMarkReady,
+            },
+        },
+        // Pantalla de cliente en el mostrador: solo la habilita el superadmin.
+        customerDisplay: {
+            enabled: {
+                type: Boolean,
+                default: RESTAURANT_SETTINGS_DEFAULTS.customerDisplay.enabled,
             },
         },
         sales: {

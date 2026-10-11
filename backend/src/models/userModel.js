@@ -27,7 +27,8 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['super_admin', 'owner', 'employee', 'mesero', 'cocina'], // Roles posibles
+        // 'carrito' = pantalla de cliente del mostrador (solo puede ver /pantalla-cliente)
+        enum: ['super_admin', 'owner', 'employee', 'mesero', 'cocina', 'carrito'], // Roles posibles
         default: 'employee',
     },
     phone: {
@@ -41,6 +42,12 @@ const userSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true,
+    },
+    // Se incrementa para invalidar todos los JWT emitidos (cierre de sesión remoto).
+    // Los tokens llevan este valor en el claim `tv`; si no coincide, authMiddleware responde 401.
+    tokenVersion: {
+        type: Number,
+        default: 0,
     },
 }, {
     timestamps: true,

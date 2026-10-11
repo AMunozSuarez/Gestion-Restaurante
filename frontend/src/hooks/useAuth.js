@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import authService from '../services/authService';
 import { disconnectSocket } from '../services/socketService';
+import { isRefreshRejected, refreshAccessToken } from '../services/authSession';
 import printingService from '../services/printingService';
 
 // Crear contexto de autenticación
@@ -14,16 +15,39 @@ export const AuthProvider = ({ children }) => {
 
   // Verificar autenticación al cargar la app
   useEffect(() => {
-    const checkAuth = () => {
+    const restoreSession = (currentUser) => {
+      setUser(currentUser);
+      setIsAuthenticated(true);
+      printingService.syncRestaurantSettingsFromBackend().catch((error) => {
+        console.error('No se pudo sincronizar configuración compartida al restaurar sesión:', error);
+      });
+    };
+
+    const checkAuth = async () => {
       try {
         // Usar verificación local en lugar de llamada al servidor
+        const currentUser = authService.getCurrentUser();
         if (authService.isAuthenticated()) {
-          const currentUser = authService.getCurrentUser();
-          setUser(currentUser);
-          setIsAuthenticated(true);
-          printingService.syncRestaurantSettingsFromBackend().catch((error) => {
-            console.error('No se pudo sincronizar configuración compartida al restaurar sesión:', error);
-          });
+          restoreSession(currentUser);
+        } else if (currentUser && localStorage.getItem('refreshToken')) {
+          // JWT vencido pero con refresh token: renovar en vez de pedir login otra vez.
+          // Las pantallas fijas (KDS, pantalla de cliente) dependen de esto para no
+          // quedar en el login cada 7 días.
+          try {
+            await refreshAccessToken();
+            restoreSession(currentUser);
+          } catch (error) {
+            if (isRefreshRejected(error)) {
+              authService.logout();
+              printingService.clearRestaurantSettingsCache();
+              setUser(null);
+              setIsAuthenticated(false);
+            } else {
+              // Sin red al arrancar: se mantiene la sesión; el socket y api.js
+              // renuevan el token apenas vuelva la conexión.
+              restoreSession(currentUser);
+            }
+          }
         } else {
           // Token expirado o no existe, limpiar
           authService.logout();

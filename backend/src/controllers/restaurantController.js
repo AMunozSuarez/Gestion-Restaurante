@@ -152,8 +152,9 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
             },
             fieldName: 'inventoryEnabled',
         },
-        // kitchenDisplay.enabled NO se expone aquí a propósito: solo el super_admin puede
-        // activarla/desactivarla, vía PUT /admin/restaurants/:id (adminController.updateRestaurant).
+        // kitchenDisplay.enabled y customerDisplay.enabled NO se exponen aquí a propósito: solo
+        // el super_admin puede activarlas/desactivarlas, vía PUT /admin/restaurants/:id
+        // (adminController.updateRestaurant).
         {
             nested: payload?.kitchenDisplay?.requireReadyToClose,
             flat: payload?.kitchenDisplayRequireReadyToClose,

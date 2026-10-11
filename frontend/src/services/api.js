@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getSocketId } from './socketService';
+import { clearSessionAndRedirect, refreshAccessToken } from './authSession';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -32,15 +33,6 @@ let failedQueue = [];
 const processQueue = (error, token = null) => {
   failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token)));
   failedQueue = [];
-};
-
-const clearSessionAndRedirect = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('refreshToken');
-  localStorage.removeItem('user');
-  if (window.location.pathname !== '/login') {
-    window.location.href = '/login';
-  }
 };
 
 api.interceptors.response.use(
@@ -88,9 +80,7 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
-      const { token } = data;
-      localStorage.setItem('token', token);
+      const token = await refreshAccessToken();
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       processQueue(null, token);
       originalRequest.headers.Authorization = `Bearer ${token}`;

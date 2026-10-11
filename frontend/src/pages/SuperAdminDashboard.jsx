@@ -1094,6 +1094,7 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
     address: restaurant?.address || '',
     isActive: restaurant?.isActive !== undefined ? restaurant.isActive : true,
     kitchenDisplayEnabled: Boolean(restaurant?.settings?.kitchenDisplay?.enabled),
+    customerDisplayEnabled: Boolean(restaurant?.settings?.customerDisplay?.enabled),
     ownerName: '',
     ownerEmail: '',
     ownerPassword: '',
@@ -1110,6 +1111,7 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
         address: formData.address,
         isActive: formData.isActive,
         kitchenDisplayEnabled: formData.kitchenDisplayEnabled,
+        customerDisplayEnabled: formData.customerDisplayEnabled,
       });
     } else {
       // Crear restaurante con propietario
@@ -1184,6 +1186,21 @@ const RestaurantModal = ({ restaurant, onClose, onSave }) => {
               />
               <label htmlFor="kitchenDisplayEnabled" className="ml-2 text-sm font-medium text-gray-700">
                 Pantalla de Cocina (KDS) habilitada
+              </label>
+            </div>
+          )}
+
+          {restaurant && (
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="customerDisplayEnabled"
+                checked={formData.customerDisplayEnabled}
+                onChange={(e) => setFormData({ ...formData, customerDisplayEnabled: e.target.checked })}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="customerDisplayEnabled" className="ml-2 text-sm font-medium text-gray-700">
+                Pantalla de Cliente (mostrador) habilitada
               </label>
             </div>
           )}

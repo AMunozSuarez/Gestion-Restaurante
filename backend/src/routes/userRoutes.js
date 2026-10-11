@@ -8,7 +8,8 @@ const {
     createEmployeeController,
     getUsersByRestaurantController,
     updateEmployeeController,
-    toggleUserActiveController
+    toggleUserActiveController,
+    forceLogoutController
 } = require('../controllers/userControllers');
 const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
@@ -41,5 +42,8 @@ router.post('/createEmployee', authMiddleware, roleMiddleware('owner'), createEm
 
 // Activar/desactivar usuario
 router.patch('/toggleUserActive/:id', authMiddleware, roleMiddleware('owner'), toggleUserActiveController);
+
+// Cerrar remotamente todas las sesiones de un usuario
+router.post('/forceLogout/:id', authMiddleware, roleMiddleware('owner'), forceLogoutController);
 
 module.exports = router; // Export the router
