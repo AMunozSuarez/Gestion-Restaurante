@@ -26,6 +26,8 @@ const FONT = {
   item: 'clamp(1.05rem, 3.6vmin, 1.9rem)',
   small: 'clamp(0.85rem, 2.6vmin, 1.3rem)',
   total: 'clamp(1.8rem, 7.5vmin, 3.8rem)',
+  // El número de pedido es lo que el cliente debe recordar: lo más grande de la pantalla
+  number: 'clamp(3rem, 16vmin, 9rem)',
 };
 
 const itemSignature = (item) => `${item.quantity}|${item.lineTotal}|${item.comment}`;
@@ -252,9 +254,16 @@ const CustomerDisplay = () => {
         </div>
       ) : status === 'confirmed' ? (
         <div className="h-full flex flex-col items-center justify-center text-center px-[6vmin] bg-primary-600 text-white">
-          <p className="font-display font-bold" style={{ fontSize: FONT.hero }}>¡Gracias!</p>
+          <p className="font-display font-bold break-words max-w-full" style={{ fontSize: FONT.hero }}>
+            {customerName ? `¡Gracias, ${customerName}!` : '¡Gracias!'}
+          </p>
           {orderNumber != null && (
-            <p className="mt-[2vmin] font-semibold" style={{ fontSize: FONT.title }}>Pedido #{orderNumber}</p>
+            <>
+              <p className="mt-[4vmin] text-primary-100" style={{ fontSize: FONT.title }}>Tu pedido es el</p>
+              <p className="font-display font-bold tabular-nums leading-none mt-[1vmin]" style={{ fontSize: FONT.number }}>
+                N° {orderNumber}
+              </p>
+            </>
           )}
         </div>
       ) : (

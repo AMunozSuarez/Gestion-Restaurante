@@ -3,7 +3,7 @@ import axios from 'axios';
 // Manejo de la sesión compartido por api.js (HTTP) y socketService.js (socket).
 // Vive aparte para que esos dos módulos no se importen entre sí.
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 export const clearSessionAndRedirect = () => {
   localStorage.removeItem('token');
