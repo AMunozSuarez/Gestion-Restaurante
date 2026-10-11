@@ -436,7 +436,7 @@ const SubscriptionAdmin = () => {
                     <p className="mt-4">
                       <strong>Webhook URL:</strong>
                       <code className="ml-2 px-2 py-1 bg-gray-200 rounded">
-                        {process.env.REACT_APP_API_URL}/webhooks/mercadopago
+                        {import.meta.env.VITE_API_URL}/webhooks/mercadopago
                       </code>
                     </p>
                   </div>

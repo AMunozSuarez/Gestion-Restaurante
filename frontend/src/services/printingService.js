@@ -3,7 +3,7 @@ import printerConfigService from './printerConfigService';
 import restaurantService from './restaurantService';
 
 // Configuracion base para el servicio de impresion
-const PRINTING_SERVICE_URL = process.env.REACT_APP_PRINTING_SERVICE_URL || 'http://localhost:8088';
+const PRINTING_SERVICE_URL = import.meta.env.VITE_PRINTING_SERVICE_URL || 'http://localhost:8088';
 
 // Crear instancia especifica para el servicio de impresion
 const printingApi = axios.create({
