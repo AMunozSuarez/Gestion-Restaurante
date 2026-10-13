@@ -300,9 +300,13 @@ const TableManagement = () => {
     };
 
     // Funciones para crear mesa
-    const getNextTableNumber = () => tables.length > 0
-        ? Math.max(...tables.map(t => t.tableNumber)) + 1
-        : 1;
+    // El número es único por sección: Salón 1 y Terraza 1 pueden coexistir
+    const getNextTableNumber = () => {
+        const inSection = tables.filter(t => (t.section || 'Salón') === currentSection);
+        return inSection.length > 0
+            ? Math.max(...inSection.map(t => t.tableNumber)) + 1
+            : 1;
+    };
 
     const handleOpenAddTableModal = () => {
         setNewTable({ tableNumber: String(getNextTableNumber()), capacity: 4 });
@@ -635,11 +639,11 @@ const TableManagement = () => {
             return { right: false, bottom: false };
         }
         const pos = getEffectivePosition(table);
-        const groupNumbers = new Set(table.mergedGroup.map(t => t.tableNumber));
+        const groupIds = new Set(table.mergedGroup.map(t => String(t._id)));
         let right = false;
         let bottom = false;
         filteredTables.forEach(partner => {
-            if (!groupNumbers.has(partner.tableNumber)) return;
+            if (!groupIds.has(String(partner._id))) return;
             const p = getEffectivePosition(partner);
             if (p.y === pos.y && p.x === pos.x + 1) right = true;
             if (p.x === pos.x && p.y === pos.y + 1) bottom = true;
@@ -741,21 +745,22 @@ const TableManagement = () => {
         const groups = new Map();
         tables.forEach(table => {
             if (!Array.isArray(table.mergedGroup) || table.mergedGroup.length === 0) return;
-            const numbers = [table.tableNumber, ...table.mergedGroup.map(t => t.tableNumber)]
-                .filter(n => n !== undefined && n !== null)
-                .sort((a, b) => a - b);
-            if (numbers.length > 1) groups.set(numbers.join('-'), numbers);
+            const ids = [table._id, ...table.mergedGroup.map(t => t._id)]
+                .filter(id => id !== undefined && id !== null)
+                .map(String)
+                .sort();
+            if (ids.length > 1) groups.set(ids.join('-'), ids);
         });
 
         const sectionOf = (table) => table.section || 'Salón';
         const disconnected = [];
 
-        groups.forEach(numbers => {
-            const members = numbers
-                .map(n => tables.find(t => t.tableNumber === n))
+        groups.forEach(ids => {
+            const members = ids
+                .map(id => tables.find(t => String(t._id) === id))
                 .filter(Boolean);
             // Si no se resolvieron todos los miembros no opinamos: seria un falso positivo
-            if (members.length !== numbers.length) return;
+            if (members.length !== ids.length) return;
 
             // BFS sobre vecinos ortogonales dentro del grupo
             const pending = members.slice(1);
@@ -774,7 +779,7 @@ const TableManagement = () => {
                 }
             }
 
-            if (pending.length > 0) disconnected.push(numbers);
+            if (pending.length > 0) disconnected.push(members.map(m => m.tableNumber).sort((a, b) => a - b));
         });
 
         return disconnected;

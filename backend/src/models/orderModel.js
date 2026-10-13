@@ -112,6 +112,10 @@ const orderSchema = new mongoose.Schema({
     tableNumber: {
         type: Number, // Número de mesa (para pedidos de sección "mesas")
     },
+    tableSection: {
+        type: String, // Sección del salón a la que pertenece la mesa (ej. "Terraza")
+        default: null,
+    },
     waiter: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User', // Mesero asignado a la orden
@@ -160,7 +164,9 @@ const orderSchema = new mongoose.Schema({
     // Si el pedido vuelve a su mesa original el campo se limpia por completo.
     tableTransfer: {
         fromTableNumber: { type: Number },
+        fromTableSection: { type: String },
         toTableNumber: { type: Number },
+        toTableSection: { type: String },
         at: { type: Date },
     },
     // Varias cuentas se unieron en una sola. Cocina ya tiene comandas impresas con

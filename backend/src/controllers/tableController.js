@@ -11,7 +11,7 @@ const getTables = async (req, res) => {
             .populate('currentOrder')
             .populate('waiter', 'userName email')
             .populate('tag', 'name color')
-            .populate('mergedGroup', 'tableNumber')
+            .populate('mergedGroup', 'tableNumber section')
             .sort({ tableNumber: 1 });
 
         res.json(tables);
@@ -37,7 +37,7 @@ const getTableById = async (req, res) => {
             })
             .populate('waiter', 'userName email')
             .populate('tag', 'name color')
-            .populate('mergedGroup', 'tableNumber');
+            .populate('mergedGroup', 'tableNumber section');
 
         if (!table) {
             return res.status(404).json({ message: 'Mesa no encontrada' });
@@ -55,21 +55,24 @@ const createTable = async (req, res) => {
     try {
         const { tableNumber, capacity, position, section } = req.body;
         
-        // Verificar si ya existe una mesa con ese número
-        const existingTable = await Table.findOne({ 
-            tableNumber, 
-            restaurant: req.restaurantId 
+        const tableSection = section || 'Salón';
+
+        // Verificar si ya existe una mesa con ese número en la misma sección
+        const existingTable = await Table.findOne({
+            tableNumber,
+            section: tableSection,
+            restaurant: req.restaurantId
         });
-        
+
         if (existingTable) {
-            return res.status(400).json({ message: 'Ya existe una mesa con ese número' });
+            return res.status(400).json({ message: 'Ya existe una mesa con ese número en esta sección' });
         }
-        
+
         const table = new Table({
             tableNumber,
             capacity: capacity || 4,
             position: position || { x: 0, y: 0 },
-            section: section || 'Salón',
+            section: tableSection,
             restaurant: req.restaurantId,
         });
         
@@ -95,18 +98,22 @@ const updateTable = async (req, res) => {
             return res.status(404).json({ message: 'Mesa no encontrada' });
         }
         
-        // Si se cambia el número de mesa, verificar que no exista otra con ese número
-        if (tableNumber && tableNumber !== table.tableNumber) {
-            const existingTable = await Table.findOne({ 
-                tableNumber, 
+        // Si se cambia el número o la sección, verificar que no exista otra mesa
+        // con ese número en la sección resultante
+        const finalNumber = tableNumber || table.tableNumber;
+        const finalSection = section !== undefined ? section : table.section;
+        if (finalNumber !== table.tableNumber || finalSection !== table.section) {
+            const existingTable = await Table.findOne({
+                tableNumber: finalNumber,
+                section: finalSection,
                 restaurant: req.restaurantId,
                 _id: { $ne: req.params.id }
             });
-            
+
             if (existingTable) {
-                return res.status(400).json({ message: 'Ya existe una mesa con ese número' });
+                return res.status(400).json({ message: 'Ya existe una mesa con ese número en esta sección' });
             }
-            table.tableNumber = tableNumber;
+            table.tableNumber = finalNumber;
         }
         
         if (capacity !== undefined) table.capacity = capacity;
@@ -120,7 +127,7 @@ const updateTable = async (req, res) => {
         const populatedTable = await Table.findById(table._id)
             .populate('waiter', 'userName email')
             .populate('tag', 'name color')
-            .populate('mergedGroup', 'tableNumber');
+            .populate('mergedGroup', 'tableNumber section');
         res.json(populatedTable);
     } catch (error) {
         console.error('Error al actualizar mesa:', error);
@@ -191,7 +198,7 @@ const openTable = async (req, res) => {
             .populate('waiter', 'userName email')
             .populate('tag', 'name color')
             .populate('currentOrder')
-            .populate('mergedGroup', 'tableNumber');
+            .populate('mergedGroup', 'tableNumber section');
 
         try {
             getIO().to(`restaurant:${req.restaurantId}`).emit('table:updated', { table: populatedTable });
@@ -352,7 +359,7 @@ const updateTablePositions = async (req, res) => {
             .populate('currentOrder')
             .populate('waiter', 'userName email')
             .populate('tag', 'name color')
-            .populate('mergedGroup', 'tableNumber')
+            .populate('mergedGroup', 'tableNumber section')
             .sort({ tableNumber: 1 });
         
         res.json(updatedTables);
@@ -396,7 +403,7 @@ const assignOrderToTable = async (req, res) => {
                 })
                 .populate('waiter', 'userName email')
             .populate('tag', 'name color')
-                .populate('mergedGroup', 'tableNumber');
+                .populate('mergedGroup', 'tableNumber section');
             return res.json(populatedTable);
         }
 
@@ -437,7 +444,7 @@ const assignOrderToTable = async (req, res) => {
             })
             .populate('waiter', 'userName email')
             .populate('tag', 'name color')
-            .populate('mergedGroup', 'tableNumber');
+            .populate('mergedGroup', 'tableNumber section');
 
         try {
             getIO().to(`restaurant:${req.restaurantId}`).emit('table:updated', { table: populatedTable });
@@ -495,7 +502,7 @@ const populateForBroadcast = (query) => query
     })
     .populate('waiter', 'userName email')
     .populate('tag', 'name color')
-    .populate('mergedGroup', 'tableNumber');
+    .populate('mergedGroup', 'tableNumber section');
 
 const emitTableUpdated = (restaurantId, table) => {
     try {
@@ -545,6 +552,12 @@ const mergeTables = async (req, res) => {
 
         if (tables.length !== allIds.size) {
             return res.status(404).json({ message: 'Una o más mesas del grupo no fueron encontradas' });
+        }
+
+        // Con números repetidos entre secciones, mezclar secciones dejaría una
+        // cuenta compartida sin un lugar claro donde servirla.
+        if (new Set(tables.map((t) => t.section || 'Salón')).size > 1) {
+            return res.status(400).json({ message: 'Solo se pueden unir mesas de la misma sección' });
         }
 
         const primary = tables.reduce((min, t) => (t.tableNumber < min.tableNumber ? t : min), tables[0]);
@@ -606,6 +619,7 @@ const mergeTables = async (req, res) => {
             if (!allReady) sharedOrder.kitchenReadyAt = null;
 
             sharedOrder.tableNumber = primary.tableNumber;
+            sharedOrder.tableSection = primary.section || null;
 
             const needsKitchenNotice = originalTableNumbers.length > 1
                 || originalTableNumbers[0] !== primary.tableNumber;
@@ -810,13 +824,18 @@ const splitTable = async (req, res) => {
                 if (hasActiveOrder) {
                     // Cocina tiene la comanda con el número de la mesa que se fue
                     order.tableNumber = toTableNumber;
+                    order.tableSection = newPrimary.section || null;
                     const originalTableNumber = order.tableTransfer?.fromTableNumber ?? fromTableNumber;
-                    if (originalTableNumber === toTableNumber) {
+                    const originalTableSection = order.tableTransfer?.fromTableSection ?? (primary.section || null);
+                    const toTableSection = newPrimary.section || null;
+                    if (originalTableNumber === toTableNumber && originalTableSection === toTableSection) {
                         order.set('tableTransfer', undefined);
                     } else {
                         order.tableTransfer = {
                             fromTableNumber: originalTableNumber,
+                            fromTableSection: originalTableSection,
                             toTableNumber,
+                            toTableSection,
                             at: new Date(),
                         };
                     }
@@ -1024,15 +1043,22 @@ const moveTable = async (req, res) => {
         // conserva aunque la cuenta pase por varias mesas. Si el pedido volvió a su
         // mesa de origen ya no hay nada que avisar y el aviso se borra.
         order.tableNumber = toTableNumber;
+        order.tableSection = target.section || null;
+        // Con números repetidos entre secciones, "volvió al origen" exige que
+        // coincidan número Y sección.
         const originalTableNumber = order.tableTransfer?.fromTableNumber ?? fromTableNumber;
-        if (originalTableNumber === toTableNumber) {
+        const originalTableSection = order.tableTransfer?.fromTableSection ?? (source.section || null);
+        const toTableSection = target.section || null;
+        if (originalTableNumber === toTableNumber && originalTableSection === toTableSection) {
             // set(undefined) es lo que genera el $unset en un path anidado;
             // una asignación directa dejaría el objeto con sus claves vacías.
             order.set('tableTransfer', undefined);
         } else {
             order.tableTransfer = {
                 fromTableNumber: originalTableNumber,
+                fromTableSection: originalTableSection,
                 toTableNumber,
+                toTableSection,
                 at: new Date(),
             };
         }

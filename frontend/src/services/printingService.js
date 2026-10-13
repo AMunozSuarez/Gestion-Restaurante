@@ -404,6 +404,12 @@ const buildRestaurantSettingsPayload = (settings = {}) => {
 };
 
 // Funcion auxiliar para normalizar texto y eliminar caracteres especiales
+// "Mesa 16 (Terraza)": con números repetidos entre secciones, el número solo no identifica la mesa
+const formatTableRef = (number, section) => {
+  const sectionText = section ? normalizeText(String(section)) : '';
+  return `Mesa ${number}${sectionText ? ` (${sectionText})` : ''}`;
+};
+
 const normalizeText = (text) => {
   if (!text) return text;
   return text
@@ -1200,8 +1206,10 @@ la fuente esta configurada bien.
 No. Orden: #${orderNumber}
 `;
 
-    content += `[BOLD]DE:  Mesa ${fromTableNumber}
-A:   Mesa ${toTableNumber}
+    const fromTableSection = options.fromTableSection ?? order.tableTransfer?.fromTableSection ?? '';
+    const toTableSection = options.toTableSection ?? order.tableTransfer?.toTableSection ?? order.tableSection ?? '';
+    content += `[BOLD]DE:  ${formatTableRef(fromTableNumber, fromTableSection)}
+A:   ${formatTableRef(toTableNumber, toTableSection)}
 [/BOLD]
 `;
 
@@ -1314,8 +1322,9 @@ A:   Mesa ${toTableNumber}
 No. Orden: #${orderNumber}
 `;
 
-    content += `[BOLD]UNEN: Mesa ${tableNumbers.join(' + Mesa ')}
-CUENTA UNICA: Mesa ${intoTableNumber}
+    const mergeSection = order.tableSection ? ` (${normalizeText(order.tableSection)})` : '';
+    content += `[BOLD]UNEN: Mesa ${tableNumbers.join(' + Mesa ')}${mergeSection}
+CUENTA UNICA: Mesa ${intoTableNumber}${mergeSection}
 [/BOLD]
 `;
 
@@ -1383,7 +1392,7 @@ No. Orden: #${orderNumber}
 `;
 
     if (isMesas) {
-      if (tableNumber) content += `Mesa: ${tableNumber}\n`;
+      if (tableNumber) content += `Mesa: ${tableNumber}${order.tableSection ? ` (${normalizeText(order.tableSection)})` : ''}\n`;
       if (waiterName) content += `Garzon: ${waiterName}\n`;
     } else {
       content += `Cliente: ${customer}\n`;
@@ -1652,12 +1661,16 @@ No. Orden: #${orderNumber}
 
     const headerDetailLines = [`No. Orden: #${orderNumber}`];
     if (isMesas) {
-      if (tableNumber) headerDetailLines.push(`Mesa: ${tableNumber}`);
+      const tableSection = normalizeText(order.tableSection || '');
+      if (tableNumber) headerDetailLines.push(`Mesa: ${tableNumber}${tableSection ? ` (${tableSection})` : ''}`);
       // Cocina ya tiene comandas con el número de mesa anterior: se deja a la vista
       // para que no confunda esta comanda con una cuenta distinta.
       const movedFrom = order.tableTransfer?.fromTableNumber;
-      if (movedFrom !== undefined && movedFrom !== null && movedFrom !== '' && Number(movedFrom) !== Number(tableNumber)) {
-        headerDetailLines.push(`*** TRASLADADA DE MESA ${movedFrom} ***`);
+      const movedFromSection = order.tableTransfer?.fromTableSection;
+      const sectionChanged = Boolean(movedFromSection) && movedFromSection !== (order.tableSection || '');
+      if (movedFrom !== undefined && movedFrom !== null && movedFrom !== '' && (Number(movedFrom) !== Number(tableNumber) || sectionChanged)) {
+        const movedFromRef = movedFromSection ? `${movedFrom} (${normalizeText(movedFromSection)})` : movedFrom;
+        headerDetailLines.push(`*** TRASLADADA DE MESA ${movedFromRef} ***`);
       }
       const mergedTables = order.tableMerge?.tableNumbers;
       if (Array.isArray(mergedTables) && mergedTables.length > 1) {
@@ -2178,7 +2191,7 @@ Fecha: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
 Cliente: ${customer}`;
 
     if (tableNumber) {
-      content += `\nMesa: ${tableNumber}`;
+      content += `\nMesa: ${tableNumber}${ticketOrder.tableSection ? ` (${normalizeText(ticketOrder.tableSection)})` : ''}`;
     }
 
     if (waiterName) {

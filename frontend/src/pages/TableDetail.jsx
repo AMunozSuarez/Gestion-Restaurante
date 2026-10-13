@@ -870,6 +870,7 @@ const TableDetail = () => {
                 status: 'Preparacion',
                 comment: comments,
                 tableNumber: table.tableNumber,
+                tableId: table._id,
                 waiter: table.waiter?._id || null,
                 tag: table.tag?._id || null,
                 tip: 0  // Sin propina al enviar a cocina
@@ -1053,6 +1054,7 @@ const TableDetail = () => {
             ...baseOrder,
             foods,
             tableNumber: table?.tableNumber,
+            tableSection: table?.section || baseOrder.tableSection,
             waiter: table?.waiter || baseOrder.waiter,
             paymentMethods: (account.paymentMethods?.[0]?.method)
                 ? [{ method: account.paymentMethods[0].method, amount: getSplitAccountSubtotal(account) + (account.tip || 0) }]
@@ -1162,6 +1164,7 @@ const TableDetail = () => {
                 status: 'Completado',
                 comment: comments,
                 tableNumber: table.tableNumber,
+                tableId: table._id,
                 waiter: table.waiter?._id || null,
                 tag: table.tag?._id || null,
                 tip: totalTip || 0,
@@ -1183,6 +1186,7 @@ const TableDetail = () => {
                     const ticketOrder = {
                         ...(response.order || table.currentOrder),
                         tableNumber: table.tableNumber,
+                        tableSection: table.section || (response.order || table.currentOrder)?.tableSection,
                         tip: totalTip || 0,
                         discount: calculateDiscountAmount(),
                         paymentMethods: orderData.paymentMethods,
@@ -1256,6 +1260,7 @@ const TableDetail = () => {
                 suggestedTip: totalTip,
                 discount: calculateDiscountAmount(),
                 tableNumber: table.tableNumber,
+                tableSection: table.section || table.currentOrder?.tableSection,
                 paymentMethods: validPayments.length > 0 ? validPayments.map((payment, index) => ({
                     method: payment.method,
                     amount: index === 0 && validPayments.length === 1 && !manualPaymentEdit
@@ -1443,7 +1448,7 @@ const TableDetail = () => {
                             </button>
                             <div className="min-w-0">
                                 <h1 className="text-xl lg:text-2xl font-bold text-teal-900 truncate">
-                                    Mesa {table.tableNumber}
+                                    Mesa {table.tableNumber}{table.section ? ` (${table.section})` : ''}
                                 </h1>
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-gray-600">
                                     <div className="flex items-center gap-1">
@@ -1537,7 +1542,7 @@ const TableDetail = () => {
             {showMoveTableModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold text-gray-900 mb-1">Mover Mesa {table.tableNumber}</h3>
+                        <h3 className="text-xl font-bold text-gray-900 mb-1">Mover Mesa {table.tableNumber}{table.section ? ` (${table.section})` : ''}</h3>
                         <p className="text-sm text-gray-600 mb-4">
                             Elige la mesa a la que se traslada esta cuenta.
                         </p>
@@ -1571,7 +1576,7 @@ const TableDetail = () => {
                         {selectedTargetTable && (
                             <div className="mb-4 space-y-2">
                                 <p className="text-sm font-semibold text-gray-900">
-                                    Mesa {table.tableNumber} → Mesa {selectedTargetTable.tableNumber}
+                                    Mesa {table.tableNumber}{table.section ? ` (${table.section})` : ''} → Mesa {selectedTargetTable.tableNumber}{selectedTargetTable.section ? ` (${selectedTargetTable.section})` : ''}
                                 </p>
                                 {Array.isArray(table.mergedGroup) && table.mergedGroup.length > 0 && (
                                     <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
@@ -2059,7 +2064,7 @@ const TableDetail = () => {
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
                         <h3 className="text-lg font-bold text-gray-900 mb-4">
-                            Asignar Mesero a Mesa {table.tableNumber}
+                            Asignar Mesero a Mesa {table.tableNumber}{table.section ? ` (${table.section})` : ''}
                         </h3>
                         
                         <div className="mb-6">
@@ -2107,7 +2112,7 @@ const TableDetail = () => {
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
                         <h3 className="text-lg font-bold text-gray-900 mb-4">
-                            Asignar Etiqueta a Mesa {table.tableNumber}
+                            Asignar Etiqueta a Mesa {table.tableNumber}{table.section ? ` (${table.section})` : ''}
                         </h3>
 
                         <div className="mb-6">
@@ -2155,7 +2160,7 @@ const TableDetail = () => {
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-bold text-gray-900">Cerrar Mesa {table.tableNumber}</h3>
+                            <h3 className="text-xl font-bold text-gray-900">Cerrar Mesa {table.tableNumber}{table.section ? ` (${table.section})` : ''}</h3>
                             {printingService.getDrawerPrinter() && (printingService.isCurrentUserOwner() || printingService.getDrawerAlwaysOpen()) && (
                                 <button
                                     onClick={async () => {

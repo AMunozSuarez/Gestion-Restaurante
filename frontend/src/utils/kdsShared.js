@@ -51,7 +51,9 @@ export const getUrgencyVariant = (elapsedMinutes) => {
 
 export const getOrderLabel = (order) => {
   if (order.section === 'mesas') {
-    const table = order.tableNumber ? `Mesa ${order.tableNumber}` : 'Mesa s/n';
+    const table = order.tableNumber
+      ? `Mesa ${order.tableNumber}${order.tableSection ? ` (${order.tableSection})` : ''}`
+      : 'Mesa s/n';
     const waiterName = order.waiter?.userName || order.waiter?.name || '';
     return waiterName ? `${table} · ${waiterName}` : table;
   }
@@ -69,8 +71,13 @@ export const getTableMoveInfo = (order) => {
   if (!transfer?.at) return null;
   const from = transfer.fromTableNumber;
   const to = transfer.toTableNumber;
-  if (from === undefined || from === null || from === to) return null;
-  return { from, to };
+  if (from === undefined || from === null) return null;
+  // Con números repetidos entre secciones, mismo número no implica misma mesa
+  if (from === to && (transfer.fromTableSection || null) === (transfer.toTableSection || null)) return null;
+  return {
+    from: transfer.fromTableSection ? `${from} (${transfer.fromTableSection})` : from,
+    to: transfer.toTableSection ? `${to} (${transfer.toTableSection})` : to,
+  };
 };
 
 // Varias cuentas se unieron en una sola después de mandar las comandas: cocina
@@ -81,7 +88,7 @@ export const getTableMergeInfo = (order) => {
   const tableNumbers = Array.isArray(merge.tableNumbers) ? merge.tableNumbers : [];
   const into = merge.intoTableNumber;
   if (tableNumbers.length === 0 || into === undefined || into === null) return null;
-  return { tableNumbers, into };
+  return { tableNumbers, into, section: order.tableSection || '' };
 };
 
 export const getItemCategoryId = (item) => {

@@ -109,12 +109,12 @@ const closeCashRegister = async (req, res) => {
                 cashRegister: activeCashRegister._id,
                 status: 'Preparacion'
             })
-            .select('orderNumber section tableNumber')
+            .select('orderNumber section tableNumber tableSection')
             .lean();
 
         if (pendingOrders.length > 0) {
             const detalle = pendingOrders
-                .map((o) => `#${o.orderNumber}${o.tableNumber ? ` (mesa ${o.tableNumber})` : ` (${o.section})`}`)
+                .map((o) => `#${o.orderNumber}${o.tableNumber ? ` (mesa ${o.tableNumber}${o.tableSection ? ` ${o.tableSection}` : ''})` : ` (${o.section})`}`)
                 .join(', ');
 
             return res.status(400).send({

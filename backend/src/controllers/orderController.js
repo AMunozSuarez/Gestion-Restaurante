@@ -158,7 +158,9 @@ const createOrderController = async (req, res) => {
                 return Table.findOne({ _id: tableId, restaurant: restaurantId });
             }
             if (tableNumber) {
-                return Table.findOne({ tableNumber, restaurant: restaurantId });
+                // Clientes antiguos sin tableId: con números repetidos entre secciones
+                // se prioriza la sección por defecto para mantener el comportamiento previo.
+                return Table.findOne({ tableNumber, restaurant: restaurantId }).sort({ section: 1 });
             }
             return null;
         })();
@@ -340,6 +342,7 @@ const createOrderController = async (req, res) => {
             buyer: customer ? customer._id : null,
             selectedAddress: customer ? selectedAddress : null,
             tableNumber: tableNumber || null,
+            tableSection: table?.section || null,
             waiter: waiter || null,
             tag: tag || null,
             tip: tip || 0,

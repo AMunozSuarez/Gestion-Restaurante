@@ -158,7 +158,7 @@ const KitchenOrderCard = ({
             className="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-0.5 text-sm font-bold text-gray-900"
             title="Las cuentas se unieron: las comandas impresas tienen los números de mesa originales"
           >
-            ⊕ Mesas {tableMerge.tableNumbers.join(' + ')} unidas → Mesa {tableMerge.into}
+            ⊕ Mesas {tableMerge.tableNumbers.join(' + ')} unidas → Mesa {tableMerge.into}{tableMerge.section ? ` (${tableMerge.section})` : ''}
           </div>
         )}
       </div>

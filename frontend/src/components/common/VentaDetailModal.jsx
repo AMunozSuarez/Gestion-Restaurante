@@ -941,7 +941,7 @@ const VentaDetailModal = ({ venta, isOpen, onClose, onVentaUpdated, products = [
                   {/* Mostrar mesa si existe */}
                   {venta.tableNumber && (
                     <div className="mt-1 text-sm text-gray-600">
-                      <span className="font-medium">Mesa:</span> #{venta.tableNumber}
+                      <span className="font-medium">Mesa:</span> #{venta.tableNumber}{venta.tableSection ? ` (${venta.tableSection})` : ''}
                     </div>
                   )}
 

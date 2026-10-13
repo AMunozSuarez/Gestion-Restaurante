@@ -63,7 +63,7 @@ const tableSchema = new mongoose.Schema({
     timestamps: true,
 });
 
-// Índice compuesto para evitar números de mesa duplicados en el mismo restaurante
-tableSchema.index({ tableNumber: 1, restaurant: 1 }, { unique: true });
+// El número de mesa es único por sección dentro del restaurante: Salón 1 y Terraza 1 pueden coexistir
+tableSchema.index({ tableNumber: 1, section: 1, restaurant: 1 }, { unique: true });
 
 module.exports = mongoose.model('Table', tableSchema);
