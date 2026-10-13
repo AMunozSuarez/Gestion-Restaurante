@@ -67,6 +67,8 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
         inventory: { ...(currentSettings.inventory || {}) },
         kitchenDisplay: { ...(currentSettings.kitchenDisplay || {}) },
         sales: { ...(currentSettings.sales || {}) },
+        customerDisplay: { ...(currentSettings.customerDisplay || {}) },
+        tables: { ...(currentSettings.tables || {}) },
     };
 
     let hasChanges = false;
@@ -92,6 +94,17 @@ const applyRestaurantSettingsPatch = (currentSettings, payload = {}) => {
         }
 
         nextSettings.printing.extraSectionPrintDestinations = normalizedExtraSectionResult.normalized;
+        hasChanges = true;
+    }
+
+    const resolvedSectionOrder = payload?.tables?.sectionOrder ?? payload?.tableSectionOrder;
+    if (resolvedSectionOrder !== undefined) {
+        if (!Array.isArray(resolvedSectionOrder) || resolvedSectionOrder.some((name) => typeof name !== 'string')) {
+            return { hasChanges: false, error: 'sectionOrder debe ser un arreglo de nombres de sección.' };
+        }
+        nextSettings.tables.sectionOrder = [
+            ...new Set(resolvedSectionOrder.map((name) => name.trim()).filter(Boolean)),
+        ];
         hasChanges = true;
     }
 

@@ -30,6 +30,9 @@ const RESTAURANT_SETTINGS_DEFAULTS = Object.freeze({
     sales: {
         allowTipOnCounterSale: false,
     },
+    tables: {
+        sectionOrder: [],
+    },
 });
 
 const normalizeRestaurantSettings = (settings = {}) => {
@@ -89,6 +92,11 @@ const normalizeRestaurantSettings = (settings = {}) => {
         },
         sales: {
             allowTipOnCounterSale: Boolean(settings?.sales?.allowTipOnCounterSale),
+        },
+        tables: {
+            sectionOrder: Array.isArray(settings?.tables?.sectionOrder)
+                ? settings.tables.sectionOrder.filter((name) => typeof name === 'string' && name.trim())
+                : [],
         },
     };
 };
@@ -228,6 +236,13 @@ const restaurantSchema = new mongoose.Schema({
             allowTipOnCounterSale: {
                 type: Boolean,
                 default: RESTAURANT_SETTINGS_DEFAULTS.sales.allowTipOnCounterSale,
+            },
+        },
+        // Orden de las pestañas de sección de mesas (compartido web + app meseros)
+        tables: {
+            sectionOrder: {
+                type: [String],
+                default: RESTAURANT_SETTINGS_DEFAULTS.tables.sectionOrder,
             },
         },
     },

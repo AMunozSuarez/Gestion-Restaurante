@@ -6,6 +6,7 @@ import { useWaiters } from '../hooks/useUsers';
 import { useTags } from '../hooks/useTags';
 import CashRegisterAlert from '../components/common/CashRegisterAlert';
 import printingService from '../services/printingService';
+import restaurantService from '../services/restaurantService';
 import { 
     PlusIcon, 
     PencilIcon, 
@@ -101,12 +102,15 @@ const TableManagement = () => {
     // Posiciones movidas durante el modo edición, aún no guardadas en el servidor: { [tableId]: {x, y} }
     const [pendingPositions, setPendingPositions] = useState({});
     const [isSavingPositions, setIsSavingPositions] = useState(false);
-    const [currentSection, setCurrentSection] = useState('Salón');
+    // null = aún no eligió: se muestra la primera sección según el orden configurado
+    const [selectedSection, setCurrentSection] = useState(null);
     const [showSectionModal, setShowSectionModal] = useState(false);
     const [newSectionName, setNewSectionName] = useState('');
     const [editingSectionName, setEditingSectionName] = useState(null);
     const [sectionToEdit, setSectionToEdit] = useState('');
-    const [customSections, setCustomSections] = useState(['Salón']);
+    const [customSections, setCustomSections] = useState([]);
+    const [orderLoaded, setOrderLoaded] = useState(false);
+    const savedOrderRef = useRef('');
     const [mergeMode, setMergeMode] = useState(false);
     const [selectedForMerge, setSelectedForMerge] = useState([]);
     const [showMergeConfirmModal, setShowMergeConfirmModal] = useState(false);
@@ -133,6 +137,22 @@ const TableManagement = () => {
         }
     }, []);
 
+    // El orden de las secciones vive en el servidor para que la app de meseros lo respete.
+    // Si el servidor aún no tiene orden, se conserva el de localStorage (migración).
+    useEffect(() => {
+        let cancelled = false;
+        restaurantService.getMyRestaurantSettings()
+            .then(({ settings }) => {
+                if (cancelled) return;
+                const serverOrder = settings?.tables?.sectionOrder || [];
+                savedOrderRef.current = JSON.stringify(serverOrder);
+                if (serverOrder.length > 0) setCustomSections(serverOrder);
+            })
+            .catch(error => console.error('Error loading section order:', error))
+            .finally(() => { if (!cancelled) setOrderLoaded(true); });
+        return () => { cancelled = true; };
+    }, []);
+
     // Guardar secciones personalizadas en localStorage cuando cambien
     useEffect(() => {
         localStorage.setItem('tableSections', JSON.stringify(customSections));
@@ -143,7 +163,21 @@ const TableManagement = () => {
     // en modo edición) en vez de ordenar alfabéticamente.
     const tableSections = [...new Set(tables.map(t => t.section || 'Salón'))];
     const sections = [...customSections, ...tableSections.filter(s => !customSections.includes(s))];
-    
+
+    // Sección visible: la elegida si existe; si no, la primera según el orden
+    const currentSection = sections.includes(selectedSection) ? selectedSection : (sections[0] || 'Salón');
+
+    // Sincroniza el orden actual con el servidor (solo el dueño puede escribirlo; otros roles fallan en silencio)
+    const sectionsKey = JSON.stringify(sections);
+    useEffect(() => {
+        if (!orderLoaded || isLoading || sections.length === 0) return;
+        if (sectionsKey === savedOrderRef.current) return;
+        savedOrderRef.current = sectionsKey;
+        restaurantService.updateMyRestaurantSettings({ tables: { sectionOrder: sections } })
+            .catch(error => console.error('Error saving section order:', error));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [orderLoaded, isLoading, sectionsKey]);
+
     // Filtrar mesas por sección actual
     const filteredTables = tables.filter(t => (t.section || 'Salón') === currentSection);
 
